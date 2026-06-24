@@ -737,27 +737,14 @@
     button.textContent =
       'เปิดหน้าสถานะ';
 
-    /*
-     * หน้า module.html
-     * จะเขียนในรอบถัดไป
-     */
     button.addEventListener(
       'click',
-      async () => {
-        await Swal.fire({
-          icon:
-            'info',
-
-          title:
-            module.name ||
-            'โมดูล',
-
-          text:
-            'หน้าแสดงสถานะรถจะเพิ่มในรอบถัดไป',
-
-          confirmButtonText:
-            'รับทราบ'
-        });
+      () => {
+        window.location.href =
+          './module.html?id=' +
+          encodeURIComponent(
+            module.id
+          );
       }
     );
 
