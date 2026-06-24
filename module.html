@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0f3d5e"
+  >
+
+  <title>
+    สถานะรถ | ระบบติดตามสถานะรถและตู้สินค้า
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="./styles.css"
+  >
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
+    defer
+  ></script>
+
+  <script
+    src="./config.js"
+    defer
+  ></script>
+
+  <script
+    src="./api.js"
+    defer
+  ></script>
+
+  <script
+    src="./module.js"
+    defer
+  ></script>
+</head>
+
+<body
+  data-page="module"
+  class="module-page"
+>
+  <div
+    id="pageLoading"
+    class="page-loading"
+  >
+    <div class="spinner"></div>
+
+    <span>
+      กำลังโหลดข้อมูลสถานะรถ
+    </span>
+  </div>
+
+  <header class="module-header">
+    <div class="module-header__inner">
+      <div class="module-header__top">
+        <button
+          id="backButton"
+          class="icon-text-button"
+          type="button"
+        >
+          <span aria-hidden="true">←</span>
+          หน้าหลัก
+        </button>
+
+        <div class="module-user">
+          <span id="userDisplayName">
+            กำลังโหลด...
+          </span>
+
+          <button
+            id="logoutButton"
+            class="icon-text-button icon-text-button--danger"
+            type="button"
+          >
+            ออกจากระบบ
+          </button>
+        </div>
+      </div>
+
+      <div class="module-title-row">
+        <div>
+          <p class="eyebrow">
+            LIVE VEHICLE STATUS
+          </p>
+
+          <h1 id="moduleTitle">
+            กำลังโหลดโมดูล...
+          </h1>
+
+          <p id="moduleDescription">
+            กรุณารอสักครู่
+          </p>
+        </div>
+
+        <div class="module-clock">
+          <span>
+            วันที่และเวลาปัจจุบัน
+          </span>
+
+          <strong id="currentDateTime">
+            --/--/---- --:--:--
+          </strong>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="module-container">
+    <section
+      id="summarySection"
+      class="vehicle-summary-grid"
+      aria-label="สรุปสถานะรถ"
+    >
+      <button
+        class="vehicle-summary-card"
+        type="button"
+        data-summary-filter="ALL"
+      >
+        <span>อยู่ในรายการ</span>
+
+        <strong id="summaryTotal">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--normal"
+        type="button"
+        data-summary-filter="NORMAL"
+      >
+        <span>ปกติ</span>
+
+        <strong id="summaryNormal">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--warning"
+        type="button"
+        data-summary-filter="WARNING"
+      >
+        <span>ใกล้เกินเวลา</span>
+
+        <strong id="summaryWarning">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--overdue"
+        type="button"
+        data-summary-filter="OVERDUE"
+      >
+        <span>เกินเวลา</span>
+
+        <strong id="summaryOverdue">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--incomplete"
+        type="button"
+        data-summary-filter="INCOMPLETE"
+      >
+        <span>ข้อมูลไม่สมบูรณ์</span>
+
+        <strong id="summaryIncomplete">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+    </section>
+
+    <section class="vehicle-tools">
+      <label class="vehicle-search">
+        <span class="sr-only">
+          ค้นหาข้อมูลรถ
+        </span>
+
+        <input
+          id="searchInput"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="ค้นหาทะเบียน บริษัท คนขับ หรือเลขนัดหมาย"
+        >
+      </label>
+
+      <label class="vehicle-filter">
+        <span class="sr-only">
+          กรองตามสถานะ
+        </span>
+
+        <select id="statusFilter">
+          <option value="ALL">
+            ทุกสถานะ
+          </option>
+
+          <option value="NORMAL">
+            ปกติ
+          </option>
+
+          <option value="WARNING">
+            ใกล้เกินเวลา
+          </option>
+
+          <option value="OVERDUE">
+            เกินเวลา
+          </option>
+
+          <option value="INCOMPLETE">
+            ข้อมูลไม่สมบูรณ์
+          </option>
+        </select>
+      </label>
+
+      <button
+        id="calendarButton"
+        class="button button--secondary vehicle-tool-button"
+        type="button"
+      >
+        ปฏิทิน
+      </button>
+
+      <button
+        id="refreshButton"
+        class="button button--primary vehicle-tool-button"
+        type="button"
+      >
+        รีเฟรช
+      </button>
+    </section>
+
+    <section class="vehicle-result-header">
+      <div>
+        <strong id="resultCount">
+          0 รายการ
+        </strong>
+
+        <span id="lastUpdated">
+          ยังไม่ได้โหลดข้อมูล
+        </span>
+      </div>
+
+      <div
+        id="autoRefreshStatus"
+        class="auto-refresh-status"
+      >
+        อัปเดตอัตโนมัติ
+      </div>
+    </section>
+
+    <div
+      id="vehicleLoading"
+      class="inline-loading"
+    >
+      <div class="spinner spinner--small"></div>
+
+      <span>
+        กำลังโหลดข้อมูลรถ
+      </span>
+    </div>
+
+    <div
+      id="vehicleEmpty"
+      class="empty-state is-hidden"
+    >
+      <strong>
+        ไม่พบข้อมูลตามเงื่อนไข
+      </strong>
+
+      <span>
+        ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ
+      </span>
+    </div>
+
+    <section
+      id="vehicleList"
+      class="vehicle-grid"
+      aria-live="polite"
+    ></section>
+  </main>
+
+  <footer class="app-footer">
+    วันที่และเวลาทั้งระบบใช้รูปแบบ
+    dd/MM/yyyy HH:mm:ss
+  </footer>
+</body>
+</html>
