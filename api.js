@@ -1,6 +1,11 @@
 /**
  * api.js
  * ตัวกลางเรียก Cloudflare Worker API
+ *
+ * Session:
+ * - เก็บ Signed Session Token ใน sessionStorage
+ * - ส่งผ่าน Authorization: Bearer <token>
+ * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
  */
 (function (window) {
   'use strict';
@@ -9,8 +14,12 @@
     window.APP_CONFIG || {};
 
   const API_BASE =
-    String(CONFIG.API_BASE || '')
-      .replace(/\/+$/, '');
+    String(
+      CONFIG.API_BASE || ''
+    ).replace(/\/+$/, '');
+
+  const TOKEN_STORAGE_KEY =
+    'alertvendor_access_token';
 
   if (!API_BASE) {
     console.error(
@@ -49,6 +58,104 @@
     }
   }
 
+  /************************************************************
+   * Token Storage
+   ************************************************************/
+
+  function getAccessToken() {
+    try {
+      return String(
+        window.sessionStorage
+          .getItem(
+            TOKEN_STORAGE_KEY
+          ) || ''
+      ).trim();
+
+    } catch (error) {
+      console.warn(
+        'ไม่สามารถอ่าน Session Token ได้',
+        error
+      );
+
+      return '';
+    }
+  }
+
+  function setAccessToken(
+    token
+  ) {
+    const cleanToken =
+      String(
+        token || ''
+      ).trim();
+
+    if (!cleanToken) {
+      clearAccessToken();
+      return;
+    }
+
+    try {
+      window.sessionStorage
+        .setItem(
+          TOKEN_STORAGE_KEY,
+          cleanToken
+        );
+
+    } catch (error) {
+      throw new VehicleAPIError(
+        'เบราว์เซอร์ไม่อนุญาตให้บันทึก Session',
+        'SESSION_STORAGE_FAILED',
+        0,
+        {
+          originalMessage:
+            error &&
+            error.message
+              ? error.message
+              : String(error)
+        }
+      );
+    }
+  }
+
+  function clearAccessToken() {
+    try {
+      window.sessionStorage
+        .removeItem(
+          TOKEN_STORAGE_KEY
+        );
+
+    } catch (error) {
+      console.warn(
+        'ไม่สามารถล้าง Session Token ได้',
+        error
+      );
+    }
+  }
+
+  function updateTokenFromData(
+    data
+  ) {
+    const token =
+      data &&
+      data.accessToken
+        ? String(
+            data.accessToken
+          ).trim()
+        : '';
+
+    if (token) {
+      setAccessToken(
+        token
+      );
+    }
+
+    return token;
+  }
+
+  /************************************************************
+   * Request helpers
+   ************************************************************/
+
   function createRequestId() {
     if (
       window.crypto &&
@@ -73,7 +180,9 @@
     query
   ) {
     const cleanPath =
-      String(path || '').startsWith('/')
+      String(
+        path || ''
+      ).startsWith('/')
         ? String(path)
         : '/' + String(path || '');
 
@@ -131,6 +240,7 @@
     try {
       payload =
         JSON.parse(text);
+
     } catch (error) {
       throw new VehicleAPIError(
         'API ไม่ได้ส่ง JSON ที่ถูกต้องกลับมา',
@@ -138,7 +248,10 @@
         response.status,
         {
           preview:
-            text.slice(0, 300)
+            text.slice(
+              0,
+              300
+            )
         },
         response.headers.get(
           'X-Request-Id'
@@ -164,6 +277,22 @@
         payload.error
           ? payload.error
           : {};
+
+      if (
+        response.status === 401 ||
+        [
+          'AUTH_REQUIRED',
+          'SESSION_EXPIRED',
+          'INVALID_SESSION',
+          'INVALID_SESSION_SIGNATURE',
+          'INVALID_SESSION_PAYLOAD',
+          'SESSION_VERSION_EXPIRED'
+        ].includes(
+          apiError.code
+        )
+      ) {
+        clearAccessToken();
+      }
 
       throw new VehicleAPIError(
         apiError.message ||
@@ -202,6 +331,9 @@
         config.method || 'GET'
       ).toUpperCase();
 
+    const useAuthentication =
+      config.auth !== false;
+
     const timeoutMs =
       Math.max(
         5000,
@@ -238,15 +370,34 @@
       createRequestId()
     );
 
+    if (useAuthentication) {
+      const token =
+        getAccessToken();
+
+      if (token) {
+        headers.set(
+          'Authorization',
+          'Bearer ' + token
+        );
+      }
+    }
+
     const fetchOptions = {
       method,
       headers,
+
+      /*
+       * ไม่ใช้ Cookie ข้ามโดเมนแล้ว
+       */
       credentials:
-        'include',
+        'omit',
+
       cache:
         'no-store',
+
       redirect:
         'follow',
+
       signal:
         controller.signal
     };
@@ -320,17 +471,35 @@
     }
   }
 
+  /************************************************************
+   * Public API
+   ************************************************************/
+
   const VehicleAPI = {
     Error:
       VehicleAPIError,
 
     request,
 
+    getAccessToken,
+
+    clearSession:
+      clearAccessToken,
+
+    hasSession() {
+      return Boolean(
+        getAccessToken()
+      );
+    },
+
     async health() {
       const response =
         await request(
           '/api/health',
           {
+            auth:
+              false,
+
             timeoutMs:
               CONFIG.AUTH_TIMEOUT_MS
           }
@@ -343,6 +512,11 @@
       username,
       password
     ) {
+      /*
+       * ล้าง Token เก่าก่อน Login ใหม่
+       */
+      clearAccessToken();
+
       const response =
         await request(
           '/api/auth/login',
@@ -350,21 +524,45 @@
             method:
               'POST',
 
+            auth:
+              false,
+
             timeoutMs:
               CONFIG.AUTH_TIMEOUT_MS,
 
             body: {
               username:
-                String(username || '')
-                  .trim(),
+                String(
+                  username || ''
+                ).trim(),
 
               password:
-                String(password || '')
+                String(
+                  password || ''
+                )
             }
           }
         );
 
-      return response.data;
+      const data =
+        response.data || {};
+
+      const token =
+        updateTokenFromData(
+          data
+        );
+
+      if (!token) {
+        throw new VehicleAPIError(
+          'ระบบเข้าสู่ระบบสำเร็จ แต่ไม่ได้รับ Session Token',
+          'ACCESS_TOKEN_MISSING',
+          502,
+          null,
+          response.requestId || ''
+        );
+      }
+
+      return data;
     },
 
     async me() {
@@ -381,21 +579,30 @@
     },
 
     async logout() {
-      const response =
-        await request(
-          '/api/auth/logout',
-          {
-            method:
-              'POST',
+      try {
+        const response =
+          await request(
+            '/api/auth/logout',
+            {
+              method:
+                'POST',
 
-            timeoutMs:
-              CONFIG.AUTH_TIMEOUT_MS,
+              timeoutMs:
+                CONFIG.AUTH_TIMEOUT_MS,
 
-            body: {}
-          }
-        );
+              body:
+                {}
+            }
+          );
 
-      return response.data;
+        return response.data;
+
+      } finally {
+        /*
+         * Logout ฝั่ง Client ต้องลบ Token เสมอ
+         */
+        clearAccessToken();
+      }
     },
 
     async changePassword(
@@ -426,7 +633,17 @@
           }
         );
 
-      return response.data;
+      const data =
+        response.data || {};
+
+      /*
+       * Worker ส่ง Token ใหม่หลังเปลี่ยนรหัสผ่าน
+       */
+      updateTokenFromData(
+        data
+      );
+
+      return data;
     },
 
     async getModules() {
