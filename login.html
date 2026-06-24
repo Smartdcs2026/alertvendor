@@ -1,1 +1,188 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
 
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0f3d5e"
+  >
+
+  <meta
+    name="color-scheme"
+    content="light"
+  >
+
+  <title>
+    เข้าสู่ระบบ | ระบบติดตามสถานะรถและตู้สินค้า
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="./styles.css"
+  >
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
+    defer
+  ></script>
+
+  <script
+    src="./config.js"
+    defer
+  ></script>
+
+  <script
+    src="./api.js"
+    defer
+  ></script>
+
+  <script
+    src="./auth.js"
+    defer
+  ></script>
+</head>
+
+<body
+  data-page="login"
+  class="login-page"
+>
+  <main class="login-layout">
+    <section
+      class="login-card"
+      aria-labelledby="loginTitle"
+    >
+      <div
+        class="brand-mark"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 64 64"
+          role="img"
+        >
+          <path
+            d="M10 17h29c4 0 7 3 7 7v4h5l7 9v12h-5a8 8 0 0 1-16 0H27a8 8 0 0 1-16 0H6V21c0-2 2-4 4-4Z"
+            fill="currentColor"
+          />
+          <path
+            d="M46 33h5l4 5h-9v-5Z"
+            fill="#ffffff"
+          />
+          <circle
+            cx="19"
+            cy="49"
+            r="4"
+            fill="#ffffff"
+          />
+          <circle
+            cx="45"
+            cy="49"
+            r="4"
+            fill="#ffffff"
+          />
+        </svg>
+      </div>
+
+      <header class="login-header">
+        <p class="eyebrow">
+          WAREHOUSE VEHICLE STATUS
+        </p>
+
+        <h1 id="loginTitle">
+          ระบบติดตามสถานะรถและตู้สินค้า
+        </h1>
+
+        <p>
+          กรุณาเข้าสู่ระบบเพื่อดูสถานะรถในพื้นที่คลัง
+        </p>
+      </header>
+
+      <div class="date-time-panel">
+        <span>วันที่และเวลาปัจจุบัน</span>
+
+        <strong id="currentDateTime">
+          --/--/---- --:--:--
+        </strong>
+      </div>
+
+      <form
+        id="loginForm"
+        class="login-form"
+        autocomplete="on"
+        novalidate
+      >
+        <label class="form-field">
+          <span class="form-label">
+            ชื่อผู้ใช้
+          </span>
+
+          <input
+            id="username"
+            name="username"
+            type="text"
+            inputmode="text"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="80"
+            placeholder="กรอกชื่อผู้ใช้"
+            required
+          >
+        </label>
+
+        <label class="form-field">
+          <span class="form-label">
+            รหัสผ่าน
+          </span>
+
+          <span class="password-control">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              maxlength="128"
+              placeholder="กรอกรหัสผ่าน"
+              required
+            >
+
+            <button
+              id="togglePassword"
+              class="password-toggle"
+              type="button"
+              aria-label="แสดงหรือซ่อนรหัสผ่าน"
+              aria-pressed="false"
+            >
+              แสดง
+            </button>
+          </span>
+        </label>
+
+        <button
+          id="loginButton"
+          class="button button--primary button--login"
+          type="submit"
+        >
+          เข้าสู่ระบบ
+        </button>
+      </form>
+
+      <footer class="login-footer">
+        <span class="security-dot"></span>
+        เชื่อมต่อผ่านระบบยืนยันตัวตนที่ปลอดภัย
+      </footer>
+    </section>
+  </main>
+
+  <noscript>
+    <div class="noscript-message">
+      กรุณาเปิดใช้งาน JavaScript เพื่อใช้งานระบบ
+    </div>
+  </noscript>
+</body>
+</html>
