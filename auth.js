@@ -495,6 +495,19 @@
       roleBadge.dataset.role =
         user.role || 'USER';
     }
+
+
+    const adminButton =
+      document.getElementById(
+        'adminButton'
+      );
+
+    if (adminButton) {
+      adminButton.classList.toggle(
+        'is-hidden',
+        user.role !== 'ADMIN'
+      );
+    }
   }
 
   async function loadModules() {
