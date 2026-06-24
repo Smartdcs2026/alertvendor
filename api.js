@@ -777,6 +777,266 @@
         );
 
       return response.data;
+    },
+
+    async getAdminDashboard(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/dashboard',
+          {
+            query: {
+              auditLimit:
+                config.auditLimit || 30
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getAdminUiSchema() {
+      const response =
+        await request(
+          '/api/admin/ui-schema'
+        );
+
+      return response.data;
+    },
+
+    async getAdminNewModuleTemplate() {
+      const response =
+        await request(
+          '/api/admin/modules/new-template'
+        );
+
+      return response.data;
+    },
+
+    async getAdminModuleBundle(
+      moduleId
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/' +
+          encodeURIComponent(
+            moduleId
+          )
+        );
+
+      return response.data;
+    },
+
+    async inspectAdminSource(
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/source-metadata',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async saveAdminModuleBundle(
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/save',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async duplicateAdminModule(
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/duplicate',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async archiveAdminModule(
+      moduleId
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/archive',
+          {
+            method:
+              'POST',
+
+            body: {
+              moduleId
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getAdminUsers() {
+      const response =
+        await request(
+          '/api/admin/users'
+        );
+
+      return response.data;
+    },
+
+    async saveAdminUser(
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/users/save',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async resetAdminUserPassword(
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/users/reset-password',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async unlockAdminUser(
+      userId
+    ) {
+      const response =
+        await request(
+          '/api/admin/users/unlock',
+          {
+            method:
+              'POST',
+
+            body: {
+              userId
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async saveAdminSettings(
+      settings
+    ) {
+      const response =
+        await request(
+          '/api/admin/settings',
+          {
+            method:
+              'POST',
+
+            body: {
+              settings:
+                settings || {}
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getAdminAudit(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/audit',
+          {
+            query: {
+              limit:
+                config.limit || 50,
+
+              username:
+                config.username || '',
+
+              moduleId:
+                config.moduleId || '',
+
+              action:
+                config.action || ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async validateAdminSystem() {
+      const response =
+        await request(
+          '/api/admin/validate',
+          {
+            method:
+              'POST',
+
+            body:
+              {}
+          }
+        );
+
+      return response.data;
     }
   };
 
