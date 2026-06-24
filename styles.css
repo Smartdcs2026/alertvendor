@@ -1615,3 +1615,858 @@ input:focus-visible {
       0.01ms !important;
   }
 }
+
+/************************************************************
+ * หน้าแสดงสถานะรถ/ตู้สินค้า
+ ************************************************************/
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.module-page {
+  min-height: 100vh;
+  padding-bottom: calc(18px + var(--safe-bottom));
+}
+
+.module-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid rgba(216, 224, 232, 0.92);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+}
+
+.module-header__inner {
+  width: min(100%, 1240px);
+  margin: 0 auto;
+  padding: 9px 12px 12px;
+}
+
+.module-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.module-user {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
+.module-user > span {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-text-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 7px 10px;
+  color: var(--color-primary);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.icon-text-button--danger {
+  color: var(--color-danger);
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.module-title-row {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.module-title-row h1 {
+  margin: 0;
+  font-size: 1.24rem;
+  line-height: 1.3;
+}
+
+.module-title-row p:not(.eyebrow) {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.76rem;
+}
+
+.module-clock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--color-primary-soft);
+}
+
+.module-clock span {
+  color: var(--color-muted);
+  font-size: 0.66rem;
+}
+
+.module-clock strong {
+  color: var(--color-primary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.module-container {
+  width: min(100%, 1240px);
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.vehicle-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(96px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+}
+
+.vehicle-summary-card {
+  min-width: 96px;
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-content: center;
+  justify-content: center;
+  column-gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  padding: 10px;
+  color: var(--color-text);
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(15, 61, 94, 0.05);
+}
+
+.vehicle-summary-card > span {
+  grid-column: 1 / -1;
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.vehicle-summary-card strong {
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.vehicle-summary-card small {
+  align-self: end;
+  margin-bottom: 2px;
+  color: var(--color-muted);
+  font-size: 0.62rem;
+}
+
+.vehicle-summary-card--normal {
+  border-top: 4px solid #16a34a;
+}
+
+.vehicle-summary-card--warning {
+  border-top: 4px solid #f59e0b;
+}
+
+.vehicle-summary-card--overdue {
+  border-top: 4px solid #dc2626;
+}
+
+.vehicle-summary-card--incomplete {
+  border-top: 4px solid #64748b;
+}
+
+.vehicle-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.vehicle-search {
+  grid-column: 1 / -1;
+}
+
+.vehicle-search input,
+.vehicle-filter select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 9px 11px;
+  color: var(--color-text);
+  background: #ffffff;
+}
+
+.vehicle-search input:focus,
+.vehicle-filter select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+  outline: 0;
+}
+
+.vehicle-tool-button {
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+.vehicle-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 2px 9px;
+}
+
+.vehicle-result-header > div:first-child {
+  display: grid;
+  gap: 1px;
+}
+
+.vehicle-result-header strong {
+  font-size: 0.9rem;
+}
+
+.vehicle-result-header span {
+  color: var(--color-muted);
+  font-size: 0.67rem;
+}
+
+.auto-refresh-status {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 0.62rem;
+}
+
+.vehicle-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.vehicle-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  padding: 13px 13px 12px 18px;
+  background: #ffffff;
+  box-shadow: 0 7px 20px rgba(15, 61, 94, 0.07);
+}
+
+.vehicle-card__rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: #64748b;
+}
+
+.vehicle-card[data-status="NORMAL"] .vehicle-card__rail {
+  background: #16a34a;
+}
+
+.vehicle-card[data-status="WARNING"] .vehicle-card__rail {
+  background: #f59e0b;
+}
+
+.vehicle-card[data-status="OVERDUE"] .vehicle-card__rail {
+  background: #dc2626;
+}
+
+.vehicle-card[data-status="INCOMPLETE"] .vehicle-card__rail {
+  background: #64748b;
+}
+
+.vehicle-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vehicle-card__title-wrap {
+  min-width: 0;
+}
+
+.vehicle-card__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 1rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vehicle-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: 5px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #475569;
+  background: #e2e8f0;
+  font-size: 0.64rem;
+  font-weight: 750;
+}
+
+.vehicle-status-badge[data-status="NORMAL"] {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.vehicle-status-badge[data-status="WARNING"] {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.vehicle-status-badge[data-status="OVERDUE"] {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.vehicle-card__timer-wrap {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+}
+
+.vehicle-card__timer-wrap span {
+  color: var(--color-muted);
+  font-size: 0.6rem;
+}
+
+.vehicle-card__timer {
+  color: var(--color-primary);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.vehicle-card[data-status="OVERDUE"] .vehicle-card__timer {
+  color: var(--color-danger);
+}
+
+.vehicle-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 9px;
+  margin-top: 12px;
+}
+
+.vehicle-field {
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 9px;
+  background: #f7f9fb;
+}
+
+.vehicle-field span,
+.vehicle-field strong,
+.vehicle-field a {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vehicle-field span {
+  color: var(--color-muted);
+  font-size: 0.6rem;
+}
+
+.vehicle-field strong,
+.vehicle-field a {
+  margin-top: 2px;
+  color: var(--color-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.vehicle-field a {
+  color: var(--color-primary);
+}
+
+.vehicle-card__footer {
+  display: grid;
+  gap: 8px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f4;
+}
+
+.vehicle-in-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vehicle-in-time span {
+  color: var(--color-muted);
+  font-size: 0.63rem;
+}
+
+.vehicle-in-time strong {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.button--checkout {
+  min-height: 42px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+}
+
+.overdue-alert-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 5px;
+  text-align: left;
+}
+
+.overdue-alert-item {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+}
+
+.overdue-alert-item strong {
+  color: #991b1b;
+  font-size: 0.85rem;
+}
+
+.overdue-alert-item span {
+  color: #667085;
+  font-size: 0.7rem;
+}
+
+.overdue-alert-more {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.checkout-preview {
+  display: grid;
+  gap: 7px;
+  text-align: left;
+}
+
+.checkout-preview-primary {
+  margin-bottom: 3px;
+  padding: 10px;
+  border-radius: 10px;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.checkout-preview-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 4px;
+  border-bottom: 1px solid #eef2f5;
+}
+
+.checkout-preview-row span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
+.checkout-preview-row strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.checkout-success-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.checkout-success-detail > div {
+  padding: 10px;
+  border-radius: 10px;
+  background: #f4f7f9;
+}
+
+.checkout-success-detail span,
+.checkout-success-detail strong {
+  display: block;
+}
+
+.checkout-success-detail span {
+  color: var(--color-muted);
+  font-size: 0.68rem;
+}
+
+.checkout-success-detail strong {
+  margin-top: 3px;
+  font-size: 0.78rem;
+}
+
+.calendar-modal {
+  width: 100%;
+}
+
+.calendar-toolbar {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 7px;
+}
+
+.calendar-toolbar button {
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  color: var(--color-primary);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.calendar-toolbar strong {
+  color: var(--color-text);
+  font-size: 0.93rem;
+  text-align: center;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendar-weekdays {
+  margin: 11px 0 5px;
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+.calendar-day {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  border: 1px solid #e5eaf0;
+  border-radius: 9px;
+  color: var(--color-text);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.calendar-day:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.calendar-day--empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.calendar-day strong {
+  font-size: 0.78rem;
+}
+
+.calendar-day span {
+  color: var(--color-muted);
+  font-size: 0.55rem;
+}
+
+.calendar-day[data-severity="GREEN"] {
+  border-bottom: 4px solid #16a34a;
+}
+
+.calendar-day[data-severity="ORANGE"] {
+  border-bottom: 4px solid #f59e0b;
+}
+
+.calendar-day[data-severity="RED"] {
+  border-bottom: 4px solid #dc2626;
+  background: #fff7f7;
+}
+
+.calendar-day[data-severity="GRAY"] {
+  border-bottom: 4px solid #64748b;
+}
+
+.calendar-day--today {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.calendar-loading {
+  grid-column: 1 / -1;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.calendar-loading--error {
+  color: var(--color-danger);
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.calendar-legend span {
+  position: relative;
+  padding-left: 13px;
+  color: var(--color-muted);
+  font-size: 0.6rem;
+}
+
+.calendar-legend span::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #64748b;
+  transform: translateY(-50%);
+}
+
+.calendar-legend span[data-severity="GREEN"]::before {
+  background: #16a34a;
+}
+
+.calendar-legend span[data-severity="ORANGE"]::before {
+  background: #f59e0b;
+}
+
+.calendar-legend span[data-severity="RED"]::before {
+  background: #dc2626;
+}
+
+.daily-summary {
+  display: grid;
+  gap: 13px;
+}
+
+.daily-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.daily-summary-item {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 9px;
+  background: #f4f7f9;
+  text-align: center;
+}
+
+.daily-summary-item span {
+  display: block;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-summary-item strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.78rem;
+}
+
+.daily-summary-item small {
+  font-size: 0.56rem;
+  font-weight: 500;
+}
+
+.daily-record-list {
+  max-height: min(48vh, 480px);
+  display: grid;
+  gap: 7px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.daily-record {
+  padding: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.daily-record__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.daily-record__head > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-record__head > span {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #475569;
+  background: #e2e8f0;
+  font-size: 0.55rem;
+}
+
+.daily-record__head > span[data-status="NORMAL"] {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.daily-record__head > span[data-status="WARNING"] {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.daily-record__head > span[data-status="OVERDUE"] {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.daily-record__times {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+  color: var(--color-muted);
+  font-size: 0.62rem;
+}
+
+.daily-record__times strong {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.daily-empty {
+  padding: 20px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .module-header__inner {
+    padding: 11px 20px 14px;
+  }
+
+  .module-title-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .module-clock {
+    min-width: 265px;
+    display: grid;
+    justify-items: end;
+  }
+
+  .module-container {
+    padding: 18px 20px;
+  }
+
+  .vehicle-tools {
+    grid-template-columns:
+      minmax(260px, 1fr)
+      170px
+      105px
+      105px;
+    align-items: center;
+  }
+
+  .vehicle-search {
+    grid-column: auto;
+  }
+
+  .vehicle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vehicle-card__footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .button--checkout {
+    min-width: 142px;
+  }
+
+  .daily-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1080px) {
+  .vehicle-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
