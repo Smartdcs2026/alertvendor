@@ -1219,70 +1219,462 @@
   }
 
   async function validateSystem() {
-    const button = byId('adminValidateSystemButton');
-    setButtonLoading(button, true, 'กำลังตรวจสอบ...');
-    showLoading('กำลังตรวจสอบระบบ', 'อาจใช้เวลาสักครู่หากมีหลาย Spreadsheet');
+    const button =
+      byId(
+        'adminValidateSystemButton'
+      );
+
+    const quickButton =
+      byId(
+        'adminValidateQuickButton'
+      );
+
+    setButtonLoading(
+      button,
+      true,
+      'กำลังตรวจสอบ...'
+    );
+
+    setButtonLoading(
+      quickButton,
+      true,
+      'กำลังตรวจสอบ...'
+    );
+
+    showLoading(
+      'กำลังตรวจสอบระบบทั้งหมด',
+      'กำลังตรวจ Frontend, Worker, Apps Script และแหล่งข้อมูล กรุณารอสักครู่'
+    );
 
     try {
-      const result = await API.validateAdminSystem();
+      const client =
+        typeof API.getClientDiagnostics ===
+          'function'
+          ? API.getClientDiagnostics()
+          : null;
+
+      const result =
+        typeof API.runProductionDiagnostics ===
+          'function'
+          ? await API.runProductionDiagnostics({
+              includeReadProbe:
+                true
+            })
+          : await API.validateAdminSystem();
+
+      if (client) {
+        result.client =
+          client;
+
+        result.checks = [
+          buildClientDiagnosticCheck(
+            client
+          ),
+          ...(
+            Array.isArray(
+              result.checks
+            )
+              ? result.checks
+              : []
+          )
+        ];
+
+        result.summary =
+          summarizeDiagnostics(
+            result.checks
+          );
+
+        result.success =
+          result.summary.failed ===
+          0;
+      }
+
       Swal.close();
-      renderValidation(result);
-      switchTab('system');
+
+      renderValidation(
+        result
+      );
+
+      switchTab(
+        'system'
+      );
+
+      const status =
+        result &&
+        result.summary
+          ? result.summary.status
+          : result.success
+            ? 'READY'
+            : 'NOT_READY';
 
       await Swal.fire({
-        icon: result.success ? 'success' : 'warning',
-        title: result.success ? 'ระบบพร้อมใช้งาน' : 'พบรายการที่ต้องแก้ไข',
-        text: result.success
-          ? 'โครงสร้างและโมดูลทั้งหมดผ่านการตรวจสอบ'
-          : 'ดูรายละเอียดในแท็บตรวจระบบ',
-        confirmButtonText: 'ตกลง'
+        icon:
+          status === 'READY'
+            ? 'success'
+            : status ===
+                'READY_WITH_WARNINGS'
+              ? 'warning'
+              : 'error',
+
+        title:
+          status === 'READY'
+            ? 'ระบบพร้อมใช้งาน'
+            : status ===
+                'READY_WITH_WARNINGS'
+              ? 'ระบบใช้งานได้ แต่มีคำเตือน'
+              : 'พบรายการที่ต้องแก้ไข',
+
+        text:
+          status === 'READY'
+            ? 'ทุกชั้นของระบบผ่านการตรวจสอบ'
+            : 'ดูรายละเอียดในแท็บตรวจระบบ',
+
+        confirmButtonText:
+          'ตกลง'
       });
+
     } catch (error) {
       Swal.close();
-      await showApiError(error, 'ตรวจสอบระบบไม่สำเร็จ');
+
+      await showApiError(
+        error,
+        'ตรวจสอบระบบไม่สำเร็จ'
+      );
+
     } finally {
-      setButtonLoading(button, false);
+      setButtonLoading(
+        button,
+        false
+      );
+
+      setButtonLoading(
+        quickButton,
+        false
+      );
     }
   }
 
+  function buildClientDiagnosticCheck(
+    client
+  ) {
+    const valid =
+      client &&
+      client.online &&
+      client.storageAvailable &&
+      client.sessionTokenPresent;
+
+    return {
+      id:
+        'frontend-client',
+
+      group:
+        'Frontend',
+
+      label:
+        'ตรวจเว็บและ Session ในเบราว์เซอร์',
+
+      status:
+        valid
+          ? 'PASS'
+          : 'FAIL',
+
+      message:
+        valid
+          ? 'Frontend เชื่อมต่ออินเทอร์เน็ตและพบ Session Token'
+          : 'Frontend หรือ Session ในเบราว์เซอร์ไม่พร้อมใช้งาน',
+
+      durationMs:
+        0,
+
+      details:
+        client || {}
+    };
+  }
+
+  function summarizeDiagnostics(
+    checks
+  ) {
+    const list =
+      Array.isArray(checks)
+        ? checks
+        : [];
+
+    const passed =
+      list.filter(
+        (item) =>
+          item.status === 'PASS'
+      ).length;
+
+    const warnings =
+      list.filter(
+        (item) =>
+          item.status === 'WARN'
+      ).length;
+
+    const failed =
+      list.filter(
+        (item) =>
+          item.status === 'FAIL'
+      ).length;
+
+    return {
+      total:
+        list.length,
+
+      passed,
+
+      warnings,
+
+      failed,
+
+      status:
+        failed > 0
+          ? 'NOT_READY'
+          : warnings > 0
+            ? 'READY_WITH_WARNINGS'
+            : 'READY'
+    };
+  }
+
   function renderValidation(result) {
-    const container = byId('adminValidationResult');
-    if (!container) return;
+    const container =
+      byId(
+        'adminValidationResult'
+      );
 
-    const structureSheets = Array.isArray(result?.structure?.sheets)
-      ? result.structure.sheets
-      : [];
-    const modules = Array.isArray(result?.modules) ? result.modules : [];
+    if (!container) {
+      return;
+    }
 
-    const structureHtml = structureSheets.map((item) => {
-      const valid = item.exists && (!item.missingHeaders || item.missingHeaders.length === 0);
-      return `
-        <div class="admin-validation-item" data-valid="${valid ? 'TRUE' : 'FALSE'}">
-          <strong>${escapeHtml(item.sheetName || '-')}</strong>
-          <span>${valid ? 'พร้อมใช้งาน' : (!item.exists ? 'ไม่พบชีต' : 'ขาดหัวคอลัมน์: ' + item.missingHeaders.join(', '))}</span>
-        </div>
-      `;
-    }).join('');
+    const checks =
+      Array.isArray(
+        result &&
+        result.checks
+      )
+        ? result.checks
+        : [];
 
-    const moduleHtml = modules.map((item) => `
-      <article class="admin-validation-module" data-valid="${item.valid ? 'TRUE' : 'FALSE'}">
-        <div>
-          <strong>${escapeHtml(item.moduleId || '-')}</strong>
-          <span>${item.valid ? 'ผ่านการตรวจสอบ' : 'ต้องแก้ไข'}</span>
-        </div>
-        ${(item.errors || []).length ? `<ul>${item.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join('')}</ul>` : ''}
-        ${(item.warnings || []).length ? `<ul class="admin-warning-list">${item.warnings.map((warningText) => `<li>${escapeHtml(warningText)}</li>`).join('')}</ul>` : ''}
-      </article>
-    `).join('');
+    const summary =
+      result &&
+      result.summary
+        ? result.summary
+        : summarizeDiagnostics(
+            checks
+          );
+
+    const statusLabel =
+      summary.status === 'READY'
+        ? 'พร้อมใช้งาน'
+        : summary.status ===
+            'READY_WITH_WARNINGS'
+          ? 'พร้อมใช้ มีคำเตือน'
+          : 'ต้องแก้ไข';
+
+    setText(
+      'adminDiagnosticStatus',
+      statusLabel
+    );
+
+    setText(
+      'adminDiagnosticPassed',
+      String(
+        summary.passed || 0
+      )
+    );
+
+    setText(
+      'adminDiagnosticWarnings',
+      String(
+        summary.warnings || 0
+      )
+    );
+
+    setText(
+      'adminDiagnosticFailed',
+      String(
+        summary.failed || 0
+      )
+    );
+
+    const groupedChecks =
+      checks.reduce(
+        (groups, check) => {
+          const groupName =
+            String(
+              check.group ||
+              'ระบบ'
+            );
+
+          if (!groups[groupName]) {
+            groups[groupName] =
+              [];
+          }
+
+          groups[groupName].push(
+            check
+          );
+
+          return groups;
+        },
+        {}
+      );
+
+    const checksHtml =
+      Object.entries(
+        groupedChecks
+      )
+        .map(
+          ([groupName, groupChecks]) => `
+            <section class="admin-card admin-diagnostic-group">
+              <h3>${escapeHtml(groupName)}</h3>
+
+              <div class="admin-diagnostic-checks">
+                ${groupChecks.map((check) => `
+                  <article
+                    class="admin-diagnostic-check"
+                    data-status="${escapeHtml(check.status || 'FAIL')}"
+                  >
+                    <div class="admin-diagnostic-check__head">
+                      <strong>${escapeHtml(check.label || check.id || '-')}</strong>
+                      <span>${diagnosticStatusText(check.status)}</span>
+                    </div>
+
+                    <p>${escapeHtml(check.message || '-')}</p>
+
+                    ${Number.isFinite(Number(check.durationMs))
+                      ? `<small>ใช้เวลา ${escapeHtml(String(check.durationMs))} ms</small>`
+                      : ''}
+                  </article>
+                `).join('')}
+              </div>
+            </section>
+          `
+        )
+        .join('');
+
+    const validation =
+      result &&
+      result.validation
+        ? result.validation
+        : (
+            result &&
+            result.appsScript &&
+            result.appsScript.validation
+              ? result.appsScript.validation
+              : result
+          );
+
+    const structureSheets =
+      Array.isArray(
+        validation &&
+        validation.structure &&
+        validation.structure.sheets
+      )
+        ? validation.structure.sheets
+        : [];
+
+    const modules =
+      Array.isArray(
+        validation &&
+        validation.modules
+      )
+        ? validation.modules
+        : [];
+
+    const structureHtml =
+      structureSheets
+        .map((item) => {
+          const valid =
+            item.exists &&
+            (
+              !item.missingHeaders ||
+              item.missingHeaders.length ===
+              0
+            );
+
+          return `
+            <div
+              class="admin-validation-item"
+              data-valid="${valid ? 'TRUE' : 'FALSE'}"
+            >
+              <strong>${escapeHtml(item.sheetName || '-')}</strong>
+              <span>${valid
+                ? 'พร้อมใช้งาน'
+                : !item.exists
+                  ? 'ไม่พบชีต'
+                  : 'ขาดหัวคอลัมน์: ' +
+                    item.missingHeaders.join(', ')
+              }</span>
+            </div>
+          `;
+        })
+        .join('');
+
+    const moduleHtml =
+      modules
+        .map((item) => `
+          <article
+            class="admin-validation-module"
+            data-valid="${item.valid ? 'TRUE' : 'FALSE'}"
+          >
+            <div>
+              <strong>${escapeHtml(item.moduleId || '-')}</strong>
+              <span>${item.valid ? 'ผ่านการตรวจสอบ' : 'ต้องแก้ไข'}</span>
+            </div>
+
+            ${(item.errors || []).length
+              ? `<ul>${item.errors.map((errorText) => `<li>${escapeHtml(errorText)}</li>`).join('')}</ul>`
+              : ''}
+
+            ${(item.warnings || []).length
+              ? `<ul class="admin-warning-list">${item.warnings.map((warningText) => `<li>${escapeHtml(warningText)}</li>`).join('')}</ul>`
+              : ''}
+          </article>
+        `)
+        .join('');
 
     container.innerHTML = `
-      <div class="admin-validation-head" data-valid="${result.success ? 'TRUE' : 'FALSE'}">
-        <strong>${result.success ? 'ระบบพร้อมใช้งาน' : 'พบปัญหาที่ต้องแก้ไข'}</strong>
-        <span>ตรวจล่าสุด ${escapeHtml(result.checkedAt || '-')}</span>
+      <div
+        class="admin-validation-head"
+        data-valid="${summary.failed === 0 ? 'TRUE' : 'FALSE'}"
+      >
+        <strong>${escapeHtml(statusLabel)}</strong>
+        <span>
+          ตรวจล่าสุด ${escapeHtml(result.checkedAt || '-')}
+          • ${escapeHtml(String(result.durationMs || 0))} ms
+        </span>
       </div>
-      <section class="admin-card"><h3>โครงสร้างชีตหลังบ้าน</h3><div class="admin-validation-grid">${structureHtml || emptyHtml('ไม่พบข้อมูล')}</div></section>
-      <section class="admin-card"><h3>โมดูลทั้งหมด</h3><div class="admin-validation-modules">${moduleHtml || emptyHtml('ยังไม่มีโมดูล')}</div></section>
+
+      ${checksHtml || emptyHtml('ไม่พบผลการตรวจแต่ละชั้น')}
+
+      <section class="admin-card">
+        <h3>โครงสร้างชีตหลังบ้าน</h3>
+        <div class="admin-validation-grid">
+          ${structureHtml || emptyHtml('ไม่พบข้อมูลโครงสร้างชีต')}
+        </div>
+      </section>
+
+      <section class="admin-card">
+        <h3>โมดูลทั้งหมด</h3>
+        <div class="admin-validation-modules">
+          ${moduleHtml || emptyHtml('ยังไม่มีโมดูล')}
+        </div>
+      </section>
     `;
+  }
+
+  function diagnosticStatusText(
+    status
+  ) {
+    if (status === 'PASS') {
+      return 'ผ่าน';
+    }
+
+    if (status === 'WARN') {
+      return 'คำเตือน';
+    }
+
+    return 'ไม่ผ่าน';
   }
 
   async function logout() {
