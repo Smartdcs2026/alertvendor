@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css"
+    href="./styles.css?v=20260625-r10"
   >
 
   <script
@@ -33,12 +33,12 @@
   ></script>
 
   <script
-    src="./api.js"
+    src="./api.js?v=20260625-r10"
     defer
   ></script>
 
   <script
-    src="./admin.js"
+    src="./admin.js?v=20260625-r10"
     defer
   ></script>
 </head>
@@ -509,7 +509,7 @@
           </h2>
 
           <p>
-            ตรวจชีตหลังบ้าน การตั้งค่าโมดูล Spreadsheet ต้นทาง และหัวคอลัมน์ทั้งหมด
+            ตรวจ Frontend, Cloudflare Worker, Apps Script, ชีตหลังบ้าน โมดูล และ Spreadsheet ต้นทาง
           </p>
         </div>
 
@@ -521,6 +521,31 @@
           เริ่มตรวจสอบ
         </button>
       </div>
+
+      <section
+        id="adminDiagnosticSummary"
+        class="admin-diagnostic-summary"
+      >
+        <article class="admin-diagnostic-stat">
+          <span>ผลรวม</span>
+          <strong id="adminDiagnosticStatus">ยังไม่ได้ตรวจ</strong>
+        </article>
+
+        <article class="admin-diagnostic-stat admin-diagnostic-stat--pass">
+          <span>ผ่าน</span>
+          <strong id="adminDiagnosticPassed">0</strong>
+        </article>
+
+        <article class="admin-diagnostic-stat admin-diagnostic-stat--warn">
+          <span>คำเตือน</span>
+          <strong id="adminDiagnosticWarnings">0</strong>
+        </article>
+
+        <article class="admin-diagnostic-stat admin-diagnostic-stat--fail">
+          <span>ไม่ผ่าน</span>
+          <strong id="adminDiagnosticFailed">0</strong>
+        </article>
+      </section>
 
       <div
         id="adminValidationResult"
