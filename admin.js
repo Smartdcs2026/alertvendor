@@ -563,9 +563,17 @@
     if (fields.length === 0) addFieldRow({ primary: true, visible: true, searchable: true });
 
     updateDynamicCounts();
-    byId('adminModuleEditor')?.classList.remove('is-hidden');
-    document.body.classList.add('admin-editor-open');
-    window.scrollTo({ top: 0, behavior: 'instant' });
+   byId('adminModuleEditor')?.classList.remove('is-hidden');
+document.body.classList.add('admin-editor-open');
+
+window.requestAnimationFrame(() => {
+  const editorBody =
+    byId('adminModuleForm');
+
+  if (editorBody) {
+    editorBody.scrollTop = 0;
+  }
+});
   }
 
   function closeModuleEditor() {
