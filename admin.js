@@ -1,6 +1,14 @@
 /**
  * admin.js
  * หน้า Admin สำหรับจัดการโมดูล Vendor ผู้ใช้งาน การตั้งค่า และ Audit
+ *
+ * ปรับปรุง:
+ * - ตรวจข้อมูลโมดูลครบทุกข้อก่อนส่ง
+ * - แสดงข้อผิดพลาดหลายรายการผ่าน SweetAlert2
+ * - ป้องกันกดบันทึกโมดูลซ้ำ
+ * - รองรับรายละเอียด Validation จาก Apps Script/Worker
+ * - เลื่อนไปยังช่องที่ต้องแก้ไขโดยอัตโนมัติ
+ * - รักษาการเลื่อนภายใน Module Editor
  */
 (function (window, document) {
   'use strict';
@@ -17,7 +25,8 @@
     currentExpectedUpdatedAt: '',
     sourceMetadata: null,
     clockTimer: null,
-    loading: false
+    loading: false,
+    moduleSaving: false
   };
 
   const LABELS = {
@@ -563,17 +572,31 @@
     if (fields.length === 0) addFieldRow({ primary: true, visible: true, searchable: true });
 
     updateDynamicCounts();
-   byId('adminModuleEditor')?.classList.remove('is-hidden');
-document.body.classList.add('admin-editor-open');
 
-window.requestAnimationFrame(() => {
-  const editorBody =
-    byId('adminModuleForm');
+    byId('adminModuleEditor')?.classList.remove('is-hidden');
+    document.body.classList.add('admin-editor-open');
 
-  if (editorBody) {
-    editorBody.scrollTop = 0;
-  }
-});
+    window.requestAnimationFrame(() => {
+      const editorBody =
+        byId('adminModuleForm');
+
+      if (editorBody) {
+        editorBody.scrollTop = 0;
+      }
+
+      const firstInput =
+        byId('adminModuleId');
+
+      if (
+        isNew &&
+        firstInput &&
+        typeof firstInput.focus === 'function'
+      ) {
+        firstInput.focus({
+          preventScroll: true
+        });
+      }
+    });
   }
 
   function closeModuleEditor() {
@@ -586,51 +609,204 @@ window.requestAnimationFrame(() => {
   async function saveModule(event) {
     event.preventDefault();
 
-    let payload;
-    try {
-      payload = readModulePayload();
-      validateModulePayload(payload);
-    } catch (error) {
-      await warning(error.message || 'ข้อมูลโมดูลไม่สมบูรณ์');
+    if (state.moduleSaving) {
       return;
     }
 
-    const confirmation = await Swal.fire({
-      icon: 'question',
-      title: 'ยืนยันบันทึกโมดูล',
-      html: `
-        <div class="admin-confirm-box">
-          <strong>${escapeHtml(payload.module.name)}</strong>
-          <span>รหัส: ${escapeHtml(payload.module.moduleId)}</span>
-          <span>${payload.filters.length} เงื่อนไข • ${payload.fields.length} ฟิลด์</span>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'บันทึก',
-      cancelButtonText: 'ยกเลิก',
-      reverseButtons: true
-    });
+    const saveButton =
+      byId('adminSaveModuleButton');
 
-    if (!confirmation.isConfirmed) return;
-
-    showLoading('กำลังบันทึกโมดูล', 'ระบบกำลังตรวจสอบข้อมูลต้นทางและบันทึกทุกส่วน');
+    let payload;
+    let validation;
 
     try {
-      const result = await API.saveAdminModuleBundle(payload);
-      Swal.close();
-      closeModuleEditor();
+      payload =
+        readModulePayload();
+
+      validation =
+        validateModulePayload(
+          payload
+        );
+
+    } catch (error) {
+      await showValidationErrors(
+        collectErrorMessages(
+          error
+        ),
+        'ข้อมูลโมดูลยังไม่ครบ'
+      );
+
+      focusValidationTarget(
+        error &&
+        error.focusTarget
+          ? error.focusTarget
+          : ''
+      );
+
+      return;
+    }
+
+    if (
+      validation.errors.length >
+      0
+    ) {
+      await showValidationErrors(
+        validation.errors,
+        'ข้อมูลโมดูลยังไม่ครบ'
+      );
+
+      focusValidationTarget(
+        validation.firstTarget
+      );
+
+      return;
+    }
+
+    const warningHtml =
+      validation.warnings.length
+        ? `
+          <div class="admin-source-warning">
+            <strong>คำเตือนก่อนบันทึก</strong>
+            <ul class="admin-warning-list">
+              ${validation.warnings
+                .map(
+                  (item) =>
+                    `<li>${escapeHtml(item)}</li>`
+                )
+                .join('')}
+            </ul>
+          </div>
+        `
+        : '';
+
+    const confirmation =
       await Swal.fire({
-        icon: 'success',
-        title: result.message || 'บันทึกโมดูลแล้ว',
-        text: result.validation?.warnings?.length
-          ? result.validation.warnings.join('\n')
-          : '',
-        confirmButtonText: 'ตกลง'
+        icon:
+          validation.warnings.length
+            ? 'warning'
+            : 'question',
+
+        title:
+          'ยืนยันบันทึกโมดูล',
+
+        html: `
+          <div class="admin-confirm-box">
+            <strong>${escapeHtml(payload.module.name)}</strong>
+            <span>รหัส: ${escapeHtml(payload.module.moduleId)}</span>
+            <span>
+              ${payload.filters.length} เงื่อนไข
+              •
+              ${payload.fields.length} ฟิลด์
+            </span>
+          </div>
+          ${warningHtml}
+        `,
+
+        showCancelButton:
+          true,
+
+        confirmButtonText:
+          'บันทึก',
+
+        cancelButtonText:
+          'ยกเลิก',
+
+        reverseButtons:
+          true,
+
+        focusCancel:
+          validation.warnings.length >
+          0
       });
+
+    if (!confirmation.isConfirmed) {
+      return;
+    }
+
+    state.moduleSaving =
+      true;
+
+    setButtonLoading(
+      saveButton,
+      true,
+      'กำลังบันทึก...'
+    );
+
+    showLoading(
+      'กำลังบันทึกโมดูล',
+      'ระบบกำลังตรวจสอบข้อมูลต้นทางและบันทึกทุกส่วน'
+    );
+
+    try {
+      const result =
+        await API.saveAdminModuleBundle(
+          payload
+        );
+
+      Swal.close();
+
+      closeModuleEditor();
+
+      const serverWarnings =
+        Array.isArray(
+          result &&
+          result.validation &&
+          result.validation.warnings
+        )
+          ? result.validation.warnings
+          : [];
+
+      await Swal.fire({
+        icon:
+          serverWarnings.length
+            ? 'warning'
+            : 'success',
+
+        title:
+          result.message ||
+          'บันทึกโมดูลแล้ว',
+
+        html:
+          serverWarnings.length
+            ? `
+              <div class="swal-error-content">
+                <div>
+                  บันทึกสำเร็จ แต่มีคำเตือน
+                </div>
+                <ul class="admin-warning-list">
+                  ${serverWarnings
+                    .map(
+                      (item) =>
+                        `<li>${escapeHtml(item)}</li>`
+                    )
+                    .join('')}
+                </ul>
+              </div>
+            `
+            : '',
+
+        confirmButtonText:
+          'ตกลง'
+      });
+
       await refreshDashboard();
+
     } catch (error) {
       Swal.close();
-      await showApiError(error, 'บันทึกโมดูลไม่สำเร็จ');
+
+      await showApiError(
+        error,
+        'บันทึกโมดูลไม่สำเร็จ'
+      );
+
+    } finally {
+      state.moduleSaving =
+        false;
+
+      setButtonLoading(
+        saveButton,
+        false
+      );
     }
   }
 
@@ -693,7 +869,12 @@ window.requestAnimationFrame(() => {
         sourceColumns: String(row.querySelector('[data-field-columns]')?.value || '')
           .split(',')
           .map(normalizeColumn)
-          .filter(Boolean),
+          .filter(Boolean)
+          .filter(
+            (column, columnIndex, columns) =>
+              columns.indexOf(column) ===
+              columnIndex
+          ),
         type: row.querySelector('[data-field-type]')?.value || 'TEXT',
         separator: String(row.querySelector('[data-field-separator]')?.value || ''),
         position: row.querySelector('[data-field-position]')?.value || 'BODY',
@@ -713,45 +894,703 @@ window.requestAnimationFrame(() => {
   }
 
   function validateModulePayload(payload) {
-    const module = payload.module;
+    const module =
+      payload &&
+      payload.module
+        ? payload.module
+        : {};
 
-    if (!/^[a-z0-9][a-z0-9_-]{1,49}$/.test(module.moduleId)) {
-      throw new Error('รหัสโมดูลต้องยาว 2-50 ตัว และใช้ a-z, 0-9, _ หรือ -');
-    }
-    if (!module.name) throw new Error('กรุณาระบุชื่อโมดูล');
-    if (!module.sourceSpreadsheetId) throw new Error('กรุณาระบุ Spreadsheet ID ต้นทาง');
-    if (!module.sourceSheetName) throw new Error('กรุณาระบุชื่อชีตต้นทาง');
-    if (!module.timestampInColumn) throw new Error('กรุณาระบุคอลัมน์เวลาเข้า');
-    if (module.warningStartMinutes >= module.redStartMinutes) {
-      throw new Error('นาทีเริ่มสีส้มต้องน้อยกว่านาทีเริ่มสีแดง');
-    }
-    if (module.checkoutEnabled && !module.timestampOutColumn) {
-      throw new Error('เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์เวลาออก');
-    }
-    if (module.checkoutEnabled && !module.durationColumn) {
-      throw new Error('เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์ระยะเวลา');
-    }
-    if (module.currentStatusMethod === 'CUSTOM' && !module.customStatusColumn) {
-      throw new Error('สถานะกำหนดเองต้องระบุคอลัมน์สถานะ');
-    }
+    const filters =
+      Array.isArray(
+        payload &&
+        payload.filters
+      )
+        ? payload.filters
+        : [];
 
-    payload.filters.forEach((filter, index) => {
-      if (!filter.column) throw new Error(`เงื่อนไขที่ ${index + 1} ยังไม่ระบุคอลัมน์`);
-      if (!['IS_EMPTY', 'IS_NOT_EMPTY'].includes(filter.operator) && !filter.value) {
-        throw new Error(`เงื่อนไขที่ ${index + 1} ยังไม่ระบุค่าที่ใช้กรอง`);
+    const fields =
+      Array.isArray(
+        payload &&
+        payload.fields
+      )
+        ? payload.fields
+        : [];
+
+    const errors = [];
+    const warnings = [];
+
+    let firstTarget = '';
+
+    const addError = (
+      message,
+      target
+    ) => {
+      errors.push(
+        String(message)
+      );
+
+      if (
+        !firstTarget &&
+        target
+      ) {
+        firstTarget =
+          target;
       }
-    });
+    };
 
-    if (payload.fields.length === 0) throw new Error('ต้องมีฟิลด์แสดงผลอย่างน้อย 1 รายการ');
+    const addWarning = (
+      message
+    ) => {
+      warnings.push(
+        String(message)
+      );
+    };
 
-    const primaryCount = payload.fields.filter((field) => field.primary).length;
-    if (primaryCount !== 1) throw new Error('ต้องกำหนดฟิลด์ข้อมูลหลักเพียง 1 รายการ');
+    const limits =
+      state.schema &&
+      state.schema.limits
+        ? state.schema.limits
+        : {};
 
-    payload.fields.forEach((field, index) => {
-      if (!field.fieldId) throw new Error(`ฟิลด์ที่ ${index + 1} ยังไม่ระบุรหัสฟิลด์`);
-      if (!field.displayName) throw new Error(`ฟิลด์ที่ ${index + 1} ยังไม่ระบุชื่อแสดงผล`);
-      if (field.sourceColumns.length === 0) throw new Error(`ฟิลด์ที่ ${index + 1} ยังไม่ระบุคอลัมน์ต้นทาง`);
-    });
+    const minRefreshSeconds =
+      positiveInteger(
+        limits.minRefreshSeconds,
+        10
+      );
+
+    const maxRefreshSeconds =
+      positiveInteger(
+        limits.maxRefreshSeconds,
+        3600
+      );
+
+    const maxHistoryMonths =
+      positiveInteger(
+        limits.maxHistoryMonths,
+        120
+      );
+
+    const maxFilters =
+      positiveInteger(
+        limits.maxFiltersPerModule,
+        50
+      );
+
+    const maxFields =
+      positiveInteger(
+        limits.maxFieldsPerModule,
+        50
+      );
+
+    if (
+      !/^[a-z0-9][a-z0-9_-]{1,49}$/
+        .test(
+          module.moduleId || ''
+        )
+    ) {
+      addError(
+        'รหัสโมดูลต้องยาว 2–50 ตัว และใช้เฉพาะ a-z, 0-9, _ หรือ -',
+        '#adminModuleId'
+      );
+    }
+
+    if (!module.name) {
+      addError(
+        'กรุณาระบุชื่อโมดูล',
+        '#adminModuleName'
+      );
+    }
+
+    if (
+      String(
+        module.name || ''
+      ).length > 200
+    ) {
+      addError(
+        'ชื่อโมดูลต้องไม่เกิน 200 ตัวอักษร',
+        '#adminModuleName'
+      );
+    }
+
+    if (
+      String(
+        module.description || ''
+      ).length > 2000
+    ) {
+      addError(
+        'คำอธิบายต้องไม่เกิน 2,000 ตัวอักษร',
+        '#adminModuleDescription'
+      );
+    }
+
+    if (
+      !/^[A-Za-z0-9_-]{20,}$/
+        .test(
+          module.sourceSpreadsheetId ||
+          ''
+        )
+    ) {
+      addError(
+        'กรุณาระบุ Google Spreadsheet ID ต้นทางให้ถูกต้อง',
+        '#adminSourceSpreadsheetId'
+      );
+    }
+
+    if (!module.sourceSheetName) {
+      addError(
+        'กรุณาระบุชื่อชีตต้นทาง',
+        '#adminSourceSheetName'
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        module.headerRow
+      ) ||
+      module.headerRow < 1 ||
+      module.headerRow > 100
+    ) {
+      addError(
+        'แถวหัวตารางต้องเป็นจำนวนเต็มระหว่าง 1–100',
+        '#adminHeaderRow'
+      );
+    }
+
+    if (!module.timestampInColumn) {
+      addError(
+        'กรุณาระบุคอลัมน์เวลาเข้า',
+        '#adminTimestampInColumn'
+      );
+    }
+
+    if (
+      module.greenStartMinutes < 0
+    ) {
+      addError(
+        'นาทีเริ่มสีเขียวต้องไม่น้อยกว่า 0',
+        '#adminGreenStartMinutes'
+      );
+    }
+
+    if (
+      module.warningStartMinutes <
+      module.greenStartMinutes
+    ) {
+      addError(
+        'นาทีเริ่มสีส้มต้องไม่น้อยกว่านาทีเริ่มสีเขียว',
+        '#adminWarningStartMinutes'
+      );
+    }
+
+    if (
+      module.redStartMinutes <=
+      module.warningStartMinutes
+    ) {
+      addError(
+        'นาทีเริ่มสีแดงต้องมากกว่านาทีเริ่มสีส้ม',
+        '#adminRedStartMinutes'
+      );
+    }
+
+    if (
+      module.alertEnabled &&
+      (
+        !Number.isInteger(
+          module.alertRepeatMinutes
+        ) ||
+        module.alertRepeatMinutes < 1 ||
+        module.alertRepeatMinutes > 1440
+      )
+    ) {
+      addError(
+        'นาทีแจ้งเตือนซ้ำต้องอยู่ระหว่าง 1–1,440 นาที',
+        '#adminAlertRepeatMinutes'
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        module.refreshSeconds
+      ) ||
+      module.refreshSeconds <
+        minRefreshSeconds ||
+      module.refreshSeconds >
+        maxRefreshSeconds
+    ) {
+      addError(
+        `วินาทีรีเฟรชต้องอยู่ระหว่าง ${minRefreshSeconds}–${maxRefreshSeconds} วินาที`,
+        '#adminRefreshSeconds'
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        module.historyMonths
+      ) ||
+      module.historyMonths < 1 ||
+      module.historyMonths >
+        maxHistoryMonths
+    ) {
+      addError(
+        `เดือนย้อนหลังต้องอยู่ระหว่าง 1–${maxHistoryMonths} เดือน`,
+        '#adminHistoryMonths'
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        module.displayOrder
+      ) ||
+      module.displayOrder < 1 ||
+      module.displayOrder > 9999
+    ) {
+      addError(
+        'ลำดับแสดงต้องเป็นจำนวนเต็มระหว่าง 1–9,999',
+        '#adminModuleDisplayOrder'
+      );
+    }
+
+    if (
+      module.currentStatusMethod ===
+      'TIMESTAMP_OUT_EMPTY_AND_DURATION_EMPTY'
+    ) {
+      if (!module.timestampOutColumn) {
+        addError(
+          'วิธีตรวจสถานะนี้ต้องระบุคอลัมน์เวลาออก',
+          '#adminTimestampOutColumn'
+        );
+      }
+
+      if (!module.durationColumn) {
+        addError(
+          'วิธีตรวจสถานะนี้ต้องระบุคอลัมน์ระยะเวลา',
+          '#adminDurationColumn'
+        );
+      }
+    }
+
+    if (
+      module.currentStatusMethod ===
+        'TIMESTAMP_OUT_EMPTY' &&
+      !module.timestampOutColumn
+    ) {
+      addError(
+        'วิธีตรวจสถานะนี้ต้องระบุคอลัมน์เวลาออก',
+        '#adminTimestampOutColumn'
+      );
+    }
+
+    if (
+      module.currentStatusMethod ===
+      'CUSTOM'
+    ) {
+      if (!module.customStatusColumn) {
+        addError(
+          'สถานะกำหนดเองต้องระบุคอลัมน์สถานะ',
+          '#adminCustomStatusColumn'
+        );
+      }
+
+      if (!module.customStatusOperator) {
+        addError(
+          'สถานะกำหนดเองต้องระบุตัวดำเนินการ',
+          '#adminCustomStatusOperator'
+        );
+      }
+
+      if (
+        module.customStatusOperator &&
+        ![
+          'IS_EMPTY',
+          'IS_NOT_EMPTY'
+        ].includes(
+          module.customStatusOperator
+        ) &&
+        !module.customStatusValue
+      ) {
+        addError(
+          'สถานะกำหนดเองต้องระบุค่าที่ใช้ตรวจสอบ',
+          '#adminCustomStatusValue'
+        );
+      }
+    }
+
+    if (
+      module.checkoutEnabled &&
+      !module.timestampOutColumn
+    ) {
+      addError(
+        'เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์เวลาออก',
+        '#adminTimestampOutColumn'
+      );
+    }
+
+    if (
+      module.checkoutEnabled &&
+      !module.durationColumn
+    ) {
+      addError(
+        'เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์ระยะเวลา',
+        '#adminDurationColumn'
+      );
+    }
+
+    if (
+      module.afterCheckoutStatusColumn &&
+      !module.afterCheckoutStatusValue
+    ) {
+      addError(
+        'เมื่อระบุคอลัมน์สถานะหลังออก ต้องระบุค่าสถานะหลังออก',
+        '#adminAfterCheckoutStatusValue'
+      );
+    }
+
+    if (
+      module.afterCheckoutStatusValue &&
+      !module.afterCheckoutStatusColumn
+    ) {
+      addError(
+        'เมื่อระบุค่าสถานะหลังออก ต้องระบุคอลัมน์สถานะหลังออก',
+        '#adminAfterCheckoutStatusColumn'
+      );
+    }
+
+    const coreColumns = [
+      [
+        'คอลัมน์เวลาเข้า',
+        module.timestampInColumn
+      ],
+      [
+        'คอลัมน์เวลาออก',
+        module.timestampOutColumn
+      ],
+      [
+        'คอลัมน์ระยะเวลา',
+        module.durationColumn
+      ]
+    ].filter(
+      (item) =>
+        Boolean(item[1])
+    );
+
+    const duplicateCoreColumns =
+      findDuplicateValues(
+        coreColumns.map(
+          (item) =>
+            item[1]
+        )
+      );
+
+    if (
+      duplicateCoreColumns.length >
+      0
+    ) {
+      addError(
+        'คอลัมน์เวลาเข้า เวลาออก และระยะเวลา ต้องไม่ใช้คอลัมน์เดียวกัน',
+        '#adminTimestampInColumn'
+      );
+    }
+
+    if (
+      module.showCalendarToUsers &&
+      !module.calendarEnabled
+    ) {
+      addError(
+        'ต้องเปิดปฏิทินก่อน จึงจะแสดงปฏิทินแก่ User ได้',
+        '#adminCalendarEnabled'
+      );
+    }
+
+    if (
+      module.status ===
+        'PUBLISHED' &&
+      !module.showToUsers
+    ) {
+      addWarning(
+        'สถานะเป็น “เปิดใช้งาน” แต่ยังปิดการแสดงแก่ User'
+      );
+    }
+
+    if (
+      module.showToUsers &&
+      module.status ===
+        'DRAFT'
+    ) {
+      addWarning(
+        'เปิดแสดงแก่ User แล้ว แต่สถานะโมดูลยังเป็นฉบับร่าง จึงยังไม่แสดงในหน้าผู้ใช้'
+      );
+    }
+
+    if (
+      filters.length >
+      maxFilters
+    ) {
+      addError(
+        `เงื่อนไขมีได้ไม่เกิน ${maxFilters} รายการ`,
+        '#adminFilterRows'
+      );
+    }
+
+    const activeFilters =
+      filters.filter(
+        (filter) =>
+          filter.active
+      );
+
+    if (
+      activeFilters.length ===
+      0
+    ) {
+      addWarning(
+        'ยังไม่มีเงื่อนไขที่เปิดใช้งาน โมดูลจะอ่านข้อมูลทุกแถวจากชีตต้นทาง'
+      );
+    }
+
+    filters.forEach(
+      (filter, index) => {
+        const rowSelector =
+          `#adminFilterRows [data-filter-row]:nth-child(${index + 1})`;
+
+        if (!filter.column) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} ยังไม่ระบุคอลัมน์`,
+            `${rowSelector} [data-filter-column]`
+          );
+        }
+
+        if (
+          !Object.prototype
+            .hasOwnProperty
+            .call(
+              LABELS.operators,
+              filter.operator
+            )
+        ) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} มีตัวดำเนินการไม่ถูกต้อง`,
+            `${rowSelector} [data-filter-operator]`
+          );
+        }
+
+        if (
+          filter.active &&
+          ![
+            'IS_EMPTY',
+            'IS_NOT_EMPTY'
+          ].includes(
+            filter.operator
+          ) &&
+          !filter.value
+        ) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} ยังไม่ระบุค่าที่ใช้กรอง`,
+            `${rowSelector} [data-filter-value]`
+          );
+        }
+
+        if (
+          ![
+            'AND',
+            'OR'
+          ].includes(
+            filter.connector
+          )
+        ) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} มีตัวเชื่อมไม่ถูกต้อง`,
+            `${rowSelector} [data-filter-connector]`
+          );
+        }
+      }
+    );
+
+    if (
+      fields.length >
+      maxFields
+    ) {
+      addError(
+        `ฟิลด์มีได้ไม่เกิน ${maxFields} รายการ`,
+        '#adminFieldRows'
+      );
+    }
+
+    if (
+      fields.length ===
+      0
+    ) {
+      addError(
+        'ต้องมีฟิลด์แสดงผลอย่างน้อย 1 รายการ',
+        '#adminFieldRows'
+      );
+    }
+
+    const fieldIds =
+      fields.map(
+        (field) =>
+          String(
+            field.fieldId || ''
+          ).toLowerCase()
+      );
+
+    const duplicateFieldIds =
+      findDuplicateValues(
+        fieldIds.filter(Boolean)
+      );
+
+    if (
+      duplicateFieldIds.length >
+      0
+    ) {
+      addError(
+        'พบรหัสฟิลด์ซ้ำ: ' +
+        duplicateFieldIds.join(', '),
+        '#adminFieldRows'
+      );
+    }
+
+    const visibleFields =
+      fields.filter(
+        (field) =>
+          field.visible &&
+          field.position !==
+            'HIDDEN'
+      );
+
+    if (
+      visibleFields.length ===
+      0
+    ) {
+      addError(
+        'ต้องเปิดแสดงผลอย่างน้อย 1 ฟิลด์',
+        '#adminFieldRows'
+      );
+    }
+
+    const primaryFields =
+      fields.filter(
+        (field) =>
+          field.primary &&
+          field.visible &&
+          field.position !==
+            'HIDDEN'
+      );
+
+    if (
+      primaryFields.length !==
+      1
+    ) {
+      addError(
+        'ต้องกำหนดฟิลด์ข้อมูลหลักที่แสดงบนหัวการ์ดจำนวน 1 รายการเท่านั้น',
+        '#adminFieldRows'
+      );
+    }
+
+    if (
+      primaryFields.length ===
+        1 &&
+      primaryFields[0].adminOnly &&
+      module.showToUsers
+    ) {
+      addError(
+        'ฟิลด์ข้อมูลหลักต้องไม่เป็นข้อมูลเฉพาะ Admin เมื่อโมดูลแสดงแก่ User',
+        '#adminFieldRows'
+      );
+    }
+
+    fields.forEach(
+      (field, index) => {
+        const rowSelector =
+          `#adminFieldRows [data-field-row]:nth-child(${index + 1})`;
+
+        if (!field.fieldId) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} ยังไม่ระบุรหัสฟิลด์`,
+            `${rowSelector} [data-field-id]`
+          );
+        }
+
+        if (!field.displayName) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} ยังไม่ระบุชื่อที่แสดง`,
+            `${rowSelector} [data-field-name]`
+          );
+        }
+
+        if (
+          field.sourceColumns.length ===
+          0
+        ) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} ยังไม่ระบุคอลัมน์ต้นทาง`,
+            `${rowSelector} [data-field-columns]`
+          );
+        }
+
+        if (
+          field.type !==
+            'CONCAT' &&
+          field.sourceColumns.length >
+            1
+        ) {
+          addError(
+            `ฟิลด์ “${field.displayName || index + 1}” ใช้หลายคอลัมน์ ต้องเลือกประเภท “รวมหลายคอลัมน์”`,
+            `${rowSelector} [data-field-type]`
+          );
+        }
+
+        if (
+          !Object.prototype
+            .hasOwnProperty
+            .call(
+              LABELS.fieldTypes,
+              field.type
+            )
+        ) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} มีประเภทข้อมูลไม่ถูกต้อง`,
+            `${rowSelector} [data-field-type]`
+          );
+        }
+
+        if (
+          !Object.prototype
+            .hasOwnProperty
+            .call(
+              LABELS.fieldPositions,
+              field.position
+            )
+        ) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} มีตำแหน่งแสดงไม่ถูกต้อง`,
+            `${rowSelector} [data-field-position]`
+          );
+        }
+
+        if (
+          field.primary &&
+          (
+            !field.visible ||
+            field.position ===
+              'HIDDEN'
+          )
+        ) {
+          addError(
+            `ฟิลด์ข้อมูลหลักลำดับ ${index + 1} ต้องเปิดแสดงผลและห้ามอยู่ในตำแหน่งซ่อน`,
+            `${rowSelector} [data-field-visible]`
+          );
+        }
+      }
+    );
+
+    return {
+      valid:
+        errors.length ===
+        0,
+
+      errors,
+      warnings,
+      firstTarget
+    };
   }
 
   async function inspectSource() {
@@ -895,12 +1734,97 @@ window.requestAnimationFrame(() => {
       <button class="admin-remove-row" type="button" data-remove-row>ลบ</button>
     `;
 
-    row.querySelector('[data-field-primary]')?.addEventListener('change', (event) => {
-      if (!event.target.checked) return;
-      document.querySelectorAll('#adminFieldRows [data-field-primary]').forEach((checkbox) => {
-        if (checkbox !== event.target) checkbox.checked = false;
-      });
-    });
+    const primaryCheckbox =
+      row.querySelector(
+        '[data-field-primary]'
+      );
+
+    const visibleCheckbox =
+      row.querySelector(
+        '[data-field-visible]'
+      );
+
+    const positionSelect =
+      row.querySelector(
+        '[data-field-position]'
+      );
+
+    primaryCheckbox?.addEventListener(
+      'change',
+      (event) => {
+        if (!event.target.checked) {
+          return;
+        }
+
+        document
+          .querySelectorAll(
+            '#adminFieldRows [data-field-primary]'
+          )
+          .forEach(
+            (checkbox) => {
+              if (
+                checkbox !==
+                event.target
+              ) {
+                checkbox.checked =
+                  false;
+              }
+            }
+          );
+
+        if (visibleCheckbox) {
+          visibleCheckbox.checked =
+            true;
+        }
+
+        if (
+          positionSelect &&
+          positionSelect.value ===
+            'HIDDEN'
+        ) {
+          positionSelect.value =
+            'HEADER';
+        }
+      }
+    );
+
+    positionSelect?.addEventListener(
+      'change',
+      () => {
+        if (
+          positionSelect.value !==
+          'HIDDEN'
+        ) {
+          return;
+        }
+
+        if (visibleCheckbox) {
+          visibleCheckbox.checked =
+            false;
+        }
+
+        if (primaryCheckbox) {
+          primaryCheckbox.checked =
+            false;
+        }
+      }
+    );
+
+    visibleCheckbox?.addEventListener(
+      'change',
+      () => {
+        if (
+          visibleCheckbox.checked
+        ) {
+          return;
+        }
+
+        if (primaryCheckbox) {
+          primaryCheckbox.checked =
+            false;
+        }
+      }
+    );
 
     container.appendChild(row);
     updateDynamicCounts();
@@ -1844,25 +2768,301 @@ window.requestAnimationFrame(() => {
 
   function warning(message) {
     return Swal.fire({
-      icon: 'warning',
-      title: 'ข้อมูลยังไม่ครบ',
-      text: message,
-      confirmButtonText: 'ตกลง'
+      icon:
+        'warning',
+
+      title:
+        'ข้อมูลยังไม่ครบ',
+
+      text:
+        message,
+
+      confirmButtonText:
+        'ตกลง'
     });
   }
 
-  function showApiError(error, title) {
-    const requestId = error?.requestId ? `<div class="request-id">รหัสอ้างอิง: ${escapeHtml(error.requestId)}</div>` : '';
-    const details = error?.details?.errors?.length
-      ? `<ul class="admin-error-list">${error.details.errors.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
-      : '';
+  function showValidationErrors(
+    messages,
+    title
+  ) {
+    const list =
+      Array.isArray(messages)
+        ? messages
+            .map(
+              (item) =>
+                String(item || '').trim()
+            )
+            .filter(Boolean)
+        : [];
 
     return Swal.fire({
-      icon: 'error',
-      title: title || 'เกิดข้อผิดพลาด',
-      html: `<div class="swal-error-content"><div>${escapeHtml(buildErrorMessage(error))}</div>${details}${requestId}</div>`,
-      confirmButtonText: 'ตกลง'
+      icon:
+        'warning',
+
+      title:
+        title ||
+        'ข้อมูลยังไม่ครบ',
+
+      html:
+        list.length
+          ? `
+            <div class="swal-error-content">
+              <ul class="admin-error-list">
+                ${list
+                  .map(
+                    (item) =>
+                      `<li>${escapeHtml(item)}</li>`
+                  )
+                  .join('')}
+              </ul>
+            </div>
+          `
+          : '',
+
+      confirmButtonText:
+        'ตกลง',
+
+      width:
+        680
     });
+  }
+
+  function showApiError(
+    error,
+    title
+  ) {
+    const messages =
+      collectErrorMessages(
+        error
+      );
+
+    const warnings =
+      collectErrorWarnings(
+        error
+      );
+
+    const requestId =
+      String(
+        error &&
+        (
+          error.requestId ||
+          error.details
+            ?.upstreamRequestId ||
+          error.details
+            ?.requestId
+        ) ||
+        ''
+      ).trim();
+
+    const detailsHtml =
+      messages.length
+        ? `
+          <ul class="admin-error-list">
+            ${messages
+              .map(
+                (item) =>
+                  `<li>${escapeHtml(item)}</li>`
+              )
+              .join('')}
+          </ul>
+        `
+        : '';
+
+    const warningsHtml =
+      warnings.length
+        ? `
+          <div class="admin-source-warning">
+            <strong>คำเตือน</strong>
+            <ul class="admin-warning-list">
+              ${warnings
+                .map(
+                  (item) =>
+                    `<li>${escapeHtml(item)}</li>`
+                )
+                .join('')}
+            </ul>
+          </div>
+        `
+        : '';
+
+    const requestIdHtml =
+      requestId
+        ? `
+          <div class="request-id">
+            รหัสอ้างอิง:
+            ${escapeHtml(requestId)}
+          </div>
+        `
+        : '';
+
+    return Swal.fire({
+      icon:
+        'error',
+
+      title:
+        title ||
+        'เกิดข้อผิดพลาด',
+
+      html: `
+        <div class="swal-error-content">
+          <div>
+            ${escapeHtml(
+              buildErrorMessage(
+                error
+              )
+            )}
+          </div>
+          ${detailsHtml}
+          ${warningsHtml}
+          ${requestIdHtml}
+        </div>
+      `,
+
+      confirmButtonText:
+        'ตกลง',
+
+      width:
+        720
+    });
+  }
+
+  function collectErrorMessages(
+    error
+  ) {
+    const candidates = [
+      error &&
+      error.details &&
+      error.details.errors,
+
+      error &&
+      error.details &&
+      error.details.validation &&
+      error.details.validation.errors,
+
+      error &&
+      error.details &&
+      error.details.upstreamDetails &&
+      error.details.upstreamDetails.errors,
+
+      error &&
+      error.details &&
+      error.details.details &&
+      error.details.details.errors,
+
+      error &&
+      error.errors
+    ];
+
+    const result = [];
+
+    candidates.forEach(
+      (candidate) => {
+        if (
+          !Array.isArray(
+            candidate
+          )
+        ) {
+          return;
+        }
+
+        candidate.forEach(
+          (item) => {
+            const text =
+              String(
+                item || ''
+              ).trim();
+
+            if (
+              text &&
+              !result.includes(
+                text
+              )
+            ) {
+              result.push(
+                text
+              );
+            }
+          }
+        );
+      }
+    );
+
+    if (
+      result.length ===
+        0 &&
+      error &&
+      error.message
+    ) {
+      result.push(
+        String(
+          error.message
+        )
+      );
+    }
+
+    return result;
+  }
+
+  function collectErrorWarnings(
+    error
+  ) {
+    const candidates = [
+      error &&
+      error.details &&
+      error.details.warnings,
+
+      error &&
+      error.details &&
+      error.details.validation &&
+      error.details.validation.warnings,
+
+      error &&
+      error.details &&
+      error.details.upstreamDetails &&
+      error.details.upstreamDetails.warnings,
+
+      error &&
+      error.details &&
+      error.details.details &&
+      error.details.details.warnings
+    ];
+
+    const result = [];
+
+    candidates.forEach(
+      (candidate) => {
+        if (
+          !Array.isArray(
+            candidate
+          )
+        ) {
+          return;
+        }
+
+        candidate.forEach(
+          (item) => {
+            const text =
+              String(
+                item || ''
+              ).trim();
+
+            if (
+              text &&
+              !result.includes(
+                text
+              )
+            ) {
+              result.push(
+                text
+              );
+            }
+          }
+        );
+      }
+    );
+
+    return result;
   }
 
   function buildErrorMessage(error) {
@@ -1879,7 +3079,13 @@ window.requestAnimationFrame(() => {
       CANNOT_DISABLE_SELF: 'ไม่สามารถลดสิทธิ์หรือปิดบัญชีที่กำลังใช้งานอยู่ได้',
       LAST_ADMIN_REQUIRED: 'ระบบต้องมี Admin ที่เปิดใช้งานอย่างน้อย 1 บัญชี',
       NETWORK_ERROR: 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาตรวจสอบอินเทอร์เน็ต',
-      REQUEST_TIMEOUT: 'ระบบใช้เวลาตอบกลับนานเกินกำหนด'
+      REQUEST_TIMEOUT: 'ระบบใช้เวลาตอบกลับนานเกินกำหนด',
+      MODULE_FORM_INVALID: 'ข้อมูลโมดูลยังไม่สมบูรณ์',
+      SOURCE_SHEET_EMPTY: 'ชีตต้นทางไม่มีข้อมูลหัวตารางในแถวที่กำหนด',
+      MODULE_LIMIT_REACHED: 'จำนวนโมดูลถึงขีดจำกัดของระบบแล้ว',
+      MODULE_ALREADY_EXISTS: 'มีรหัสโมดูลนี้อยู่แล้ว',
+      MODULE_ID_DUPLICATE: 'รหัสโมดูลใหม่ซ้ำกับโมดูลเดิม',
+      SERVICE_FUNCTION_MISSING: 'ระบบหลังบ้านยังติดตั้งไม่ครบ'
     };
 
     return messages[error?.code] || error?.message || 'เกิดข้อผิดพลาดจากระบบ';
@@ -1899,6 +3105,115 @@ window.requestAnimationFrame(() => {
     );
   }
 
+  function focusValidationTarget(
+    selector
+  ) {
+    if (!selector) {
+      return;
+    }
+
+    const element =
+      document.querySelector(
+        selector
+      );
+
+    if (!element) {
+      return;
+    }
+
+    window.setTimeout(
+      () => {
+        try {
+          element.scrollIntoView({
+            behavior:
+              'smooth',
+
+            block:
+              'center',
+
+            inline:
+              'nearest'
+          });
+
+          if (
+            typeof element.focus ===
+            'function'
+          ) {
+            element.focus({
+              preventScroll:
+                true
+            });
+          }
+
+        } catch (error) {
+          console.warn(
+            'ไม่สามารถเลื่อนไปยังช่องที่ผิดได้',
+            error
+          );
+        }
+      },
+      120
+    );
+  }
+
+  function positiveInteger(
+    input,
+    fallback
+  ) {
+    const number =
+      Number(input);
+
+    if (
+      Number.isInteger(number) &&
+      number > 0
+    ) {
+      return number;
+    }
+
+    return fallback;
+  }
+
+  function findDuplicateValues(
+    values
+  ) {
+    const seen =
+      new Set();
+
+    const duplicates =
+      new Set();
+
+    values.forEach(
+      (valueItem) => {
+        const cleanValue =
+          String(
+            valueItem || ''
+          ).trim();
+
+        if (!cleanValue) {
+          return;
+        }
+
+        if (
+          seen.has(
+            cleanValue
+          )
+        ) {
+          duplicates.add(
+            cleanValue
+          );
+        }
+
+        seen.add(
+          cleanValue
+        );
+      }
+    );
+
+    return Array.from(
+      duplicates
+    );
+  }
+
   function extractSpreadsheetId(input) {
     const text = String(input || '').trim();
     const match = text.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -1906,7 +3221,74 @@ window.requestAnimationFrame(() => {
   }
 
   function normalizeColumn(valueText) {
-    return String(valueText || '').trim().toUpperCase().replace(/[^A-Z]/g, '');
+    const text =
+      String(
+        valueText || ''
+      )
+        .trim()
+        .toUpperCase();
+
+    if (!text) {
+      return '';
+    }
+
+    /*
+     * รองรับทั้งตัวอักษรคอลัมน์ เช่น O, P
+     * และหมายเลขคอลัมน์ เช่น 15, 16
+     */
+    if (/^\d+$/.test(text)) {
+      return columnNumberToLetter(
+        Number(text)
+      );
+    }
+
+    const letters =
+      text.replace(
+        /[^A-Z]/g,
+        ''
+      );
+
+    return /^[A-Z]{1,3}$/
+      .test(letters)
+        ? letters
+        : '';
+  }
+
+  function columnNumberToLetter(
+    input
+  ) {
+    let number =
+      Number(input);
+
+    if (
+      !Number.isInteger(number) ||
+      number < 1 ||
+      number > 18278
+    ) {
+      return '';
+    }
+
+    let result = '';
+
+    while (number > 0) {
+      number -= 1;
+
+      result =
+        String.fromCharCode(
+          65 +
+          (
+            number % 26
+          )
+        ) +
+        result;
+
+      number =
+        Math.floor(
+          number / 26
+        );
+    }
+
+    return result;
   }
 
   function columnValue(id) {
