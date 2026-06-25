@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css"
+    href="./styles.css?v=20260625-silent-mobile1"
   >
 
   <script
@@ -38,7 +38,7 @@
   ></script>
 
   <script
-    src="./module.js"
+    src="./module.js?v=20260625-silent-mobile1"
     defer
   ></script>
 </head>
@@ -47,6 +47,7 @@
   data-page="module"
   class="module-page"
 >
+  <!-- แสดงเฉพาะตอนเปิดหน้าเป็นครั้งแรก -->
   <div
     id="pageLoading"
     class="page-loading"
@@ -240,14 +241,6 @@
       >
         ปฏิทิน
       </button>
-
-      <button
-        id="refreshButton"
-        class="button button--primary vehicle-tool-button"
-        type="button"
-      >
-        รีเฟรช
-      </button>
     </section>
 
     <section class="vehicle-result-header">
@@ -257,28 +250,10 @@
         </strong>
 
         <span id="lastUpdated">
-          ยังไม่ได้โหลดข้อมูล
+          กำลังเตรียมข้อมูล
         </span>
       </div>
-
-      <div
-        id="autoRefreshStatus"
-        class="auto-refresh-status"
-      >
-        อัปเดตอัตโนมัติ
-      </div>
     </section>
-
-    <div
-      id="vehicleLoading"
-      class="inline-loading"
-    >
-      <div class="spinner spinner--small"></div>
-
-      <span>
-        กำลังโหลดข้อมูลรถ
-      </span>
-    </div>
 
     <div
       id="vehicleEmpty"
@@ -297,6 +272,7 @@
       id="vehicleList"
       class="vehicle-grid"
       aria-live="polite"
+      aria-busy="false"
     ></section>
   </main>
 
