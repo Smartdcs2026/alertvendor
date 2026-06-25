@@ -4029,4 +4029,308 @@ body.admin-editor-open {
     width: min(94vw, 980px);
   }
 }
+/************************************************************
+ * MODULE: Silent Refresh + Mobile Compact 2 Columns
+ *
+ * วางชุดนี้ไว้ท้ายสุดของ styles.css
+ ************************************************************/
+
+/* ซ่อนทุกองค์ประกอบที่ทำให้ผู้ใช้เห็นว่ากำลังรีเฟรช */
+.module-page #refreshButton,
+.module-page #autoRefreshStatus,
+.module-page #vehicleLoading {
+  display: none !important;
+}
+
+/* แถบค้นหา: แถวแรกเป็นค้นหา แถวที่สองเป็นตัวกรองและปฏิทิน */
+.module-page .vehicle-tools {
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 7px;
+  padding: 8px;
+}
+
+.module-page .vehicle-search {
+  grid-column: 1 / -1;
+}
+
+.module-page .vehicle-filter,
+.module-page #calendarButton {
+  min-width: 0;
+}
+
+.module-page .vehicle-search input,
+.module-page .vehicle-filter select,
+.module-page .vehicle-tool-button {
+  min-height: 40px;
+  padding: 7px 9px;
+  font-size: 0.76rem;
+}
+
+/* สรุปสถานะบนมือถือ 3 รายการต่อแถว */
+.module-page .vehicle-summary-grid {
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 6px;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.module-page .vehicle-summary-card {
+  min-width: 0;
+  min-height: 62px;
+  padding: 6px 3px;
+  border-radius: 10px;
+}
+
+.module-page .vehicle-summary-card > span {
+  overflow: hidden;
+  font-size: 0.52rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-page .vehicle-summary-card strong {
+  font-size: 1.05rem;
+}
+
+.module-page .vehicle-summary-card small {
+  font-size: 0.5rem;
+}
+
+/* มือถือแสดงการ์ดรถ 2 ใบต่อแถว */
+.module-page .vehicle-grid {
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 7px;
+  align-items: start;
+}
+
+/* ลดภาระการ Render เมื่อมีข้อมูลหลายร้อยรายการ */
+.module-page .vehicle-card {
+  min-width: 0;
+  padding: 9px 7px 8px 12px;
+  border-radius: 11px;
+  box-shadow:
+    0 4px 12px rgba(15, 61, 94, 0.06);
+
+  content-visibility: auto;
+  contain-intrinsic-size: 190px;
+}
+
+.module-page .vehicle-card__rail {
+  width: 4px;
+}
+
+/* หัวการ์ดเรียงบนลงล่าง เพื่อให้พอดีกับการ์ดครึ่งจอ */
+.module-page .vehicle-card__header {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr);
+
+  gap: 5px;
+}
+
+.module-page .vehicle-card__title {
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.module-page .vehicle-status-badge {
+  min-height: 19px;
+  margin-top: 3px;
+  padding: 2px 5px;
+  font-size: 0.5rem;
+}
+
+.module-page .vehicle-card__timer-wrap {
+  width: 100%;
+  display: grid;
+  grid-template-columns:
+    auto minmax(0, 1fr);
+
+  align-items: center;
+  justify-items: end;
+  gap: 4px;
+}
+
+.module-page .vehicle-card__timer-wrap span {
+  justify-self: start;
+  font-size: 0.5rem;
+}
+
+.module-page .vehicle-card__timer {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* รายละเอียดแต่ละข้อมูลอยู่บรรทัดเดียว ประหยัดความสูง */
+.module-page .vehicle-detail-grid {
+  grid-template-columns:
+    minmax(0, 1fr);
+
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.module-page .vehicle-field {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.85fr)
+    minmax(0, 1.15fr);
+
+  align-items: center;
+  gap: 4px;
+  padding: 4px 5px;
+  border-radius: 6px;
+}
+
+.module-page .vehicle-field span {
+  font-size: 0.48rem;
+}
+
+.module-page .vehicle-field strong,
+.module-page .vehicle-field a {
+  margin-top: 0;
+  font-size: 0.57rem;
+  text-align: right;
+}
+
+/* ส่วนเวลาเข้าและปุ่มบันทึกออก */
+.module-page .vehicle-card__footer {
+  gap: 5px;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.module-page .vehicle-in-time {
+  display: grid;
+  gap: 1px;
+}
+
+.module-page .vehicle-in-time span {
+  font-size: 0.48rem;
+}
+
+.module-page .vehicle-in-time strong {
+  overflow: hidden;
+  font-size: 0.56rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-page .button--checkout {
+  min-height: 34px;
+  padding: 6px 5px;
+  border-radius: 8px;
+  font-size: 0.58rem;
+}
+
+/* หัวผลลัพธ์เล็กลงและไม่มีป้าย Auto Refresh */
+.module-page .vehicle-result-header {
+  margin: 10px 2px 7px;
+}
+
+.module-page .vehicle-result-header strong {
+  font-size: 0.78rem;
+}
+
+.module-page .vehicle-result-header span {
+  font-size: 0.56rem;
+}
+
+
+/************************************************************
+ * Tablet
+ ************************************************************/
+
+@media (min-width: 640px) {
+  .module-page .vehicle-summary-grid {
+    grid-template-columns:
+      repeat(5, minmax(0, 1fr));
+  }
+
+  .module-page .vehicle-tools {
+    grid-template-columns:
+      minmax(0, 1fr)
+      160px
+      120px;
+  }
+
+  .module-page .vehicle-search {
+    grid-column: auto;
+  }
+
+  .module-page .vehicle-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+  }
+
+  .module-page .vehicle-card {
+    padding: 12px 11px 10px 16px;
+  }
+
+  .module-page .vehicle-card__header {
+    grid-template-columns:
+      minmax(0, 1fr) auto;
+  }
+
+  .module-page .vehicle-card__timer-wrap {
+    width: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .module-page .vehicle-detail-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .module-page .vehicle-field {
+    display: block;
+  }
+
+  .module-page .vehicle-field strong,
+  .module-page .vehicle-field a {
+    margin-top: 2px;
+    text-align: left;
+  }
+
+  .module-page .vehicle-card__title {
+    font-size: 0.9rem;
+  }
+
+  .module-page .vehicle-card__timer {
+    font-size: 0.9rem;
+  }
+}
+
+
+/************************************************************
+ * Desktop
+ ************************************************************/
+
+@media (min-width: 920px) {
+  .module-page .vehicle-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1240px) {
+  .module-page .vehicle-grid {
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+  }
+}
 
