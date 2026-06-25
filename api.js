@@ -21,6 +21,18 @@
   const TOKEN_STORAGE_KEY =
     'alertvendor_access_token';
 
+  const inFlightGetRequests =
+    new Map();
+
+  const RETRYABLE_ERROR_CODES =
+    new Set([
+      'NETWORK_ERROR',
+      'REQUEST_TIMEOUT',
+      'GAS_TIMEOUT',
+      'GAS_CONNECTION_FAILED',
+      'GAS_HTTP_ERROR'
+    ]);
+
   if (!API_BASE) {
     console.error(
       'ไม่พบ APP_CONFIG.API_BASE'
@@ -312,6 +324,121 @@
     path,
     options
   ) {
+    const config =
+      options &&
+      typeof options === 'object'
+        ? {
+            ...options
+          }
+        : {};
+
+    const method =
+      String(
+        config.method || 'GET'
+      ).toUpperCase();
+
+    const requestKey =
+      method === 'GET' &&
+      config.dedupe !== false
+        ? buildUrl(
+            path,
+            config.query
+          )
+        : '';
+
+    if (
+      requestKey &&
+      inFlightGetRequests.has(
+        requestKey
+      )
+    ) {
+      return inFlightGetRequests.get(
+        requestKey
+      );
+    }
+
+    const promise =
+      requestWithRetry(
+        path,
+        config
+      );
+
+    if (requestKey) {
+      inFlightGetRequests.set(
+        requestKey,
+        promise
+      );
+    }
+
+    try {
+      return await promise;
+
+    } finally {
+      if (requestKey) {
+        inFlightGetRequests.delete(
+          requestKey
+        );
+      }
+    }
+  }
+
+  async function requestWithRetry(
+    path,
+    config
+  ) {
+    const method =
+      String(
+        config.method || 'GET'
+      ).toUpperCase();
+
+    const maximumRetries =
+      method === 'GET'
+        ? clampInteger(
+            config.retries,
+            0,
+            3,
+            2
+          )
+        : 0;
+
+    let attempt = 0;
+
+    while (true) {
+      try {
+        return await requestOnce(
+          path,
+          config
+        );
+
+      } catch (error) {
+        if (
+          attempt >=
+            maximumRetries ||
+          !shouldRetryRequest(
+            error,
+            method
+          )
+        ) {
+          throw error;
+        }
+
+        const waitMs =
+          calculateRetryDelayMs(
+            error,
+            attempt
+          );
+
+        await delay(waitMs);
+
+        attempt += 1;
+      }
+    }
+  }
+
+  async function requestOnce(
+    path,
+    config
+  ) {
     if (!API_BASE) {
       throw new VehicleAPIError(
         'ยังไม่ได้ตั้งค่า API_BASE',
@@ -319,12 +446,6 @@
         0
       );
     }
-
-    const config =
-      options &&
-      typeof options === 'object'
-        ? options
-        : {};
 
     const method =
       String(
@@ -385,19 +506,12 @@
     const fetchOptions = {
       method,
       headers,
-
-      /*
-       * ไม่ใช้ Cookie ข้ามโดเมนแล้ว
-       */
       credentials:
         'omit',
-
       cache:
         'no-store',
-
       redirect:
         'follow',
-
       signal:
         controller.signal
     };
@@ -471,6 +585,170 @@
     }
   }
 
+  function shouldRetryRequest(
+    error,
+    method
+  ) {
+    if (method !== 'GET') {
+      return false;
+    }
+
+    if (!error) {
+      return false;
+    }
+
+    if (
+      RETRYABLE_ERROR_CODES.has(
+        error.code
+      )
+    ) {
+      return true;
+    }
+
+    return [
+      502,
+      503,
+      504
+    ].includes(
+      Number(error.status)
+    );
+  }
+
+  function calculateRetryDelayMs(
+    error,
+    attempt
+  ) {
+    const retryAfterSeconds =
+      Number(
+        error &&
+        error.details &&
+        error.details.retryAfterSeconds
+      );
+
+    if (
+      Number.isFinite(
+        retryAfterSeconds
+      ) &&
+      retryAfterSeconds > 0
+    ) {
+      return Math.min(
+        retryAfterSeconds *
+          1000,
+        10000
+      );
+    }
+
+    return Math.min(
+      700 *
+        Math.pow(
+          2,
+          attempt
+        ) +
+        Math.floor(
+          Math.random() *
+          250
+        ),
+      5000
+    );
+  }
+
+  function delay(
+    milliseconds
+  ) {
+    return new Promise(
+      (resolve) => {
+        window.setTimeout(
+          resolve,
+          milliseconds
+        );
+      }
+    );
+  }
+
+  function clampInteger(
+    value,
+    minimum,
+    maximum,
+    fallback
+  ) {
+    const number =
+      Number(value);
+
+    if (
+      !Number.isFinite(number)
+    ) {
+      return fallback;
+    }
+
+    return Math.min(
+      Math.max(
+        Math.floor(number),
+        minimum
+      ),
+      maximum
+    );
+  }
+
+  function getClientDiagnostics() {
+    let storageAvailable =
+      true;
+
+    try {
+      const probeKey =
+        '__alertvendor_probe__';
+
+      window.sessionStorage
+        .setItem(
+          probeKey,
+          '1'
+        );
+
+      window.sessionStorage
+        .removeItem(
+          probeKey
+        );
+
+    } catch (error) {
+      storageAvailable =
+        false;
+    }
+
+    return {
+      status:
+        navigator.onLine &&
+        storageAvailable &&
+        Boolean(
+          getAccessToken()
+        )
+          ? 'PASS'
+          : 'FAIL',
+
+      checkedAt:
+        new Date()
+          .toISOString(),
+
+      online:
+        navigator.onLine,
+
+      origin:
+        window.location.origin,
+
+      page:
+        window.location.pathname,
+
+      storageAvailable:
+        storageAvailable,
+
+      sessionTokenPresent:
+        Boolean(
+          getAccessToken()
+        ),
+
+      apiBase:
+        API_BASE
+    };
+  }
+
   /************************************************************
    * Public API
    ************************************************************/
@@ -485,6 +763,8 @@
 
     clearSession:
       clearAccessToken,
+
+    getClientDiagnostics,
 
     hasSession() {
       return Boolean(
@@ -1016,6 +1296,30 @@
 
               action:
                 config.action || ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async runProductionDiagnostics(
+      options
+    ) {
+      const response =
+        await request(
+          '/api/admin/diagnostics',
+          {
+            method:
+              'POST',
+
+            timeoutMs:
+              120000,
+
+            body: {
+              options:
+                options || {}
             }
           }
         );
