@@ -3942,4 +3942,91 @@ input:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/************************************************************
+ * FIX: Admin Module Editor เลื่อนขึ้นลงไม่ได้
+ * วางโค้ดชุดนี้ไว้ท้ายสุดของ styles.css
+ ************************************************************/
+
+/* ล็อกเฉพาะหน้าหลักด้านหลัง Editor */
+body.admin-editor-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* กำหนดความสูง Editor ตามพื้นที่หน้าจอจริง */
+.admin-editor {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* บังคับ Panel ให้อยู่ภายในหน้าจอและไม่ขยายตามเนื้อหา */
+.admin-editor__panel {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+/* ส่วน Form เป็นพื้นที่เลื่อนหลัก */
+.admin-editor__body {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+  padding-bottom: calc(112px + var(--safe-bottom));
+}
+
+/* ทำ Scrollbar ให้มองเห็นและลากได้ง่ายบนคอมพิวเตอร์ */
+.admin-editor__body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.admin-editor__body::-webkit-scrollbar-track {
+  background: #e9eef3;
+}
+
+.admin-editor__body::-webkit-scrollbar-thumb {
+  border: 2px solid #e9eef3;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.admin-editor__body::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* ปุ่มบันทึกอยู่ด้านล่างเสมอ แต่ไม่ปิดทับข้อมูลท้ายฟอร์ม */
+.admin-editor__footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+}
+
+@media (min-width: 640px) {
+  .admin-editor__panel {
+    width: min(94vw, 980px);
+  }
+
+  .admin-editor__footer {
+    right: 0;
+    left: auto;
+    width: min(94vw, 980px);
+  }
+}
 
