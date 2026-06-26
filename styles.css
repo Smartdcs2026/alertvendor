@@ -4334,3 +4334,872 @@ body.admin-editor-open {
   }
 }
 
+/************************************************************
+ * ROUND 13 — Warehouse 24H Control Tower
+ * วางต่อท้ายสุดของ styles.css
+ ************************************************************/
+
+.module-page {
+  --status-normal: #15803d;
+  --status-normal-soft: #ecfdf3;
+  --status-warning: #c66a05;
+  --status-warning-soft: #fff8e8;
+  --status-overdue: #c62828;
+  --status-overdue-soft: #fff1f1;
+  --status-auto-close: #6d28d9;
+  --status-auto-close-soft: #f5f0ff;
+  --status-data: #64748b;
+  --status-data-soft: #f3f5f7;
+}
+
+/* ไม่แสดงกระบวนการรีเฟรช */
+.module-page #refreshButton,
+.module-page #autoRefreshStatus,
+.module-page #vehicleLoading {
+  display: none !important;
+}
+
+/* ==================== Control Tower ==================== */
+.warehouse-control-tower {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 11px;
+  border: 1px solid #d8e1e8;
+  border-left: 5px solid var(--status-normal);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 28px rgba(15, 61, 94, 0.11);
+  backdrop-filter: blur(12px);
+}
+
+.warehouse-control-tower[data-state="WATCH"] {
+  border-left-color: var(--status-warning);
+  background: rgba(255, 250, 238, 0.97);
+}
+
+.warehouse-control-tower[data-state="CRITICAL"] {
+  border-left-color: var(--status-overdue);
+  background: rgba(255, 245, 245, 0.97);
+}
+
+.warehouse-control-tower[data-state="AUTO_CLOSE"] {
+  border-left-color: var(--status-auto-close);
+  background: rgba(248, 245, 255, 0.97);
+}
+
+.warehouse-control-tower[data-state="DATA"] {
+  border-left-color: var(--status-data);
+}
+
+.warehouse-control-tower__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.warehouse-control-tower__signal {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--status-normal-soft);
+}
+
+.warehouse-control-tower__signal span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--status-normal);
+  box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.12);
+}
+
+.warehouse-control-tower[data-state="WATCH"] .warehouse-control-tower__signal {
+  background: var(--status-warning-soft);
+}
+
+.warehouse-control-tower[data-state="WATCH"] .warehouse-control-tower__signal span {
+  background: var(--status-warning);
+  box-shadow: 0 0 0 6px rgba(198, 106, 5, 0.13);
+}
+
+.warehouse-control-tower[data-state="CRITICAL"] .warehouse-control-tower__signal {
+  background: var(--status-overdue-soft);
+}
+
+.warehouse-control-tower[data-state="CRITICAL"] .warehouse-control-tower__signal span {
+  background: var(--status-overdue);
+  box-shadow: 0 0 0 6px rgba(198, 40, 40, 0.13);
+  animation: warehouse-pulse 1.5s ease-in-out infinite;
+}
+
+.warehouse-control-tower[data-state="AUTO_CLOSE"] .warehouse-control-tower__signal {
+  background: var(--status-auto-close-soft);
+}
+
+.warehouse-control-tower[data-state="AUTO_CLOSE"] .warehouse-control-tower__signal span {
+  background: var(--status-auto-close);
+  box-shadow: 0 0 0 6px rgba(109, 40, 217, 0.13);
+}
+
+@keyframes warehouse-pulse {
+  50% {
+    transform: scale(1.12);
+    opacity: 0.7;
+  }
+}
+
+.warehouse-control-tower__status small,
+.warehouse-control-tower__status strong,
+.warehouse-control-tower__status p {
+  display: block;
+}
+
+.warehouse-control-tower__status small {
+  color: #64748b;
+  font-size: 0.57rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.warehouse-control-tower__status strong {
+  margin-top: 1px;
+  color: #172b3a;
+  font-size: 0.9rem;
+}
+
+.warehouse-control-tower__status p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #607080;
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-control-tower__metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.warehouse-control-tower__metrics > div {
+  min-width: 0;
+  padding: 6px 3px;
+  border-radius: 8px;
+  background: #f5f8fa;
+  text-align: center;
+}
+
+.warehouse-control-tower__metrics span,
+.warehouse-control-tower__metrics strong {
+  display: block;
+}
+
+.warehouse-control-tower__metrics span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 0.46rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warehouse-control-tower__metrics strong {
+  margin-top: 2px;
+  color: #172b3a;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.warehouse-control-tower__metrics [data-metric="NORMAL"] strong {
+  color: var(--status-normal);
+}
+
+.warehouse-control-tower__metrics [data-metric="WARNING"] strong {
+  color: var(--status-warning);
+}
+
+.warehouse-control-tower__metrics [data-metric="OVERDUE"] strong {
+  color: var(--status-overdue);
+}
+
+.warehouse-control-tower__metrics [data-metric="AUTO_CLOSE"] strong {
+  color: var(--status-auto-close);
+}
+
+/* ==================== Timeline ==================== */
+.hourly-timeline-panel {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #dfe6ec;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(15, 61, 94, 0.05);
+}
+
+.hourly-timeline-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hourly-timeline-panel__header small {
+  color: #0f766e;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.hourly-timeline-panel__header h2 {
+  margin: 1px 0 0;
+  font-size: 0.82rem;
+}
+
+.hourly-timeline-panel__header p {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 0.55rem;
+}
+
+.timeline-mode-group {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
+  padding: 2px;
+  border-radius: 9px;
+  background: #eef3f6;
+}
+
+.timeline-mode-group button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 7px;
+  color: #64748b;
+  background: transparent;
+  font-size: 0.51rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.timeline-mode-group button.is-active {
+  color: #0f3d5e;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(15, 61, 94, 0.12);
+}
+
+.hourly-timeline {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+  overflow-x: auto;
+  padding: 2px 1px 7px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.timeline-hour {
+  position: relative;
+  min-width: 66px;
+  min-height: 73px;
+  display: grid;
+  flex: 0 0 66px;
+  align-content: center;
+  gap: 1px;
+  scroll-snap-align: center;
+  border: 1px solid #e1e8ed;
+  border-radius: 10px;
+  padding: 7px 5px 9px;
+  color: #475569;
+  background: #fafcfd;
+  text-align: center;
+  cursor: pointer;
+}
+
+.timeline-hour__time {
+  font-size: 0.56rem;
+  font-weight: 800;
+}
+
+.timeline-hour strong {
+  color: #1f3342;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-hour small {
+  overflow: hidden;
+  font-size: 0.45rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-hour i {
+  position: absolute;
+  right: 7px;
+  bottom: 5px;
+  left: 7px;
+  height: 3px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.timeline-hour[data-status="NORMAL"] i {
+  background: var(--status-normal);
+}
+
+.timeline-hour[data-status="WARNING"] i {
+  background: var(--status-warning);
+}
+
+.timeline-hour[data-status="OVERDUE"] i {
+  background: var(--status-overdue);
+}
+
+.timeline-hour[data-status="AUTO_CLOSE"] i {
+  background: var(--status-auto-close);
+}
+
+.timeline-hour.is-current {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1);
+}
+
+.timeline-hour.is-selected {
+  color: #ffffff;
+  border-color: #0f3d5e;
+  background: #0f3d5e;
+  transform: translateY(-1px);
+}
+
+.timeline-hour.is-selected strong {
+  color: #ffffff;
+}
+
+.hourly-timeline-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+}
+
+.timeline-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #64748b;
+  font-size: 0.45rem;
+}
+
+.timeline-legend span::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  content: "";
+}
+
+.timeline-legend [data-status="NORMAL"]::before {
+  background: var(--status-normal);
+}
+
+.timeline-legend [data-status="WARNING"]::before {
+  background: var(--status-warning);
+}
+
+.timeline-legend [data-status="OVERDUE"]::before {
+  background: var(--status-overdue);
+}
+
+.timeline-legend [data-status="AUTO_CLOSE"]::before {
+  background: var(--status-auto-close);
+}
+
+.timeline-clear-button {
+  flex: 0 0 auto;
+  min-height: 27px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 7px;
+  color: #0f3d5e;
+  background: #ffffff;
+  font-size: 0.49rem;
+  font-weight: 750;
+}
+
+/* ==================== Compact summary and tools ==================== */
+.module-page .vehicle-summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  overflow: visible;
+}
+
+.module-page .vehicle-summary-card {
+  min-width: 0;
+  min-height: 57px;
+  padding: 5px 2px;
+  border-radius: 9px;
+}
+
+.module-page .vehicle-summary-card > span {
+  overflow: hidden;
+  font-size: 0.48rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-page .vehicle-summary-card strong {
+  font-size: 0.95rem;
+}
+
+.module-page .vehicle-summary-card small {
+  font-size: 0.46rem;
+}
+
+.module-page .vehicle-tools {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+  padding: 8px;
+}
+
+.module-page .vehicle-search {
+  grid-column: 1 / -1;
+}
+
+.module-page .vehicle-search input,
+.module-page .vehicle-filter select,
+.module-page .vehicle-tool-button {
+  min-height: 39px;
+  padding: 7px 9px;
+  font-size: 0.72rem;
+}
+
+/* ==================== Professional cards ==================== */
+.module-page .vehicle-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  align-items: start;
+}
+
+.vehicle-card--professional {
+  position: relative;
+  min-width: 0;
+  padding: 9px 7px 8px 12px;
+  border-color: #dfe6eb;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 14px rgba(15, 61, 94, 0.07);
+  cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: 240px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.vehicle-card--professional:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.22);
+  outline-offset: 2px;
+}
+
+.vehicle-card--professional[data-status="NORMAL"] {
+  border-color: #cfe8d7;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fcf9 100%);
+}
+
+.vehicle-card--professional[data-status="WARNING"] {
+  border-color: #f0d8a9;
+  background: linear-gradient(180deg, #fffefa 0%, #fff8e9 100%);
+}
+
+.vehicle-card--professional[data-status="OVERDUE"] {
+  border-color: #efc5c5;
+  background: linear-gradient(180deg, #fffdfd 0%, #fff2f2 100%);
+}
+
+.vehicle-card--professional[data-status="INCOMPLETE"] {
+  border-color: #d6dce2;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f6f8 100%);
+}
+
+.vehicle-card--professional[data-near-auto-close="TRUE"] {
+  border-color: #cbb9ef;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%);
+  box-shadow: 0 7px 20px rgba(109, 40, 217, 0.12);
+}
+
+.vehicle-card--professional .vehicle-card__rail {
+  width: 4px;
+}
+
+.vehicle-card--professional[data-near-auto-close="TRUE"] .vehicle-card__rail {
+  background: var(--status-auto-close);
+}
+
+.vehicle-card__rank {
+  display: inline-flex;
+  align-items: center;
+  min-height: 17px;
+  margin: 0 0 5px;
+  border-radius: 999px;
+  padding: 2px 5px;
+  color: #64748b;
+  background: rgba(238, 243, 246, 0.9);
+  font-size: 0.43rem;
+  font-weight: 800;
+}
+
+.vehicle-card--professional[data-status="OVERDUE"] .vehicle-card__rank,
+.vehicle-card--professional[data-near-auto-close="TRUE"] .vehicle-card__rank {
+  color: #ffffff;
+  background: var(--status-overdue);
+}
+
+.vehicle-card--professional[data-near-auto-close="TRUE"] .vehicle-card__rank {
+  background: var(--status-auto-close);
+}
+
+.vehicle-card--professional .vehicle-card__header {
+  display: block;
+}
+
+.vehicle-card--professional .vehicle-card__title {
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.vehicle-card__status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.vehicle-card--professional .vehicle-status-badge {
+  min-height: 19px;
+  margin-top: 0;
+  padding: 2px 5px;
+  font-size: 0.49rem;
+}
+
+.vehicle-card--professional .vehicle-card__timer {
+  flex: 0 0 auto;
+  color: #32475a;
+  font-size: 0.66rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.vehicle-card--professional[data-status="OVERDUE"] .vehicle-card__timer {
+  color: var(--status-overdue);
+}
+
+.vehicle-progress {
+  margin-top: 7px;
+}
+
+.vehicle-progress__track {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5ebef;
+}
+
+.vehicle-progress__fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--status-normal);
+  transition: width 0.6s linear, background 0.2s ease;
+}
+
+.vehicle-card--professional[data-status="WARNING"] .vehicle-progress__fill {
+  background: var(--status-warning);
+}
+
+.vehicle-card--professional[data-status="OVERDUE"] .vehicle-progress__fill {
+  background: var(--status-overdue);
+}
+
+.vehicle-card--professional[data-status="INCOMPLETE"] .vehicle-progress__fill {
+  background: var(--status-data);
+}
+
+.vehicle-card--professional[data-near-auto-close="TRUE"] .vehicle-progress__fill {
+  background: var(--status-auto-close);
+}
+
+.vehicle-progress__marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(31, 51, 66, 0.25);
+  transform: translateX(-1px);
+}
+
+.vehicle-progress__labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2px;
+  margin-top: 3px;
+  color: #7a8792;
+  font-size: 0.39rem;
+}
+
+.vehicle-progress__labels span:nth-child(2) {
+  text-align: center;
+}
+
+.vehicle-progress__labels span:last-child {
+  text-align: right;
+}
+
+.vehicle-card__priority-text {
+  min-height: 25px;
+  margin: 5px 0 0;
+  padding: 5px 6px;
+  border-radius: 7px;
+  color: #385064;
+  background: rgba(238, 243, 246, 0.76);
+  font-size: 0.52rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.vehicle-card--professional[data-status="WARNING"] .vehicle-card__priority-text {
+  color: #8f4f08;
+  background: rgba(255, 237, 198, 0.72);
+}
+
+.vehicle-card--professional[data-status="OVERDUE"] .vehicle-card__priority-text {
+  color: #991b1b;
+  background: rgba(254, 226, 226, 0.78);
+}
+
+.vehicle-card--professional[data-near-auto-close="TRUE"] .vehicle-card__priority-text {
+  color: #5b21b6;
+  background: rgba(237, 233, 254, 0.86);
+}
+
+.vehicle-card--professional .vehicle-detail-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.vehicle-card--professional .vehicle-field {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: 3px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  background: rgba(245, 248, 250, 0.82);
+}
+
+.vehicle-card--professional .vehicle-field span {
+  font-size: 0.45rem;
+}
+
+.vehicle-card--professional .vehicle-field strong,
+.vehicle-card--professional .vehicle-field a {
+  margin-top: 0;
+  font-size: 0.54rem;
+  text-align: right;
+}
+
+.vehicle-card--professional .vehicle-card__footer {
+  gap: 5px;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.vehicle-card--professional .vehicle-in-time {
+  display: grid;
+  gap: 1px;
+}
+
+.vehicle-card--professional .vehicle-in-time span {
+  font-size: 0.44rem;
+}
+
+.vehicle-card--professional .vehicle-in-time strong {
+  overflow: hidden;
+  font-size: 0.53rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vehicle-card--professional .button--checkout {
+  min-height: 33px;
+  padding: 6px 4px;
+  border-radius: 7px;
+  font-size: 0.55rem;
+}
+
+/* รายละเอียดเมื่อแตะการ์ด */
+.record-detail-dialog {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+}
+
+.record-detail-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #eef4f7;
+}
+
+.record-detail-summary span {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.record-detail-summary strong {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-detail-summary small {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 0.66rem;
+}
+
+.record-detail-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
+  padding: 7px 4px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.record-detail-row span {
+  color: #64748b;
+  font-size: 0.68rem;
+}
+
+.record-detail-row strong {
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+/* ==================== Responsive ==================== */
+@media (min-width: 640px) {
+  .warehouse-control-tower {
+    grid-template-columns: minmax(230px, 0.9fr) minmax(0, 1.5fr);
+    align-items: center;
+    padding: 13px 15px;
+  }
+
+  .warehouse-control-tower__metrics > div {
+    padding: 8px 4px;
+  }
+
+  .warehouse-control-tower__metrics span {
+    font-size: 0.55rem;
+  }
+
+  .warehouse-control-tower__metrics strong {
+    font-size: 1rem;
+  }
+
+  .module-page .vehicle-tools {
+    grid-template-columns: minmax(0, 1fr) 160px 120px;
+  }
+
+  .module-page .vehicle-search {
+    grid-column: auto;
+  }
+
+  .module-page .vehicle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .vehicle-card--professional {
+    padding: 12px 10px 10px 16px;
+  }
+
+  .vehicle-card--professional .vehicle-card__title {
+    font-size: 0.9rem;
+  }
+
+  .vehicle-card--professional .vehicle-card__timer {
+    font-size: 0.78rem;
+  }
+
+  .vehicle-card--professional .vehicle-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vehicle-card--professional .vehicle-field {
+    display: block;
+  }
+
+  .vehicle-card--professional .vehicle-field strong,
+  .vehicle-card--professional .vehicle-field a {
+    margin-top: 2px;
+    text-align: left;
+  }
+}
+
+@media (min-width: 920px) {
+  .module-page .vehicle-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hourly-timeline {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .timeline-hour {
+    min-width: 0;
+    flex-basis: auto;
+  }
+}
+
+@media (min-width: 1240px) {
+  .module-page .vehicle-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warehouse-control-tower__signal span,
+  .vehicle-progress__fill,
+  .vehicle-card--professional {
+    animation: none !important;
+    transition: none !important;
+  }
+}
