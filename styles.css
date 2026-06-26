@@ -6304,3 +6304,1681 @@ body.admin-editor-open {
     transition: none !important;
   }
 }
+
+/************************************************************
+ * ROUND 17 — High Contrast Professional Dashboard
+ * วางต่อท้ายสุดของ styles.css
+ *
+ * เป้าหมาย:
+ * - แยกประเภทข้อมูล เข้า / ออก / รวม / สุทธิ ให้ชัด
+ * - แยกสีสถานะ ปกติ / เฝ้าระวัง / เกินเวลา / Auto Close
+ * - เพิ่ม Visual Hierarchy ระหว่าง Section
+ * - ทำ Timeline ตรงกลางเด่นกว่าด้านข้างอย่างชัดเจน
+ * - คงโครงสร้าง HTML และ JavaScript รอบเดิม
+ ************************************************************/
+
+.module-page {
+  --pro-canvas:
+    #e8eef3;
+
+  --pro-surface:
+    #ffffff;
+
+  --pro-surface-soft:
+    #f4f7fa;
+
+  --pro-border:
+    #cbd7e0;
+
+  --pro-border-strong:
+    #aebfcb;
+
+  --pro-navy:
+    #0b2f46;
+
+  --pro-navy-2:
+    #123f5d;
+
+  --pro-text:
+    #122638;
+
+  --pro-muted:
+    #5f7180;
+
+  --flow-in:
+    #00897b;
+
+  --flow-in-soft:
+    #e2f6f2;
+
+  --flow-out:
+    #2563eb;
+
+  --flow-out-soft:
+    #e8f0ff;
+
+  --flow-total:
+    #334155;
+
+  --flow-total-soft:
+    #e8edf2;
+
+  --flow-net:
+    #7c3aed;
+
+  --flow-net-soft:
+    #f0eaff;
+
+  --status-normal:
+    #15803d;
+
+  --status-normal-soft:
+    #e7f7ec;
+
+  --status-warning:
+    #d97706;
+
+  --status-warning-soft:
+    #fff2d8;
+
+  --status-overdue:
+    #c62828;
+
+  --status-overdue-soft:
+    #ffe7e7;
+
+  --status-auto-close:
+    #7c3aed;
+
+  --status-auto-close-soft:
+    #efe7ff;
+
+  background:
+    var(--pro-canvas);
+}
+
+.module-page .module-container {
+  background:
+    transparent;
+}
+
+/************************************************************
+ * 1. Control Tower
+ ************************************************************/
+
+.module-page .warehouse-control-tower {
+  overflow:
+    hidden;
+
+  border:
+    1px solid var(--pro-border);
+
+  border-left-width:
+    7px;
+
+  background:
+    var(--pro-surface);
+
+  box-shadow:
+    0 14px 34px rgba(11, 47, 70, 0.16);
+}
+
+.module-page .warehouse-control-tower::after {
+  position:
+    absolute;
+
+  inset:
+    0 0 auto;
+
+  height:
+    4px;
+
+  background:
+    var(--status-normal);
+
+  content:
+    "";
+}
+
+.module-page .warehouse-control-tower[data-state="WATCH"]::after {
+  background:
+    var(--status-warning);
+}
+
+.module-page .warehouse-control-tower[data-state="CRITICAL"]::after {
+  background:
+    var(--status-overdue);
+}
+
+.module-page .warehouse-control-tower[data-state="AUTO_CLOSE"]::after {
+  background:
+    var(--status-auto-close);
+}
+
+.module-page .warehouse-control-tower[data-state="DATA"]::after {
+  background:
+    #64748b;
+}
+
+.module-page .warehouse-control-tower[data-state="NORMAL"] {
+  border-left-color:
+    var(--status-normal);
+}
+
+.module-page .warehouse-control-tower[data-state="WATCH"] {
+  border-left-color:
+    var(--status-warning);
+
+  background:
+    linear-gradient(
+      105deg,
+      #fffaf0 0%,
+      #ffffff 42%
+    );
+}
+
+.module-page .warehouse-control-tower[data-state="CRITICAL"] {
+  border-left-color:
+    var(--status-overdue);
+
+  background:
+    linear-gradient(
+      105deg,
+      #fff1f1 0%,
+      #ffffff 43%
+    );
+}
+
+.module-page .warehouse-control-tower[data-state="AUTO_CLOSE"] {
+  border-left-color:
+    var(--status-auto-close);
+
+  background:
+    linear-gradient(
+      105deg,
+      #f7f1ff 0%,
+      #ffffff 43%
+    );
+}
+
+.module-page .warehouse-control-tower__status small {
+  color:
+    var(--pro-muted);
+
+  font-weight:
+    850;
+}
+
+.module-page .warehouse-control-tower__status strong {
+  color:
+    var(--pro-text);
+
+  font-size:
+    0.96rem;
+}
+
+.module-page .warehouse-control-tower__status p {
+  color:
+    #526676;
+
+  font-weight:
+    650;
+}
+
+.module-page .warehouse-control-tower__metrics > div {
+  border:
+    1px solid transparent;
+
+  background:
+    #eef3f6;
+
+  box-shadow:
+    inset 0 3px 0 #718096;
+}
+
+.module-page .warehouse-control-tower__metrics > div:first-child {
+  border-color:
+    #bfd0dc;
+
+  background:
+    #e9f0f5;
+
+  box-shadow:
+    inset 0 3px 0 var(--pro-navy);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="NORMAL"] {
+  border-color:
+    #b7dfc3;
+
+  background:
+    var(--status-normal-soft);
+
+  box-shadow:
+    inset 0 3px 0 var(--status-normal);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="WARNING"] {
+  border-color:
+    #f0ce91;
+
+  background:
+    var(--status-warning-soft);
+
+  box-shadow:
+    inset 0 3px 0 var(--status-warning);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="OVERDUE"] {
+  border-color:
+    #efb3b3;
+
+  background:
+    var(--status-overdue-soft);
+
+  box-shadow:
+    inset 0 3px 0 var(--status-overdue);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="AUTO_CLOSE"] {
+  border-color:
+    #d4baf7;
+
+  background:
+    var(--status-auto-close-soft);
+
+  box-shadow:
+    inset 0 3px 0 var(--status-auto-close);
+}
+
+.module-page .warehouse-control-tower__metrics span {
+  color:
+    #526576;
+
+  font-weight:
+    750;
+}
+
+.module-page .warehouse-control-tower__metrics strong {
+  font-weight:
+    900;
+}
+
+/************************************************************
+ * 2. Threshold Info
+ ************************************************************/
+
+.module-page .module-threshold-info {
+  border:
+    1px solid var(--pro-border-strong);
+
+  background:
+    var(--pro-surface);
+
+  box-shadow:
+    0 7px 18px rgba(11, 47, 70, 0.08);
+}
+
+.module-page .module-threshold-info__title > span {
+  color:
+    var(--pro-navy);
+
+  font-weight:
+    900;
+}
+
+.module-page .module-threshold-info__chips > div {
+  border:
+    1px solid #d7e0e7;
+
+  background:
+    #f3f6f8;
+}
+
+.module-page .module-threshold-info__chips [data-status="NORMAL"] {
+  border-color:
+    #add9b9;
+
+  background:
+    var(--status-normal-soft);
+}
+
+.module-page .module-threshold-info__chips [data-status="WARNING"] {
+  border-color:
+    #eac57f;
+
+  background:
+    var(--status-warning-soft);
+}
+
+.module-page .module-threshold-info__chips [data-status="OVERDUE"] {
+  border-color:
+    #eba6a6;
+
+  background:
+    var(--status-overdue-soft);
+}
+
+.module-page .module-threshold-info__chips [data-status="AUTO_CLOSE"] {
+  border-color:
+    #d0b1f5;
+
+  background:
+    var(--status-auto-close-soft);
+}
+
+.module-page .module-threshold-info__chips span {
+  color:
+    #526576;
+
+  font-weight:
+    750;
+}
+
+.module-page .module-threshold-info__chips strong {
+  color:
+    var(--pro-text);
+
+  font-weight:
+    900;
+}
+
+/************************************************************
+ * 3. Movement Overview
+ ************************************************************/
+
+.module-page .movement-overview {
+  position:
+    relative;
+
+  border:
+    1px solid var(--pro-border-strong);
+
+  background:
+    var(--pro-surface);
+
+  box-shadow:
+    0 14px 34px rgba(11, 47, 70, 0.13);
+}
+
+.module-page .movement-overview::before {
+  position:
+    absolute;
+
+  inset:
+    0 0 auto;
+
+  z-index:
+    2;
+
+  height:
+    5px;
+
+  background:
+    var(--status-normal);
+
+  content:
+    "";
+}
+
+.module-page .movement-overview[data-state="WATCH"]::before,
+.module-page .movement-overview[data-state="HIGH"]::before {
+  background:
+    var(--status-warning);
+}
+
+.module-page .movement-overview[data-state="CRITICAL"]::before {
+  background:
+    var(--status-overdue);
+}
+
+.module-page .movement-overview[data-state="GOOD"]::before {
+  background:
+    var(--flow-in);
+}
+
+.module-page .movement-overview__header {
+  padding-top:
+    15px;
+
+  border-bottom:
+    0;
+
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--pro-navy) 0%,
+      var(--pro-navy-2) 100%
+    );
+}
+
+.module-page .movement-overview__header small {
+  color:
+    #6ee7d8;
+
+  font-weight:
+    900;
+}
+
+.module-page .movement-overview__header h2 {
+  color:
+    #ffffff;
+
+  font-size:
+    0.96rem;
+}
+
+.module-page .movement-overview__header p {
+  color:
+    #c8d8e4;
+}
+
+.module-page .movement-scope-group {
+  border:
+    1px solid rgba(255, 255, 255, 0.18);
+
+  background:
+    rgba(255, 255, 255, 0.12);
+}
+
+.module-page .movement-scope-group button {
+  color:
+    #d9e7ef;
+}
+
+.module-page .movement-scope-group button.is-active {
+  color:
+    var(--pro-navy);
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.22);
+}
+
+.module-page .movement-overview__body {
+  background:
+    #f5f8fa;
+}
+
+.module-page .movement-round-countdown {
+  border:
+    1px solid #9fd5d0;
+
+  color:
+    #064e4a;
+
+  background:
+    linear-gradient(
+      135deg,
+      #d9f5f0,
+      #ecfbf8
+    );
+
+  box-shadow:
+    inset 4px 0 0 var(--flow-in);
+}
+
+.module-page .movement-round-countdown span {
+  color:
+    #27645f;
+
+  font-weight:
+    850;
+}
+
+.module-page .movement-round-countdown strong {
+  color:
+    #064e4a;
+
+  font-size:
+    0.86rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .movement-analysis {
+  border:
+    1px solid #b8d8d3;
+
+  border-left:
+    6px solid var(--flow-in);
+
+  background:
+    linear-gradient(
+      135deg,
+      #e5f6f3,
+      #f7fcfb
+    );
+
+  box-shadow:
+    0 5px 13px rgba(11, 47, 70, 0.07);
+}
+
+.module-page .movement-overview[data-state="WATCH"] .movement-analysis,
+.module-page .movement-overview[data-state="HIGH"] .movement-analysis {
+  border-color:
+    #e5bd72;
+
+  border-left-color:
+    var(--status-warning);
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffedc6,
+      #fff8ea
+    );
+}
+
+.module-page .movement-overview[data-state="CRITICAL"] .movement-analysis {
+  border-color:
+    #e69f9f;
+
+  border-left-color:
+    var(--status-overdue);
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffd9d9,
+      #fff3f3
+    );
+}
+
+.module-page .movement-overview[data-state="GOOD"] .movement-analysis {
+  border-color:
+    #9bd7cc;
+
+  border-left-color:
+    var(--flow-in);
+
+  background:
+    linear-gradient(
+      135deg,
+      #d9f5f0,
+      #f4fcfa
+    );
+}
+
+.module-page .movement-analysis span {
+  color:
+    #526576;
+
+  font-weight:
+    800;
+}
+
+.module-page .movement-analysis strong {
+  color:
+    var(--pro-text);
+
+  font-size:
+    0.76rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .movement-analysis p {
+  color:
+    #455b6d;
+
+  font-weight:
+    650;
+}
+
+/************************************************************
+ * 4. Primary Movement Metrics
+ ************************************************************/
+
+.module-page .movement-primary-metrics {
+  gap:
+    7px;
+}
+
+.module-page .movement-primary-metrics > div {
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  min-height:
+    76px;
+
+  display:
+    grid;
+
+  align-content:
+    center;
+
+  border:
+    1px solid #d0dbe3;
+
+  border-radius:
+    11px;
+
+  background:
+    #eef2f5;
+
+  box-shadow:
+    0 6px 15px rgba(11, 47, 70, 0.08);
+}
+
+.module-page .movement-primary-metrics > div::before {
+  position:
+    absolute;
+
+  inset:
+    0 0 auto;
+
+  height:
+    5px;
+
+  background:
+    #64748b;
+
+  content:
+    "";
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"] {
+  border-color:
+    #8fd4ca;
+
+  background:
+    var(--flow-in-soft);
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"]::before {
+  background:
+    var(--flow-in);
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"] {
+  border-color:
+    #a8c4f8;
+
+  background:
+    var(--flow-out-soft);
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"]::before {
+  background:
+    var(--flow-out);
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"] {
+  border-color:
+    #b7c2ce;
+
+  background:
+    var(--flow-total-soft);
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"]::before {
+  background:
+    var(--flow-total);
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"] {
+  border-color:
+    #c8aff4;
+
+  background:
+    var(--flow-net-soft);
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"]::before {
+  background:
+    var(--flow-net);
+}
+
+.module-page .movement-primary-metrics span {
+  color:
+    #4f6271;
+
+  font-weight:
+    850;
+}
+
+.module-page .movement-primary-metrics strong {
+  margin-top:
+    3px;
+
+  font-size:
+    1.16rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"] strong {
+  color:
+    #00695f;
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"] strong {
+  color:
+    #1d4ed8;
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"] strong {
+  color:
+    #1f2937;
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"] strong {
+  color:
+    #6d28d9;
+}
+
+.module-page .movement-primary-metrics small {
+  color:
+    #667785;
+
+  font-weight:
+    750;
+}
+
+/************************************************************
+ * 5. Secondary Metrics
+ ************************************************************/
+
+.module-page .movement-secondary-metrics {
+  gap:
+    7px;
+}
+
+.module-page .movement-secondary-metrics > div {
+  min-height:
+    34px;
+
+  border:
+    1px solid #ccd7df;
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 3px 8px rgba(11, 47, 70, 0.05);
+}
+
+.module-page .movement-secondary-metrics > div:nth-child(1) {
+  border-left:
+    4px solid var(--flow-out);
+
+  background:
+    #f2f6ff;
+}
+
+.module-page .movement-secondary-metrics > div:nth-child(3) {
+  border-left:
+    4px solid var(--pro-navy);
+
+  background:
+    #eef3f6;
+}
+
+.module-page .movement-secondary-metrics [data-metric="AUTO_CLOSE"] {
+  border-left:
+    4px solid var(--status-auto-close);
+
+  background:
+    var(--status-auto-close-soft);
+}
+
+.module-page .movement-secondary-metrics [data-metric="OVERDUE"] {
+  border-left:
+    4px solid var(--status-overdue);
+
+  background:
+    var(--status-overdue-soft);
+}
+
+.module-page .movement-secondary-metrics span {
+  color:
+    #526576;
+
+  font-weight:
+    750;
+}
+
+.module-page .movement-secondary-metrics strong {
+  color:
+    var(--pro-text);
+
+  font-size:
+    0.66rem;
+
+  font-weight:
+    950;
+}
+
+/************************************************************
+ * 6. Movement Chart
+ ************************************************************/
+
+.module-page .movement-chart-panel {
+  border:
+    1px solid #254f69;
+
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      145deg,
+      #0a2a3d,
+      #123f5d
+    );
+
+  box-shadow:
+    0 12px 27px rgba(11, 47, 70, 0.23);
+}
+
+.module-page .movement-chart-panel__header {
+  padding-bottom:
+    7px;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.14);
+}
+
+.module-page .movement-chart-panel__header > div:first-child span {
+  color:
+    #63e6d6;
+}
+
+.module-page .movement-chart-panel__header > div:first-child strong {
+  color:
+    #ffffff;
+
+  font-size:
+    0.7rem;
+}
+
+.module-page .movement-chart-legend span {
+  color:
+    #d2e1ea;
+
+  font-weight:
+    750;
+}
+
+.module-page .movement-chart-bars > div {
+  height:
+    14px;
+
+  border:
+    1px solid rgba(255, 255, 255, 0.12);
+
+  background:
+    rgba(255, 255, 255, 0.12);
+}
+
+.module-page .movement-chart-bars i {
+  background:
+    linear-gradient(
+      90deg,
+      #00a99a,
+      #38d4c4
+    );
+
+  box-shadow:
+    0 0 12px rgba(0, 169, 154, 0.28);
+}
+
+.module-page .movement-chart-bars > div:last-child i {
+  background:
+    linear-gradient(
+      90deg,
+      #2d6ee8,
+      #68a0ff
+    );
+
+  box-shadow:
+    0 0 12px rgba(45, 110, 232, 0.28);
+}
+
+.module-page .movement-chart-row > strong {
+  color:
+    #d7e6ee;
+
+  font-weight:
+    850;
+}
+
+.module-page .movement-chart-bars span {
+  color:
+    #ffffff;
+
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.module-page .movement-chart-bars b {
+  color:
+    #ffffff;
+
+  font-size:
+    0.44rem;
+
+  font-weight:
+    900;
+
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.module-page .movement-chart-row > em {
+  color:
+    #c4a5ff;
+
+  font-size:
+    0.56rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .movement-chart-empty {
+  color:
+    #c9d9e2;
+}
+
+/************************************************************
+ * 7. Timeline Section
+ ************************************************************/
+
+.module-page .hourly-timeline-panel {
+  border:
+    1px solid var(--pro-border-strong);
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 14px 34px rgba(11, 47, 70, 0.13);
+}
+
+.module-page .hourly-timeline-panel__header {
+  margin:
+    -10px -10px 0;
+
+  padding:
+    13px 14px 12px;
+
+  border-radius:
+    13px 13px 0 0;
+
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--pro-navy),
+      #174c6d
+    );
+}
+
+.module-page .hourly-timeline-panel__header small {
+  color:
+    #63e6d6;
+}
+
+.module-page .hourly-timeline-panel__header h2 {
+  color:
+    #ffffff;
+
+  font-size:
+    0.9rem;
+}
+
+.module-page .hourly-timeline-panel__header p {
+  color:
+    #c9d8e2;
+}
+
+.module-page .timeline-mode-group {
+  border:
+    1px solid rgba(255, 255, 255, 0.17);
+
+  background:
+    rgba(255, 255, 255, 0.12);
+}
+
+.module-page .timeline-mode-group button {
+  color:
+    #dce8ef;
+}
+
+.module-page .timeline-mode-group button.is-active {
+  color:
+    var(--pro-navy);
+
+  background:
+    #ffffff;
+}
+
+.module-page .timeline-focus-preview {
+  border:
+    1px solid #b6c6d1;
+
+  border-left-width:
+    6px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #eef4f8,
+      #ffffff
+    );
+
+  box-shadow:
+    0 7px 18px rgba(11, 47, 70, 0.09);
+}
+
+.module-page .timeline-focus-preview__time strong {
+  color:
+    var(--pro-navy);
+
+  font-size:
+    0.82rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .timeline-focus-preview__metrics > div {
+  border:
+    1px solid #d2dde4;
+
+  background:
+    #ffffff;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="IN"] {
+  border-color:
+    #9bd7ce;
+
+  background:
+    var(--flow-in-soft);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="OUT"] {
+  border-color:
+    #aac4f4;
+
+  background:
+    var(--flow-out-soft);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="NET"] {
+  border-color:
+    #c9b0f2;
+
+  background:
+    var(--flow-net-soft);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="TOTAL"] {
+  border-color:
+    #bac5cf;
+
+  background:
+    var(--flow-total-soft);
+}
+
+.module-page .timeline-focus-preview__metrics span {
+  color:
+    #526576;
+
+  font-weight:
+    750;
+}
+
+.module-page .timeline-focus-preview__metrics strong {
+  font-size:
+    0.74rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .timeline-apply-filter {
+  border:
+    1px solid #064e4a;
+
+  background:
+    linear-gradient(
+      135deg,
+      #0f766e,
+      #075e58
+    );
+
+  box-shadow:
+    0 7px 16px rgba(15, 118, 110, 0.28);
+}
+
+.module-page .hourly-timeline-stage {
+  border:
+    1px solid #b9c8d2;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(0, 137, 123, 0.16),
+      transparent 35%
+    ),
+    linear-gradient(
+      180deg,
+      #dbe6ed,
+      #eef3f6
+    );
+
+  box-shadow:
+    inset 0 0 30px rgba(11, 47, 70, 0.09);
+}
+
+.module-page .hourly-timeline-center-line {
+  width:
+    3px;
+
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      #00a99a 22%,
+      #00a99a 78%,
+      transparent
+    );
+
+  box-shadow:
+    0 0 14px rgba(0, 169, 154, 0.48);
+}
+
+.module-page .hourly-timeline-center-line::before {
+  position:
+    absolute;
+
+  top:
+    -5px;
+
+  left:
+    50%;
+
+  border:
+    5px solid transparent;
+
+  border-top:
+    0;
+
+  border-bottom-color:
+    #00a99a;
+
+  transform:
+    translateX(-50%);
+
+  content:
+    "";
+}
+
+/*
+ * ลดความเด่นของช่องไกลอย่างชัดเจน
+ */
+.module-page .timeline-hour--movement:not(.is-centered) {
+  opacity:
+    0.24 !important;
+
+  filter:
+    grayscale(0.35)
+    blur(1px) !important;
+
+  transform:
+    translateY(13px)
+    scale(0.62) !important;
+}
+
+/*
+ * ช่องติดกับตรงกลางยังอ่านได้ แต่ไม่แย่งสายตา
+ * Chrome/Edge รุ่นปัจจุบันรองรับ :has()
+ */
+.module-page
+.timeline-hour--movement:has(+ .timeline-hour--movement.is-centered),
+.module-page
+.timeline-hour--movement.is-centered + .timeline-hour--movement {
+  opacity:
+    0.66 !important;
+
+  filter:
+    none !important;
+
+  transform:
+    translateY(5px)
+    scale(0.84) !important;
+}
+
+/*
+ * ช่องตรงกลางเป็นจุดสนใจหลัก
+ */
+.module-page .timeline-hour--movement.is-centered {
+  z-index:
+    30 !important;
+
+  min-width:
+    112px;
+
+  min-height:
+    136px;
+
+  opacity:
+    1 !important;
+
+  filter:
+    none !important;
+
+  border:
+    2px solid #00a99a;
+
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      150deg,
+      #0b3b52 0%,
+      #0f766e 100%
+    );
+
+  box-shadow:
+    0 25px 48px rgba(11, 47, 70, 0.34),
+    0 0 0 5px rgba(0, 169, 154, 0.15);
+
+  transform:
+    translateY(-20px)
+    scale(1.52) !important;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__time {
+  color:
+    #ffffff;
+
+  font-size:
+    0.82rem;
+
+  font-weight:
+    950;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement > span {
+  border:
+    1px solid rgba(255, 255, 255, 0.18);
+
+  background:
+    rgba(255, 255, 255, 0.13);
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement small {
+  color:
+    #d7f7f2;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement strong {
+  color:
+    #ffffff;
+
+  font-size:
+    0.9rem;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net {
+  color:
+    #dfd2ff;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net strong {
+  color:
+    #eadfff;
+
+  font-size:
+    0.82rem;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__caption {
+  color:
+    #d4e5ec;
+}
+
+/************************************************************
+ * 8. Active Summary Cards
+ ************************************************************/
+
+.module-page .vehicle-summary-card {
+  border:
+    1px solid #c6d2da;
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 7px 17px rgba(11, 47, 70, 0.08);
+}
+
+.module-page .vehicle-summary-card--normal {
+  border-color:
+    #a8d7b5;
+
+  background:
+    var(--status-normal-soft);
+}
+
+.module-page .vehicle-summary-card--warning {
+  border-color:
+    #eac47b;
+
+  background:
+    var(--status-warning-soft);
+}
+
+.module-page .vehicle-summary-card--overdue {
+  border-color:
+    #e89f9f;
+
+  background:
+    var(--status-overdue-soft);
+}
+
+.module-page .vehicle-summary-card--incomplete {
+  border-color:
+    #b8c3cd;
+
+  background:
+    #edf1f4;
+}
+
+.module-page .vehicle-summary-card > span {
+  color:
+    #526576;
+
+  font-weight:
+    750;
+}
+
+.module-page .vehicle-summary-card strong {
+  font-weight:
+    950;
+}
+
+/************************************************************
+ * 9. Vehicle Cards
+ ************************************************************/
+
+.module-page .vehicle-card--professional {
+  border-width:
+    1px;
+
+  box-shadow:
+    0 8px 20px rgba(11, 47, 70, 0.1);
+}
+
+.module-page .vehicle-card--professional[data-status="NORMAL"] {
+  border-color:
+    #9fd1ad;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #edf9f1
+    );
+}
+
+.module-page .vehicle-card--professional[data-status="WARNING"] {
+  border-color:
+    #e5b861;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #fff1d4
+    );
+}
+
+.module-page .vehicle-card--professional[data-status="OVERDUE"] {
+  border-color:
+    #e18f8f;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #ffe3e3
+    );
+
+  box-shadow:
+    0 9px 23px rgba(198, 40, 40, 0.13);
+}
+
+.module-page .vehicle-card--professional[data-near-auto-close="TRUE"] {
+  border:
+    2px solid #a96be8;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #efe4ff
+    );
+
+  box-shadow:
+    0 11px 28px rgba(124, 58, 237, 0.2);
+}
+
+.module-page .vehicle-card--professional .vehicle-card__rail {
+  width:
+    6px;
+}
+
+.module-page .vehicle-card__priority-text {
+  border:
+    1px solid #d2dce3;
+
+  color:
+    #31485a;
+
+  background:
+    #edf2f5;
+}
+
+.module-page
+.vehicle-card--professional[data-status="WARNING"]
+.vehicle-card__priority-text {
+  border-color:
+    #e6bf76;
+
+  color:
+    #854d0e;
+
+  background:
+    #ffedc5;
+}
+
+.module-page
+.vehicle-card--professional[data-status="OVERDUE"]
+.vehicle-card__priority-text {
+  border-color:
+    #e7a2a2;
+
+  color:
+    #991b1b;
+
+  background:
+    #ffdada;
+}
+
+.module-page
+.vehicle-card--professional[data-near-auto-close="TRUE"]
+.vehicle-card__priority-text {
+  border-color:
+    #c8a9ed;
+
+  color:
+    #5b21b6;
+
+  background:
+    #eadcff;
+}
+
+/************************************************************
+ * 10. Tools / Form
+ ************************************************************/
+
+.module-page .vehicle-tools {
+  border:
+    1px solid var(--pro-border-strong);
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 7px 18px rgba(11, 47, 70, 0.08);
+}
+
+.module-page .vehicle-search input,
+.module-page .vehicle-filter select {
+  border-color:
+    #b9c7d1;
+
+  color:
+    var(--pro-text);
+
+  background:
+    #f9fbfc;
+}
+
+.module-page .vehicle-search input:focus,
+.module-page .vehicle-filter select:focus {
+  border-color:
+    var(--flow-in);
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 0 0 4px rgba(0, 137, 123, 0.12);
+}
+
+/************************************************************
+ * Responsive
+ ************************************************************/
+
+@media (max-width: 679px) {
+  .module-page .warehouse-control-tower {
+    top:
+      5px;
+  }
+
+  .module-page .movement-primary-metrics > div {
+    min-height:
+      70px;
+  }
+
+  .module-page .hourly-timeline {
+    min-height:
+      220px;
+
+    padding-top:
+      45px;
+
+    padding-bottom:
+      38px;
+  }
+
+  .module-page .timeline-hour--movement.is-centered {
+    min-width:
+      106px;
+
+    min-height:
+      132px;
+
+    transform:
+      translateY(-19px)
+      scale(1.46) !important;
+  }
+}
+
+@media (min-width: 680px) {
+  .module-page .movement-overview__body {
+    gap:
+      14px;
+
+    padding:
+      14px;
+  }
+
+  .module-page .movement-primary-metrics > div {
+    min-height:
+      82px;
+  }
+
+  .module-page .movement-chart-panel {
+    padding:
+      12px;
+  }
+}
+
+@media (min-width: 920px) {
+  .module-page .hourly-timeline {
+    min-height:
+      248px;
+
+    padding-top:
+      52px;
+
+    padding-bottom:
+      48px;
+  }
+
+  .module-page .timeline-hour--movement:not(.is-centered) {
+    transform:
+      translateY(15px)
+      scale(0.58) !important;
+  }
+
+  .module-page
+  .timeline-hour--movement:has(+ .timeline-hour--movement.is-centered),
+  .module-page
+  .timeline-hour--movement.is-centered + .timeline-hour--movement {
+    transform:
+      translateY(5px)
+      scale(0.82) !important;
+  }
+
+  .module-page .timeline-hour--movement.is-centered {
+    min-width:
+      122px;
+
+    min-height:
+      146px;
+
+    transform:
+      translateY(-23px)
+      scale(1.56) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-page .timeline-hour--movement {
+    transition:
+      none !important;
+  }
+}
