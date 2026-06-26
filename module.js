@@ -38,6 +38,8 @@
     timelineMode: 'ROLLING_24',
     selectedTimelineStartMs: null,
     timelineShouldFocus: true,
+    timelineScrollRaf: null,
+    timelineSnapTimer: null,
     autoClosePersistTimer: null,
     lastAutoClosePersistAttemptMs: 0,
     cardNodes: new Map(),
@@ -319,8 +321,48 @@
               ? null
               : startMs;
 
+          button.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+          });
+
           renderTimeline();
           applyFiltersAndRender();
+        }
+      );
+
+    timeline &&
+      timeline.addEventListener(
+        'scroll',
+        () => {
+          scheduleTimelineCenterEffect(
+            timeline
+          );
+
+          scheduleTimelineCenterSnap(
+            timeline
+          );
+        },
+        {
+          passive: true
+        }
+      );
+
+    timeline &&
+      timeline.addEventListener(
+        'pointerdown',
+        () => {
+          if (
+            state.timelineSnapTimer
+          ) {
+            window.clearTimeout(
+              state.timelineSnapTimer
+            );
+
+            state.timelineSnapTimer =
+              null;
+          }
         }
       );
 
@@ -1500,6 +1542,14 @@
       );
     }
 
+    window.requestAnimationFrame(
+      () => {
+        updateTimelineCenterEffect(
+          container
+        );
+      }
+    );
+
     if (
       state.timelineShouldFocus
     ) {
@@ -1520,10 +1570,214 @@
               block: 'nearest',
               inline: 'center'
             });
+
+          window.requestAnimationFrame(
+            () => {
+              updateTimelineCenterEffect(
+                container
+              );
+            }
+          );
         }
       );
     }
   }
+
+
+  function scheduleTimelineCenterEffect(
+    container
+  ) {
+    if (
+      state.timelineScrollRaf
+    ) {
+      window.cancelAnimationFrame(
+        state.timelineScrollRaf
+      );
+    }
+
+    state.timelineScrollRaf =
+      window.requestAnimationFrame(
+        () => {
+          state.timelineScrollRaf =
+            null;
+
+          updateTimelineCenterEffect(
+            container
+          );
+        }
+      );
+  }
+
+
+  function updateTimelineCenterEffect(
+    container
+  ) {
+    if (!container) {
+      return;
+    }
+
+    const items =
+      Array.from(
+        container.querySelectorAll(
+          '.timeline-hour'
+        )
+      );
+
+    if (
+      items.length === 0
+    ) {
+      return;
+    }
+
+    if (
+      container.scrollWidth <=
+      container.clientWidth + 4
+    ) {
+      items.forEach(
+        (item) => {
+          item.classList.remove(
+            'is-centered'
+          );
+
+          item.style.removeProperty(
+            '--timeline-focus-scale'
+          );
+
+          item.style.removeProperty(
+            '--timeline-focus-opacity'
+          );
+        }
+      );
+
+      return;
+    }
+
+    const containerRect =
+      container.getBoundingClientRect();
+
+    const centerX =
+      containerRect.left +
+      containerRect.width / 2;
+
+    const maximumDistance =
+      Math.max(
+        1,
+        containerRect.width * 0.58
+      );
+
+    let nearestItem =
+      null;
+
+    let nearestDistance =
+      Number.POSITIVE_INFINITY;
+
+    items.forEach(
+      (item) => {
+        const rect =
+          item.getBoundingClientRect();
+
+        const itemCenter =
+          rect.left +
+          rect.width / 2;
+
+        const distance =
+          Math.abs(
+            itemCenter -
+            centerX
+          );
+
+        const proximity =
+          1 -
+          Math.min(
+            1,
+            distance /
+            maximumDistance
+          );
+
+        const scale =
+          0.91 +
+          proximity * 0.17;
+
+        const opacity =
+          0.54 +
+          proximity * 0.46;
+
+        item.style.setProperty(
+          '--timeline-focus-scale',
+          scale.toFixed(3)
+        );
+
+        item.style.setProperty(
+          '--timeline-focus-opacity',
+          opacity.toFixed(3)
+        );
+
+        item.classList.remove(
+          'is-centered'
+        );
+
+        if (
+          distance <
+          nearestDistance
+        ) {
+          nearestDistance =
+            distance;
+
+          nearestItem =
+            item;
+        }
+      }
+    );
+
+    nearestItem &&
+      nearestItem.classList.add(
+        'is-centered'
+      );
+  }
+
+
+  function scheduleTimelineCenterSnap(
+    container
+  ) {
+    if (
+      state.timelineSnapTimer
+    ) {
+      window.clearTimeout(
+        state.timelineSnapTimer
+      );
+    }
+
+    state.timelineSnapTimer =
+      window.setTimeout(
+        () => {
+          state.timelineSnapTimer =
+            null;
+
+          if (
+            !container ||
+            state.destroyed ||
+            container.scrollWidth <=
+              container.clientWidth + 4
+          ) {
+            return;
+          }
+
+          const centered =
+            container.querySelector(
+              '.timeline-hour.is-centered'
+            );
+
+          centered &&
+            centered.scrollIntoView({
+              behavior: 'smooth',
+              block: 'nearest',
+              inline: 'center'
+            });
+        },
+        135
+      );
+  }
+
 
 
   function buildTimelineSlots() {
@@ -1934,6 +2188,298 @@
     );
   }
 
+
+
+  function normalizeBooleanFlag(
+    value
+  ) {
+    if (value === true) {
+      return true;
+    }
+
+    const text =
+      String(
+        value === null ||
+        value === undefined
+          ? ''
+          : value
+      )
+        .trim()
+        .toUpperCase();
+
+    return [
+      'TRUE',
+      '1',
+      'YES',
+      'Y',
+      'ON'
+    ].includes(text);
+  }
+
+
+  function isPrimaryField(
+    field
+  ) {
+    if (!field) {
+      return false;
+    }
+
+    return (
+      normalizeBooleanFlag(
+        field.primary
+      ) ||
+      normalizeBooleanFlag(
+        field.isPrimary
+      ) ||
+      normalizeBooleanFlag(
+        field.isPrimaryField
+      ) ||
+      String(
+        field.role || ''
+      ).trim().toUpperCase() ===
+        'PRIMARY'
+    );
+  }
+
+
+  function getPrimaryField(
+    record
+  ) {
+    const fields =
+      Array.isArray(
+        record &&
+        record.fields
+      )
+        ? record.fields
+        : [];
+
+    return (
+      fields.find(
+        (field) =>
+          isPrimaryField(field)
+      ) ||
+      null
+    );
+  }
+
+
+  function getPrimaryLabel(
+    record
+  ) {
+    const primaryField =
+      getPrimaryField(record);
+
+    return String(
+      record &&
+      (
+        record.primaryLabel ||
+        record.primaryDisplayName
+      ) ||
+      primaryField &&
+      (
+        primaryField.label ||
+        primaryField.displayName ||
+        primaryField.name
+      ) ||
+      'ข้อมูลหลัก'
+    ).trim();
+  }
+
+
+  function normalizeComparableText(
+    value
+  ) {
+    return String(
+      value === null ||
+      value === undefined
+        ? ''
+        : value
+    )
+      .trim()
+      .replace(
+        /\s+/g,
+        ' '
+      )
+      .toLowerCase();
+  }
+
+
+  function normalizeFieldLabel(
+    value
+  ) {
+    return normalizeComparableText(
+      value
+    )
+      .replace(
+        /[\s_\-:]+/g,
+        ''
+      );
+  }
+
+
+  function isTimestampInField(
+    field,
+    record
+  ) {
+    const label =
+      normalizeFieldLabel(
+        field &&
+        (
+          field.label ||
+          field.displayName ||
+          field.name
+        )
+      );
+
+    const value =
+      normalizeComparableText(
+        field &&
+        field.value
+      );
+
+    const timestampIn =
+      normalizeComparableText(
+        record &&
+        record.timestampIn
+      );
+
+    const aliases = [
+      'เวลาเข้าพื้นที่',
+      'เวลาเข้า',
+      'timestampin',
+      'intimestamp',
+      'checkintime'
+    ];
+
+    return (
+      aliases.includes(label) ||
+      (
+        timestampIn &&
+        value === timestampIn &&
+        (
+          label.includes('เวลาเข้า') ||
+          label.includes('timestampin')
+        )
+      )
+    );
+  }
+
+
+  function getDisplayFields(
+    record,
+    options
+  ) {
+    const config =
+      options &&
+      typeof options === 'object'
+        ? options
+        : {};
+
+    const fields =
+      Array.isArray(
+        record &&
+        record.fields
+      )
+        ? record.fields
+        : [];
+
+    const primaryValue =
+      normalizeComparableText(
+        record &&
+        record.primaryValue
+      );
+
+    const unique =
+      new Set();
+
+    return fields
+      .filter(
+        (field) => {
+          if (
+            !field ||
+            !String(
+              field.value || ''
+            ).trim()
+          ) {
+            return false;
+          }
+
+          if (
+            isPrimaryField(field)
+          ) {
+            return false;
+          }
+
+          const fieldValue =
+            normalizeComparableText(
+              field.value
+            );
+
+          /*
+           * ป้องกันข้อมูลหลักกลับมาแสดงซ้ำ
+           * แม้ Backend รุ่นเก่าจะไม่ได้ส่ง primary=true
+           */
+          if (
+            primaryValue &&
+            fieldValue ===
+              primaryValue
+          ) {
+            return false;
+          }
+
+          if (
+            config.excludeTimestampIn !==
+              false &&
+            isTimestampInField(
+              field,
+              record
+            )
+          ) {
+            return false;
+          }
+
+          const label =
+            String(
+              field.label ||
+              field.displayName ||
+              field.name ||
+              '-'
+            ).trim();
+
+          const uniqueKey =
+            normalizeFieldLabel(label) +
+            '|' +
+            fieldValue;
+
+          if (
+            unique.has(
+              uniqueKey
+            )
+          ) {
+            return false;
+          }
+
+          unique.add(
+            uniqueKey
+          );
+
+          return true;
+        }
+      )
+      .sort(
+        (left, right) =>
+          Number(
+            left.order ||
+            left.position ||
+            0
+          ) -
+          Number(
+            right.order ||
+            right.position ||
+            0
+          )
+      );
+  }
   function createVehicleCard(
     record,
     index
@@ -2014,6 +2560,17 @@
     titleWrap.className =
       'vehicle-card__title-wrap';
 
+    const primaryLabel =
+      document.createElement(
+        'span'
+      );
+
+    primaryLabel.className =
+      'vehicle-card__primary-label';
+
+    primaryLabel.textContent =
+      getPrimaryLabel(record);
+
     const title =
       document.createElement(
         'h2'
@@ -2068,6 +2625,10 @@
 
     statusLine.appendChild(
       timer
+    );
+
+    titleWrap.appendChild(
+      primaryLabel
     );
 
     titleWrap.appendChild(
@@ -2189,22 +2750,12 @@
     detailGrid.className =
       'vehicle-detail-grid';
 
-    const fields =
-      Array.isArray(record.fields)
-        ? record.fields
-        : [];
-
-    fields
-      .filter(
-        (field) =>
-          !field.primary &&
-          field.value
-      )
-      .sort(
-        (left, right) =>
-          Number(left.order || 0) -
-          Number(right.order || 0)
-      )
+    getDisplayFields(
+      record,
+      {
+        excludeTimestampIn: true
+      }
+    )
       .slice(0, 4)
       .forEach(
         (field) => {
@@ -2400,27 +2951,20 @@
 
 
   function openRecordDetail(record) {
-    const fields =
-      Array.isArray(record.fields)
-        ? record.fields
-        : [];
+    const primaryLabel =
+      getPrimaryLabel(record);
 
     const fieldHtml =
-      fields
-        .filter(
-          (field) =>
-            !field.primary &&
-            field.value
-        )
-        .sort(
-          (left, right) =>
-            Number(left.order || 0) -
-            Number(right.order || 0)
-        )
+      getDisplayFields(
+        record,
+        {
+          excludeTimestampIn: true
+        }
+      )
         .map(
           (field) => `
             <div class="record-detail-row">
-              <span>${escapeHtml(field.label || '-')}</span>
+              <span>${escapeHtml(field.label || field.displayName || '-')}</span>
               <strong>${escapeHtml(field.value || '-')}</strong>
             </div>
           `
@@ -2433,6 +2977,10 @@
         record.primaryValue ||
         'รายละเอียดรายการ',
       html: `
+        <div class="record-primary-caption">
+          ${escapeHtml(primaryLabel)}
+        </div>
+
         <div class="record-detail-dialog" data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}">
           <div class="record-detail-summary">
             <span>${escapeHtml(record.statusLabel || '-')}</span>
@@ -3971,7 +4519,8 @@
       state.clockTimer,
       state.durationTimer,
       state.refreshTimer,
-      state.autoClosePersistTimer
+      state.autoClosePersistTimer,
+      state.timelineSnapTimer
     ].forEach((timer) => {
       if (timer) {
         window.clearInterval(timer);
