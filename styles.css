@@ -9600,3 +9600,227 @@ body.admin-editor-open {
   color: #6d28d9;
   background: #f7f2ff;
 }
+
+/************************************************************
+ * ROUND 19 — Mobile Compact Module Title Row
+ *
+ * จัดชื่อโมดูลและนาฬิกาให้อยู่แถวเดียวกันบนมือถือ
+ * เพื่อลดความสูงของ Header และเพิ่มพื้นที่แสดงผลส่วนอื่น
+ ************************************************************/
+
+@media (max-width: 639px) {
+  .module-page .module-header__inner {
+    padding: 7px 10px 8px;
+  }
+
+  .module-page .module-title-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .module-page .module-title-row > div:first-child {
+    min-width: 0;
+  }
+
+  .module-page .module-title-row .eyebrow {
+    margin: 0 0 1px;
+    overflow: hidden;
+    font-size: 0.48rem;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .module-page .module-title-row h1 {
+    margin: 0;
+    overflow: hidden;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .module-page .module-title-row p:not(.eyebrow) {
+    margin: 2px 0 0;
+    overflow: hidden;
+    font-size: 0.56rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .module-page .module-clock {
+    min-width: 118px;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: center;
+    justify-items: end;
+    gap: 1px;
+    padding: 6px 7px;
+    border: 1px solid #d7e5f0;
+    border-radius: 9px;
+  }
+
+  .module-page .module-clock span {
+    font-size: 0.46rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .module-page .module-clock strong {
+    font-size: 0.61rem;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 359px) {
+  .module-page .module-title-row {
+    gap: 6px;
+  }
+
+  .module-page .module-clock {
+    min-width: 103px;
+    padding: 6px;
+  }
+
+  .module-page .module-clock span {
+    display: none;
+  }
+
+  .module-page .module-clock strong {
+    font-size: 0.57rem;
+  }
+
+  .module-page .module-title-row h1 {
+    font-size: 0.84rem;
+  }
+}
+
+/************************************************************
+ * ROUND 20 — Mobile Single-Line Module Identity
+ *
+ * มือถือแสดงข้อมูล 3 ส่วนในแถวเดียว:
+ * LIVE VEHICLE STATUS | ชื่อ Module | วันเวลา
+ ************************************************************/
+
+@media (max-width: 639px) {
+  .module-page .module-title-row {
+    display: grid;
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 0;
+    margin-top: 5px;
+  }
+
+  /*
+   * ยกเลิกกล่องครอบฝั่งซ้ายชั่วคราวบนมือถือ
+   * เพื่อให้ eyebrow และ h1 เป็น Grid Item คนละช่อง
+   */
+  .module-page .module-title-row > div:first-child {
+    display: contents;
+  }
+
+  /* ช่องที่ 1: LIVE VEHICLE STATUS */
+  .module-page .module-title-row .eyebrow {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    max-width: 82px;
+    margin: 0;
+    overflow: hidden;
+    color: #2570b8;
+    font-size: clamp(0.36rem, 1.55vw, 0.46rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.035em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ช่องที่ 2: ชื่อ Module */
+  .module-page .module-title-row h1 {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--bright-text, var(--color-text));
+    font-size: clamp(0.72rem, 3.3vw, 0.9rem);
+    font-weight: 850;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /*
+   * คำอธิบายซ่อนเฉพาะมือถือ
+   * เพราะข้อมูลนี้มีอยู่ในหน้า Module แล้ว
+   * ช่วยลดความสูง Header ลงอีกหนึ่งบรรทัด
+   */
+  .module-page .module-title-row p:not(.eyebrow) {
+    display: none;
+  }
+
+  /* ช่องที่ 3: วันเวลาปัจจุบัน */
+  .module-page .module-clock {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    width: auto;
+    display: block;
+    padding: 5px 7px;
+    border: 1px solid #d5e3ee;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f2f8ff, #edf8f6);
+    text-align: right;
+  }
+
+  /* ซ่อนข้อความกำกับ เหลือเฉพาะวันและเวลา */
+  .module-page .module-clock span {
+    display: none;
+  }
+
+  .module-page .module-clock strong {
+    display: block;
+    color: #175f91;
+    font-size: clamp(0.48rem, 2.15vw, 0.6rem);
+    font-weight: 850;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+/* หน้าจอแคบมาก ลดช่องว่างและตัวอักษรอีกเล็กน้อย */
+@media (max-width: 359px) {
+  .module-page .module-title-row {
+    column-gap: 4px;
+  }
+
+  .module-page .module-title-row .eyebrow {
+    max-width: 67px;
+    font-size: 0.34rem;
+    letter-spacing: 0.02em;
+  }
+
+  .module-page .module-title-row h1 {
+    font-size: 0.7rem;
+  }
+
+  .module-page .module-clock {
+    padding: 4px 5px;
+  }
+
+  .module-page .module-clock strong {
+    font-size: 0.47rem;
+  }
+}
