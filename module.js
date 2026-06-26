@@ -8,6 +8,11 @@
  * - รักษาตำแหน่ง Scroll เมื่อข้อมูลเปลี่ยน
  * - รองรับข้อมูลจำนวนมากและหน้าจอมือถือ
  * - คง Login, Calendar, Checkout และ SweetAlert เดิม
+ * - Control Tower สรุปสถานการณ์คลังแบบ 24 ชั่วโมง
+ * - Timeline รายชั่วโมง เลื่อนและแตะกรองได้บนมือถือ
+ * - Progress Bar และสีการ์ดตามเกณฑ์ของแต่ละ Module
+ * - เรียงรายการตามความเร่งด่วนและเวลาที่ใกล้เกณฑ์ที่สุด
+ * - เคลียร์รายการออกจากหน้าจอทันทีเมื่อครบ 36 ชั่วโมง
  */
 (function (window, document) {
   'use strict';
@@ -30,6 +35,11 @@
     refreshInProgress: false,
     recordsSignature: '',
     hasLoadedRecords: false,
+    timelineMode: 'ROLLING_24',
+    selectedTimelineStartMs: null,
+    timelineShouldFocus: true,
+    autoClosePersistTimer: null,
+    lastAutoClosePersistAttemptMs: 0,
     cardNodes: new Map(),
     alertRunning: false,
     userInteracted: false,
@@ -154,6 +164,21 @@
         'statusFilter'
       );
 
+    const timeline =
+      document.getElementById(
+        'hourlyTimeline'
+      );
+
+    const timelineModeGroup =
+      document.getElementById(
+        'timelineModeGroup'
+      );
+
+    const timelineClearButton =
+      document.getElementById(
+        'timelineClearButton'
+      );
+
     backButton &&
       backButton.addEventListener(
         'click',
@@ -231,6 +256,83 @@
               applyFiltersAndRender();
             }
           );
+        }
+      );
+
+    timelineModeGroup &&
+      timelineModeGroup.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-timeline-mode]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          state.timelineMode =
+            String(
+              button.dataset.timelineMode ||
+              'ROLLING_24'
+            ).toUpperCase();
+
+          state.selectedTimelineStartMs =
+            null;
+
+          state.timelineShouldFocus =
+            true;
+
+          renderTimeline();
+          applyFiltersAndRender();
+        }
+      );
+
+    timeline &&
+      timeline.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-hour-start-ms]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          const startMs =
+            Number(
+              button.dataset.hourStartMs
+            );
+
+          if (
+            !Number.isFinite(startMs)
+          ) {
+            return;
+          }
+
+          state.selectedTimelineStartMs =
+            state.selectedTimelineStartMs ===
+            startMs
+              ? null
+              : startMs;
+
+          renderTimeline();
+          applyFiltersAndRender();
+        }
+      );
+
+    timelineClearButton &&
+      timelineClearButton.addEventListener(
+        'click',
+        () => {
+          state.selectedTimelineStartMs =
+            null;
+
+          renderTimeline();
+          applyFiltersAndRender();
         }
       );
 
@@ -328,6 +430,13 @@
 
       recalculateAllRecords();
 
+      const expiredCount =
+        dropExpiredRecordsFromView();
+
+      if (expiredCount > 0) {
+        requestAutoClosePersistence();
+      }
+
       const nextSignature =
         buildRecordsSignature(
           state.records
@@ -343,6 +452,7 @@
         nextSignature;
 
       renderSummary();
+      renderTimeline();
 
       if (mustRender) {
         const previousScrollY =
@@ -362,20 +472,20 @@
             }
           );
         }
-
-        setText(
-          'lastUpdated',
-          'ข้อมูลล่าสุด ' +
-            (
-              result &&
-              result.generatedAt
-                ? result.generatedAt
-                : formatBangkokDateTime(
-                    getCurrentServerDate()
-                  )
-            )
-        );
       }
+
+      setText(
+        'lastUpdated',
+        'ข้อมูลล่าสุด ' +
+          (
+            result &&
+            result.generatedAt
+              ? result.generatedAt
+              : formatBangkokDateTime(
+                  getCurrentServerDate()
+                )
+          )
+      );
 
       state.hasLoadedRecords =
         true;
@@ -512,29 +622,126 @@
     if (
       !record ||
       !record.isCurrentlyInArea ||
-      !Number.isFinite(Number(record.timestampInEpochMs))
+      !Number.isFinite(
+        Number(
+          record.timestampInEpochMs
+        )
+      )
     ) {
+      if (record) {
+        record.statusCode =
+          'INCOMPLETE';
+
+        record.statusLabel =
+          getStatusLabel(
+            'INCOMPLETE'
+          );
+
+        record.priorityText =
+          'ตรวจสอบข้อมูลเวลาเข้า';
+
+        record.progressPercent =
+          0;
+      }
+
       return;
     }
 
-    const durationSeconds = Math.max(
-      0,
-      Math.floor(
-        (
-          nowMs -
-          Number(record.timestampInEpochMs)
-        ) / 1000
-      )
-    );
+    const durationSeconds =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            nowMs -
+            Number(
+              record.timestampInEpochMs
+            )
+          ) / 1000
+        )
+      );
 
-    const statusCode = calculateStatusCode(durationSeconds);
+    const thresholds =
+      getModuleThresholds();
 
-    record.durationSeconds = durationSeconds;
-    record.durationDisplay = formatDurationSeconds(durationSeconds);
-    record.statusCode = statusCode;
-    record.statusLabel = getStatusLabel(statusCode);
-    record.statusColor = getStatusColor(statusCode);
-    record.isOverdue = statusCode === 'OVERDUE';
+    const statusCode =
+      calculateStatusCode(
+        durationSeconds
+      );
+
+    const autoCloseRemainingSeconds =
+      Math.max(
+        0,
+        thresholds.autoCloseSeconds -
+        durationSeconds
+      );
+
+    record.durationSeconds =
+      durationSeconds;
+
+    record.durationDisplay =
+      formatDurationSeconds(
+        durationSeconds
+      );
+
+    record.statusCode =
+      statusCode;
+
+    record.statusLabel =
+      getStatusLabel(
+        statusCode
+      );
+
+    record.statusColor =
+      getStatusColor(
+        statusCode
+      );
+
+    record.isOverdue =
+      statusCode === 'OVERDUE';
+
+    record.isExpired36H =
+      durationSeconds >=
+      thresholds.autoCloseSeconds;
+
+    record.autoCloseRemainingSeconds =
+      autoCloseRemainingSeconds;
+
+    record.isNearAutoClose =
+      !record.isExpired36H &&
+      autoCloseRemainingSeconds <=
+        thresholds.nearAutoCloseSeconds;
+
+    record.progressPercent =
+      calculateProgressPercent(
+        durationSeconds,
+        thresholds
+      );
+
+    record.warningMarkerPercent =
+      thresholds.redSeconds > 0
+        ? Math.max(
+            0,
+            Math.min(
+              100,
+              (
+                thresholds.warningSeconds /
+                thresholds.redSeconds
+              ) * 100
+            )
+          )
+        : 0;
+
+    record.priorityText =
+      buildPriorityText(
+        record,
+        thresholds
+      );
+
+    record.priorityScore =
+      calculatePriorityScore(
+        record,
+        thresholds
+      );
   }
 
   function calculateStatusCode(durationSeconds) {
@@ -542,24 +749,317 @@
       return 'INCOMPLETE';
     }
 
-    const minutes = Number(durationSeconds) / 60;
+    const thresholds =
+      getModuleThresholds();
 
     if (
-      minutes >=
-      Number(state.module.redStartMinutes || 60)
+      Number(durationSeconds) >=
+      thresholds.redSeconds
     ) {
       return 'OVERDUE';
     }
 
     if (
-      minutes >=
-      Number(state.module.warningStartMinutes || 45)
+      Number(durationSeconds) >=
+      thresholds.warningSeconds
     ) {
       return 'WARNING';
     }
 
     return 'NORMAL';
   }
+
+
+  function getModuleThresholds() {
+    const module =
+      state.module || {};
+
+    const warningMinutes =
+      Math.max(
+        0,
+        Number(
+          module.warningStartMinutes
+        ) || 45
+      );
+
+    const redMinutes =
+      Math.max(
+        warningMinutes + 1,
+        Number(
+          module.redStartMinutes
+        ) || 60
+      );
+
+    return {
+      warningMinutes,
+      redMinutes,
+      warningSeconds:
+        warningMinutes * 60,
+      redSeconds:
+        redMinutes * 60,
+      autoCloseSeconds:
+        36 * 60 * 60,
+      nearAutoCloseSeconds:
+        2 * 60 * 60
+    };
+  }
+
+
+  function calculateProgressPercent(
+    durationSeconds,
+    thresholds
+  ) {
+    if (
+      !thresholds ||
+      thresholds.redSeconds <= 0
+    ) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        (
+          Number(durationSeconds) /
+          thresholds.redSeconds
+        ) * 100
+      )
+    );
+  }
+
+
+  function buildPriorityText(
+    record,
+    thresholds
+  ) {
+    if (
+      !record ||
+      record.statusCode ===
+        'INCOMPLETE'
+    ) {
+      return 'ตรวจสอบข้อมูล';
+    }
+
+    if (
+      record.isNearAutoClose
+    ) {
+      return (
+        'ระบบจะเคลียร์ใน ' +
+        formatDurationSeconds(
+          record.autoCloseRemainingSeconds
+        )
+      );
+    }
+
+    if (
+      record.statusCode ===
+      'OVERDUE'
+    ) {
+      return (
+        'เกินเกณฑ์สีแดง ' +
+        formatCompactDuration(
+          record.durationSeconds -
+          thresholds.redSeconds
+        )
+      );
+    }
+
+    if (
+      record.statusCode ===
+      'WARNING'
+    ) {
+      return (
+        'เหลือ ' +
+        formatCompactDuration(
+          thresholds.redSeconds -
+          record.durationSeconds
+        ) +
+        ' ก่อนเข้าสีแดง'
+      );
+    }
+
+    return (
+      'เหลือ ' +
+      formatCompactDuration(
+        thresholds.warningSeconds -
+        record.durationSeconds
+      ) +
+      ' ก่อนเข้าสีส้ม'
+    );
+  }
+
+
+  function calculatePriorityScore(
+    record,
+    thresholds
+  ) {
+    if (!record) {
+      return 999999999;
+    }
+
+    if (
+      record.isNearAutoClose
+    ) {
+      return (
+        0 * 1000000000 +
+        Math.max(
+          0,
+          record.autoCloseRemainingSeconds
+        )
+      );
+    }
+
+    if (
+      record.statusCode ===
+      'OVERDUE'
+    ) {
+      return (
+        1 * 1000000000 -
+        Math.max(
+          0,
+          record.durationSeconds
+        )
+      );
+    }
+
+    if (
+      record.statusCode ===
+      'WARNING'
+    ) {
+      return (
+        2 * 1000000000 +
+        Math.max(
+          0,
+          thresholds.redSeconds -
+          record.durationSeconds
+        )
+      );
+    }
+
+    if (
+      record.statusCode ===
+      'NORMAL'
+    ) {
+      return (
+        3 * 1000000000 +
+        Math.max(
+          0,
+          thresholds.warningSeconds -
+          record.durationSeconds
+        )
+      );
+    }
+
+    return 4 * 1000000000;
+  }
+
+
+  function formatCompactDuration(
+    totalSeconds
+  ) {
+    const seconds =
+      Math.max(
+        0,
+        Math.floor(
+          Number(totalSeconds) || 0
+        )
+      );
+
+    const hours =
+      Math.floor(
+        seconds / 3600
+      );
+
+    const minutes =
+      Math.floor(
+        (
+          seconds % 3600
+        ) / 60
+      );
+
+    if (hours > 0) {
+      return (
+        hours +
+        ' ชม. ' +
+        minutes +
+        ' นาที'
+      );
+    }
+
+    return (
+      Math.max(
+        1,
+        minutes
+      ) +
+      ' นาที'
+    );
+  }
+
+
+  function dropExpiredRecordsFromView() {
+    const beforeCount =
+      state.records.length;
+
+    state.records =
+      state.records.filter(
+        (record) =>
+          !record.isExpired36H
+      );
+
+    return (
+      beforeCount -
+      state.records.length
+    );
+  }
+
+
+  function requestAutoClosePersistence() {
+    const now =
+      Date.now();
+
+    if (
+      now -
+      state.lastAutoClosePersistAttemptMs <
+      60000
+    ) {
+      return;
+    }
+
+    state.lastAutoClosePersistAttemptMs =
+      now;
+
+    if (
+      state.autoClosePersistTimer
+    ) {
+      window.clearTimeout(
+        state.autoClosePersistTimer
+      );
+    }
+
+    state.autoClosePersistTimer =
+      window.setTimeout(
+        async () => {
+          state.autoClosePersistTimer =
+            null;
+
+          if (
+            state.refreshInProgress ||
+            state.destroyed
+          ) {
+            return;
+          }
+
+          await loadRecords({
+            silentError: true,
+            showSuccessToast: false,
+            forceRender: false
+          });
+        },
+        600
+      );
+  }
+
 
   function renderSession() {
     const user =
@@ -615,109 +1115,773 @@
   }
 
   function renderSummary() {
-    const summary = buildLocalSummary(state.records);
+    const summary =
+      buildLocalSummary(
+        state.records
+      );
 
-    setText('summaryTotal', String(summary.total));
-    setText('summaryNormal', String(summary.normal));
-    setText('summaryWarning', String(summary.warning));
-    setText('summaryOverdue', String(summary.overdue));
-    setText('summaryIncomplete', String(summary.incomplete));
+    setText(
+      'summaryTotal',
+      String(summary.total)
+    );
+
+    setText(
+      'summaryNormal',
+      String(summary.normal)
+    );
+
+    setText(
+      'summaryWarning',
+      String(summary.warning)
+    );
+
+    setText(
+      'summaryOverdue',
+      String(summary.overdue)
+    );
+
+    setText(
+      'summaryIncomplete',
+      String(summary.incomplete)
+    );
+
+    setText(
+      'controlTotal',
+      String(summary.total)
+    );
+
+    setText(
+      'controlNormal',
+      String(summary.normal)
+    );
+
+    setText(
+      'controlWarning',
+      String(summary.warning)
+    );
+
+    setText(
+      'controlOverdue',
+      String(summary.overdue)
+    );
+
+    setText(
+      'controlNearAutoClose',
+      String(summary.nearAutoClose)
+    );
+
+    renderWarehouseSituation(
+      summary
+    );
   }
 
   function buildLocalSummary(records) {
-    const list = Array.isArray(records)
-      ? records
-      : [];
+    const list =
+      Array.isArray(records)
+        ? records
+        : [];
 
     return {
-      total: list.length,
-      normal: list.filter(
-        (record) => record.statusCode === 'NORMAL'
-      ).length,
-      warning: list.filter(
-        (record) => record.statusCode === 'WARNING'
-      ).length,
-      overdue: list.filter(
-        (record) => record.statusCode === 'OVERDUE'
-      ).length,
-      incomplete: list.filter(
-        (record) =>
-          record.statusCode === 'INCOMPLETE' ||
-          record.isIncomplete
-      ).length
+      total:
+        list.length,
+
+      normal:
+        list.filter(
+          (record) =>
+            record.statusCode ===
+            'NORMAL'
+        ).length,
+
+      warning:
+        list.filter(
+          (record) =>
+            record.statusCode ===
+            'WARNING'
+        ).length,
+
+      overdue:
+        list.filter(
+          (record) =>
+            record.statusCode ===
+            'OVERDUE'
+        ).length,
+
+      incomplete:
+        list.filter(
+          (record) =>
+            record.statusCode ===
+              'INCOMPLETE' ||
+            record.isIncomplete
+        ).length,
+
+      nearAutoClose:
+        list.filter(
+          (record) =>
+            record.isNearAutoClose
+        ).length
     };
   }
 
   function applyFiltersAndRender() {
-    const searchText = state.searchText;
-    const statusFilter = state.statusFilter;
+    const searchText =
+      state.searchText;
 
-    state.filteredRecords = state.records.filter((record) => {
-      if (
-        statusFilter !== 'ALL' &&
-        record.statusCode !== statusFilter
-      ) {
-        return false;
-      }
+    const statusFilter =
+      state.statusFilter;
 
-      if (!searchText) {
-        return true;
-      }
+    state.filteredRecords =
+      state.records.filter(
+        (record) => {
+          if (
+            statusFilter !== 'ALL' &&
+            record.statusCode !==
+              statusFilter
+          ) {
+            return false;
+          }
 
-      const haystack = String(
-        record.searchText ||
-        [
-          record.primaryValue,
-          record.timestampIn,
-          record.statusLabel
-        ]
-          .filter(Boolean)
-          .join(' ')
-      ).toLowerCase();
+          if (
+            !recordMatchesTimeline(
+              record
+            )
+          ) {
+            return false;
+          }
 
-      return haystack.includes(searchText);
-    });
+          if (!searchText) {
+            return true;
+          }
 
-    sortRecords(state.filteredRecords);
-    renderVehicleCards(state.filteredRecords);
+          const haystack =
+            String(
+              record.searchText ||
+              [
+                record.primaryValue,
+                record.timestampIn,
+                record.statusLabel,
+                record.priorityText,
+                ...(Array.isArray(record.fields)
+                  ? record.fields.map(
+                      (field) =>
+                        field.value
+                    )
+                  : [])
+              ]
+                .filter(Boolean)
+                .join(' ')
+            ).toLowerCase();
+
+          return haystack.includes(
+            searchText
+          );
+        }
+      );
+
+    sortRecords(
+      state.filteredRecords
+    );
+
+    renderVehicleCards(
+      state.filteredRecords
+    );
 
     setText(
       'resultCount',
       state.filteredRecords.length +
       ' รายการ'
     );
+
+    updateActiveFilterText();
   }
 
   function sortRecords(records) {
-    const severity = {
-      OVERDUE: 1,
-      WARNING: 2,
-      NORMAL: 3,
-      INCOMPLETE: 4
-    };
+    records.sort(
+      (left, right) => {
+        const leftScore =
+          Number.isFinite(
+            Number(
+              left.priorityScore
+            )
+          )
+            ? Number(
+                left.priorityScore
+              )
+            : 999999999999;
 
-    records.sort((left, right) => {
-      const leftSeverity =
-        severity[left.statusCode] || 99;
+        const rightScore =
+          Number.isFinite(
+            Number(
+              right.priorityScore
+            )
+          )
+            ? Number(
+                right.priorityScore
+              )
+            : 999999999999;
 
-      const rightSeverity =
-        severity[right.statusCode] || 99;
+        if (
+          leftScore !==
+          rightScore
+        ) {
+          return (
+            leftScore -
+            rightScore
+          );
+        }
 
-      if (leftSeverity !== rightSeverity) {
-        return leftSeverity - rightSeverity;
+        return (
+          Number(
+            left.timestampInEpochMs
+          ) || 0
+        ) - (
+          Number(
+            right.timestampInEpochMs
+          ) || 0
+        );
       }
-
-      return (
-        Number(right.durationSeconds) || 0
-      ) - (
-        Number(left.durationSeconds) || 0
-      );
-    });
+    );
   }
 
+
+
+  function renderWarehouseSituation(
+    summary
+  ) {
+    const element =
+      document.getElementById(
+        'warehouseSituation'
+      );
+
+    if (!element) {
+      return;
+    }
+
+    let stateCode =
+      'NORMAL';
+
+    let label =
+      'สถานการณ์ปกติ';
+
+    let message =
+      'ยังไม่มีรายการที่ต้องเร่งดำเนินการ';
+
+    if (
+      summary.nearAutoClose > 0
+    ) {
+      stateCode =
+        'AUTO_CLOSE';
+
+      label =
+        'มีรายการค้างนาน';
+
+      message =
+        summary.nearAutoClose +
+        ' รายการใกล้ครบ 36 ชั่วโมง';
+
+    } else if (
+      summary.overdue > 0
+    ) {
+      stateCode =
+        'CRITICAL';
+
+      label =
+        'ต้องเร่งดำเนินการ';
+
+      message =
+        summary.overdue +
+        ' รายการเกินเกณฑ์ของโมดูล';
+
+    } else if (
+      summary.warning > 0
+    ) {
+      stateCode =
+        'WATCH';
+
+      label =
+        'ต้องติดตามใกล้ชิด';
+
+      message =
+        summary.warning +
+        ' รายการใกล้เกินเวลา';
+
+    } else if (
+      summary.incomplete > 0
+    ) {
+      stateCode =
+        'DATA';
+
+      label =
+        'ต้องตรวจสอบข้อมูล';
+
+      message =
+        summary.incomplete +
+        ' รายการมีข้อมูลไม่สมบูรณ์';
+    }
+
+    element.dataset.state =
+      stateCode;
+
+    setText(
+      'situationLabel',
+      label
+    );
+
+    setText(
+      'situationMessage',
+      message
+    );
+  }
+
+
+  function renderTimeline() {
+    const container =
+      document.getElementById(
+        'hourlyTimeline'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    document
+      .querySelectorAll(
+        '[data-timeline-mode]'
+      )
+      .forEach(
+        (button) => {
+          button.classList.toggle(
+            'is-active',
+            String(
+              button.dataset.timelineMode ||
+              ''
+            ).toUpperCase() ===
+            state.timelineMode
+          );
+        }
+      );
+
+    const slots =
+      buildTimelineSlots();
+
+    container.innerHTML =
+      slots.map(
+        (slot) => {
+          const selected =
+            state.selectedTimelineStartMs ===
+            slot.startMs;
+
+          return `
+            <button
+              type="button"
+              class="timeline-hour${selected ? ' is-selected' : ''}${slot.isCurrent ? ' is-current' : ''}"
+              data-hour-start-ms="${slot.startMs}"
+              data-status="${escapeHtml(slot.statusCode)}"
+              aria-pressed="${selected ? 'true' : 'false'}"
+            >
+              <span class="timeline-hour__time">${escapeHtml(slot.label)}</span>
+              <strong>${slot.total}</strong>
+              <small>${escapeHtml(slot.caption)}</small>
+              <i aria-hidden="true"></i>
+            </button>
+          `;
+        }
+      ).join('');
+
+    const clearButton =
+      document.getElementById(
+        'timelineClearButton'
+      );
+
+    if (clearButton) {
+      clearButton.classList.toggle(
+        'is-hidden',
+        state.selectedTimelineStartMs ===
+          null
+      );
+    }
+
+    if (
+      state.timelineShouldFocus
+    ) {
+      state.timelineShouldFocus =
+        false;
+
+      window.requestAnimationFrame(
+        () => {
+          const target =
+            container.querySelector(
+              '.timeline-hour.is-current'
+            ) ||
+            container.lastElementChild;
+
+          target &&
+            target.scrollIntoView({
+              behavior: 'auto',
+              block: 'nearest',
+              inline: 'center'
+            });
+        }
+      );
+    }
+  }
+
+
+  function buildTimelineSlots() {
+    const nowMs =
+      getCurrentServerTimeMs();
+
+    const currentHourStart =
+      getBangkokHourStartMs(
+        nowMs
+      );
+
+    const slots = [];
+
+    if (
+      state.timelineMode ===
+      'TODAY'
+    ) {
+      const dayStart =
+        getBangkokDayStartMs(
+          nowMs
+        );
+
+      for (
+        let hour = 0;
+        hour < 24;
+        hour += 1
+      ) {
+        const startMs =
+          dayStart +
+          hour * 60 * 60 * 1000;
+
+        slots.push(
+          buildTimelineSlot(
+            startMs,
+            String(hour).padStart(
+              2,
+              '0'
+            )
+          )
+        );
+      }
+
+    } else {
+      for (
+        let offset = 23;
+        offset >= 0;
+        offset -= 1
+      ) {
+        const startMs =
+          currentHourStart -
+          offset * 60 * 60 * 1000;
+
+        slots.push(
+          buildTimelineSlot(
+            startMs,
+            formatTimelineHourLabel(
+              startMs,
+              offset === 0
+            )
+          )
+        );
+      }
+    }
+
+    return slots;
+  }
+
+
+  function buildTimelineSlot(
+    startMs,
+    label
+  ) {
+    const endMs =
+      startMs +
+      60 * 60 * 1000;
+
+    const records =
+      state.records.filter(
+        (record) => {
+          const timestamp =
+            getRecordTimestampInMs(
+              record
+            );
+
+          return (
+            timestamp >= startMs &&
+            timestamp < endMs
+          );
+        }
+      );
+
+    const summary =
+      buildLocalSummary(records);
+
+    let statusCode =
+      'EMPTY';
+
+    if (
+      summary.nearAutoClose > 0
+    ) {
+      statusCode =
+        'AUTO_CLOSE';
+
+    } else if (
+      summary.overdue > 0
+    ) {
+      statusCode =
+        'OVERDUE';
+
+    } else if (
+      summary.warning > 0
+    ) {
+      statusCode =
+        'WARNING';
+
+    } else if (
+      summary.normal > 0
+    ) {
+      statusCode =
+        'NORMAL';
+
+    } else if (
+      summary.incomplete > 0
+    ) {
+      statusCode =
+        'INCOMPLETE';
+    }
+
+    const currentHourStart =
+      getBangkokHourStartMs(
+        getCurrentServerTimeMs()
+      );
+
+    return {
+      startMs,
+      endMs,
+      label,
+      total: records.length,
+      statusCode,
+      isCurrent:
+        startMs ===
+        currentHourStart,
+      caption:
+        summary.overdue > 0
+          ? summary.overdue +
+            ' เกินเวลา'
+          : summary.warning > 0
+            ? summary.warning +
+              ' เฝ้าระวัง'
+            : records.length > 0
+              ? 'อยู่ในพื้นที่'
+              : 'ไม่มีรายการ'
+    };
+  }
+
+
+  function recordMatchesTimeline(
+    record
+  ) {
+    if (
+      state.selectedTimelineStartMs ===
+      null
+    ) {
+      return true;
+    }
+
+    const timestamp =
+      getRecordTimestampInMs(
+        record
+      );
+
+    return (
+      timestamp >=
+        state.selectedTimelineStartMs &&
+      timestamp <
+        state.selectedTimelineStartMs +
+        60 * 60 * 1000
+    );
+  }
+
+
+  function updateActiveFilterText() {
+    const element =
+      document.getElementById(
+        'activeTimelineFilter'
+      );
+
+    if (!element) {
+      return;
+    }
+
+    if (
+      state.selectedTimelineStartMs ===
+      null
+    ) {
+      element.textContent =
+        'แสดงทุกชั่วโมง';
+
+      return;
+    }
+
+    element.textContent =
+      'กรองเวลาเข้า ' +
+      formatTimelineRange(
+        state.selectedTimelineStartMs
+      );
+  }
+
+
+  function getRecordTimestampInMs(
+    record
+  ) {
+    const epoch =
+      Number(
+        record &&
+        record.timestampInEpochMs
+      );
+
+    if (
+      Number.isFinite(epoch)
+    ) {
+      return epoch;
+    }
+
+    const parsed =
+      parseBangkokDateTime(
+        record &&
+        record.timestampIn
+      );
+
+    return parsed
+      ? parsed.getTime()
+      : 0;
+  }
+
+
+  function getBangkokDateParts(
+    timestampMs
+  ) {
+    const formatter =
+      new Intl.DateTimeFormat(
+        'en-GB',
+        {
+          timeZone:
+            CONFIG.TIMEZONE ||
+            'Asia/Bangkok',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hourCycle: 'h23'
+        }
+      );
+
+    const result = {};
+
+    formatter
+      .formatToParts(
+        new Date(timestampMs)
+      )
+      .forEach(
+        (part) => {
+          result[part.type] =
+            part.value;
+        }
+      );
+
+    return result;
+  }
+
+
+  function getBangkokHourStartMs(
+    timestampMs
+  ) {
+    const parts =
+      getBangkokDateParts(
+        timestampMs
+      );
+
+    return new Date(
+      parts.year +
+      '-' +
+      parts.month +
+      '-' +
+      parts.day +
+      'T' +
+      parts.hour +
+      ':00:00+07:00'
+    ).getTime();
+  }
+
+
+  function getBangkokDayStartMs(
+    timestampMs
+  ) {
+    const parts =
+      getBangkokDateParts(
+        timestampMs
+      );
+
+    return new Date(
+      parts.year +
+      '-' +
+      parts.month +
+      '-' +
+      parts.day +
+      'T00:00:00+07:00'
+    ).getTime();
+  }
+
+
+  function formatTimelineHourLabel(
+    timestampMs,
+    current
+  ) {
+    const parts =
+      getBangkokDateParts(
+        timestampMs
+      );
+
+    return current
+      ? 'ตอนนี้ ' +
+        parts.hour
+      : parts.hour;
+  }
+
+
+  function formatTimelineRange(
+    startMs
+  ) {
+    const parts =
+      getBangkokDateParts(
+        startMs
+      );
+
+    return (
+      parts.day +
+      '/' +
+      parts.month +
+      ' ' +
+      parts.hour +
+      ':00–' +
+      parts.hour +
+      ':59'
+    );
+  }
   function renderVehicleCards(records) {
-    const container = document.getElementById('vehicleList');
-    const emptyState = document.getElementById('vehicleEmpty');
+    const container =
+      document.getElementById(
+        'vehicleList'
+      );
+
+    const emptyState =
+      document.getElementById(
+        'vehicleEmpty'
+      );
 
     if (!container) {
       return;
@@ -726,89 +1890,309 @@
     state.cardNodes.clear();
     container.innerHTML = '';
 
-    if (!records || records.length === 0) {
+    if (
+      !records ||
+      records.length === 0
+    ) {
       emptyState &&
-        emptyState.classList.remove('is-hidden');
+        emptyState.classList.remove(
+          'is-hidden'
+        );
 
       return;
     }
 
     emptyState &&
-      emptyState.classList.add('is-hidden');
-
-    const fragment = document.createDocumentFragment();
-
-    records.forEach((record) => {
-      const result = createVehicleCard(record);
-
-      fragment.appendChild(result.element);
-
-      state.cardNodes.set(
-        record.recordId,
-        result.nodes
+      emptyState.classList.add(
+        'is-hidden'
       );
-    });
 
-    container.appendChild(fragment);
+    const fragment =
+      document.createDocumentFragment();
+
+    records.forEach(
+      (record, index) => {
+        const result =
+          createVehicleCard(
+            record,
+            index
+          );
+
+        fragment.appendChild(
+          result.element
+        );
+
+        state.cardNodes.set(
+          record.recordId,
+          result.nodes
+        );
+      }
+    );
+
+    container.appendChild(
+      fragment
+    );
   }
 
-  function createVehicleCard(record) {
-    const article = document.createElement('article');
-    article.className = 'vehicle-card';
+  function createVehicleCard(
+    record,
+    index
+  ) {
+    const article =
+      document.createElement(
+        'article'
+      );
+
+    article.className =
+      'vehicle-card vehicle-card--professional';
+
     article.dataset.status =
-      record.statusCode || 'INCOMPLETE';
+      record.statusCode ||
+      'INCOMPLETE';
+
     article.dataset.recordId =
       record.recordId || '';
 
-    const statusRail = document.createElement('div');
-    statusRail.className = 'vehicle-card__rail';
+    article.dataset.nearAutoClose =
+      record.isNearAutoClose
+        ? 'TRUE'
+        : 'FALSE';
 
-    const header = document.createElement('div');
-    header.className = 'vehicle-card__header';
+    article.tabIndex =
+      0;
 
-    const titleWrap = document.createElement('div');
-    titleWrap.className = 'vehicle-card__title-wrap';
+    article.setAttribute(
+      'role',
+      'button'
+    );
 
-    const title = document.createElement('h2');
-    title.className = 'vehicle-card__title';
+    article.setAttribute(
+      'aria-label',
+      'ดูรายละเอียด ' +
+      (
+        record.primaryValue ||
+        'รายการรถ'
+      )
+    );
+
+    const statusRail =
+      document.createElement(
+        'div'
+      );
+
+    statusRail.className =
+      'vehicle-card__rail';
+
+    const rank =
+      document.createElement(
+        'span'
+      );
+
+    rank.className =
+      'vehicle-card__rank';
+
+    rank.textContent =
+      index < 3
+        ? 'เร่งด่วน ' +
+          (index + 1)
+        : 'ลำดับ ' +
+          (index + 1);
+
+    const header =
+      document.createElement(
+        'div'
+      );
+
+    header.className =
+      'vehicle-card__header';
+
+    const titleWrap =
+      document.createElement(
+        'div'
+      );
+
+    titleWrap.className =
+      'vehicle-card__title-wrap';
+
+    const title =
+      document.createElement(
+        'h2'
+      );
+
+    title.className =
+      'vehicle-card__title';
+
     title.textContent =
       record.primaryValue ||
       'ไม่พบข้อมูลหลัก';
 
-    const statusBadge = document.createElement('span');
-    statusBadge.className = 'vehicle-status-badge';
+    const statusLine =
+      document.createElement(
+        'div'
+      );
+
+    statusLine.className =
+      'vehicle-card__status-line';
+
+    const statusBadge =
+      document.createElement(
+        'span'
+      );
+
+    statusBadge.className =
+      'vehicle-status-badge';
+
     statusBadge.dataset.status =
-      record.statusCode || 'INCOMPLETE';
+      record.statusCode ||
+      'INCOMPLETE';
+
     statusBadge.textContent =
-      record.statusLabel || 'ไม่ทราบสถานะ';
+      record.statusLabel ||
+      'ไม่ทราบสถานะ';
 
-    titleWrap.appendChild(title);
-    titleWrap.appendChild(statusBadge);
+    const timer =
+      document.createElement(
+        'strong'
+      );
 
-    const timerWrap = document.createElement('div');
-    timerWrap.className = 'vehicle-card__timer-wrap';
+    timer.className =
+      'vehicle-card__timer';
 
-    const timerLabel = document.createElement('span');
-    timerLabel.textContent = 'อยู่ในพื้นที่';
-
-    const timer = document.createElement('strong');
-    timer.className = 'vehicle-card__timer';
     timer.textContent =
       record.durationDisplay ||
       '--:--:--';
 
-    timerWrap.appendChild(timerLabel);
-    timerWrap.appendChild(timer);
+    statusLine.appendChild(
+      statusBadge
+    );
 
-    header.appendChild(titleWrap);
-    header.appendChild(timerWrap);
+    statusLine.appendChild(
+      timer
+    );
 
-    const detailGrid = document.createElement('div');
-    detailGrid.className = 'vehicle-detail-grid';
+    titleWrap.appendChild(
+      title
+    );
 
-    const fields = Array.isArray(record.fields)
-      ? record.fields
-      : [];
+    titleWrap.appendChild(
+      statusLine
+    );
+
+    header.appendChild(
+      titleWrap
+    );
+
+    const progress =
+      document.createElement(
+        'div'
+      );
+
+    progress.className =
+      'vehicle-progress';
+
+    const progressTrack =
+      document.createElement(
+        'div'
+      );
+
+    progressTrack.className =
+      'vehicle-progress__track';
+
+    const progressFill =
+      document.createElement(
+        'div'
+      );
+
+    progressFill.className =
+      'vehicle-progress__fill';
+
+    progressFill.style.width =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          Number(
+            record.progressPercent
+          ) || 0
+        )
+      ) + '%';
+
+    const warningMarker =
+      document.createElement(
+        'span'
+      );
+
+    warningMarker.className =
+      'vehicle-progress__marker';
+
+    warningMarker.style.left =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          Number(
+            record.warningMarkerPercent
+          ) || 0
+        )
+      ) + '%';
+
+    progressTrack.appendChild(
+      progressFill
+    );
+
+    progressTrack.appendChild(
+      warningMarker
+    );
+
+    const progressLabels =
+      document.createElement(
+        'div'
+      );
+
+    progressLabels.className =
+      'vehicle-progress__labels';
+
+    const thresholds =
+      getModuleThresholds();
+
+    progressLabels.innerHTML = `
+      <span>0</span>
+      <span>ส้ม ${escapeHtml(String(thresholds.warningMinutes))} นาที</span>
+      <span>แดง ${escapeHtml(String(thresholds.redMinutes))} นาที</span>
+    `;
+
+    progress.appendChild(
+      progressTrack
+    );
+
+    progress.appendChild(
+      progressLabels
+    );
+
+    const priorityText =
+      document.createElement(
+        'p'
+      );
+
+    priorityText.className =
+      'vehicle-card__priority-text';
+
+    priorityText.textContent =
+      record.priorityText ||
+      'กำลังประเมินสถานะ';
+
+    const detailGrid =
+      document.createElement(
+        'div'
+      );
+
+    detailGrid.className =
+      'vehicle-detail-grid';
+
+    const fields =
+      Array.isArray(record.fields)
+        ? record.fields
+        : [];
 
     fields
       .filter(
@@ -821,65 +2205,169 @@
           Number(left.order || 0) -
           Number(right.order || 0)
       )
-      .forEach((field) => {
-        detailGrid.appendChild(
-          createFieldElement(field)
-        );
-      });
+      .slice(0, 4)
+      .forEach(
+        (field) => {
+          detailGrid.appendChild(
+            createFieldElement(field)
+          );
+        }
+      );
 
-    const footer = document.createElement('div');
-    footer.className = 'vehicle-card__footer';
+    const footer =
+      document.createElement(
+        'div'
+      );
 
-    const inTime = document.createElement('div');
-    inTime.className = 'vehicle-in-time';
+    footer.className =
+      'vehicle-card__footer';
 
-    const inTimeLabel = document.createElement('span');
-    inTimeLabel.textContent = 'เวลาเข้าพื้นที่';
+    const inTime =
+      document.createElement(
+        'div'
+      );
 
-    const inTimeValue = document.createElement('strong');
+    inTime.className =
+      'vehicle-in-time';
+
+    const inTimeLabel =
+      document.createElement(
+        'span'
+      );
+
+    inTimeLabel.textContent =
+      'เวลาเข้าพื้นที่';
+
+    const inTimeValue =
+      document.createElement(
+        'strong'
+      );
+
     inTimeValue.textContent =
       record.timestampIn ||
       'ไม่พบข้อมูล';
 
-    inTime.appendChild(inTimeLabel);
-    inTime.appendChild(inTimeValue);
-    footer.appendChild(inTime);
+    inTime.appendChild(
+      inTimeLabel
+    );
+
+    inTime.appendChild(
+      inTimeValue
+    );
+
+    footer.appendChild(
+      inTime
+    );
 
     if (
       record.canCheckout &&
       isAdmin()
     ) {
-      const checkoutButton = document.createElement('button');
-      checkoutButton.type = 'button';
-      checkoutButton.className = 'button button--checkout';
-      checkoutButton.textContent = 'บันทึกออกพื้นที่';
+      const checkoutButton =
+        document.createElement(
+          'button'
+        );
+
+      checkoutButton.type =
+        'button';
+
+      checkoutButton.className =
+        'button button--checkout';
+
+      checkoutButton.textContent =
+        'บันทึกออกพื้นที่';
 
       checkoutButton.addEventListener(
         'click',
-        () => handleCheckout(
-          record,
-          checkoutButton
-        )
+        (event) => {
+          event.stopPropagation();
+
+          handleCheckout(
+            record,
+            checkoutButton
+          );
+        }
       );
 
-      footer.appendChild(checkoutButton);
+      footer.appendChild(
+        checkoutButton
+      );
     }
 
-    article.appendChild(statusRail);
-    article.appendChild(header);
+    article.appendChild(
+      statusRail
+    );
 
-    if (detailGrid.childElementCount > 0) {
-      article.appendChild(detailGrid);
+    article.appendChild(
+      rank
+    );
+
+    article.appendChild(
+      header
+    );
+
+    article.appendChild(
+      progress
+    );
+
+    article.appendChild(
+      priorityText
+    );
+
+    if (
+      detailGrid.childElementCount > 0
+    ) {
+      article.appendChild(
+        detailGrid
+      );
     }
 
-    article.appendChild(footer);
+    article.appendChild(
+      footer
+    );
+
+    const openDetails =
+      (event) => {
+        if (
+          event &&
+          event.target.closest(
+            'button, a, input, select'
+          )
+        ) {
+          return;
+        }
+
+        openRecordDetail(
+          record
+        );
+      };
+
+    article.addEventListener(
+      'click',
+      openDetails
+    );
+
+    article.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          openRecordDetail(record);
+        }
+      }
+    );
 
     return {
       element: article,
       nodes: {
         card: article,
         timer,
-        statusBadge
+        statusBadge,
+        progressFill,
+        priorityText
       }
     };
   }
@@ -909,6 +2397,60 @@
     return item;
   }
 
+
+
+  function openRecordDetail(record) {
+    const fields =
+      Array.isArray(record.fields)
+        ? record.fields
+        : [];
+
+    const fieldHtml =
+      fields
+        .filter(
+          (field) =>
+            !field.primary &&
+            field.value
+        )
+        .sort(
+          (left, right) =>
+            Number(left.order || 0) -
+            Number(right.order || 0)
+        )
+        .map(
+          (field) => `
+            <div class="record-detail-row">
+              <span>${escapeHtml(field.label || '-')}</span>
+              <strong>${escapeHtml(field.value || '-')}</strong>
+            </div>
+          `
+        )
+        .join('');
+
+    Swal.fire({
+      width: 620,
+      title:
+        record.primaryValue ||
+        'รายละเอียดรายการ',
+      html: `
+        <div class="record-detail-dialog" data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}">
+          <div class="record-detail-summary">
+            <span>${escapeHtml(record.statusLabel || '-')}</span>
+            <strong>${escapeHtml(record.durationDisplay || '--:--:--')}</strong>
+            <small>${escapeHtml(record.priorityText || '')}</small>
+          </div>
+
+          <div class="record-detail-row">
+            <span>เวลาเข้าพื้นที่</span>
+            <strong>${escapeHtml(record.timestampIn || '-')}</strong>
+          </div>
+
+          ${fieldHtml}
+        </div>
+      `,
+      confirmButtonText: 'ปิด'
+    });
+  }
   function startClock() {
     updateClock();
 
@@ -941,55 +2483,153 @@
   function tickDurations() {
     if (
       state.destroyed ||
-      document.visibilityState !== 'visible'
+      document.visibilityState !==
+        'visible'
     ) {
       return;
     }
 
-    const nowMs = getCurrentServerTimeMs();
-    let statusChanged = false;
+    const nowMs =
+      getCurrentServerTimeMs();
 
-    state.records.forEach((record) => {
-      const previousStatus =
-        record.statusCode;
+    let statusChanged =
+      false;
 
-      updateRecordComputedState(
-        record,
-        nowMs
-      );
+    let nearAutoCloseChanged =
+      false;
 
-      const nodes =
-        state.cardNodes.get(
-          record.recordId
+    const expiredRecordIds =
+      [];
+
+    state.records.forEach(
+      (record) => {
+        const previousStatus =
+          record.statusCode;
+
+        const previousNearAutoClose =
+          Boolean(
+            record.isNearAutoClose
+          );
+
+        updateRecordComputedState(
+          record,
+          nowMs
         );
 
-      if (nodes) {
-        nodes.timer.textContent =
-          record.durationDisplay ||
-          '--:--:--';
+        if (
+          record.isExpired36H
+        ) {
+          expiredRecordIds.push(
+            record.recordId
+          );
+
+          return;
+        }
+
+        const nodes =
+          state.cardNodes.get(
+            record.recordId
+          );
+
+        if (nodes) {
+          nodes.timer.textContent =
+            record.durationDisplay ||
+            '--:--:--';
+
+          nodes.priorityText.textContent =
+            record.priorityText ||
+            '';
+
+          nodes.progressFill.style.width =
+            Math.max(
+              0,
+              Math.min(
+                100,
+                Number(
+                  record.progressPercent
+                ) || 0
+              )
+            ) + '%';
+
+          nodes.card.dataset.nearAutoClose =
+            record.isNearAutoClose
+              ? 'TRUE'
+              : 'FALSE';
+
+          if (
+            previousStatus !==
+            record.statusCode
+          ) {
+            nodes.card.dataset.status =
+              record.statusCode;
+
+            nodes.statusBadge.dataset.status =
+              record.statusCode;
+
+            nodes.statusBadge.textContent =
+              record.statusLabel;
+
+            statusChanged =
+              true;
+          }
+        }
 
         if (
-          previousStatus !==
-          record.statusCode
+          previousNearAutoClose !==
+          Boolean(
+            record.isNearAutoClose
+          )
         ) {
-          nodes.card.dataset.status =
-            record.statusCode;
-
-          nodes.statusBadge.dataset.status =
-            record.statusCode;
-
-          nodes.statusBadge.textContent =
-            record.statusLabel;
-
-          statusChanged = true;
+          nearAutoCloseChanged =
+            true;
         }
       }
-    });
+    );
 
-    if (statusChanged) {
+    if (
+      expiredRecordIds.length > 0
+    ) {
+      const expiredSet =
+        new Set(
+          expiredRecordIds
+        );
+
+      state.records =
+        state.records.filter(
+          (record) =>
+            !expiredSet.has(
+              record.recordId
+            )
+        );
+
+      state.recordsSignature =
+        buildRecordsSignature(
+          state.records
+        );
+
+      requestAutoClosePersistence();
+    }
+
+    if (
+      statusChanged ||
+      nearAutoCloseChanged ||
+      expiredRecordIds.length > 0
+    ) {
       renderSummary();
+      renderTimeline();
       applyFiltersAndRender();
       checkOverdueAlerts();
+    }
+
+    const seconds =
+      Math.floor(
+        nowMs / 1000
+      );
+
+    if (
+      seconds % 60 === 0
+    ) {
+      renderTimeline();
     }
   }
 
@@ -2330,7 +3970,8 @@
     [
       state.clockTimer,
       state.durationTimer,
-      state.refreshTimer
+      state.refreshTimer,
+      state.autoClosePersistTimer
     ].forEach((timer) => {
       if (timer) {
         window.clearInterval(timer);
