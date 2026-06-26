@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260625-silent-mobile1"
+    href="./styles.css?v=20260626-r13-control-tower"
   >
 
   <script
@@ -33,14 +33,14 @@
   ></script>
 
   <script
-    src="./api.js"
+    src="./api.js?v=20260626-r12-autoclose"
     defer
   ></script>
 
- <script
-  src="./module.js?v=20260625-silent-mobile1"
-  defer
-></script>
+  <script
+    src="./module.js?v=20260626-r13-control-tower"
+    defer
+  ></script>
 </head>
 
 <body
@@ -115,6 +115,104 @@
   </header>
 
   <main class="module-container">
+
+    <section
+      id="warehouseSituation"
+      class="warehouse-control-tower"
+      data-state="NORMAL"
+      aria-label="สถานการณ์คลังปัจจุบัน"
+    >
+      <div class="warehouse-control-tower__status">
+        <div class="warehouse-control-tower__signal" aria-hidden="true">
+          <span></span>
+        </div>
+
+        <div>
+          <small>สถานการณ์คลังขณะนี้</small>
+          <strong id="situationLabel">กำลังประเมินสถานการณ์</strong>
+          <p id="situationMessage">กรุณารอสักครู่</p>
+        </div>
+      </div>
+
+      <div class="warehouse-control-tower__metrics">
+        <div>
+          <span>อยู่ในพื้นที่</span>
+          <strong id="controlTotal">0</strong>
+        </div>
+
+        <div data-metric="NORMAL">
+          <span>ปกติ</span>
+          <strong id="controlNormal">0</strong>
+        </div>
+
+        <div data-metric="WARNING">
+          <span>เฝ้าระวัง</span>
+          <strong id="controlWarning">0</strong>
+        </div>
+
+        <div data-metric="OVERDUE">
+          <span>เกินเวลา</span>
+          <strong id="controlOverdue">0</strong>
+        </div>
+
+        <div data-metric="AUTO_CLOSE">
+          <span>ใกล้ครบ 36 ชม.</span>
+          <strong id="controlNearAutoClose">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="hourly-timeline-panel" aria-label="สเกลเวลา 24 ชั่วโมง">
+      <div class="hourly-timeline-panel__header">
+        <div>
+          <small>24-HOUR OPERATIONS</small>
+          <h2>สเกลรายการเข้าแต่ละชั่วโมง</h2>
+          <p id="activeTimelineFilter">แสดงทุกชั่วโมง</p>
+        </div>
+
+        <div id="timelineModeGroup" class="timeline-mode-group">
+          <button
+            type="button"
+            data-timeline-mode="ROLLING_24"
+            class="is-active"
+          >
+            ย้อนหลัง 24 ชม.
+          </button>
+
+          <button
+            type="button"
+            data-timeline-mode="TODAY"
+          >
+            วันนี้
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="hourlyTimeline"
+        class="hourly-timeline"
+        role="list"
+        aria-label="ชั่วโมงและจำนวนรายการ"
+      ></div>
+
+      <div class="hourly-timeline-panel__footer">
+        <div class="timeline-legend">
+          <span data-status="NORMAL">ปกติ</span>
+          <span data-status="WARNING">เฝ้าระวัง</span>
+          <span data-status="OVERDUE">เกินเวลา</span>
+          <span data-status="AUTO_CLOSE">ใกล้ครบ 36 ชม.</span>
+        </div>
+
+        <button
+          id="timelineClearButton"
+          class="timeline-clear-button is-hidden"
+          type="button"
+        >
+          แสดงทุกชั่วโมง
+        </button>
+      </div>
+    </section>
+
     <section
       id="summarySection"
       class="vehicle-summary-grid"
