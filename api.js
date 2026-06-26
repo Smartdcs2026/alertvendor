@@ -969,6 +969,40 @@
       return response.data;
     },
 
+    async getMovementSummary(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/movement-summary',
+          {
+            query: {
+              mode:
+                config.mode ||
+                'all',
+
+              date:
+                config.date ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
     async getCalendar(
       moduleId,
       month,
@@ -1296,6 +1330,112 @@
 
               action:
                 config.action || ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getAdminAutoCloseStatus() {
+      const response =
+        await request(
+          '/api/admin/auto-close/status'
+        );
+
+      return response.data;
+    },
+
+    async previewAdminAutoClose(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/auto-close/preview',
+          {
+            method:
+              'POST',
+
+            timeoutMs:
+              120000,
+
+            body: {
+              moduleId:
+                config.moduleId || '',
+
+              maxClose:
+                config.maxClose || 200
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async runAdminAutoClose(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/auto-close/run',
+          {
+            method:
+              'POST',
+
+            timeoutMs:
+              180000,
+
+            body: {
+              moduleId:
+                config.moduleId || '',
+
+              maxClose:
+                config.maxClose || 200
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getAdminAutoCloseHistory(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/auto-close/history',
+          {
+            query: {
+              limit:
+                config.limit || 50,
+
+              moduleId:
+                config.moduleId || '',
+
+              result:
+                config.result || '',
+
+              requestId:
+                config.requestId || ''
             }
           }
         );
