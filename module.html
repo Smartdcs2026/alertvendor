@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260626-r14-field-timeline"
+    href="./styles.css?v=20260626-r16-movement-ui"
   >
 
   <script
@@ -33,12 +33,12 @@
   ></script>
 
   <script
-  src="./api.js?v=20260626-r15-movement-summary"
-  defer
-></script>
+    src="./api.js?v=20260626-r15-movement-summary"
+    defer
+  ></script>
 
   <script
-    src="./module.js?v=20260626-r14-field-timeline"
+    src="./module.js?v=20260626-r16-movement-ui"
     defer
   ></script>
 </head>
@@ -117,6 +117,51 @@
   <main class="module-container">
 
     <section
+      id="moduleThresholdInfo"
+      class="module-threshold-info"
+      aria-label="เกณฑ์เวลาของโมดูล"
+    >
+      <div class="module-threshold-info__title">
+        <span>เกณฑ์สถานะ</span>
+
+        <button
+          id="thresholdInfoButton"
+          type="button"
+          aria-label="ดูคำอธิบายเกณฑ์เวลา"
+        >
+          i
+        </button>
+      </div>
+
+      <div class="module-threshold-info__chips">
+        <div data-status="NORMAL">
+          <i aria-hidden="true"></i>
+          <span>ปกติ</span>
+          <strong id="thresholdNormalText">-- นาที</strong>
+        </div>
+
+        <div data-status="WARNING">
+          <i aria-hidden="true"></i>
+          <span>เฝ้าระวัง</span>
+          <strong id="thresholdWarningText">-- นาที</strong>
+        </div>
+
+        <div data-status="OVERDUE">
+          <i aria-hidden="true"></i>
+          <span>เกินเวลา</span>
+          <strong id="thresholdOverdueText">-- นาที</strong>
+        </div>
+
+        <div data-status="AUTO_CLOSE">
+          <i aria-hidden="true"></i>
+          <span>เคลียร์อัตโนมัติ</span>
+          <strong id="thresholdAutoCloseText">36 ชั่วโมง</strong>
+        </div>
+      </div>
+    </section>
+
+
+    <section
       id="warehouseSituation"
       class="warehouse-control-tower"
       data-state="NORMAL"
@@ -160,13 +205,138 @@
           <strong id="controlNearAutoClose">0</strong>
         </div>
       </div>
+
     </section>
 
-    <section class="hourly-timeline-panel" aria-label="สเกลเวลา 24 ชั่วโมง">
+    <section
+      id="movementOverview"
+      class="movement-overview"
+      data-state="NORMAL"
+      aria-label="สรุปการเคลื่อนไหวเข้าออก"
+    >
+      <div class="movement-overview__header">
+        <div>
+          <small id="movementScopeEyebrow">CURRENT 4-HOUR ROUND</small>
+          <h2 id="movementScopeTitle">รอบปัจจุบัน</h2>
+          <p id="movementScopeTime">กำลังโหลดข้อมูล</p>
+        </div>
+
+        <div
+          id="movementScopeGroup"
+          class="movement-scope-group"
+        >
+          <button
+            type="button"
+            data-movement-scope="CURRENT_ROUND"
+            class="is-active"
+          >
+            รอบ 4 ชั่วโมง
+          </button>
+
+          <button
+            type="button"
+            data-movement-scope="TODAY"
+          >
+            วันนี้
+          </button>
+        </div>
+      </div>
+
+      <div class="movement-overview__body">
+        <div class="movement-overview__summary">
+          <div
+            id="movementRemainingWrap"
+            class="movement-round-countdown"
+          >
+            <span>เหลือเวลาในรอบ</span>
+            <strong id="movementRemaining">--:--:--</strong>
+          </div>
+
+          <div class="movement-analysis">
+            <span>วิเคราะห์สถานการณ์</span>
+            <strong id="movementAnalysisTitle">กำลังประเมินสถานการณ์</strong>
+            <p id="movementAnalysisMessage"></p>
+          </div>
+
+          <div class="movement-primary-metrics">
+            <div data-metric="IN">
+              <span>เข้า</span>
+              <strong id="movementIn">0</strong>
+              <small>ตู้</small>
+            </div>
+
+            <div data-metric="OUT">
+              <span>ออกทั้งหมด</span>
+              <strong id="movementOutTotal">0</strong>
+              <small>ตู้</small>
+            </div>
+
+            <div data-metric="TOTAL">
+              <span>เคลื่อนไหวรวม</span>
+              <strong id="movementTotal">0</strong>
+              <small>ครั้ง</small>
+            </div>
+
+            <div data-metric="NET">
+              <span>สุทธิ</span>
+              <strong id="movementNet">0</strong>
+              <small>ตู้</small>
+            </div>
+          </div>
+
+          <div class="movement-secondary-metrics">
+            <div>
+              <span>ออกจริง</span>
+              <strong id="movementOutReal">0</strong>
+            </div>
+
+            <div data-metric="AUTO_CLOSE">
+              <span>ระบบปิด</span>
+              <strong id="movementOutAuto">0</strong>
+            </div>
+
+            <div>
+              <span>อยู่ในพื้นที่</span>
+              <strong id="movementActiveNow">0</strong>
+            </div>
+
+            <div data-metric="OVERDUE">
+              <span>เกินเวลา</span>
+              <strong id="movementOverdueNow">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="movement-chart-panel">
+          <div class="movement-chart-panel__header">
+            <div>
+              <span>HOURLY FLOW</span>
+              <strong>ปริมาณเข้า–ออกในช่วงที่เลือก</strong>
+            </div>
+
+            <div class="movement-chart-legend">
+              <span data-series="IN">เข้า</span>
+              <span data-series="OUT">ออก</span>
+            </div>
+          </div>
+
+          <div
+            id="movementMiniChart"
+            class="movement-mini-chart"
+          >
+            <div class="movement-chart-empty">
+              กำลังโหลดข้อมูลรายชั่วโมง
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="hourly-timeline-panel" aria-label="การเคลื่อนไหวรายชั่วโมง">
       <div class="hourly-timeline-panel__header">
         <div>
-          <small>24-HOUR OPERATIONS</small>
-          <h2>สเกลรายการเข้าแต่ละชั่วโมง</h2>
+          <small>24-HOUR MOVEMENT</small>
+          <h2>การเคลื่อนไหวเข้า–ออกรายชั่วโมง</h2>
           <p id="activeTimelineFilter">แสดงทุกชั่วโมง</p>
         </div>
 
@@ -189,11 +359,57 @@
       </div>
 
       <div
-        id="hourlyTimeline"
-        class="hourly-timeline"
-        role="list"
-        aria-label="ชั่วโมงและจำนวนรายการ"
-      ></div>
+        id="timelineFocusPreview"
+        class="timeline-focus-preview"
+        data-status="EMPTY"
+      >
+        <div class="timeline-focus-preview__time">
+          <span>ชั่วโมงตรงกลาง</span>
+          <strong id="timelineFocusLabel">--:00–--:59</strong>
+          <small id="timelineFocusOutDetail">ออกจริง 0 • ระบบปิด 0</small>
+        </div>
+
+        <div class="timeline-focus-preview__metrics">
+          <div data-metric="IN">
+            <span>เข้า</span>
+            <strong id="timelineFocusIn">0</strong>
+          </div>
+
+          <div data-metric="OUT">
+            <span>ออก</span>
+            <strong id="timelineFocusOut">0</strong>
+          </div>
+
+          <div data-metric="NET">
+            <span>สุทธิ</span>
+            <strong id="timelineFocusNet">0</strong>
+          </div>
+
+          <div data-metric="TOTAL">
+            <span>รวม</span>
+            <strong id="timelineFocusMovement">0</strong>
+          </div>
+        </div>
+
+        <button
+          id="timelineApplyFilterButton"
+          class="timeline-apply-filter"
+          type="button"
+        >
+          กรองรายการชั่วโมงนี้
+        </button>
+      </div>
+
+      <div class="hourly-timeline-stage">
+        <div class="hourly-timeline-center-line" aria-hidden="true"></div>
+
+        <div
+          id="hourlyTimeline"
+          class="hourly-timeline"
+          role="list"
+          aria-label="ชั่วโมงและจำนวนตู้เข้าออก"
+        ></div>
+      </div>
 
       <div class="hourly-timeline-panel__footer">
         <div class="timeline-legend">
