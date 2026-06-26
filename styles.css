@@ -9563,3 +9563,40 @@ body.admin-editor-open {
       none !important;
   }
 }
+/************************************************************
+ * FIX: สีระยะเวลาสำหรับรายการใกล้ครบ 36 ชั่วโมง
+ ************************************************************/
+
+.module-page
+.vehicle-card--professional[data-near-auto-close="TRUE"]
+.vehicle-card__timer {
+  color: var(--status-auto-close) !important;
+}
+
+/* ทำตัวเลขเวลาให้เด่นขึ้นเล็กน้อย */
+.module-page
+.vehicle-card--professional[data-near-auto-close="TRUE"]
+.vehicle-card__timer {
+  font-weight: 900;
+}
+
+/* แถบเวลาและตัวเลขใช้ม่วงชุดเดียวกัน */
+.module-page
+.vehicle-card--professional[data-near-auto-close="TRUE"]
+.vehicle-progress__fill {
+  background:
+    linear-gradient(
+      90deg,
+      #7c3aed,
+      #a855f7
+    ) !important;
+}
+
+/* ข้อความเวลาที่เหลือก่อนระบบเคลียร์ */
+.module-page
+.vehicle-card--professional[data-near-auto-close="TRUE"]
+.vehicle-card__priority-text {
+  border-color: #d8c4f3;
+  color: #6d28d9;
+  background: #f7f2ff;
+}
