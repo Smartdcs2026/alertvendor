@@ -7982,3 +7982,1584 @@ body.admin-editor-open {
       none !important;
   }
 }
+
+/************************************************************
+ * ROUND 18 — Bright Executive Logistics Dashboard
+ * วางต่อท้ายสุดของ styles.css
+ *
+ * แนวทาง:
+ * - ลดพื้นที่สีเข้มขนาดใหญ่
+ * - ใช้พื้นขาวและฟ้าเทาอ่อนเป็นโครงสร้างหลัก
+ * - ใช้สีสดเฉพาะข้อมูลสำคัญและสถานะ
+ * - คงความแตกต่างของ เข้า / ออก / รวม / สุทธิ
+ * - Timeline ตรงกลางเด่น แต่ไม่ดูหนักหรืออึมครึม
+ ************************************************************/
+
+.module-page {
+  --bright-page:
+    #f4f7fb;
+
+  --bright-surface:
+    #ffffff;
+
+  --bright-surface-soft:
+    #f8fafc;
+
+  --bright-surface-blue:
+    #eef6ff;
+
+  --bright-border:
+    #d7e1ea;
+
+  --bright-border-strong:
+    #c3d0dc;
+
+  --bright-text:
+    #163047;
+
+  --bright-muted:
+    #66788a;
+
+  --bright-primary:
+    #2563eb;
+
+  --bright-primary-soft:
+    #eaf1ff;
+
+  --bright-teal:
+    #0f9f8f;
+
+  --bright-teal-soft:
+    #e7f8f5;
+
+  --bright-violet:
+    #7c3aed;
+
+  --bright-violet-soft:
+    #f2edff;
+
+  --bright-shadow:
+    0 10px 26px rgba(33, 70, 100, 0.09);
+
+  color:
+    var(--bright-text);
+
+  background:
+    radial-gradient(
+      circle at 8% 0%,
+      rgba(37, 99, 235, 0.055),
+      transparent 27%
+    ),
+    radial-gradient(
+      circle at 92% 10%,
+      rgba(15, 159, 143, 0.05),
+      transparent 25%
+    ),
+    var(--bright-page);
+}
+
+.module-page .module-container {
+  background:
+    transparent;
+}
+
+/************************************************************
+ * ส่วนหัวหน้า Module
+ ************************************************************/
+
+.module-page .module-header {
+  border-bottom:
+    1px solid rgba(205, 217, 227, 0.9);
+
+  background:
+    rgba(255, 255, 255, 0.94);
+
+  box-shadow:
+    0 5px 18px rgba(33, 70, 100, 0.055);
+}
+
+.module-page .module-title-row h1 {
+  color:
+    var(--bright-text);
+}
+
+.module-page .module-title-row p:not(.eyebrow) {
+  color:
+    var(--bright-muted);
+}
+
+.module-page .module-clock {
+  border:
+    1px solid #dbe8f5;
+
+  background:
+    linear-gradient(
+      135deg,
+      #f2f8ff,
+      #edf7fb
+    );
+}
+
+.module-page .module-clock strong {
+  color:
+    #175b8a;
+}
+
+/************************************************************
+ * 1. Control Tower — เบา สว่าง แต่ยังอ่านสถานะทันที
+ ************************************************************/
+
+.module-page .warehouse-control-tower {
+  overflow:
+    hidden;
+
+  border:
+    1px solid var(--bright-border);
+
+  border-left:
+    5px solid var(--status-normal);
+
+  border-radius:
+    17px;
+
+  background:
+    rgba(255, 255, 255, 0.98);
+
+  box-shadow:
+    0 10px 28px rgba(33, 70, 100, 0.11);
+
+  backdrop-filter:
+    blur(14px);
+}
+
+.module-page .warehouse-control-tower::after {
+  height:
+    3px;
+
+  opacity:
+    0.9;
+}
+
+.module-page .warehouse-control-tower[data-state="WATCH"] {
+  border-left-color:
+    var(--status-warning);
+
+  background:
+    linear-gradient(
+      100deg,
+      #fffdf8 0%,
+      #ffffff 38%
+    );
+}
+
+.module-page .warehouse-control-tower[data-state="CRITICAL"] {
+  border-left-color:
+    var(--status-overdue);
+
+  background:
+    linear-gradient(
+      100deg,
+      #fffafa 0%,
+      #ffffff 38%
+    );
+}
+
+.module-page .warehouse-control-tower[data-state="AUTO_CLOSE"] {
+  border-left-color:
+    var(--status-auto-close);
+
+  background:
+    linear-gradient(
+      100deg,
+      #fcfaff 0%,
+      #ffffff 38%
+    );
+}
+
+.module-page .warehouse-control-tower__status strong {
+  color:
+    var(--bright-text);
+}
+
+.module-page .warehouse-control-tower__status p,
+.module-page .warehouse-control-tower__status small {
+  color:
+    var(--bright-muted);
+}
+
+.module-page .warehouse-control-tower__metrics {
+  gap:
+    7px;
+}
+
+.module-page .warehouse-control-tower__metrics > div {
+  border:
+    1px solid var(--bright-border);
+
+  border-radius:
+    10px;
+
+  background:
+    #fbfcfe;
+
+  box-shadow:
+    none;
+}
+
+.module-page .warehouse-control-tower__metrics > div:first-child {
+  border-color:
+    #c9d9e8;
+
+  background:
+    #f0f6fb;
+
+  box-shadow:
+    inset 0 3px 0 #4d6f89;
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="NORMAL"] {
+  border-color:
+    #bfe3ca;
+
+  background:
+    #effaf2;
+
+  box-shadow:
+    inset 0 3px 0 #24a148;
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="WARNING"] {
+  border-color:
+    #f0d49b;
+
+  background:
+    #fff8e8;
+
+  box-shadow:
+    inset 0 3px 0 #e69219;
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="OVERDUE"] {
+  border-color:
+    #efc0c0;
+
+  background:
+    #fff1f1;
+
+  box-shadow:
+    inset 0 3px 0 #df3b3b;
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="AUTO_CLOSE"] {
+  border-color:
+    #d9c8f5;
+
+  background:
+    #f7f2ff;
+
+  box-shadow:
+    inset 0 3px 0 #8954d8;
+}
+
+.module-page .warehouse-control-tower__metrics span {
+  color:
+    #637487;
+}
+
+.module-page .warehouse-control-tower__metrics strong {
+  color:
+    var(--bright-text);
+
+  font-weight:
+    900;
+}
+
+/************************************************************
+ * 2. Threshold Info
+ ************************************************************/
+
+.module-page .module-threshold-info {
+  border:
+    1px solid var(--bright-border);
+
+  border-radius:
+    13px;
+
+  background:
+    rgba(255, 255, 255, 0.94);
+
+  box-shadow:
+    0 5px 15px rgba(33, 70, 100, 0.055);
+}
+
+.module-page .module-threshold-info__title > span {
+  color:
+    #284a62;
+}
+
+.module-page .module-threshold-info__title button {
+  border-color:
+    #c8d8e5;
+
+  color:
+    #2563eb;
+
+  background:
+    #f2f7ff;
+}
+
+.module-page .module-threshold-info__chips > div {
+  border:
+    1px solid #dce5ec;
+
+  background:
+    #f8fafc;
+}
+
+.module-page .module-threshold-info__chips [data-status="NORMAL"] {
+  border-color:
+    #c2e4cc;
+
+  background:
+    #f1faf4;
+}
+
+.module-page .module-threshold-info__chips [data-status="WARNING"] {
+  border-color:
+    #eed5a2;
+
+  background:
+    #fff9ec;
+}
+
+.module-page .module-threshold-info__chips [data-status="OVERDUE"] {
+  border-color:
+    #efc4c4;
+
+  background:
+    #fff3f3;
+}
+
+.module-page .module-threshold-info__chips [data-status="AUTO_CLOSE"] {
+  border-color:
+    #d8c9f0;
+
+  background:
+    #f8f4ff;
+}
+
+/************************************************************
+ * 3. Movement Overview — White Executive Card
+ ************************************************************/
+
+.module-page .movement-overview {
+  overflow:
+    hidden;
+
+  border:
+    1px solid var(--bright-border);
+
+  border-radius:
+    18px;
+
+  background:
+    var(--bright-surface);
+
+  box-shadow:
+    var(--bright-shadow);
+}
+
+.module-page .movement-overview::before {
+  height:
+    4px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--bright-primary),
+      var(--bright-teal)
+    );
+}
+
+.module-page .movement-overview[data-state="WATCH"]::before,
+.module-page .movement-overview[data-state="HIGH"]::before {
+  background:
+    linear-gradient(
+      90deg,
+      #f59e0b,
+      #f6c453
+    );
+}
+
+.module-page .movement-overview[data-state="CRITICAL"]::before {
+  background:
+    linear-gradient(
+      90deg,
+      #dc2626,
+      #fb7185
+    );
+}
+
+.module-page .movement-overview[data-state="GOOD"]::before {
+  background:
+    linear-gradient(
+      90deg,
+      #0f9f8f,
+      #34c8b3
+    );
+}
+
+/* เอาพื้นกรมท่าขนาดใหญ่ออก */
+.module-page .movement-overview__header {
+  padding:
+    15px 15px 12px;
+
+  border-bottom:
+    1px solid #e7edf3;
+
+  color:
+    var(--bright-text);
+
+  background:
+    linear-gradient(
+      135deg,
+      #f7fbff 0%,
+      #ffffff 58%,
+      #f5fbfa 100%
+    );
+}
+
+.module-page .movement-overview__header small {
+  color:
+    #2563eb;
+}
+
+.module-page .movement-overview__header h2 {
+  color:
+    var(--bright-text);
+
+  font-size:
+    0.98rem;
+}
+
+.module-page .movement-overview__header p {
+  color:
+    var(--bright-muted);
+}
+
+.module-page .movement-scope-group {
+  border:
+    1px solid #d7e2eb;
+
+  background:
+    #eef3f7;
+}
+
+.module-page .movement-scope-group button {
+  color:
+    #65778a;
+}
+
+.module-page .movement-scope-group button.is-active {
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2878d6,
+      #2a9ab2
+    );
+
+  box-shadow:
+    0 5px 13px rgba(37, 99, 235, 0.19);
+}
+
+.module-page .movement-overview__body {
+  background:
+    #ffffff;
+}
+
+.module-page .movement-round-countdown {
+  border:
+    1px solid #bfe2df;
+
+  color:
+    #166b64;
+
+  background:
+    linear-gradient(
+      135deg,
+      #eefaf8,
+      #f8fdfc
+    );
+
+  box-shadow:
+    inset 4px 0 0 #25aa9a;
+}
+
+.module-page .movement-round-countdown span {
+  color:
+    #4d716f;
+}
+
+.module-page .movement-round-countdown strong {
+  color:
+    #126b64;
+}
+
+/************************************************************
+ * 4. วิเคราะห์สถานการณ์
+ ************************************************************/
+
+.module-page .movement-analysis {
+  border:
+    1px solid #cbe2df;
+
+  border-left:
+    5px solid var(--bright-teal);
+
+  background:
+    linear-gradient(
+      135deg,
+      #f1fbf9,
+      #ffffff
+    );
+
+  box-shadow:
+    none;
+}
+
+.module-page .movement-overview[data-state="WATCH"] .movement-analysis,
+.module-page .movement-overview[data-state="HIGH"] .movement-analysis {
+  border-color:
+    #efd9ae;
+
+  border-left-color:
+    #e99820;
+
+  background:
+    linear-gradient(
+      135deg,
+      #fff9ec,
+      #ffffff
+    );
+}
+
+.module-page .movement-overview[data-state="CRITICAL"] .movement-analysis {
+  border-color:
+    #efcaca;
+
+  border-left-color:
+    #df3b3b;
+
+  background:
+    linear-gradient(
+      135deg,
+      #fff2f2,
+      #ffffff
+    );
+}
+
+.module-page .movement-overview[data-state="GOOD"] .movement-analysis {
+  border-color:
+    #bde2dc;
+
+  border-left-color:
+    #19a693;
+
+  background:
+    linear-gradient(
+      135deg,
+      #eefaf8,
+      #ffffff
+    );
+}
+
+.module-page .movement-analysis span {
+  color:
+    #6d7d8d;
+}
+
+.module-page .movement-analysis strong {
+  color:
+    var(--bright-text);
+}
+
+.module-page .movement-analysis p {
+  color:
+    #607286;
+}
+
+/************************************************************
+ * 5. Primary Metrics — สีชัดเฉพาะ Accent ไม่ลงสีเต็มหนักเกินไป
+ ************************************************************/
+
+.module-page .movement-primary-metrics {
+  gap:
+    8px;
+}
+
+.module-page .movement-primary-metrics > div {
+  min-height:
+    78px;
+
+  border:
+    1px solid var(--bright-border);
+
+  border-radius:
+    12px;
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 5px 14px rgba(33, 70, 100, 0.06);
+}
+
+.module-page .movement-primary-metrics > div::before {
+  height:
+    4px;
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"] {
+  border-color:
+    #bfe4de;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #f2fbf9
+    );
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"]::before {
+  background:
+    #18a594;
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"] {
+  border-color:
+    #c4d7f6;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #f2f6ff
+    );
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"]::before {
+  background:
+    #3b78df;
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"] {
+  border-color:
+    #ced9e2;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #f5f7fa
+    );
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"]::before {
+  background:
+    #4b6275;
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"] {
+  border-color:
+    #d7c8f1;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #f8f5ff
+    );
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"]::before {
+  background:
+    #8a55da;
+}
+
+.module-page .movement-primary-metrics span {
+  color:
+    #637487;
+}
+
+.module-page .movement-primary-metrics strong {
+  color:
+    var(--bright-text);
+
+  font-size:
+    1.18rem;
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"] strong {
+  color:
+    #087f72;
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"] strong {
+  color:
+    #2d64c8;
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"] strong {
+  color:
+    #30485c;
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"] strong {
+  color:
+    #7841ca;
+}
+
+/************************************************************
+ * 6. Secondary Metrics
+ ************************************************************/
+
+.module-page .movement-secondary-metrics > div {
+  border:
+    1px solid #d9e2e9;
+
+  background:
+    #fbfcfe;
+
+  box-shadow:
+    none;
+}
+
+.module-page .movement-secondary-metrics > div:nth-child(1) {
+  border-left:
+    4px solid #3b78df;
+
+  background:
+    #f5f8ff;
+}
+
+.module-page .movement-secondary-metrics > div:nth-child(3) {
+  border-left:
+    4px solid #4b6275;
+
+  background:
+    #f6f8fa;
+}
+
+.module-page .movement-secondary-metrics [data-metric="AUTO_CLOSE"] {
+  border-left:
+    4px solid #8a55da;
+
+  background:
+    #faf7ff;
+}
+
+.module-page .movement-secondary-metrics [data-metric="OVERDUE"] {
+  border-left:
+    4px solid #df3b3b;
+
+  background:
+    #fff6f6;
+}
+
+/************************************************************
+ * 7. Movement Chart — เปลี่ยนจาก Dark Panel เป็น Light Data Panel
+ ************************************************************/
+
+.module-page .movement-chart-panel {
+  border:
+    1px solid var(--bright-border);
+
+  color:
+    var(--bright-text);
+
+  background:
+    linear-gradient(
+      145deg,
+      #ffffff,
+      #f7fbff
+    );
+
+  box-shadow:
+    0 7px 18px rgba(33, 70, 100, 0.075);
+}
+
+.module-page .movement-chart-panel__header {
+  border-bottom:
+    1px solid #e7edf3;
+}
+
+.module-page .movement-chart-panel__header > div:first-child span {
+  color:
+    #2878d6;
+}
+
+.module-page .movement-chart-panel__header > div:first-child strong {
+  color:
+    var(--bright-text);
+
+  font-size:
+    0.72rem;
+}
+
+.module-page .movement-chart-legend span {
+  color:
+    #66788a;
+}
+
+.module-page .movement-chart-bars > div {
+  height:
+    13px;
+
+  border:
+    1px solid #dbe4ec;
+
+  background:
+    #edf2f6;
+}
+
+.module-page .movement-chart-bars i {
+  background:
+    linear-gradient(
+      90deg,
+      #18a594,
+      #50c7b9
+    );
+
+  box-shadow:
+    none;
+}
+
+.module-page .movement-chart-bars > div:last-child i {
+  background:
+    linear-gradient(
+      90deg,
+      #3b78df,
+      #79a8f4
+    );
+
+  box-shadow:
+    none;
+}
+
+.module-page .movement-chart-row > strong {
+  color:
+    #52687a;
+}
+
+.module-page .movement-chart-bars span {
+  color:
+    #ffffff;
+
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.22);
+}
+
+.module-page .movement-chart-bars b {
+  color:
+    #334a5d;
+
+  text-shadow:
+    none;
+}
+
+.module-page .movement-chart-row > em {
+  color:
+    #7c4bd0;
+}
+
+.module-page .movement-chart-empty {
+  color:
+    #718294;
+}
+
+/************************************************************
+ * 8. Timeline Section — Bright Premium
+ ************************************************************/
+
+.module-page .hourly-timeline-panel {
+  border:
+    1px solid var(--bright-border);
+
+  border-radius:
+    17px;
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    var(--bright-shadow);
+}
+
+/* เอาพื้นกรมท่าขนาดใหญ่ออก */
+.module-page .hourly-timeline-panel__header {
+  margin:
+    -10px -10px 0;
+
+  padding:
+    14px 15px 13px;
+
+  border-bottom:
+    1px solid #dfe8f0;
+
+  border-radius:
+    16px 16px 0 0;
+
+  color:
+    var(--bright-text);
+
+  background:
+    linear-gradient(
+      135deg,
+      #edf6ff 0%,
+      #ffffff 58%,
+      #effbf9 100%
+    );
+}
+
+.module-page .hourly-timeline-panel__header small {
+  color:
+    #2878d6;
+}
+
+.module-page .hourly-timeline-panel__header h2 {
+  color:
+    var(--bright-text);
+
+  font-size:
+    0.92rem;
+}
+
+.module-page .hourly-timeline-panel__header p {
+  color:
+    var(--bright-muted);
+}
+
+.module-page .timeline-mode-group {
+  border:
+    1px solid #d5e0e8;
+
+  background:
+    #eaf0f5;
+}
+
+.module-page .timeline-mode-group button {
+  color:
+    #65778a;
+}
+
+.module-page .timeline-mode-group button.is-active {
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2878d6,
+      #2a9ab2
+    );
+
+  box-shadow:
+    0 4px 11px rgba(37, 99, 235, 0.18);
+}
+
+/************************************************************
+ * 9. Timeline Focus Preview
+ ************************************************************/
+
+.module-page .timeline-focus-preview {
+  border:
+    1px solid #d2dfe9;
+
+  border-left:
+    5px solid #4a8de2;
+
+  background:
+    linear-gradient(
+      135deg,
+      #f8fbff,
+      #ffffff
+    );
+
+  box-shadow:
+    0 5px 14px rgba(33, 70, 100, 0.065);
+}
+
+.module-page .timeline-focus-preview[data-status="NORMAL"] {
+  border-left-color:
+    #24a148;
+}
+
+.module-page .timeline-focus-preview[data-status="WARNING"] {
+  border-left-color:
+    #e99820;
+}
+
+.module-page .timeline-focus-preview[data-status="OVERDUE"] {
+  border-left-color:
+    #df3b3b;
+}
+
+.module-page .timeline-focus-preview[data-status="AUTO_CLOSE"] {
+  border-left-color:
+    #8a55da;
+}
+
+.module-page .timeline-focus-preview__time strong {
+  color:
+    var(--bright-text);
+}
+
+.module-page .timeline-focus-preview__metrics > div {
+  border:
+    1px solid #dce5ec;
+
+  background:
+    #ffffff;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="IN"] {
+  border-color:
+    #c1e4df;
+
+  background:
+    #f1faf8;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="OUT"] {
+  border-color:
+    #c5d7f4;
+
+  background:
+    #f3f7ff;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="NET"] {
+  border-color:
+    #d9cbef;
+
+  background:
+    #f9f6ff;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="TOTAL"] {
+  border-color:
+    #d1dce4;
+
+  background:
+    #f6f8fa;
+}
+
+.module-page .timeline-apply-filter {
+  border:
+    0;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2878d6,
+      #259b9a
+    );
+
+  box-shadow:
+    0 5px 13px rgba(37, 99, 235, 0.18);
+}
+
+/************************************************************
+ * 10. Timeline Stage
+ ************************************************************/
+
+.module-page .hourly-timeline-stage {
+  border:
+    1px solid #d5e1ea;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(61, 139, 226, 0.10),
+      transparent 35%
+    ),
+    linear-gradient(
+      180deg,
+      #f7fbff,
+      #f2f7fb
+    );
+
+  box-shadow:
+    inset 0 0 24px rgba(53, 96, 130, 0.045);
+}
+
+.module-page .hourly-timeline-center-line {
+  width:
+    2px;
+
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      #4c95e5 22%,
+      #27b3a5 78%,
+      transparent
+    );
+
+  box-shadow:
+    0 0 11px rgba(76, 149, 229, 0.28);
+}
+
+.module-page .hourly-timeline-center-line::before {
+  border-bottom-color:
+    #4c95e5;
+}
+
+/* ช่องไกลยังจาง แต่ไม่หายจนอ่านไม่ได้ */
+.module-page .timeline-hour--movement:not(.is-centered) {
+  opacity:
+    0.40 !important;
+
+  filter:
+    saturate(0.65)
+    blur(0.45px) !important;
+
+  transform:
+    translateY(10px)
+    scale(0.70) !important;
+}
+
+/* ช่องข้างตรงกลาง */
+.module-page
+.timeline-hour--movement:has(+ .timeline-hour--movement.is-centered),
+.module-page
+.timeline-hour--movement.is-centered + .timeline-hour--movement {
+  opacity:
+    0.76 !important;
+
+  filter:
+    none !important;
+
+  transform:
+    translateY(4px)
+    scale(0.88) !important;
+}
+
+/* ช่องตรงกลางเป็น White Premium Card */
+.module-page .timeline-hour--movement.is-centered {
+  z-index:
+    30 !important;
+
+  min-width:
+    112px;
+
+  min-height:
+    136px;
+
+  opacity:
+    1 !important;
+
+  filter:
+    none !important;
+
+  border:
+    2px solid #55a0e9;
+
+  color:
+    var(--bright-text);
+
+  background:
+    linear-gradient(
+      155deg,
+      #ffffff 0%,
+      #edf7ff 58%,
+      #edf9f7 100%
+    );
+
+  box-shadow:
+    0 20px 42px rgba(39, 93, 134, 0.18),
+    0 0 0 5px rgba(76, 149, 229, 0.10);
+
+  transform:
+    translateY(-17px)
+    scale(1.38) !important;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__time {
+  color:
+    #2563a8;
+
+  font-size:
+    0.84rem;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement > span {
+  border:
+    1px solid #d7e4ee;
+
+  background:
+    rgba(255, 255, 255, 0.88);
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement small {
+  color:
+    #687a8b;
+}
+
+.module-page .timeline-hour--movement.is-centered
+.timeline-hour__movement > span:first-child strong {
+  color:
+    #0b8e80;
+}
+
+.module-page .timeline-hour--movement.is-centered
+.timeline-hour__movement > span:last-child strong {
+  color:
+    #2f6fd1;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net {
+  color:
+    #75628c;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net strong {
+  color:
+    #7a45c9;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__caption {
+  color:
+    #68798a;
+}
+
+/* ชั่วโมงที่ผู้ใช้กดเลือก ใช้ Gradient สว่าง ไม่ใช้กรมท่า */
+.module-page .timeline-hour--movement.is-selected.is-centered {
+  color:
+    var(--bright-text);
+
+  border-color:
+    #2b7bd5;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e7f2ff,
+      #e8faf7
+    );
+
+  box-shadow:
+    0 22px 44px rgba(37, 99, 235, 0.20),
+    0 0 0 5px rgba(37, 99, 235, 0.11);
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__time {
+  color:
+    #175b9a;
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__movement small {
+  color:
+    #66788a;
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__movement > span:first-child strong {
+  color:
+    #087f72;
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__movement > span:last-child strong {
+  color:
+    #2d64c8;
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__net {
+  color:
+    #75628c;
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__net strong {
+  color:
+    #7441c2;
+}
+
+.module-page
+.timeline-hour--movement.is-selected.is-centered
+.timeline-hour__caption {
+  color:
+    #65778a;
+}
+
+/************************************************************
+ * 11. Summary / Tools / Vehicle Cards
+ ************************************************************/
+
+.module-page .vehicle-summary-card {
+  border:
+    1px solid var(--bright-border);
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 4px 12px rgba(33, 70, 100, 0.055);
+}
+
+.module-page .vehicle-summary-card--normal {
+  border-color:
+    #bfe2c8;
+
+  background:
+    #f3fbf5;
+}
+
+.module-page .vehicle-summary-card--warning {
+  border-color:
+    #efd6a6;
+
+  background:
+    #fff9ed;
+}
+
+.module-page .vehicle-summary-card--overdue {
+  border-color:
+    #efc7c7;
+
+  background:
+    #fff4f4;
+}
+
+.module-page .vehicle-summary-card--incomplete {
+  border-color:
+    #d2dbe2;
+
+  background:
+    #f7f9fb;
+}
+
+.module-page .vehicle-tools {
+  border:
+    1px solid var(--bright-border);
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 5px 14px rgba(33, 70, 100, 0.055);
+}
+
+.module-page .vehicle-search input,
+.module-page .vehicle-filter select {
+  border-color:
+    #ccd8e2;
+
+  color:
+    var(--bright-text);
+
+  background:
+    #fbfcfe;
+}
+
+.module-page .vehicle-search input:focus,
+.module-page .vehicle-filter select:focus {
+  border-color:
+    #4a8de2;
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 0 0 4px rgba(74, 141, 226, 0.11);
+}
+
+/* การ์ดรถคงสีสถานะ แต่ลดความเข้ม */
+.module-page .vehicle-card--professional {
+  border:
+    1px solid #d8e2e9;
+
+  background:
+    #ffffff;
+
+  box-shadow:
+    0 6px 16px rgba(33, 70, 100, 0.07);
+}
+
+.module-page .vehicle-card--professional[data-status="NORMAL"] {
+  border-color:
+    #bfe2c8;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #f6fcf7
+    );
+}
+
+.module-page .vehicle-card--professional[data-status="WARNING"] {
+  border-color:
+    #efd39e;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #fffaf0
+    );
+}
+
+.module-page .vehicle-card--professional[data-status="OVERDUE"] {
+  border-color:
+    #efbcbc;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #fff3f3
+    );
+
+  box-shadow:
+    0 7px 18px rgba(198, 40, 40, 0.085);
+}
+
+.module-page .vehicle-card--professional[data-near-auto-close="TRUE"] {
+  border:
+    2px solid #c8b1ed;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #faf7ff
+    );
+
+  box-shadow:
+    0 8px 20px rgba(124, 58, 237, 0.10);
+}
+
+.module-page .vehicle-card__priority-text {
+  border:
+    1px solid #dbe4eb;
+
+  color:
+    #455d70;
+
+  background:
+    #f6f8fa;
+}
+
+.module-page
+.vehicle-card--professional[data-status="WARNING"]
+.vehicle-card__priority-text {
+  border-color:
+    #efd3a0;
+
+  color:
+    #8a560e;
+
+  background:
+    #fff8e9;
+}
+
+.module-page
+.vehicle-card--professional[data-status="OVERDUE"]
+.vehicle-card__priority-text {
+  border-color:
+    #efc1c1;
+
+  color:
+    #a22828;
+
+  background:
+    #fff0f0;
+}
+
+.module-page
+.vehicle-card--professional[data-near-auto-close="TRUE"]
+.vehicle-card__priority-text {
+  border-color:
+    #d5c3ef;
+
+  color:
+    #6a35b7;
+
+  background:
+    #f6f0ff;
+}
+
+/************************************************************
+ * Responsive
+ ************************************************************/
+
+@media (max-width: 679px) {
+  .module-page .movement-overview__header,
+  .module-page .hourly-timeline-panel__header {
+    padding:
+      12px;
+  }
+
+  .module-page .timeline-hour--movement.is-centered {
+    min-width:
+      104px;
+
+    min-height:
+      130px;
+
+    transform:
+      translateY(-15px)
+      scale(1.32) !important;
+  }
+}
+
+@media (min-width: 920px) {
+  .module-page .timeline-hour--movement:not(.is-centered) {
+    transform:
+      translateY(11px)
+      scale(0.68) !important;
+  }
+
+  .module-page
+  .timeline-hour--movement:has(+ .timeline-hour--movement.is-centered),
+  .module-page
+  .timeline-hour--movement.is-centered + .timeline-hour--movement {
+    transform:
+      translateY(4px)
+      scale(0.87) !important;
+  }
+
+  .module-page .timeline-hour--movement.is-centered {
+    min-width:
+      118px;
+
+    min-height:
+      142px;
+
+    transform:
+      translateY(-19px)
+      scale(1.40) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-page .timeline-hour--movement {
+    transition:
+      none !important;
+  }
+}
