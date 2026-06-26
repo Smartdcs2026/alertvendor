@@ -13,6 +13,9 @@
  * - Progress Bar และสีการ์ดตามเกณฑ์ของแต่ละ Module
  * - เรียงรายการตามความเร่งด่วนและเวลาที่ใกล้เกณฑ์ที่สุด
  * - เคลียร์รายการออกจากหน้าจอทันทีเมื่อครบ 36 ชั่วโมง
+ * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
+ * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
+ * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
  */
 (function (window, document) {
   'use strict';
@@ -35,8 +38,14 @@
     refreshInProgress: false,
     recordsSignature: '',
     hasLoadedRecords: false,
+    movementSummary: null,
+    movementSummarySignature: '',
+    movementRefreshInProgress: false,
+    movementLoaded: false,
+    movementScope: 'CURRENT_ROUND',
     timelineMode: 'ROLLING_24',
     selectedTimelineStartMs: null,
+    timelineFocusedStartMs: null,
     timelineShouldFocus: true,
     timelineScrollRaf: null,
     timelineSnapTimer: null,
@@ -118,11 +127,17 @@
       state.module = await API.getModule(state.moduleId);
       renderModuleHeader();
 
-      await loadRecords({
-        silentError: false,
-        showSuccessToast: false,
-        forceRender: true
-      });
+      await Promise.all([
+        loadRecords({
+          silentError: false,
+          showSuccessToast: false,
+          forceRender: true
+        }),
+        loadMovementSummary({
+          silentError: true,
+          forceRender: true
+        })
+      ]);
 
       startDurationTimer();
       startAutoRefresh();
@@ -156,6 +171,11 @@
         'calendarButton'
       );
 
+    const thresholdInfoButton =
+      document.getElementById(
+        'thresholdInfoButton'
+      );
+
     const searchInput =
       document.getElementById(
         'searchInput'
@@ -166,6 +186,11 @@
         'statusFilter'
       );
 
+    const movementScopeGroup =
+      document.getElementById(
+        'movementScopeGroup'
+      );
+
     const timeline =
       document.getElementById(
         'hourlyTimeline'
@@ -174,6 +199,11 @@
     const timelineModeGroup =
       document.getElementById(
         'timelineModeGroup'
+      );
+
+    const timelineApplyFilterButton =
+      document.getElementById(
+        'timelineApplyFilterButton'
       );
 
     const timelineClearButton =
@@ -197,6 +227,12 @@
       calendarButton.addEventListener(
         'click',
         openCalendar
+      );
+
+    thresholdInfoButton &&
+      thresholdInfoButton.addEventListener(
+        'click',
+        openThresholdInfo
       );
 
     searchInput &&
@@ -228,6 +264,29 @@
             ).toUpperCase();
 
           applyFiltersAndRender();
+        }
+      );
+
+    movementScopeGroup &&
+      movementScopeGroup.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-movement-scope]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          state.movementScope =
+            String(
+              button.dataset.movementScope ||
+              'CURRENT_ROUND'
+            ).toUpperCase();
+
+          renderMovementOverview();
         }
       );
 
@@ -283,6 +342,9 @@
           state.selectedTimelineStartMs =
             null;
 
+          state.timelineFocusedStartMs =
+            null;
+
           state.timelineShouldFocus =
             true;
 
@@ -315,11 +377,8 @@
             return;
           }
 
-          state.selectedTimelineStartMs =
-            state.selectedTimelineStartMs ===
-            startMs
-              ? null
-              : startMs;
+          state.timelineFocusedStartMs =
+            startMs;
 
           button.scrollIntoView({
             behavior: 'smooth',
@@ -327,8 +386,9 @@
             inline: 'center'
           });
 
-          renderTimeline();
-          applyFiltersAndRender();
+          renderTimelineFocusPreviewFromElement(
+            button
+          );
         }
       );
 
@@ -366,6 +426,30 @@
         }
       );
 
+    timelineApplyFilterButton &&
+      timelineApplyFilterButton.addEventListener(
+        'click',
+        () => {
+          if (
+            !Number.isFinite(
+              Number(
+                state.timelineFocusedStartMs
+              )
+            )
+          ) {
+            return;
+          }
+
+          state.selectedTimelineStartMs =
+            Number(
+              state.timelineFocusedStartMs
+            );
+
+          renderTimeline();
+          applyFiltersAndRender();
+        }
+      );
+
     timelineClearButton &&
       timelineClearButton.addEventListener(
         'click',
@@ -385,13 +469,20 @@
           document.visibilityState ===
             'visible' &&
           !state.refreshInProgress &&
+          !state.movementRefreshInProgress &&
           state.hasLoadedRecords
         ) {
-          await loadRecords({
-            silentError: true,
-            showSuccessToast: false,
-            forceRender: false
-          });
+          await Promise.all([
+            loadRecords({
+              silentError: true,
+              showSuccessToast: false,
+              forceRender: false
+            }),
+            loadMovementSummary({
+              silentError: true,
+              forceRender: false
+            })
+          ]);
         }
       }
     );
@@ -401,6 +492,128 @@
     state.userInteracted = true;
   }
 
+
+
+  async function loadMovementSummary(
+    options
+  ) {
+    if (
+      state.movementRefreshInProgress ||
+      state.destroyed ||
+      !API ||
+      typeof API.getMovementSummary !==
+        'function'
+    ) {
+      return;
+    }
+
+    const config =
+      options &&
+      typeof options === 'object'
+        ? options
+        : {};
+
+    state.movementRefreshInProgress =
+      true;
+
+    try {
+      const result =
+        await API.getMovementSummary(
+          state.moduleId,
+          {
+            mode: 'all'
+          }
+        );
+
+      if (
+        !result ||
+        typeof result !== 'object'
+      ) {
+        throw new Error(
+          'Movement Summary ส่งข้อมูลไม่ถูกต้อง'
+        );
+      }
+
+      const signature =
+        buildMovementSummarySignature(
+          result
+        );
+
+      const changed =
+        config.forceRender === true ||
+        !state.movementLoaded ||
+        signature !==
+          state.movementSummarySignature;
+
+      state.movementSummary =
+        result;
+
+      state.movementSummarySignature =
+        signature;
+
+      state.movementLoaded =
+        true;
+
+      if (
+        result.generatedAt
+      ) {
+        updateServerOffset(
+          result.generatedAt
+        );
+      }
+
+      renderModuleThresholdInfo();
+      renderMovementOverview();
+
+      if (changed) {
+        renderTimeline();
+      }
+
+    } catch (error) {
+      console.warn(
+        'Movement Summary ไม่พร้อม',
+        error
+      );
+
+      renderMovementUnavailable();
+
+      if (
+        !config.silentError &&
+        !isAuthenticationError(error)
+      ) {
+        await showApiError(
+          error,
+          'โหลดสรุปเข้า–ออกไม่สำเร็จ'
+        );
+      }
+
+    } finally {
+      state.movementRefreshInProgress =
+        false;
+    }
+  }
+
+
+  function buildMovementSummarySignature(
+    result
+  ) {
+    return JSON.stringify({
+      generatedAt:
+        result.generatedAt || '',
+      thresholds:
+        result.thresholds || {},
+      currentState:
+        result.currentState || {},
+      currentRound:
+        result.currentRound || {},
+      today:
+        result.today || {},
+      rolling24:
+        result.rolling24 || {},
+      hours:
+        result.hours || {}
+    });
+  }
   async function loadRecords(options) {
     if (
       state.refreshInProgress ||
@@ -816,33 +1029,80 @@
     const module =
       state.module || {};
 
-    const warningMinutes =
+    const movementThresholds =
+      state.movementSummary &&
+      state.movementSummary.thresholds
+        ? state.movementSummary.thresholds
+        : {};
+
+    const greenMinutes =
       Math.max(
         0,
         Number(
+          movementThresholds.greenStartMinutes
+        ) ||
+        Number(
+          module.greenStartMinutes
+        ) ||
+        0
+      );
+
+    const warningMinutes =
+      Math.max(
+        greenMinutes,
+        Number(
+          movementThresholds.warningStartMinutes
+        ) ||
+        Number(
           module.warningStartMinutes
-        ) || 45
+        ) ||
+        45
       );
 
     const redMinutes =
       Math.max(
         warningMinutes + 1,
         Number(
+          movementThresholds.redStartMinutes
+        ) ||
+        Number(
           module.redStartMinutes
-        ) || 60
+        ) ||
+        60
+      );
+
+    const autoCloseHours =
+      Math.max(
+        1,
+        Number(
+          movementThresholds.autoCloseHours
+        ) ||
+        36
+      );
+
+    const nearAutoCloseHours =
+      Math.max(
+        1,
+        Number(
+          movementThresholds.nearAutoCloseHours
+        ) ||
+        2
       );
 
     return {
+      greenMinutes,
       warningMinutes,
       redMinutes,
       warningSeconds:
         warningMinutes * 60,
       redSeconds:
         redMinutes * 60,
+      autoCloseHours,
       autoCloseSeconds:
-        36 * 60 * 60,
+        autoCloseHours * 60 * 60,
+      nearAutoCloseHours,
       nearAutoCloseSeconds:
-        2 * 60 * 60
+        nearAutoCloseHours * 60 * 60
     };
   }
 
@@ -1092,11 +1352,17 @@
             return;
           }
 
-          await loadRecords({
-            silentError: true,
-            showSuccessToast: false,
-            forceRender: false
-          });
+          await Promise.all([
+            loadRecords({
+              silentError: true,
+              showSuccessToast: false,
+              forceRender: false
+            }),
+            loadMovementSummary({
+              silentError: true,
+              forceRender: false
+            })
+          ]);
         },
         600
       );
@@ -1144,7 +1410,9 @@
       );
 
     const calendarButton =
-      document.getElementById('calendarButton');
+      document.getElementById(
+        'calendarButton'
+      );
 
     if (calendarButton) {
       calendarButton.classList.toggle(
@@ -1153,9 +1421,540 @@
       );
     }
 
+    renderModuleThresholdInfo();
     updateAutoRefreshStatus();
   }
 
+
+
+  function renderModuleThresholdInfo() {
+    const container =
+      document.getElementById(
+        'moduleThresholdInfo'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    const thresholds =
+      getModuleThresholds();
+
+    const normalEnd =
+      Math.max(
+        thresholds.greenMinutes,
+        thresholds.warningMinutes - 1
+      );
+
+    const warningEnd =
+      Math.max(
+        thresholds.warningMinutes,
+        thresholds.redMinutes - 1
+      );
+
+    setText(
+      'thresholdNormalText',
+      thresholds.greenMinutes +
+      '–' +
+      normalEnd +
+      ' นาที'
+    );
+
+    setText(
+      'thresholdWarningText',
+      thresholds.warningMinutes +
+      '–' +
+      warningEnd +
+      ' นาที'
+    );
+
+    setText(
+      'thresholdOverdueText',
+      thresholds.redMinutes +
+      ' นาทีขึ้นไป'
+    );
+
+    setText(
+      'thresholdAutoCloseText',
+      thresholds.autoCloseHours +
+      ' ชั่วโมง'
+    );
+  }
+
+
+  async function openThresholdInfo() {
+    const thresholds =
+      getModuleThresholds();
+
+    const normalEnd =
+      Math.max(
+        thresholds.greenMinutes,
+        thresholds.warningMinutes - 1
+      );
+
+    const warningEnd =
+      Math.max(
+        thresholds.warningMinutes,
+        thresholds.redMinutes - 1
+      );
+
+    await Swal.fire({
+      icon: 'info',
+      title: 'เกณฑ์สถานะของโมดูลนี้',
+      html: `
+        <div class="threshold-info-dialog">
+          <div data-status="NORMAL">
+            <span>ปกติ</span>
+            <strong>${escapeHtml(String(thresholds.greenMinutes))}–${escapeHtml(String(normalEnd))} นาที</strong>
+          </div>
+
+          <div data-status="WARNING">
+            <span>เฝ้าระวัง</span>
+            <strong>${escapeHtml(String(thresholds.warningMinutes))}–${escapeHtml(String(warningEnd))} นาที</strong>
+          </div>
+
+          <div data-status="OVERDUE">
+            <span>เกินเวลา</span>
+            <strong>${escapeHtml(String(thresholds.redMinutes))} นาทีขึ้นไป</strong>
+          </div>
+
+          <div data-status="AUTO_CLOSE">
+            <span>เคลียร์อัตโนมัติ</span>
+            <strong>ครบ ${escapeHtml(String(thresholds.autoCloseHours))} ชั่วโมง</strong>
+          </div>
+
+          <p>
+            ระบบเริ่มคำนวณจากเวลาเข้าพื้นที่ของแต่ละรายการ
+            และใช้เกณฑ์ที่ผู้ดูแลกำหนดแยกตามแต่ละ Module
+          </p>
+        </div>
+      `,
+      confirmButtonText: 'ปิด'
+    });
+  }
+
+
+  function renderMovementUnavailable() {
+    const panel =
+      document.getElementById(
+        'movementOverview'
+      );
+
+    if (!panel) {
+      return;
+    }
+
+    panel.dataset.state =
+      'UNAVAILABLE';
+
+    setText(
+      'movementScopeTitle',
+      'รอข้อมูลสรุปเข้า–ออก'
+    );
+
+    setText(
+      'movementScopeTime',
+      'ระบบ Active ยังใช้งานได้ตามปกติ'
+    );
+
+    setText(
+      'movementAnalysisTitle',
+      'Movement Summary ยังไม่พร้อม'
+    );
+
+    setText(
+      'movementAnalysisMessage',
+      'ตรวจสอบการติดตั้ง API รอบที่ 15'
+    );
+  }
+
+
+  function renderMovementOverview() {
+    const panel =
+      document.getElementById(
+        'movementOverview'
+      );
+
+    if (!panel) {
+      return;
+    }
+
+    document
+      .querySelectorAll(
+        '[data-movement-scope]'
+      )
+      .forEach(
+        (button) => {
+          button.classList.toggle(
+            'is-active',
+            String(
+              button.dataset.movementScope ||
+              ''
+            ).toUpperCase() ===
+            state.movementScope
+          );
+        }
+      );
+
+    const summary =
+      state.movementSummary;
+
+    if (!summary) {
+      renderMovementUnavailable();
+      return;
+    }
+
+    const isToday =
+      state.movementScope ===
+      'TODAY';
+
+    const metric =
+      isToday
+        ? summary.today
+        : summary.currentRound;
+
+    if (!metric) {
+      renderMovementUnavailable();
+      return;
+    }
+
+    const analysis =
+      metric.analysis || {};
+
+    panel.dataset.state =
+      String(
+        analysis.level ||
+        'NORMAL'
+      ).toUpperCase();
+
+    setText(
+      'movementScopeEyebrow',
+      isToday
+        ? 'TODAY MOVEMENT'
+        : 'CURRENT 4-HOUR ROUND'
+    );
+
+    setText(
+      'movementScopeTitle',
+      isToday
+        ? 'ภาพรวมวันนี้'
+        : (
+            metric.label ||
+            'รอบปัจจุบัน'
+          )
+    );
+
+    setText(
+      'movementScopeTime',
+      isToday
+        ? (
+            summary.today.date ||
+            summary.selectedDate ||
+            ''
+          )
+        : (
+            metric.timeLabel ||
+            ''
+          )
+    );
+
+    const remainingWrap =
+      document.getElementById(
+        'movementRemainingWrap'
+      );
+
+    if (remainingWrap) {
+      remainingWrap.classList.toggle(
+        'is-hidden',
+        isToday
+      );
+    }
+
+    updateMovementCountdown();
+
+    setText(
+      'movementIn',
+      String(
+        Number(metric.in) || 0
+      )
+    );
+
+    setText(
+      'movementOutTotal',
+      String(
+        Number(metric.outTotal) || 0
+      )
+    );
+
+    setText(
+      'movementTotal',
+      String(
+        Number(metric.movementTotal) || 0
+      )
+    );
+
+    setText(
+      'movementNet',
+      formatSignedNumber(
+        metric.net
+      )
+    );
+
+    setText(
+      'movementOutReal',
+      String(
+        Number(metric.outReal) || 0
+      )
+    );
+
+    setText(
+      'movementOutAuto',
+      String(
+        Number(metric.outAuto) || 0
+      )
+    );
+
+    const currentState =
+      summary.currentState || {};
+
+    setText(
+      'movementActiveNow',
+      String(
+        Number(currentState.activeNow) ||
+        state.records.length ||
+        0
+      )
+    );
+
+    setText(
+      'movementOverdueNow',
+      String(
+        Number(currentState.overdue) ||
+        0
+      )
+    );
+
+    setText(
+      'movementAnalysisTitle',
+      analysis.title ||
+      'กำลังประเมินสถานการณ์'
+    );
+
+    setText(
+      'movementAnalysisMessage',
+      analysis.message ||
+      ''
+    );
+
+    renderMovementMiniChart();
+  }
+
+
+  function updateMovementCountdown() {
+    const element =
+      document.getElementById(
+        'movementRemaining'
+      );
+
+    if (
+      !element ||
+      state.movementScope ===
+        'TODAY'
+    ) {
+      return;
+    }
+
+    const metric =
+      state.movementSummary &&
+      state.movementSummary.currentRound;
+
+    const endMs =
+      Number(
+        metric &&
+        metric.endEpochMs
+      );
+
+    if (!Number.isFinite(endMs)) {
+      element.textContent =
+        '--:--:--';
+      return;
+    }
+
+    const remainingSeconds =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            endMs -
+            getCurrentServerTimeMs()
+          ) / 1000
+        )
+      );
+
+    element.textContent =
+      formatDurationSeconds(
+        remainingSeconds
+      );
+  }
+
+
+  function renderMovementMiniChart() {
+    const container =
+      document.getElementById(
+        'movementMiniChart'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    const hours =
+      getMovementChartHours();
+
+    if (
+      !Array.isArray(hours) ||
+      hours.length === 0
+    ) {
+      container.innerHTML = `
+        <div class="movement-chart-empty">
+          ยังไม่มีข้อมูลรายชั่วโมง
+        </div>
+      `;
+      return;
+    }
+
+    const maximum =
+      Math.max(
+        1,
+        ...hours.map(
+          (hour) =>
+            Math.max(
+              Number(hour.in) || 0,
+              Number(hour.outTotal) || 0
+            )
+        )
+      );
+
+    container.innerHTML =
+      hours.map(
+        (hour) => {
+          const inValue =
+            Number(hour.in) || 0;
+
+          const outValue =
+            Number(hour.outTotal) || 0;
+
+          const inWidth =
+            Math.max(
+              inValue > 0 ? 7 : 0,
+              Math.round(
+                inValue /
+                maximum *
+                100
+              )
+            );
+
+          const outWidth =
+            Math.max(
+              outValue > 0 ? 7 : 0,
+              Math.round(
+                outValue /
+                maximum *
+                100
+              )
+            );
+
+          return `
+            <div class="movement-chart-row">
+              <strong>${escapeHtml(String(hour.label || '--'))}:00</strong>
+
+              <div class="movement-chart-bars">
+                <div>
+                  <span>เข้า</span>
+                  <i style="width:${inWidth}%"></i>
+                  <b>${inValue}</b>
+                </div>
+
+                <div>
+                  <span>ออก</span>
+                  <i style="width:${outWidth}%"></i>
+                  <b>${outValue}</b>
+                </div>
+              </div>
+
+              <em>${escapeHtml(formatSignedNumber(hour.net))}</em>
+            </div>
+          `;
+        }
+      ).join('');
+  }
+
+
+  function getMovementChartHours() {
+    const summary =
+      state.movementSummary;
+
+    if (
+      !summary ||
+      !summary.hours
+    ) {
+      return [];
+    }
+
+    const todayHours =
+      Array.isArray(
+        summary.hours.today
+      )
+        ? summary.hours.today
+        : [];
+
+    if (
+      state.movementScope ===
+      'TODAY'
+    ) {
+      return todayHours;
+    }
+
+    const round =
+      summary.currentRound || {};
+
+    const startMs =
+      Number(round.startEpochMs);
+
+    const endMs =
+      Number(round.endEpochMs);
+
+    if (
+      !Number.isFinite(startMs) ||
+      !Number.isFinite(endMs)
+    ) {
+      return [];
+    }
+
+    return todayHours.filter(
+      (hour) => {
+        const hourStart =
+          Number(
+            hour.startEpochMs
+          );
+
+        return (
+          hourStart >= startMs &&
+          hourStart < endMs
+        );
+      }
+    );
+  }
+
+
+  function formatSignedNumber(value) {
+    const number =
+      Number(value) || 0;
+
+    return number > 0
+      ? '+' + number
+      : String(number);
+  }
   function renderSummary() {
     const summary =
       buildLocalSummary(
@@ -1515,14 +2314,39 @@
           return `
             <button
               type="button"
-              class="timeline-hour${selected ? ' is-selected' : ''}${slot.isCurrent ? ' is-current' : ''}"
+              class="timeline-hour timeline-hour--movement${selected ? ' is-selected' : ''}${slot.isCurrent ? ' is-current' : ''}"
               data-hour-start-ms="${slot.startMs}"
+              data-hour-end-ms="${slot.endMs}"
+              data-hour-label="${escapeHtml(slot.fullLabel)}"
+              data-in="${slot.in}"
+              data-out="${slot.outTotal}"
+              data-out-real="${slot.outReal}"
+              data-out-auto="${slot.outAuto}"
+              data-net="${slot.net}"
+              data-movement-total="${slot.movementTotal}"
               data-status="${escapeHtml(slot.statusCode)}"
               aria-pressed="${selected ? 'true' : 'false'}"
             >
               <span class="timeline-hour__time">${escapeHtml(slot.label)}</span>
-              <strong>${slot.total}</strong>
-              <small>${escapeHtml(slot.caption)}</small>
+
+              <div class="timeline-hour__movement">
+                <span>
+                  <small>เข้า</small>
+                  <strong>${slot.in}</strong>
+                </span>
+
+                <span>
+                  <small>ออก</small>
+                  <strong>${slot.outTotal}</strong>
+                </span>
+              </div>
+
+              <div class="timeline-hour__net">
+                สุทธิ
+                <strong>${escapeHtml(formatSignedNumber(slot.net))}</strong>
+              </div>
+
+              <small class="timeline-hour__caption">${escapeHtml(slot.caption)}</small>
               <i aria-hidden="true"></i>
             </button>
           `;
@@ -1629,29 +2453,6 @@
       return;
     }
 
-    if (
-      container.scrollWidth <=
-      container.clientWidth + 4
-    ) {
-      items.forEach(
-        (item) => {
-          item.classList.remove(
-            'is-centered'
-          );
-
-          item.style.removeProperty(
-            '--timeline-focus-scale'
-          );
-
-          item.style.removeProperty(
-            '--timeline-focus-opacity'
-          );
-        }
-      );
-
-      return;
-    }
-
     const containerRect =
       container.getBoundingClientRect();
 
@@ -1662,7 +2463,7 @@
     const maximumDistance =
       Math.max(
         1,
-        containerRect.width * 0.58
+        containerRect.width * 0.46
       );
 
     let nearestItem =
@@ -1694,13 +2495,28 @@
             maximumDistance
           );
 
+        const eased =
+          proximity *
+          proximity;
+
         const scale =
-          0.91 +
-          proximity * 0.17;
+          0.52 +
+          eased * 0.93;
 
         const opacity =
-          0.54 +
-          proximity * 0.46;
+          0.18 +
+          proximity * 0.82;
+
+        const blur =
+          Math.max(
+            0,
+            (
+              1 - proximity
+            ) * 1.4
+          );
+
+        const lift =
+          eased * -13;
 
         item.style.setProperty(
           '--timeline-focus-scale',
@@ -1711,6 +2527,23 @@
           '--timeline-focus-opacity',
           opacity.toFixed(3)
         );
+
+        item.style.setProperty(
+          '--timeline-focus-blur',
+          blur.toFixed(2) + 'px'
+        );
+
+        item.style.setProperty(
+          '--timeline-focus-lift',
+          lift.toFixed(1) + 'px'
+        );
+
+        item.style.zIndex =
+          String(
+            Math.round(
+              proximity * 20
+            )
+          );
 
         item.classList.remove(
           'is-centered'
@@ -1729,11 +2562,105 @@
       }
     );
 
-    nearestItem &&
+    if (nearestItem) {
       nearestItem.classList.add(
         'is-centered'
       );
+
+      state.timelineFocusedStartMs =
+        Number(
+          nearestItem.dataset.hourStartMs
+        );
+
+      renderTimelineFocusPreviewFromElement(
+        nearestItem
+      );
+    }
   }
+
+
+  function renderTimelineFocusPreviewFromElement(
+    element
+  ) {
+    if (!element) {
+      return;
+    }
+
+    setText(
+      'timelineFocusLabel',
+      element.dataset.hourLabel ||
+      '--:00–--:59'
+    );
+
+    setText(
+      'timelineFocusIn',
+      element.dataset.in ||
+      '0'
+    );
+
+    setText(
+      'timelineFocusOut',
+      element.dataset.out ||
+      '0'
+    );
+
+    setText(
+      'timelineFocusNet',
+      formatSignedNumber(
+        element.dataset.net
+      )
+    );
+
+    setText(
+      'timelineFocusMovement',
+      element.dataset.movementTotal ||
+      '0'
+    );
+
+    setText(
+      'timelineFocusOutDetail',
+      'ออกจริง ' +
+      (
+        element.dataset.outReal ||
+        '0'
+      ) +
+      ' • ระบบปิด ' +
+      (
+        element.dataset.outAuto ||
+        '0'
+      )
+    );
+
+    const preview =
+      document.getElementById(
+        'timelineFocusPreview'
+      );
+
+    if (preview) {
+      preview.dataset.status =
+        element.dataset.status ||
+        'EMPTY';
+    }
+
+    const applyButton =
+      document.getElementById(
+        'timelineApplyFilterButton'
+      );
+
+    if (applyButton) {
+      const focusedStart =
+        Number(
+          element.dataset.hourStartMs
+        );
+
+      applyButton.textContent =
+        state.selectedTimelineStartMs ===
+          focusedStart
+          ? 'กำลังกรองชั่วโมงนี้'
+          : 'กรองรายการชั่วโมงนี้';
+    }
+  }
+
 
 
   function scheduleTimelineCenterSnap(
@@ -1781,6 +2708,119 @@
 
 
   function buildTimelineSlots() {
+    const summary =
+      state.movementSummary;
+
+    const movementHours =
+      summary &&
+      summary.hours
+        ? (
+            state.timelineMode ===
+              'TODAY'
+              ? summary.hours.today
+              : summary.hours.rolling24
+          )
+        : null;
+
+    if (
+      Array.isArray(movementHours) &&
+      movementHours.length > 0
+    ) {
+      const currentHourStart =
+        getBangkokHourStartMs(
+          getCurrentServerTimeMs()
+        );
+
+      return movementHours.map(
+        (hour) => {
+          const startMs =
+            Number(
+              hour.startEpochMs
+            ) ||
+            parseBangkokDateTime(
+              hour.start
+            )?.getTime() ||
+            0;
+
+          const endMs =
+            Number(
+              hour.endEpochMs
+            ) ||
+            (
+              startMs +
+              60 * 60 * 1000
+            );
+
+          const inValue =
+            Number(hour.in) || 0;
+
+          const outReal =
+            Number(hour.outReal) || 0;
+
+          const outAuto =
+            Number(hour.outAuto) || 0;
+
+          const outTotal =
+            Number(hour.outTotal) ||
+            outReal + outAuto;
+
+          const movementTotal =
+            Number(hour.movementTotal) ||
+            inValue + outTotal;
+
+          const net =
+            Number(hour.net) ||
+            inValue - outTotal;
+
+          return {
+            startMs,
+            endMs,
+            label:
+              String(
+                hour.label ||
+                getBangkokDateParts(
+                  startMs
+                ).hour
+              ).padStart(2, '0'),
+            fullLabel:
+              formatTimelineRange(
+                startMs
+              ),
+            in: inValue,
+            outReal,
+            outAuto,
+            outTotal,
+            movementTotal,
+            net,
+            total: movementTotal,
+            activeNow:
+              Number(hour.activeNow) || 0,
+            statusCode:
+              String(
+                hour.statusCode ||
+                'EMPTY'
+              ).toUpperCase(),
+            isCurrent:
+              startMs ===
+              currentHourStart,
+            caption:
+              movementTotal > 0
+                ? 'รวม ' +
+                  movementTotal +
+                  ' ครั้ง'
+                : 'ไม่มีการเคลื่อนไหว'
+          };
+        }
+      );
+    }
+
+    return buildFallbackTimelineSlots();
+  }
+
+
+
+
+  function buildFallbackTimelineSlots() {
     const nowMs =
       getCurrentServerTimeMs();
 
@@ -1833,10 +2873,9 @@
         slots.push(
           buildTimelineSlot(
             startMs,
-            formatTimelineHourLabel(
-              startMs,
-              offset === 0
-            )
+            getBangkokDateParts(
+              startMs
+            ).hour
           )
         );
       }
@@ -1844,8 +2883,6 @@
 
     return slots;
   }
-
-
   function buildTimelineSlot(
     startMs,
     label
@@ -1915,21 +2952,31 @@
       startMs,
       endMs,
       label,
-      total: records.length,
+      fullLabel:
+        formatTimelineRange(
+          startMs
+        ),
+      in: records.length,
+      outReal: 0,
+      outAuto: 0,
+      outTotal: 0,
+      movementTotal:
+        records.length,
+      net:
+        records.length,
+      total:
+        records.length,
+      activeNow:
+        records.length,
       statusCode,
       isCurrent:
         startMs ===
         currentHourStart,
       caption:
-        summary.overdue > 0
-          ? summary.overdue +
-            ' เกินเวลา'
-          : summary.warning > 0
-            ? summary.warning +
-              ' เฝ้าระวัง'
-            : records.length > 0
-              ? 'อยู่ในพื้นที่'
-              : 'ไม่มีรายการ'
+        records.length > 0
+          ? 'Active ' +
+            records.length
+          : 'ไม่มีรายการ'
     };
   }
 
@@ -3040,6 +4087,8 @@
     const nowMs =
       getCurrentServerTimeMs();
 
+    updateMovementCountdown();
+
     let statusChanged =
       false;
 
@@ -3203,16 +4252,23 @@
             state.destroyed ||
             document.visibilityState !==
               'visible' ||
-            state.refreshInProgress
+            state.refreshInProgress ||
+            state.movementRefreshInProgress
           ) {
             return;
           }
 
-          await loadRecords({
-            silentError: true,
-            showSuccessToast: false,
-            forceRender: false
-          });
+          await Promise.all([
+            loadRecords({
+              silentError: true,
+              showSuccessToast: false,
+              forceRender: false
+            }),
+            loadMovementSummary({
+              silentError: true,
+              forceRender: false
+            })
+          ]);
         },
         seconds * 1000
       );
@@ -3511,11 +4567,17 @@
         confirmButtonText: 'ตกลง'
       });
 
-      await loadRecords({
-        silentError: false,
-        showSuccessToast: false,
-        forceRender: true
-      });
+      await Promise.all([
+        loadRecords({
+          silentError: false,
+          showSuccessToast: false,
+          forceRender: true
+        }),
+        loadMovementSummary({
+          silentError: true,
+          forceRender: true
+        })
+      ]);
 
     } catch (error) {
       Swal.close();
@@ -3534,11 +4596,17 @@
           error && error.code
         )
       ) {
-        await loadRecords({
-          silentError: true,
-          showSuccessToast: false,
-          forceRender: true
-        });
+        await Promise.all([
+          loadRecords({
+            silentError: true,
+            showSuccessToast: false,
+            forceRender: true
+          }),
+          loadMovementSummary({
+            silentError: true,
+            forceRender: true
+          })
+        ]);
       }
 
     } finally {
