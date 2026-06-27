@@ -356,25 +356,67 @@
 
     const settings = state.dashboard?.settings || {};
     const definitions = [
-      ['SYSTEM_NAME', 'ชื่อระบบ', 'text', 'ชื่อที่ใช้แสดงในระบบ'],
-      ['DEFAULT_REFRESH_SECONDS', 'รีเฟรชเริ่มต้น (วินาที)', 'number', '10–3600 วินาที'],
-      ['SESSION_TIMEOUT_MINUTES', 'อายุ Session (นาที)', 'number', '15–10080 นาที'],
-      ['MAX_LOGIN_FAILURES', 'จำนวนครั้งรหัสผิดสูงสุด', 'number', 'ก่อนล็อกบัญชี'],
-      ['LOGIN_LOCK_MINUTES', 'ระยะเวลาล็อกบัญชี (นาที)', 'number', '1–1440 นาที'],
-      ['SWEETALERT_ENABLED', 'เปิด SweetAlert2', 'boolean', 'ใช้แจ้งเตือนทุกจุด']
+      {
+        key: 'SYSTEM_NAME',
+        label: 'ชื่อระบบ',
+        type: 'text',
+        help: 'ชื่อที่ใช้แสดงในระบบ'
+      },
+      {
+        key: 'AUTO_CLOSE_HOURS',
+        label: 'เวลาเคลียร์รายการอัตโนมัติ',
+        type: 'select',
+        help: 'ค่ากลางทุก Module สำหรับรายการที่ยังไม่มีเวลาออก',
+        featured: true,
+        options: [12, 24, 36, 48, 72, 96, 120, 168]
+      },
+      {
+        key: 'DEFAULT_REFRESH_SECONDS',
+        label: 'รีเฟรชเริ่มต้น (วินาที)',
+        type: 'number',
+        help: '10–3600 วินาที'
+      },
+      {
+        key: 'SESSION_TIMEOUT_MINUTES',
+        label: 'อายุ Session (นาที)',
+        type: 'number',
+        help: '15–10080 นาที'
+      },
+      {
+        key: 'MAX_LOGIN_FAILURES',
+        label: 'จำนวนครั้งรหัสผิดสูงสุด',
+        type: 'number',
+        help: 'ก่อนล็อกบัญชี'
+      },
+      {
+        key: 'LOGIN_LOCK_MINUTES',
+        label: 'ระยะเวลาล็อกบัญชี (นาที)',
+        type: 'number',
+        help: '1–1440 นาที'
+      },
+      {
+        key: 'SWEETALERT_ENABLED',
+        label: 'เปิด SweetAlert2',
+        type: 'boolean',
+        help: 'ใช้แจ้งเตือนทุกจุด'
+      }
     ];
 
-    container.innerHTML = definitions.map(([key, label, type, help]) => {
+    container.innerHTML = definitions.map((definition) => {
+      const key = definition.key;
       const current = settings[key]?.value;
       const updated = settings[key]?.updatedAt || '-';
       const updatedBy = settings[key]?.updatedBy || '-';
+      const featuredClass = definition.featured
+        ? ' admin-setting-item--featured'
+        : '';
 
-      if (type === 'boolean') {
+      if (definition.type === 'boolean') {
         return `
-          <label class="admin-setting-item admin-setting-item--toggle">
+          <label class="admin-setting-item admin-setting-item--toggle${featuredClass}">
             <div>
-              <strong>${escapeHtml(label)}</strong>
-              <small>${escapeHtml(help)}</small>
+              <strong>${escapeHtml(definition.label)}</strong>
+              <small>${escapeHtml(definition.help)}</small>
               <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
             </div>
             <input
@@ -386,15 +428,51 @@
         `;
       }
 
+      if (definition.type === 'select') {
+        const currentNumber = Number(current || 36);
+        const options = Array.isArray(definition.options)
+          ? definition.options.slice()
+          : [];
+
+        if (!options.includes(currentNumber)) {
+          options.push(currentNumber);
+          options.sort((left, right) => left - right);
+        }
+
+        return `
+          <label class="admin-setting-item${featuredClass}">
+            <span>${escapeHtml(definition.label)}</span>
+            <select
+              data-setting-key="${key}"
+              data-setting-number="TRUE"
+            >
+              ${options.map((hours) => `
+                <option
+                  value="${Number(hours)}"
+                  ${Number(hours) === currentNumber ? 'selected' : ''}
+                >
+                  ${Number(hours)} ชั่วโมง
+                </option>
+              `).join('')}
+            </select>
+            <small>${escapeHtml(definition.help)}</small>
+            <div class="admin-setting-impact">
+              รายการที่ยังไม่มีเวลาออกจะถูกปิดเมื่อครบเวลาที่เลือก
+            </div>
+            <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
+          </label>
+        `;
+      }
+
       return `
-        <label class="admin-setting-item">
-          <span>${escapeHtml(label)}</span>
+        <label class="admin-setting-item${featuredClass}">
+          <span>${escapeHtml(definition.label)}</span>
           <input
-            type="${type}"
+            type="${definition.type}"
             data-setting-key="${key}"
             value="${escapeHtml(current ?? '')}"
           >
-          <small>${escapeHtml(help)}</small>
+          <small>${escapeHtml(definition.help)}</small>
           <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
         </label>
       `;
@@ -2092,21 +2170,60 @@
     event.preventDefault();
 
     const settings = {};
+
     document.querySelectorAll('[data-setting-key]').forEach((input) => {
       const key = input.dataset.settingKey;
+
       if (input.type === 'checkbox') {
         settings[key] = input.checked;
-      } else if (input.type === 'number') {
+      } else if (
+        input.type === 'number' ||
+        input.dataset.settingNumber === 'TRUE'
+      ) {
         settings[key] = Number(input.value);
       } else {
         settings[key] = String(input.value || '').trim();
       }
     });
 
+    const currentAutoCloseHours = Number(
+      state.dashboard?.settings?.AUTO_CLOSE_HOURS?.value || 36
+    );
+
+    const nextAutoCloseHours = Number(
+      settings.AUTO_CLOSE_HOURS || currentAutoCloseHours
+    );
+
+    const autoCloseChanged =
+      Number.isFinite(nextAutoCloseHours) &&
+      nextAutoCloseHours !== currentAutoCloseHours;
+
+    const impactMessage = autoCloseChanged
+      ? `
+        <div class="admin-setting-confirm">
+          <div>
+            <span>ค่าปัจจุบัน</span>
+            <strong>${escapeHtml(String(currentAutoCloseHours))} ชั่วโมง</strong>
+          </div>
+          <div>
+            <span>ค่าใหม่</span>
+            <strong>${escapeHtml(String(nextAutoCloseHours))} ชั่วโมง</strong>
+          </div>
+        </div>
+        <p class="admin-setting-confirm-note">
+          ${
+            nextAutoCloseHours < currentAutoCloseHours
+              ? 'รายการที่ยังไม่มีเวลาออกและมีอายุเกินค่าใหม่ อาจถูกเคลียร์ในรอบทำงานถัดไป'
+              : 'ค่าใหม่จะใช้กับทุก Module ในการตรวจรอบถัดไป'
+          }
+        </p>
+      `
+      : '<p>ค่าที่แก้ไขจะมีผลกับผู้ใช้งานทั้งหมด</p>';
+
     const confirmation = await Swal.fire({
-      icon: 'question',
+      icon: autoCloseChanged ? 'warning' : 'question',
       title: 'บันทึกการตั้งค่าระบบ?',
-      text: 'ค่าที่แก้ไขจะมีผลกับผู้ใช้งานทั้งหมด',
+      html: impactMessage,
       showCancelButton: true,
       confirmButtonText: 'บันทึก',
       cancelButtonText: 'ยกเลิก',
@@ -2114,12 +2231,18 @@
     });
 
     if (!confirmation.isConfirmed) return;
+
     showLoading('กำลังบันทึกการตั้งค่า', 'กรุณารอสักครู่');
 
     try {
       const response = await API.saveAdminSettings(settings);
       Swal.close();
-      await success(response.message || 'บันทึกการตั้งค่าแล้ว');
+
+      await success(
+        response.message ||
+        'บันทึกการตั้งค่าแล้ว'
+      );
+
       await refreshDashboard();
     } catch (error) {
       Swal.close();
