@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260626-r20-single-line-identity"
+    href="./styles.css?v=20260627-r21-global-autoclose"
   >
 
   <script
@@ -38,7 +38,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260626-r16-movement-ui"
+    src="./module.js?v=20260627-r21-global-autoclose"
     defer
   ></script>
 </head>
@@ -155,7 +155,7 @@
         <div data-status="AUTO_CLOSE">
           <i aria-hidden="true"></i>
           <span>เคลียร์อัตโนมัติ</span>
-          <strong id="thresholdAutoCloseText">36 ชั่วโมง</strong>
+          <strong id="thresholdAutoCloseText">-- ชั่วโมง</strong>
         </div>
       </div>
     </section>
@@ -201,7 +201,7 @@
         </div>
 
         <div data-metric="AUTO_CLOSE">
-          <span>ใกล้ครบ 36 ชม.</span>
+          <span id="controlNearAutoCloseLabel">ใกล้ครบ -- ชม.</span>
           <strong id="controlNearAutoClose">0</strong>
         </div>
       </div>
@@ -416,7 +416,7 @@
           <span data-status="NORMAL">ปกติ</span>
           <span data-status="WARNING">เฝ้าระวัง</span>
           <span data-status="OVERDUE">เกินเวลา</span>
-          <span data-status="AUTO_CLOSE">ใกล้ครบ 36 ชม.</span>
+          <span id="timelineAutoCloseLegend" data-status="AUTO_CLOSE">ใกล้ครบ -- ชม.</span>
         </div>
 
         <button
