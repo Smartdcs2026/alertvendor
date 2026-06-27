@@ -10824,175 +10824,544 @@ body.admin-editor-open {
     transition: none !important;
   }
 }
+
 /************************************************************
- * ROUND 25 — Mobile Single-Line Identity + Clean Timeline Header
- * วางต่อท้ายสุดของ styles.css
+ * ROUND 25 — Clean Mobile Identity + Full-Bleed Timeline Header
+ *
+ * แก้ไข:
+ * 1) LIVE VEHICLE STATUS + ชื่อ Module + วันเวลา อยู่แถวเดียวบนมือถือ
+ * 2) ยกเลิก display: contents จากรอบเก่า โดยใช้ HTML เป็น Grid Item โดยตรง
+ * 3) ลบเงาไล่สีที่ขอบซ้าย/ขวาของ 24-HOUR MOVEMENT
+ * 4) ยกเลิก Negative Margin และจัด Header แบบ Full-Bleed ที่สะอาด
  ************************************************************/
 
 /* =========================================================
- * 1) จัดหัวส่วนบนมือถือให้อยู่แถวเดียว
- *    LIVE VEHICLE STATUS | สถานะรถ Vendor ทั่วไป | เวลาปัจจุบัน
+ * Module identity — โครงสร้างใหม่ที่เสถียรกว่า
  * ========================================================= */
+
+.module-page .module-title-row {
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  grid-template-areas:
+    "live clock"
+    "title clock"
+    "description clock";
+
+  align-items:
+    center;
+
+  column-gap:
+    14px;
+
+  row-gap:
+    2px;
+
+  margin-top:
+    9px;
+}
+
+.module-page .module-live-label {
+  grid-area:
+    live;
+
+  min-width:
+    0;
+
+  margin:
+    0;
+
+  overflow:
+    hidden;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+.module-page .module-title-row h1 {
+  grid-area:
+    title;
+
+  min-width:
+    0;
+
+  margin:
+    0;
+
+  overflow:
+    hidden;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+.module-page .module-title-description {
+  grid-area:
+    description;
+
+  min-width:
+    0;
+
+  margin:
+    3px 0 0;
+
+  overflow:
+    hidden;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+.module-page .module-title-row .module-clock {
+  grid-area:
+    clock;
+
+  align-self:
+    center;
+}
+
+
+/* =========================================================
+ * Mobile: สามส่วนอยู่แถวเดียวกันจริง
+ * LIVE VEHICLE STATUS | ชื่อ Module | วันเวลา
+ * ========================================================= */
+
 @media (max-width: 679px) {
+
   .module-page .module-header__inner {
-    padding: 8px 10px 10px;
+    padding:
+      7px 10px 8px;
   }
 
   .module-page .module-title-row {
-    display: grid !important;
-    grid-template-columns: auto minmax(0, 1fr) auto !important;
-    align-items: center !important;
-    gap: 4px 8px !important;
-    margin-top: 6px !important;
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+
+    grid-template-areas:
+      "live title clock";
+
+    align-items:
+      center;
+
+    column-gap:
+      7px;
+
+    row-gap:
+      0;
+
+    margin-top:
+      5px;
   }
 
-  .module-page .module-title-row .eyebrow {
-    grid-column: 1 !important;
-    margin: 0 !important;
-    font-size: 0.58rem !important;
-    font-weight: 850 !important;
-    line-height: 1 !important;
-    white-space: nowrap !important;
+  .module-page .module-live-label {
+    max-width:
+      86px;
+
+    color:
+      #12706f;
+
+    font-size:
+      clamp(
+        0.39rem,
+        1.55vw,
+        0.49rem
+      );
+
+    font-weight:
+      900;
+
+    line-height:
+      1;
+
+    letter-spacing:
+      0.035em;
   }
 
   .module-page .module-title-row h1 {
-    grid-column: 2 !important;
-    margin: 0 !important;
-    font-size: 0.98rem !important;
-    font-weight: 850 !important;
-    line-height: 1.15 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    color:
+      #102c42;
+
+    font-size:
+      clamp(
+        0.76rem,
+        3.35vw,
+        0.94rem
+      );
+
+    font-weight:
+      900;
+
+    line-height:
+      1.12;
   }
 
-  /* ซ่อนบรรทัดคำอธิบายยาวบนมือถือ เพื่อประหยัดพื้นที่ */
-  .module-page .module-title-row p:not(.eyebrow) {
-    display: none !important;
+  .module-page .module-title-description {
+    display:
+      none !important;
   }
 
   .module-page .module-title-row .module-clock {
-    grid-column: 3 !important;
-    min-width: auto !important;
-    width: auto !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0 !important;
-    padding: 5px 8px !important;
-    border: 1px solid #c7d5df !important;
-    border-radius: 8px !important;
-    background: #f3f8fc !important;
-    box-shadow: none !important;
+    min-width:
+      0;
+
+    width:
+      auto;
+
+    display:
+      block;
+
+    padding:
+      5px 7px;
+
+    border:
+      1px solid #c8d8e4;
+
+    border-radius:
+      8px;
+
+    background:
+      linear-gradient(
+        135deg,
+        #f4f9ff,
+        #eef9f7
+      );
+
+    box-shadow:
+      none;
+
+    text-align:
+      right;
   }
 
-  /* ซ่อนคำว่า "วันที่และเวลาปัจจุบัน" ในกล่องเวลา เหลือเฉพาะเวลา */
   .module-page .module-title-row .module-clock span {
-    display: none !important;
+    display:
+      none;
   }
 
   .module-page .module-title-row .module-clock strong {
-    color: #123d5b !important;
-    font-size: 0.70rem !important;
-    font-weight: 850 !important;
-    line-height: 1 !important;
-    white-space: nowrap !important;
+    display:
+      block;
+
+    color:
+      #174f76;
+
+    font-size:
+      clamp(
+        0.50rem,
+        2.05vw,
+        0.62rem
+      );
+
+    font-weight:
+      900;
+
+    line-height:
+      1.12;
+
+    font-variant-numeric:
+      tabular-nums;
+
+    white-space:
+      nowrap;
   }
 }
 
-/* Desktop / Tablet ให้กลับไปใช้รูปแบบเดิม */
-@media (min-width: 680px) {
+
+@media (max-width: 379px) {
+
   .module-page .module-title-row {
-    display: grid !important;
+    column-gap:
+      5px;
   }
 
-  .module-page .module-title-row p:not(.eyebrow) {
-    display: block !important;
+  .module-page .module-live-label {
+    max-width:
+      68px;
+
+    font-size:
+      0.36rem;
   }
 
-  .module-page .module-title-row .module-clock span {
-    display: block !important;
+  .module-page .module-title-row h1 {
+    font-size:
+      0.72rem;
+  }
+
+  .module-page .module-title-row .module-clock {
+    padding:
+      4px 5px;
+  }
+
+  .module-page .module-title-row .module-clock strong {
+    font-size:
+      0.47rem;
   }
 }
+
 
 /* =========================================================
- * 2) แก้หัวส่วน 24-HOUR MOVEMENT ให้ขอบล่างซ้าย/ขวาสะอาด
- *    ไม่มีเงาดำจาง ๆ ที่มุม
+ * 24-HOUR MOVEMENT — ลบมุมดำ/เงาจางจากโค้ดรอบเก่า
  * ========================================================= */
+
 .module-page .hourly-timeline-panel {
-  overflow: hidden !important;
-  border: 1px solid #d7e1e8 !important;
-  border-radius: 18px !important;
-  background: #ffffff !important;
-  box-shadow: 0 10px 24px rgba(15, 40, 65, 0.08) !important;
+  position:
+    relative;
+
+  overflow:
+    hidden !important;
+
+  padding:
+    0 !important;
+
+  border:
+    1px solid #cfdae3 !important;
+
+  border-radius:
+    18px !important;
+
+  background:
+    #ffffff !important;
+
+  box-shadow:
+    0 10px 24px rgba(
+      15,
+      41,
+      64,
+      0.08
+    ) !important;
+
+  isolation:
+    isolate;
+}
+
+/*
+ * รอบเก่าใช้ pseudo element สำหรับไล่สีซ้าย/ขวา
+ * ซึ่งเมื่อหน้าจอแคบจะมองเหมือนขอบดำจางที่มุม
+ */
+.module-page .hourly-timeline-panel::before,
+.module-page .hourly-timeline-panel::after {
+  display:
+    none !important;
+
+  content:
+    none !important;
 }
 
 .module-page .hourly-timeline-panel__header {
-  margin: 0 !important;
-  padding: 13px 14px 11px !important;
-  border-radius: 18px 18px 0 0 !important;
-  background: linear-gradient(135deg, #123d5b 0%, #1a5479 100%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
-  box-shadow: none !important;
-  position: relative !important;
-  overflow: hidden !important;
+  position:
+    relative;
+
+  z-index:
+    1;
+
+  width:
+    100%;
+
+  margin:
+    0 !important;
+
+  padding:
+    13px 14px 12px !important;
+
+  overflow:
+    hidden;
+
+  border:
+    0 !important;
+
+  border-bottom:
+    1px solid rgba(
+      255,
+      255,
+      255,
+      0.12
+    ) !important;
+
+  border-radius:
+    17px 17px 0 0 !important;
+
+  color:
+    #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #123d5b 0%,
+      #1d557a 100%
+    ) !important;
+
+  box-shadow:
+    none !important;
 }
 
-/* ปิด pseudo effect เก่าที่อาจทำให้เกิดมุมดำ/เงาแปลก */
 .module-page .hourly-timeline-panel__header::before,
 .module-page .hourly-timeline-panel__header::after {
-  display: none !important;
-  content: none !important;
-}
+  display:
+    none !important;
 
-.module-page .hourly-timeline-panel__header h2 {
-  margin: 1px 0 0 !important;
-  color: #ffffff !important;
-  font-size: 0.92rem !important;
-  line-height: 1.2 !important;
-}
-
-.module-page .hourly-timeline-panel__header p {
-  margin: 2px 0 0 !important;
-  color: #d6e3eb !important;
+  content:
+    none !important;
 }
 
 .module-page .hourly-timeline-panel__header small {
-  color: #73f0df !important;
+  color:
+    #72ebdb !important;
 }
 
-/* ปุ่มสลับโหมดในหัว ให้กลืนกับดีไซน์ใหม่ */
-.module-page .hourly-timeline-panel .timeline-mode-group {
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: rgba(255, 255, 255, 0.10) !important;
+.module-page .hourly-timeline-panel__header h2 {
+  color:
+    #ffffff !important;
 }
 
-.module-page .hourly-timeline-panel .timeline-mode-group button {
-  color: #d9e8f0 !important;
+.module-page .hourly-timeline-panel__header p {
+  color:
+    #d8e5ed !important;
 }
 
-.module-page .hourly-timeline-panel .timeline-mode-group button.is-active {
-  color: #123d5b !important;
-  background: #ffffff !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12) !important;
+
+/* เนื้อหาภายใน panel หลังยกเลิก padding ของ parent */
+
+.module-page .hourly-timeline-panel
+.timeline-focus-preview {
+  margin:
+    12px 12px 0;
 }
 
-/* เวอร์ชันมือถือ ปรับระยะให้กระชับขึ้นอีก */
+.module-page .hourly-timeline-panel
+.hourly-timeline-stage {
+  margin:
+    8px 12px 0;
+}
+
+.module-page .hourly-timeline-panel
+.hourly-timeline-panel__footer {
+  margin:
+    7px 12px 12px;
+}
+
+
+/* ปุ่มโหมดบนพื้นเข้ม */
+
+.module-page .hourly-timeline-panel
+.timeline-mode-group {
+  border:
+    1px solid rgba(
+      255,
+      255,
+      255,
+      0.18
+    ) !important;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.12
+    ) !important;
+}
+
+.module-page .hourly-timeline-panel
+.timeline-mode-group button {
+  color:
+    #dce8ef !important;
+}
+
+.module-page .hourly-timeline-panel
+.timeline-mode-group button.is-active {
+  color:
+    #123d5b !important;
+
+  background:
+    #ffffff !important;
+
+  box-shadow:
+    0 3px 10px rgba(
+      0,
+      0,
+      0,
+      0.13
+    ) !important;
+}
+
+
+/* =========================================================
+ * Responsive Timeline Header
+ * ========================================================= */
+
 @media (max-width: 679px) {
+
   .module-page .hourly-timeline-panel {
-    border-radius: 16px !important;
+    border-radius:
+      16px !important;
   }
 
   .module-page .hourly-timeline-panel__header {
-    padding: 12px 12px 10px !important;
-    border-radius: 16px 16px 0 0 !important;
+    align-items:
+      center;
+
+    padding:
+      11px 11px 10px !important;
+
+    border-radius:
+      15px 15px 0 0 !important;
+  }
+
+  .module-page .hourly-timeline-panel__header small {
+    font-size:
+      0.48rem !important;
   }
 
   .module-page .hourly-timeline-panel__header h2 {
-    font-size: 0.88rem !important;
+    font-size:
+      0.86rem !important;
   }
 
   .module-page .hourly-timeline-panel__header p {
-    font-size: 0.56rem !important;
+    font-size:
+      0.53rem !important;
+  }
+
+  .module-page .hourly-timeline-panel
+  .timeline-focus-preview {
+    margin:
+      9px 9px 0;
+  }
+
+  .module-page .hourly-timeline-panel
+  .hourly-timeline-stage {
+    margin:
+      7px 9px 0;
+  }
+
+  .module-page .hourly-timeline-panel
+  .hourly-timeline-panel__footer {
+    margin:
+      6px 9px 9px;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+  .module-page .hourly-timeline-panel,
+  .module-page .module-title-row {
+    transition:
+      none !important;
   }
 }
