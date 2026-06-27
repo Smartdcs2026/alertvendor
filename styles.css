@@ -9601,7 +9601,6 @@ body.admin-editor-open {
   background: #f7f2ff;
 }
 
-\
 /************************************************************
  * ROUND 21 — Global Auto Close Setting
  ************************************************************/
@@ -9692,4 +9691,172 @@ body.admin-editor-open {
   color: #7c4a03;
   font-size: 0.75rem;
   line-height: 1.55;
+}
+
+/************************************************************
+ * ROUND 22 — Custom Auto Close Hours
+ ************************************************************/
+
+.admin-custom-time-control {
+  display:
+    none;
+
+  gap:
+    6px;
+
+  padding:
+    10px;
+
+  border:
+    1px solid #bfd9ee;
+
+  border-radius:
+    10px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #f2f8ff,
+      #f5fbfa
+    );
+}
+
+.admin-custom-time-control[data-active="TRUE"] {
+  display:
+    grid;
+
+  animation:
+    admin-custom-time-open 0.18s ease-out;
+}
+
+.admin-custom-time-control > span {
+  color:
+    #264c65;
+
+  font-size:
+    0.68rem;
+
+  font-weight:
+    800;
+}
+
+.admin-custom-time-control > small {
+  color:
+    var(--color-muted);
+
+  font-size:
+    0.6rem;
+}
+
+.admin-custom-time-input {
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items:
+    center;
+
+  gap:
+    8px;
+}
+
+.admin-custom-time-input input {
+  width:
+    100%;
+
+  min-width:
+    0;
+
+  min-height:
+    44px;
+
+  border:
+    1px solid #a9c9df;
+
+  border-radius:
+    9px;
+
+  padding:
+    8px 10px;
+
+  color:
+    #163047;
+
+  background:
+    #ffffff;
+
+  font-size:
+    0.94rem;
+
+  font-weight:
+    800;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.admin-custom-time-input input:focus {
+  border-color:
+    #2878d6;
+
+  box-shadow:
+    0 0 0 4px rgba(40, 120, 214, 0.12);
+
+  outline:
+    0;
+}
+
+.admin-custom-time-input strong {
+  min-width:
+    58px;
+
+  color:
+    #315b75;
+
+  font-size:
+    0.72rem;
+
+  text-align:
+    center;
+}
+
+@keyframes admin-custom-time-open {
+  from {
+    opacity:
+      0;
+
+    transform:
+      translateY(-4px);
+  }
+
+  to {
+    opacity:
+      1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+@media (max-width: 639px) {
+  .admin-custom-time-input {
+    grid-template-columns:
+      minmax(0, 1fr)
+      52px;
+  }
+
+  .admin-custom-time-control {
+    padding:
+      9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-custom-time-control[data-active="TRUE"] {
+    animation:
+      none;
+  }
 }
