@@ -9,6 +9,7 @@
  * - รองรับรายละเอียด Validation จาก Apps Script/Worker
  * - เลื่อนไปยังช่องที่ต้องแก้ไขโดยอัตโนมัติ
  * - รักษาการเลื่อนภายใน Module Editor
+ * - รองรับตัวเลือก “อื่นๆ” และกรอกเวลา Auto Close เอง
  */
 (function (window, document) {
   'use strict';
@@ -141,6 +142,10 @@
     byId('adminCreateModuleButton')?.addEventListener('click', createNewModule);
     byId('adminCreateUserButton')?.addEventListener('click', () => openUserDialog(null));
     byId('adminSettingsForm')?.addEventListener('submit', saveSettings);
+    byId('adminSettingsFields')?.addEventListener(
+      'change',
+      handleAdminSettingFieldChange
+    );
     byId('adminAuditFilterForm')?.addEventListener('submit', loadAuditFromFilter);
 
     byId('adminCloseModuleEditorButton')?.addEventListener('click', closeModuleEditor);
@@ -368,7 +373,10 @@
         type: 'select',
         help: 'ค่ากลางทุก Module สำหรับรายการที่ยังไม่มีเวลาออก',
         featured: true,
-        options: [12, 24, 36, 48, 72, 96, 120, 168]
+        options: [12, 24, 36, 48, 72, 96, 120, 168],
+        allowCustom: true,
+        minimum: 12,
+        maximum: 168
       },
       {
         key: 'DEFAULT_REFRESH_SECONDS',
@@ -434,31 +442,98 @@
           ? definition.options.slice()
           : [];
 
-        if (!options.includes(currentNumber)) {
-          options.push(currentNumber);
-          options.sort((left, right) => left - right);
-        }
+        const isPresetValue =
+          options.includes(currentNumber);
+
+        const minimum =
+          Number(definition.minimum || 12);
+
+        const maximum =
+          Number(definition.maximum || 168);
 
         return `
           <label class="admin-setting-item${featuredClass}">
             <span>${escapeHtml(definition.label)}</span>
+
             <select
               data-setting-key="${key}"
               data-setting-number="TRUE"
+              data-setting-select-custom="${
+                definition.allowCustom ? 'TRUE' : 'FALSE'
+              }"
             >
               ${options.map((hours) => `
                 <option
                   value="${Number(hours)}"
-                  ${Number(hours) === currentNumber ? 'selected' : ''}
+                  ${
+                    Number(hours) === currentNumber
+                      ? 'selected'
+                      : ''
+                  }
                 >
                   ${Number(hours)} ชั่วโมง
                 </option>
               `).join('')}
+
+              ${
+                definition.allowCustom
+                  ? `
+                    <option
+                      value="CUSTOM"
+                      ${isPresetValue ? '' : 'selected'}
+                    >
+                      อื่นๆ — กำหนดเวลาเอง
+                    </option>
+                  `
+                  : ''
+              }
             </select>
+
+            ${
+              definition.allowCustom
+                ? `
+                  <div
+                    class="admin-custom-time-control"
+                    data-custom-setting-container="${key}"
+                    data-active="${isPresetValue ? 'FALSE' : 'TRUE'}"
+                  >
+                    <span>
+                      กำหนดจำนวนชั่วโมง
+                    </span>
+
+                    <div class="admin-custom-time-input">
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        min="${minimum}"
+                        max="${maximum}"
+                        step="1"
+                        value="${escapeHtml(String(currentNumber))}"
+                        data-setting-custom-for="${key}"
+                        aria-label="กำหนดจำนวนชั่วโมงสำหรับ Auto Close"
+                      >
+
+                      <strong>
+                        ชั่วโมง
+                      </strong>
+                    </div>
+
+                    <small>
+                      กรอกจำนวนเต็มตั้งแต่
+                      ${minimum}–${maximum}
+                      ชั่วโมง
+                    </small>
+                  </div>
+                `
+                : ''
+            }
+
             <small>${escapeHtml(definition.help)}</small>
+
             <div class="admin-setting-impact">
               รายการที่ยังไม่มีเวลาออกจะถูกปิดเมื่อครบเวลาที่เลือก
             </div>
+
             <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
           </label>
         `;
@@ -477,7 +552,68 @@
         </label>
       `;
     }).join('');
+
+    syncAdminCustomSettingControls();
   }
+
+
+  function handleAdminSettingFieldChange(event) {
+    const select = event.target?.closest?.(
+      '[data-setting-select-custom="TRUE"]'
+    );
+
+    if (!select) return;
+
+    syncAdminCustomSettingControls(select);
+  }
+
+
+  function syncAdminCustomSettingControls(changedSelect) {
+    const selects = changedSelect
+      ? [changedSelect]
+      : Array.from(
+          document.querySelectorAll(
+            '[data-setting-select-custom="TRUE"]'
+          )
+        );
+
+    selects.forEach((select) => {
+      const key =
+        String(select.dataset.settingKey || '').trim();
+
+      if (!key) return;
+
+      const customContainer =
+        document.querySelector(
+          `[data-custom-setting-container="${cssEscape(key)}"]`
+        );
+
+      const customInput =
+        document.querySelector(
+          `[data-setting-custom-for="${cssEscape(key)}"]`
+        );
+
+      const isCustom =
+        String(select.value || '').toUpperCase() === 'CUSTOM';
+
+      if (customContainer) {
+        customContainer.dataset.active =
+          isCustom ? 'TRUE' : 'FALSE';
+      }
+
+      if (customInput) {
+        customInput.disabled = !isCustom;
+
+        if (isCustom) {
+          window.setTimeout(() => {
+            customInput.focus();
+            customInput.select();
+          }, 0);
+        }
+      }
+    });
+  }
+
 
   function renderAudit(items, containerId) {
     const container = byId(containerId);
@@ -2174,6 +2310,21 @@
     document.querySelectorAll('[data-setting-key]').forEach((input) => {
       const key = input.dataset.settingKey;
 
+      if (
+        input.dataset.settingSelectCustom === 'TRUE' &&
+        String(input.value || '').toUpperCase() === 'CUSTOM'
+      ) {
+        const customInput =
+          document.querySelector(
+            `[data-setting-custom-for="${cssEscape(key)}"]`
+          );
+
+        settings[key] =
+          Number(customInput?.value);
+
+        return;
+      }
+
       if (input.type === 'checkbox') {
         settings[key] = input.checked;
       } else if (
@@ -2185,6 +2336,41 @@
         settings[key] = String(input.value || '').trim();
       }
     });
+
+    const autoCloseHours =
+      Number(settings.AUTO_CLOSE_HOURS);
+
+    if (
+      !Number.isInteger(autoCloseHours) ||
+      autoCloseHours < 12 ||
+      autoCloseHours > 168
+    ) {
+      const select =
+        document.querySelector(
+          '[data-setting-key="AUTO_CLOSE_HOURS"]'
+        );
+
+      const customInput =
+        document.querySelector(
+          '[data-setting-custom-for="AUTO_CLOSE_HOURS"]'
+        );
+
+      if (select) {
+        select.value = 'CUSTOM';
+        syncAdminCustomSettingControls(select);
+      }
+
+      await Swal.fire({
+        icon: 'warning',
+        title: 'เวลาที่กำหนดไม่ถูกต้อง',
+        text: 'กรุณากรอกจำนวนเต็มตั้งแต่ 12 ถึง 168 ชั่วโมง',
+        confirmButtonText: 'แก้ไข'
+      });
+
+      customInput?.focus();
+      customInput?.select();
+      return;
+    }
 
     const currentAutoCloseHours = Number(
       state.dashboard?.settings?.AUTO_CLOSE_HOURS?.value || 36
@@ -3447,6 +3633,26 @@
       if (button.dataset.originalText) button.textContent = button.dataset.originalText;
     }
   }
+
+  function cssEscape(value) {
+    const text = String(value || '');
+
+    if (
+      window.CSS &&
+      typeof window.CSS.escape === 'function'
+    ) {
+      return window.CSS.escape(text);
+    }
+
+    return text.replace(
+      /[^a-zA-Z0-9_-]/g,
+      (character) =>
+        '\\' +
+        character.charCodeAt(0).toString(16) +
+        ' '
+    );
+  }
+
 
   function byId(id) {
     return document.getElementById(id);
