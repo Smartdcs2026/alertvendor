@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260627-r21-global-autoclose"
+    href="./styles.css?v=20260627-r25-clean-mobile-header"
   >
 
   <script
@@ -38,7 +38,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260627-r21-global-autoclose"
+    src="./module.js?v=20260626-r16-movement-ui"
     defer
   ></script>
 </head>
@@ -87,19 +87,20 @@
       </div>
 
       <div class="module-title-row">
-        <div>
-          <p class="eyebrow">
-            LIVE VEHICLE STATUS
-          </p>
+        <p class="eyebrow module-live-label">
+          LIVE VEHICLE STATUS
+        </p>
 
-          <h1 id="moduleTitle">
-            กำลังโหลดโมดูล...
-          </h1>
+        <h1 id="moduleTitle">
+          กำลังโหลดโมดูล...
+        </h1>
 
-          <p id="moduleDescription">
-            กรุณารอสักครู่
-          </p>
-        </div>
+        <p
+          id="moduleDescription"
+          class="module-title-description"
+        >
+          กรุณารอสักครู่
+        </p>
 
         <div class="module-clock">
           <span>
@@ -155,7 +156,7 @@
         <div data-status="AUTO_CLOSE">
           <i aria-hidden="true"></i>
           <span>เคลียร์อัตโนมัติ</span>
-          <strong id="thresholdAutoCloseText">-- ชั่วโมง</strong>
+          <strong id="thresholdAutoCloseText">36 ชั่วโมง</strong>
         </div>
       </div>
     </section>
@@ -201,7 +202,7 @@
         </div>
 
         <div data-metric="AUTO_CLOSE">
-          <span id="controlNearAutoCloseLabel">ใกล้ครบ -- ชม.</span>
+          <span>ใกล้ครบ 36 ชม.</span>
           <strong id="controlNearAutoClose">0</strong>
         </div>
       </div>
@@ -416,7 +417,7 @@
           <span data-status="NORMAL">ปกติ</span>
           <span data-status="WARNING">เฝ้าระวัง</span>
           <span data-status="OVERDUE">เกินเวลา</span>
-          <span id="timelineAutoCloseLegend" data-status="AUTO_CLOSE">ใกล้ครบ -- ชม.</span>
+          <span data-status="AUTO_CLOSE">ใกล้ครบ 36 ชม.</span>
         </div>
 
         <button
