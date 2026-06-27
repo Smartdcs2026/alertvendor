@@ -12,7 +12,7 @@
  * - Timeline รายชั่วโมง เลื่อนและแตะกรองได้บนมือถือ
  * - Progress Bar และสีการ์ดตามเกณฑ์ของแต่ละ Module
  * - เรียงรายการตามความเร่งด่วนและเวลาที่ใกล้เกณฑ์ที่สุด
- * - เคลียร์รายการออกจากหน้าจอทันทีเมื่อครบ 36 ชั่วโมง
+ * - เคลียร์รายการออกจากหน้าจอตามค่ากลางของระบบ
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
@@ -1077,6 +1077,7 @@
         Number(
           movementThresholds.autoCloseHours
         ) ||
+        Number(CONFIG.DEFAULT_AUTO_CLOSE_HOURS) ||
         36
       );
 
@@ -1478,6 +1479,20 @@
       'thresholdAutoCloseText',
       thresholds.autoCloseHours +
       ' ชั่วโมง'
+    );
+
+    setText(
+      'controlNearAutoCloseLabel',
+      'ใกล้ครบ ' +
+      thresholds.autoCloseHours +
+      ' ชม.'
+    );
+
+    setText(
+      'timelineAutoCloseLegend',
+      'ใกล้ครบ ' +
+      thresholds.autoCloseHours +
+      ' ชม.'
     );
   }
 
@@ -2217,7 +2232,9 @@
 
       message =
         summary.nearAutoClose +
-        ' รายการใกล้ครบ 36 ชั่วโมง';
+        ' รายการใกล้ครบ ' +
+        getModuleThresholds().autoCloseHours +
+        ' ชั่วโมง';
 
     } else if (
       summary.overdue > 0
