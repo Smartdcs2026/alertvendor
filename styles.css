@@ -9860,3 +9860,967 @@ body.admin-editor-open {
       none;
   }
 }
+
+
+/************************************************************
+ * ROUND 24 — Trusted International Dashboard Refresh
+ * วางต่อท้ายสุดของ styles.css
+ * เป้าหมาย:
+ * - เพิ่มความต่างของสีในกราฟ เข้า/ออก/รวม/สุทธิ
+ * - เพิ่ม Contrast ของตัวหนังสือให้อ่านง่ายทุกขนาดหน้าจอ
+ * - ทำ Section ให้ดูเป็นระบบมาตรฐาน เชื่อถือได้
+ * - ปรับ Mobile / Tablet / Desktop ให้สมดุล
+ ************************************************************/
+
+.module-page {
+  --trusted-bg: #eef3f7;
+  --trusted-surface: #ffffff;
+  --trusted-surface-2: #f8fbfd;
+  --trusted-border: #cfdae3;
+  --trusted-border-strong: #afc0cd;
+  --trusted-text: #142636;
+  --trusted-text-soft: #536676;
+  --trusted-heading: #0f2940;
+  --trusted-heading-2: #173c59;
+
+  --flow-in: #0f9d7a;
+  --flow-in-soft: #e8faf4;
+
+  --flow-out: #2563eb;
+  --flow-out-soft: #ebf2ff;
+
+  --flow-total: #334155;
+  --flow-total-soft: #eef2f6;
+
+  --flow-net: #7c3aed;
+  --flow-net-soft: #f2ebff;
+
+  --status-normal: #15803d;
+  --status-normal-soft: #edf9f0;
+
+  --status-warning: #d97706;
+  --status-warning-soft: #fff5e8;
+
+  --status-overdue: #dc2626;
+  --status-overdue-soft: #fff0f0;
+
+  --status-auto-close: #7c3aed;
+  --status-auto-close-soft: #f5efff;
+
+  background: var(--trusted-bg);
+}
+
+.module-page .module-container {
+  padding-top: 14px;
+}
+
+.module-page .module-title-row h1,
+.module-page .section-heading h2,
+.module-page .movement-overview__header h2,
+.module-page .hourly-timeline-panel__header h2,
+.module-page .warehouse-control-tower__status strong {
+  color: var(--trusted-heading);
+  letter-spacing: -0.01em;
+}
+
+.module-page .module-title-row p:not(.eyebrow),
+.module-page .module-clock span,
+.module-page .vehicle-result-header span,
+.module-page .movement-overview__header p,
+.module-page .hourly-timeline-panel__header p,
+.module-page .vehicle-field span,
+.module-page .vehicle-summary-card > span {
+  color: var(--trusted-text-soft);
+}
+
+.module-page .module-clock {
+  border: 1px solid var(--trusted-border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6fafc 100%);
+  box-shadow: 0 6px 16px rgba(15, 41, 64, 0.06);
+}
+
+.module-page .module-clock strong {
+  color: var(--trusted-heading-2);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+/* ==================== unified section shell ==================== */
+.module-page .warehouse-control-tower,
+.module-page .movement-overview,
+.module-page .hourly-timeline-panel,
+.module-page .vehicle-tools {
+  border: 1px solid var(--trusted-border);
+  background: var(--trusted-surface);
+  box-shadow: 0 10px 24px rgba(15, 41, 64, 0.08);
+}
+
+.module-page .warehouse-control-tower,
+.module-page .movement-overview,
+.module-page .hourly-timeline-panel {
+  border-radius: 18px;
+}
+
+/* ==================== control tower ==================== */
+.module-page .warehouse-control-tower {
+  border-left-width: 8px;
+}
+
+.module-page .warehouse-control-tower__status small {
+  color: #2f6c88;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.module-page .warehouse-control-tower__status strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.module-page .warehouse-control-tower__status p {
+  color: var(--trusted-text-soft);
+  font-size: 0.69rem;
+  font-weight: 650;
+}
+
+.module-page .warehouse-control-tower__metrics {
+  gap: 8px;
+}
+
+.module-page .warehouse-control-tower__metrics > div {
+  min-height: 66px;
+  display: grid;
+  align-content: center;
+  border: 1px solid var(--trusted-border);
+  border-radius: 12px;
+  box-shadow: inset 0 4px 0 #90a4b1;
+}
+
+.module-page .warehouse-control-tower__metrics span {
+  color: #4f6271;
+  font-size: 0.54rem;
+  font-weight: 800;
+}
+
+.module-page .warehouse-control-tower__metrics strong {
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.module-page .warehouse-control-tower__metrics > div:first-child {
+  background: #edf3f7;
+  box-shadow: inset 0 4px 0 #4f6271;
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="NORMAL"] {
+  background: var(--status-normal-soft);
+  box-shadow: inset 0 4px 0 var(--status-normal);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="WARNING"] {
+  background: var(--status-warning-soft);
+  box-shadow: inset 0 4px 0 var(--status-warning);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="OVERDUE"] {
+  background: var(--status-overdue-soft);
+  box-shadow: inset 0 4px 0 var(--status-overdue);
+}
+
+.module-page .warehouse-control-tower__metrics [data-metric="AUTO_CLOSE"] {
+  background: var(--status-auto-close-soft);
+  box-shadow: inset 0 4px 0 var(--status-auto-close);
+}
+
+/* ==================== section headers ==================== */
+.module-page .movement-overview__header,
+.module-page .hourly-timeline-panel__header {
+  padding: 14px 16px 13px;
+  border-bottom: 1px solid #dbe5ec;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(135deg, #0f2940 0%, #1c4566 100%);
+}
+
+.module-page .movement-overview__header small,
+.module-page .hourly-timeline-panel__header small {
+  color: #71f0e0;
+  font-size: 0.54rem;
+  font-weight: 900;
+}
+
+.module-page .movement-overview__header h2,
+.module-page .hourly-timeline-panel__header h2 {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.module-page .movement-overview__header p,
+.module-page .hourly-timeline-panel__header p {
+  color: #d6e5ef;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.module-page .movement-scope-group,
+.module-page .timeline-mode-group {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.module-page .movement-scope-group button,
+.module-page .timeline-mode-group button {
+  color: #dbe7ee;
+  font-weight: 850;
+}
+
+.module-page .movement-scope-group button.is-active,
+.module-page .timeline-mode-group button.is-active {
+  color: var(--trusted-heading);
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 41, 64, 0.18);
+}
+
+.module-page .movement-overview__body {
+  gap: 14px;
+  padding: 14px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f4f8fb 100%);
+}
+
+/* ==================== movement analysis ==================== */
+.module-page .movement-round-countdown {
+  min-height: 42px;
+  border: 1px solid #bae9dd;
+  background: linear-gradient(135deg, #e8faf4, #f5fffc);
+  box-shadow: inset 4px 0 0 var(--flow-in);
+}
+
+.module-page .movement-round-countdown span {
+  color: #116252;
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+.module-page .movement-round-countdown strong {
+  color: #0c4f44;
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.module-page .movement-analysis {
+  border: 1px solid #c9d8e2;
+  border-left: 6px solid #5d7384;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 41, 64, 0.05);
+}
+
+.module-page .movement-overview[data-state="GOOD"] .movement-analysis,
+.module-page .movement-overview[data-state="NORMAL"] .movement-analysis {
+  border-left-color: var(--status-normal);
+  background: linear-gradient(135deg, #f2fbf5, #ffffff);
+}
+
+.module-page .movement-overview[data-state="WATCH"] .movement-analysis,
+.module-page .movement-overview[data-state="HIGH"] .movement-analysis {
+  border-left-color: var(--status-warning);
+  background: linear-gradient(135deg, #fff7ea, #ffffff);
+}
+
+.module-page .movement-overview[data-state="CRITICAL"] .movement-analysis {
+  border-left-color: var(--status-overdue);
+  background: linear-gradient(135deg, #fff1f1, #ffffff);
+}
+
+.module-page .movement-analysis span {
+  color: #4f6271;
+  font-size: 0.52rem;
+  font-weight: 850;
+}
+
+.module-page .movement-analysis strong {
+  color: var(--trusted-heading);
+  font-size: 0.82rem;
+  font-weight: 950;
+}
+
+.module-page .movement-analysis p {
+  color: #435666;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+/* ==================== movement metrics ==================== */
+.module-page .movement-primary-metrics,
+.module-page .movement-secondary-metrics {
+  gap: 8px;
+}
+
+.module-page .movement-primary-metrics > div {
+  min-height: 82px;
+  border: 1px solid var(--trusted-border);
+  border-radius: 13px;
+  box-shadow: 0 7px 16px rgba(15, 41, 64, 0.06);
+}
+
+.module-page .movement-primary-metrics > div::before {
+  height: 5px;
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"] {
+  background: var(--flow-in-soft);
+  border-color: #98ddd0;
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"]::before {
+  background: var(--flow-in);
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"] {
+  background: var(--flow-out-soft);
+  border-color: #a9c7fb;
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"]::before {
+  background: var(--flow-out);
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"] {
+  background: var(--flow-total-soft);
+  border-color: #c8d2dd;
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"]::before {
+  background: var(--flow-total);
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"] {
+  background: var(--flow-net-soft);
+  border-color: #d1bef7;
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"]::before {
+  background: var(--flow-net);
+}
+
+.module-page .movement-primary-metrics span {
+  color: #4e6170;
+  font-size: 0.5rem;
+  font-weight: 850;
+}
+
+.module-page .movement-primary-metrics strong {
+  margin-top: 4px;
+  font-size: 1.2rem;
+  font-weight: 950;
+}
+
+.module-page .movement-primary-metrics [data-metric="IN"] strong {
+  color: #0d7c62;
+}
+
+.module-page .movement-primary-metrics [data-metric="OUT"] strong {
+  color: #2158d8;
+}
+
+.module-page .movement-primary-metrics [data-metric="TOTAL"] strong {
+  color: #253342;
+}
+
+.module-page .movement-primary-metrics [data-metric="NET"] strong {
+  color: #6c2ed9;
+}
+
+.module-page .movement-primary-metrics small {
+  color: #697b89;
+  font-size: 0.44rem;
+  font-weight: 700;
+}
+
+.module-page .movement-secondary-metrics > div {
+  min-height: 38px;
+  border: 1px solid var(--trusted-border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.module-page .movement-secondary-metrics > div:nth-child(1) {
+  border-left: 5px solid var(--flow-out);
+  background: #f1f5ff;
+}
+
+.module-page .movement-secondary-metrics > div:nth-child(3) {
+  border-left: 5px solid var(--flow-total);
+  background: #f4f7fa;
+}
+
+.module-page .movement-secondary-metrics [data-metric="AUTO_CLOSE"] {
+  border-left: 5px solid var(--status-auto-close);
+  background: var(--status-auto-close-soft);
+}
+
+.module-page .movement-secondary-metrics [data-metric="OVERDUE"] {
+  border-left: 5px solid var(--status-overdue);
+  background: var(--status-overdue-soft);
+}
+
+.module-page .movement-secondary-metrics span {
+  color: #576a79;
+  font-size: 0.46rem;
+  font-weight: 800;
+}
+
+.module-page .movement-secondary-metrics strong {
+  color: var(--trusted-heading);
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+/* ==================== movement chart ==================== */
+.module-page .movement-chart-panel {
+  border: 1px solid var(--trusted-border);
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--trusted-text);
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 41, 64, 0.06);
+}
+
+.module-page .movement-chart-panel__header {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e3ebf1;
+}
+
+.module-page .movement-chart-panel__header > div:first-child span {
+  color: #2a7894;
+  font-size: 0.48rem;
+  font-weight: 900;
+}
+
+.module-page .movement-chart-panel__header > div:first-child strong {
+  color: var(--trusted-heading);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.module-page .movement-chart-legend {
+  gap: 10px;
+}
+
+.module-page .movement-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid #d9e3ea;
+  border-radius: 999px;
+  color: #4c6070;
+  background: #f7fafc;
+  font-size: 0.48rem;
+  font-weight: 850;
+}
+
+.module-page .movement-chart-legend span::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  content: "";
+}
+
+.module-page .movement-chart-legend [data-series="IN"]::before {
+  background: var(--flow-in);
+}
+
+.module-page .movement-chart-legend [data-series="OUT"]::before {
+  background: var(--flow-out);
+}
+
+.module-page .movement-mini-chart {
+  gap: 7px;
+  max-height: 300px;
+}
+
+.module-page .movement-chart-row {
+  grid-template-columns: 42px minmax(0, 1fr) 34px;
+  gap: 8px;
+}
+
+.module-page .movement-chart-row > strong {
+  color: var(--trusted-heading-2);
+  font-size: 0.54rem;
+  font-weight: 900;
+}
+
+.module-page .movement-chart-bars {
+  gap: 4px;
+}
+
+.module-page .movement-chart-bars > div {
+  height: 14px;
+  border: 1px solid #dbe5ec;
+  border-radius: 999px;
+  background: #edf2f6;
+}
+
+.module-page .movement-chart-bars span {
+  left: 6px;
+  color: #ffffff;
+  font-size: 0.42rem;
+  font-weight: 950;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+}
+
+.module-page .movement-chart-bars i {
+  background: linear-gradient(90deg, #0f9d7a 0%, #18b88f 100%);
+}
+
+.module-page .movement-chart-bars > div:last-child i {
+  background: linear-gradient(90deg, #2563eb 0%, #5a8cff 100%);
+}
+
+.module-page .movement-chart-bars b {
+  right: 6px;
+  color: var(--trusted-heading);
+  font-size: 0.44rem;
+  font-weight: 900;
+}
+
+.module-page .movement-chart-row > em {
+  color: var(--flow-net);
+  font-size: 0.54rem;
+  font-weight: 950;
+}
+
+.module-page .movement-chart-empty {
+  color: #607383;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+/* ==================== hourly timeline area ==================== */
+.module-page .hourly-timeline-panel {
+  overflow: hidden;
+}
+
+.module-page .timeline-focus-preview {
+  border: 1px solid var(--trusted-border);
+  border-left-width: 6px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  box-shadow: 0 6px 14px rgba(15, 41, 64, 0.06);
+}
+
+.module-page .timeline-focus-preview__time span {
+  color: #5e7180;
+  font-size: 0.48rem;
+  font-weight: 800;
+}
+
+.module-page .timeline-focus-preview__time strong {
+  color: var(--trusted-heading);
+  font-size: 0.84rem;
+  font-weight: 950;
+}
+
+.module-page .timeline-focus-preview__time small {
+  color: #4f6474;
+  font-size: 0.48rem;
+  font-weight: 650;
+}
+
+.module-page .timeline-focus-preview__metrics > div {
+  border: 1px solid var(--trusted-border);
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="IN"] {
+  background: var(--flow-in-soft);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="OUT"] {
+  background: var(--flow-out-soft);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="NET"] {
+  background: var(--flow-net-soft);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="TOTAL"] {
+  background: var(--flow-total-soft);
+}
+
+.module-page .timeline-focus-preview__metrics span {
+  color: #566979;
+  font-size: 0.43rem;
+  font-weight: 800;
+}
+
+.module-page .timeline-focus-preview__metrics strong {
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.module-page .timeline-apply-filter {
+  min-height: 34px;
+  border-radius: 10px;
+  font-size: 0.56rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #0f2940, #1a4a6d);
+  box-shadow: 0 8px 18px rgba(15, 41, 64, 0.2);
+}
+
+.module-page .hourly-timeline-stage {
+  border: 1px solid #d3dee6;
+  border-radius: 16px;
+  background: radial-gradient(circle at center, rgba(37, 99, 235, 0.08), transparent 38%), linear-gradient(180deg, #f4f8fb, #edf3f7);
+}
+
+.module-page .hourly-timeline-center-line {
+  width: 3px;
+  background: linear-gradient(180deg, transparent, #2563eb 22%, #2563eb 78%, transparent);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.3);
+}
+
+.module-page .hourly-timeline-center-line::before {
+  border-bottom-color: #2563eb;
+}
+
+.module-page .timeline-hour--movement:not(.is-centered) {
+  opacity: 0.34 !important;
+  filter: grayscale(0.18) blur(0.8px) !important;
+}
+
+.module-page .timeline-hour--movement.is-centered {
+  border: 2px solid #2563eb;
+  background: linear-gradient(145deg, #0f2940 0%, #2158d8 100%);
+  box-shadow: 0 24px 46px rgba(15, 41, 64, 0.28), 0 0 0 5px rgba(37, 99, 235, 0.12);
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__time,
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement small,
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement strong,
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net,
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net strong,
+.module-page .timeline-hour--movement.is-centered .timeline-hour__caption {
+  color: #ffffff;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement > span {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ==================== summary + tools ==================== */
+.module-page .vehicle-summary-grid {
+  gap: 8px;
+}
+
+.module-page .vehicle-summary-card {
+  min-height: 68px;
+  border: 1px solid var(--trusted-border);
+  border-radius: 13px;
+  box-shadow: 0 6px 16px rgba(15, 41, 64, 0.06);
+}
+
+.module-page .vehicle-summary-card > span {
+  font-size: 0.56rem;
+  font-weight: 850;
+}
+
+.module-page .vehicle-summary-card strong {
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+.module-page .vehicle-summary-card small {
+  font-size: 0.52rem;
+  font-weight: 700;
+}
+
+.module-page .vehicle-summary-card--normal {
+  background: var(--status-normal-soft);
+  border-color: #abd6b8;
+}
+
+.module-page .vehicle-summary-card--warning {
+  background: var(--status-warning-soft);
+  border-color: #efcb91;
+}
+
+.module-page .vehicle-summary-card--overdue {
+  background: var(--status-overdue-soft);
+  border-color: #efaaaa;
+}
+
+.module-page .vehicle-summary-card--incomplete {
+  background: #eff4f7;
+  border-color: #c7d3dc;
+}
+
+.module-page .vehicle-tools {
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.module-page .vehicle-search input,
+.module-page .vehicle-filter select {
+  min-height: 44px;
+  border: 1px solid #b7c7d2;
+  color: var(--trusted-heading);
+  background: #fbfdff;
+}
+
+.module-page .vehicle-search input::placeholder {
+  color: #7a8b97;
+}
+
+.module-page .vehicle-search input:focus,
+.module-page .vehicle-filter select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+
+/* ==================== vehicle list cards ==================== */
+.module-page .vehicle-result-header strong {
+  color: var(--trusted-heading);
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+.module-page .vehicle-card--professional {
+  border-radius: 15px;
+  border: 1px solid var(--trusted-border);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
+  box-shadow: 0 8px 20px rgba(15, 41, 64, 0.08);
+}
+
+.module-page .vehicle-card--professional[data-status="NORMAL"] {
+  border-color: #a8d8b6;
+  background: linear-gradient(180deg, #ffffff 0%, #f2fbf5 100%);
+}
+
+.module-page .vehicle-card--professional[data-status="WARNING"] {
+  border-color: #ebc57f;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ea 100%);
+}
+
+.module-page .vehicle-card--professional[data-status="OVERDUE"] {
+  border-color: #ea9d9d;
+  background: linear-gradient(180deg, #ffffff 0%, #fff0f0 100%);
+}
+
+.module-page .vehicle-card--professional[data-near-auto-close="TRUE"] {
+  border: 2px solid #b78bf1;
+  background: linear-gradient(180deg, #ffffff 0%, #f5efff 100%);
+}
+
+.module-page .vehicle-card--professional .vehicle-card__rail {
+  width: 6px;
+}
+
+.module-page .vehicle-card__rank {
+  font-size: 0.48rem;
+  font-weight: 900;
+}
+
+.module-page .vehicle-card--professional .vehicle-card__title {
+  color: var(--trusted-heading);
+  font-size: 0.83rem;
+  font-weight: 900;
+}
+
+.module-page .vehicle-card__primary-label {
+  color: #617482;
+  font-size: 0.5rem;
+  font-weight: 850;
+}
+
+.module-page .vehicle-card--professional .vehicle-status-badge {
+  min-height: 22px;
+  padding: 3px 8px;
+  font-size: 0.56rem;
+  font-weight: 900;
+}
+
+.module-page .vehicle-card--professional .vehicle-card__timer {
+  color: var(--trusted-heading-2);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.module-page .vehicle-progress__track {
+  height: 9px;
+  border: 1px solid #d7e1e7;
+  background: #edf2f6;
+}
+
+.module-page .vehicle-progress__labels {
+  color: #6d7f8d;
+  font-size: 0.44rem;
+  font-weight: 800;
+}
+
+.module-page .vehicle-card__priority-text {
+  border: 1px solid #d7e0e7;
+  border-radius: 9px;
+  color: #32485a;
+  background: #eff4f7;
+  font-size: 0.56rem;
+  font-weight: 800;
+}
+
+.module-page .vehicle-card--professional[data-status="WARNING"] .vehicle-card__priority-text {
+  border-color: #ebc57f;
+  color: #91540d;
+  background: #fff1d3;
+}
+
+.module-page .vehicle-card--professional[data-status="OVERDUE"] .vehicle-card__priority-text {
+  border-color: #eca3a3;
+  color: #a41f1f;
+  background: #ffe3e3;
+}
+
+.module-page .vehicle-card--professional[data-near-auto-close="TRUE"] .vehicle-card__priority-text {
+  border-color: #d4bbf6;
+  color: #612bc2;
+  background: #efe3ff;
+}
+
+.module-page .vehicle-card--professional .vehicle-field {
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.88);
+}
+
+.module-page .vehicle-card--professional .vehicle-field span {
+  color: #627482;
+  font-size: 0.49rem;
+  font-weight: 800;
+}
+
+.module-page .vehicle-card--professional .vehicle-field strong,
+.module-page .vehicle-card--professional .vehicle-field a {
+  color: var(--trusted-heading);
+  font-size: 0.58rem;
+  font-weight: 850;
+}
+
+.module-page .vehicle-card--professional .vehicle-in-time span {
+  color: #607382;
+  font-size: 0.49rem;
+  font-weight: 800;
+}
+
+.module-page .vehicle-card--professional .vehicle-in-time strong {
+  color: var(--trusted-heading);
+  font-size: 0.58rem;
+  font-weight: 850;
+}
+
+.module-page .vehicle-card--professional .button--checkout {
+  min-height: 36px;
+  border-radius: 9px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #0f2940 0%, #1a4a6d 100%);
+  box-shadow: 0 8px 18px rgba(15, 41, 64, 0.16);
+}
+
+/* ==================== mobile ==================== */
+@media (max-width: 679px) {
+  .module-page .warehouse-control-tower,
+  .module-page .movement-overview,
+  .module-page .hourly-timeline-panel,
+  .module-page .vehicle-tools {
+    border-radius: 16px;
+  }
+
+  .module-page .movement-overview__header,
+  .module-page .hourly-timeline-panel__header {
+    padding: 12px 12px 11px;
+  }
+
+  .module-page .movement-overview__header h2,
+  .module-page .hourly-timeline-panel__header h2 {
+    font-size: 0.92rem;
+  }
+
+  .module-page .movement-primary-metrics > div {
+    min-height: 76px;
+  }
+
+  .module-page .movement-chart-panel {
+    padding: 10px;
+  }
+
+  .module-page .movement-chart-row {
+    grid-template-columns: 38px minmax(0, 1fr) 30px;
+    gap: 6px;
+  }
+
+  .module-page .vehicle-summary-card {
+    min-height: 62px;
+  }
+
+  .module-page .vehicle-summary-card > span {
+    font-size: 0.52rem;
+  }
+
+  .module-page .vehicle-summary-card strong {
+    font-size: 1rem;
+  }
+
+  .module-page .vehicle-card--professional .vehicle-card__title {
+    font-size: 0.78rem;
+  }
+}
+
+@media (min-width: 680px) {
+  .module-page .warehouse-control-tower__metrics > div {
+    min-height: 72px;
+  }
+
+  .module-page .movement-chart-panel__header > div:first-child strong {
+    font-size: 0.78rem;
+  }
+
+  .module-page .vehicle-card--professional .vehicle-card__title {
+    font-size: 0.9rem;
+  }
+
+  .module-page .vehicle-card--professional .vehicle-card__timer {
+    font-size: 0.82rem;
+  }
+}
+
+@media (min-width: 920px) {
+  .module-page .movement-overview__body {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .module-page .movement-chart-row {
+    grid-template-columns: 46px minmax(0, 1fr) 36px;
+  }
+
+  .module-page .vehicle-summary-card strong {
+    font-size: 1.2rem;
+  }
+
+  .module-page .timeline-hour--movement.is-centered {
+    transform: translateY(-23px) scale(1.5) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-page .timeline-hour--movement,
+  .module-page .movement-chart-bars i,
+  .module-page .vehicle-card--professional,
+  .module-page .vehicle-progress__fill {
+    transition: none !important;
+  }
+}
