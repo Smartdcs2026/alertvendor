@@ -10,6 +10,7 @@
  * - เลื่อนไปยังช่องที่ต้องแก้ไขโดยอัตโนมัติ
  * - รักษาการเลื่อนภายใน Module Editor
  * - รองรับตัวเลือก “อื่นๆ” และกรอกเวลา Auto Close เอง
+ * - รองรับเวลา Auto Close แบบกำหนดเองตั้งแต่ 1–168 ชั่วโมง
  */
 (function (window, document) {
   'use strict';
@@ -373,9 +374,9 @@
         type: 'select',
         help: 'ค่ากลางทุก Module สำหรับรายการที่ยังไม่มีเวลาออก',
         featured: true,
-        options: [12, 24, 36, 48, 72, 96, 120, 168],
+        options: [1, 4, 8, 12, 24, 36, 48, 72, 96, 120, 168],
         allowCustom: true,
-        minimum: 12,
+        minimum: 1,
         maximum: 168
       },
       {
@@ -446,7 +447,7 @@
           options.includes(currentNumber);
 
         const minimum =
-          Number(definition.minimum || 12);
+          Number(definition.minimum || 1);
 
         const maximum =
           Number(definition.maximum || 168);
@@ -2342,7 +2343,7 @@
 
     if (
       !Number.isInteger(autoCloseHours) ||
-      autoCloseHours < 12 ||
+      autoCloseHours < 1 ||
       autoCloseHours > 168
     ) {
       const select =
@@ -2363,7 +2364,7 @@
       await Swal.fire({
         icon: 'warning',
         title: 'เวลาที่กำหนดไม่ถูกต้อง',
-        text: 'กรุณากรอกจำนวนเต็มตั้งแต่ 12 ถึง 168 ชั่วโมง',
+        text: 'กรุณากรอกจำนวนเต็มตั้งแต่ 1 ถึง 168 ชั่วโมง',
         confirmButtonText: 'แก้ไข'
       });
 
