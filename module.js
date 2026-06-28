@@ -23,6 +23,12 @@
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
 
+  const OVERDUE_BADGE_ICON_URL =
+    './icons/icon-192.png';
+
+  const OVERDUE_BADGE_FAVICON_SIZE =
+    64;
+
   const state = {
     moduleId: '',
     session: null,
@@ -54,6 +60,17 @@
     cardNodes: new Map(),
     alertRunning: false,
     userInteracted: false,
+
+    /*
+     * เก็บรายการ Active ก่อนซ่อนรายการครบ Auto Close
+     * เพื่อให้ badge ยังคงนับจนกว่า Backend จะบันทึก Timestamp Out จริง
+     */
+    badgeRecords: [],
+    overdueBadgeCount: -1,
+    baseDocumentTitle: document.title,
+    badgeIconImage: null,
+    badgeIconReady: false,
+
     destroyed: false
   };
 
@@ -63,6 +80,8 @@
   document.addEventListener('keydown', markUserInteraction, { once: true });
 
   async function initializePage() {
+    initializeOverdueBadgeSystem();
+
     if (typeof window.Swal === 'undefined') {
       console.error('ไม่พบ SweetAlert2');
       return;
@@ -684,6 +703,16 @@
         nextRecords;
 
       recalculateAllRecords();
+
+      /*
+       * สำเนารายการ Active ทั้งหมดหลังคำนวณสถานะ
+       * รายการนี้ไม่ถูกตัดออกจาก badge จนกว่า API รอบใหม่
+       * จะยืนยันว่ามี Timestamp Out แล้ว
+       */
+      state.badgeRecords =
+        state.records.slice();
+
+      updateOverdueBadgePresentation();
 
       const expiredCount =
         dropExpiredRecordsFromView();
@@ -1399,7 +1428,7 @@
       'ติดตามสถานะรถและตู้สินค้าในพื้นที่'
     );
 
-    document.title =
+    state.baseDocumentTitle =
       (
         module.name ||
         'สถานะรถ'
@@ -1409,6 +1438,10 @@
         CONFIG.APP_NAME ||
         'ระบบติดตามสถานะรถ'
       );
+
+    updateOverdueBadgePresentation(
+      true
+    );
 
     const calendarButton =
       document.getElementById(
@@ -4067,6 +4100,643 @@
       confirmButtonText: 'ปิด'
     });
   }
+
+  /************************************************************
+   * Dynamic Overdue App Badge
+   *
+   * ตัวเลข = รายการเกินเวลาสะสมทั้งหมดที่:
+   * - ยังอยู่ในพื้นที่
+   * - ยังไม่มี Timestamp Out
+   * - ข้ามเกณฑ์ OVERDUE ของโมดูลแล้ว
+   *
+   * ไม่รีเซ็ตเมื่อเปลี่ยนชั่วโมง
+   ************************************************************/
+
+  function initializeOverdueBadgeSystem() {
+    state.baseDocumentTitle =
+      String(document.title || '')
+        .replace(
+          /^\(\d+\+?\)\s*/,
+          ''
+        )
+        .trim() ||
+      'สถานะรถ';
+
+    const icon = new Image();
+
+    icon.decoding = 'async';
+
+    icon.addEventListener(
+      'load',
+      () => {
+        state.badgeIconReady = true;
+        updateDynamicFavicon(
+          Math.max(
+            0,
+            Number(
+              state.overdueBadgeCount
+            ) || 0
+          )
+        );
+      },
+      {
+        once: true
+      }
+    );
+
+    icon.addEventListener(
+      'error',
+      () => {
+        state.badgeIconReady = false;
+      },
+      {
+        once: true
+      }
+    );
+
+    icon.src =
+      OVERDUE_BADGE_ICON_URL;
+
+    state.badgeIconImage =
+      icon;
+
+    updateOverdueBadgePresentation(
+      true
+    );
+  }
+
+
+  function updateOverdueBadgePresentation(
+    force
+  ) {
+    const count =
+      calculateAccumulatedOverdueCount();
+
+    if (
+      force !== true &&
+      count ===
+        state.overdueBadgeCount
+    ) {
+      return;
+    }
+
+    state.overdueBadgeCount =
+      count;
+
+    updateVisibleOverdueBadge(
+      count
+    );
+
+    updateDocumentTitleBadge(
+      count
+    );
+
+    updateDynamicFavicon(
+      count
+    );
+
+    void updateSystemAppBadge(
+      count
+    );
+  }
+
+
+  function calculateAccumulatedOverdueCount() {
+    const records =
+      Array.isArray(
+        state.badgeRecords
+      )
+        ? state.badgeRecords
+        : [];
+
+    return records.filter(
+      isAccumulatedOverdueRecord
+    ).length;
+  }
+
+
+  function isAccumulatedOverdueRecord(
+    record
+  ) {
+    if (!record) {
+      return false;
+    }
+
+    if (
+      record.isCurrentlyInArea !==
+      true
+    ) {
+      return false;
+    }
+
+    if (
+      recordHasTimestampOut(
+        record
+      )
+    ) {
+      return false;
+    }
+
+    return (
+      record.statusCode ===
+        'OVERDUE' ||
+      record.isOverdue === true
+    );
+  }
+
+
+  function recordHasTimestampOut(
+    record
+  ) {
+    const directValues = [
+      record.timestampOut,
+      record.timestampOutDisplay,
+      record.timestampOutEpochMs
+    ];
+
+    if (
+      directValues.some(
+        hasMeaningfulTimestampValue
+      )
+    ) {
+      return true;
+    }
+
+    const fields =
+      Array.isArray(
+        record.fields
+      )
+        ? record.fields
+        : [];
+
+    return fields.some(
+      (field) => {
+        const label =
+          String(
+            field &&
+            (
+              field.label ||
+              field.name ||
+              field.id ||
+              ''
+            )
+          )
+            .trim()
+            .toLowerCase();
+
+        const isOutField =
+          label ===
+            'timestamp out' ||
+          label.includes(
+            'timestamp out'
+          ) ||
+          label.includes(
+            'เวลาออก'
+          );
+
+        return (
+          isOutField &&
+          hasMeaningfulTimestampValue(
+            field && field.value
+          )
+        );
+      }
+    );
+  }
+
+
+  function hasMeaningfulTimestampValue(
+    value
+  ) {
+    if (
+      value instanceof Date &&
+      !Number.isNaN(
+        value.getTime()
+      )
+    ) {
+      return true;
+    }
+
+    if (
+      typeof value ===
+      'number'
+    ) {
+      return (
+        Number.isFinite(value) &&
+        value > 0
+      );
+    }
+
+    const text =
+      String(
+        value === null ||
+        value === undefined
+          ? ''
+          : value
+      )
+        .trim()
+        .toLowerCase();
+
+    if (!text) {
+      return false;
+    }
+
+    return ![
+      '-',
+      '--',
+      'null',
+      'undefined',
+      'ยังไม่มีข้อมูล',
+      'ไม่มีข้อมูล'
+    ].includes(text);
+  }
+
+
+  function updateVisibleOverdueBadge(
+    count
+  ) {
+    const container =
+      document.getElementById(
+        'overdueAppBadge'
+      );
+
+    const countElement =
+      document.getElementById(
+        'overdueAppBadgeCount'
+      );
+
+    if (countElement) {
+      countElement.textContent =
+        count > 99
+          ? '99+'
+          : String(count);
+    }
+
+    if (container) {
+      container.dataset.count =
+        String(count);
+
+      container.classList.toggle(
+        'is-zero',
+        count <= 0
+      );
+
+      container.setAttribute(
+        'aria-label',
+        count > 0
+          ? (
+              'มีตู้เกินเวลาสะสม ' +
+              count +
+              ' ตู้ที่ยังไม่มีเวลาออก'
+            )
+          : 'ไม่มีตู้เกินเวลาค้าง'
+      );
+    }
+  }
+
+
+  function updateDocumentTitleBadge(
+    count
+  ) {
+    const baseTitle =
+      String(
+        state.baseDocumentTitle ||
+        document.title ||
+        'สถานะรถ'
+      )
+        .replace(
+          /^\(\d+\+?\)\s*/,
+          ''
+        )
+        .trim();
+
+    document.title =
+      count > 0
+        ? (
+            '(' +
+            (
+              count > 99
+                ? '99+'
+                : count
+            ) +
+            ') ' +
+            baseTitle
+          )
+        : baseTitle;
+  }
+
+
+  async function updateSystemAppBadge(
+    count
+  ) {
+    try {
+      if (
+        count > 0 &&
+        typeof navigator.setAppBadge ===
+          'function'
+      ) {
+        await navigator.setAppBadge(
+          count
+        );
+
+        return;
+      }
+
+      if (
+        count <= 0 &&
+        typeof navigator.clearAppBadge ===
+          'function'
+      ) {
+        await navigator.clearAppBadge();
+      }
+
+    } catch (error) {
+      /*
+       * บาง Browser ไม่รองรับหรือจำกัดสิทธิ์
+       * ระบบยังคงแสดง favicon และชื่อแท็บได้
+       */
+      console.debug(
+        'App Badge ไม่พร้อม',
+        error
+      );
+    }
+  }
+
+
+  function ensureDynamicFaviconLink() {
+    let link =
+      document.getElementById(
+        'dynamicFavicon'
+      );
+
+    if (!link) {
+      link =
+        document.createElement(
+          'link'
+        );
+
+      link.id =
+        'dynamicFavicon';
+
+      link.rel =
+        'icon';
+
+      link.type =
+        'image/png';
+
+      document.head.appendChild(
+        link
+      );
+    }
+
+    return link;
+  }
+
+
+  function updateDynamicFavicon(
+    count
+  ) {
+    const size =
+      OVERDUE_BADGE_FAVICON_SIZE;
+
+    const canvas =
+      document.createElement(
+        'canvas'
+      );
+
+    canvas.width =
+      size;
+
+    canvas.height =
+      size;
+
+    const context =
+      canvas.getContext(
+        '2d'
+      );
+
+    if (!context) {
+      return;
+    }
+
+    context.clearRect(
+      0,
+      0,
+      size,
+      size
+    );
+
+    if (
+      state.badgeIconReady &&
+      state.badgeIconImage
+    ) {
+      context.drawImage(
+        state.badgeIconImage,
+        0,
+        0,
+        size,
+        size
+      );
+
+    } else {
+      drawFallbackBadgeIcon(
+        context,
+        size
+      );
+    }
+
+    if (count > 0) {
+      drawFaviconBadge(
+        context,
+        size,
+        count
+      );
+    }
+
+    const link =
+      ensureDynamicFaviconLink();
+
+    link.href =
+      canvas.toDataURL(
+        'image/png'
+      );
+  }
+
+
+  function drawFallbackBadgeIcon(
+    context,
+    size
+  ) {
+    const radius =
+      12;
+
+    const gradient =
+      context.createLinearGradient(
+        0,
+        0,
+        size,
+        size
+      );
+
+    gradient.addColorStop(
+      0,
+      '#0b2f46'
+    );
+
+    gradient.addColorStop(
+      1,
+      '#0f766e'
+    );
+
+    context.fillStyle =
+      gradient;
+
+    context.beginPath();
+
+    context.roundRect(
+      0,
+      0,
+      size,
+      size,
+      radius
+    );
+
+    context.fill();
+
+    context.fillStyle =
+      '#ffffff';
+
+    context.font =
+      '800 21px Arial';
+
+    context.textAlign =
+      'center';
+
+    context.textBaseline =
+      'middle';
+
+    context.fillText(
+      'DC',
+      size / 2,
+      size / 2 + 1
+    );
+  }
+
+
+  function drawFaviconBadge(
+    context,
+    size,
+    count
+  ) {
+    const label =
+      count > 99
+        ? '99+'
+        : String(count);
+
+    const wide =
+      label.length >= 3;
+
+    const centerX =
+      wide
+        ? size - 17
+        : size - 14;
+
+    const centerY =
+      14;
+
+    const radiusX =
+      wide
+        ? 17
+        : 13;
+
+    const radiusY =
+      13;
+
+    context.save();
+
+    context.shadowColor =
+      'rgba(127, 29, 29, 0.42)';
+
+    context.shadowBlur =
+      4;
+
+    context.fillStyle =
+      '#ef2b2d';
+
+    context.beginPath();
+
+    context.ellipse(
+      centerX,
+      centerY,
+      radiusX,
+      radiusY,
+      0,
+      0,
+      Math.PI * 2
+    );
+
+    context.fill();
+
+    context.shadowBlur =
+      0;
+
+    context.lineWidth =
+      2;
+
+    context.strokeStyle =
+      '#ffffff';
+
+    context.stroke();
+
+    context.fillStyle =
+      '#ffffff';
+
+    context.font =
+      wide
+        ? '800 10px Arial'
+        : '800 15px Arial';
+
+    context.textAlign =
+      'center';
+
+    context.textBaseline =
+      'middle';
+
+    context.fillText(
+      label,
+      centerX,
+      centerY + 0.5
+    );
+
+    context.restore();
+  }
+
+
+  function clearOverdueBadgePresentation() {
+    state.badgeRecords =
+      [];
+
+    state.overdueBadgeCount =
+      0;
+
+    updateVisibleOverdueBadge(
+      0
+    );
+
+    updateDocumentTitleBadge(
+      0
+    );
+
+    updateDynamicFavicon(
+      0
+    );
+
+    void updateSystemAppBadge(
+      0
+    );
+  }
+
+
   function startClock() {
     updateClock();
 
@@ -4203,6 +4873,12 @@
         }
       }
     );
+
+    /*
+     * อัปเดต badge ทุกครั้งที่สถานะของรายการข้ามเกณฑ์
+     * แต่จะวาด favicon ใหม่เฉพาะเมื่อจำนวนเปลี่ยน
+     */
+    updateOverdueBadgePresentation();
 
     if (
       expiredRecordIds.length > 0
@@ -5134,6 +5810,7 @@
       Swal.close();
     }
 
+    clearOverdueBadgePresentation();
     redirectToLogin();
   }
 
@@ -5146,6 +5823,7 @@
       allowOutsideClick: false
     });
 
+    clearOverdueBadgePresentation();
     redirectToLogin();
   }
 
