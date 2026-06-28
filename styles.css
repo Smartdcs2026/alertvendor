@@ -11365,3 +11365,466 @@ body.admin-editor-open {
       none !important;
   }
 }
+
+/* =========================================================
+ * HIGH CONTRAST MOVEMENT UI — 2026-06-28 r17
+ * ปรับสีกราฟ ตัวเลื่อน ฟอนต์ และพื้นหลังให้แยกกันชัดเจน
+ * วางท้ายไฟล์เพื่อ override กฎรอบเก่าที่ซ้ำกัน
+ * ========================================================= */
+
+.module-page {
+  --flow-in: #009e60;
+  --flow-in-bright: #12c77b;
+  --flow-in-soft: #dcfce7;
+
+  --flow-out: #165dff;
+  --flow-out-bright: #3b82f6;
+  --flow-out-soft: #dbeafe;
+
+  --flow-net: #7c2de2;
+  --flow-net-soft: #ede9fe;
+
+  --flow-total: #1f3347;
+  --flow-total-soft: #e8eef4;
+}
+
+/* ---------- กราฟรายชั่วโมงด้านบน ---------- */
+.module-page .movement-chart-panel {
+  border: 1px solid #afc2d2 !important;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f3f8fc 100%) !important;
+  box-shadow:
+    0 12px 28px rgba(15, 41, 64, 0.12) !important;
+}
+
+.module-page .movement-chart-panel__header {
+  border-bottom-color: #c5d3df !important;
+}
+
+.module-page .movement-chart-panel__header > div:first-child span {
+  color: #006d79 !important;
+  font-size: 0.56rem !important;
+  font-weight: 950 !important;
+}
+
+.module-page .movement-chart-panel__header > div:first-child strong {
+  color: #102c44 !important;
+  font-size: 0.86rem !important;
+  font-weight: 950 !important;
+}
+
+.module-page .movement-chart-legend span {
+  border-color: #b9c9d6 !important;
+  color: #243b50 !important;
+  background: #ffffff !important;
+  font-size: 0.55rem !important;
+  font-weight: 900 !important;
+  box-shadow: 0 3px 8px rgba(15, 41, 64, 0.07);
+}
+
+.module-page .movement-chart-legend [data-series="IN"]::before {
+  background: var(--flow-in-bright) !important;
+  box-shadow: 0 0 0 3px rgba(18, 199, 123, 0.15);
+}
+
+.module-page .movement-chart-legend [data-series="OUT"]::before {
+  background: var(--flow-out-bright) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.module-page .movement-mini-chart {
+  gap: 9px !important;
+  max-height: 330px !important;
+  padding-right: 4px;
+  scrollbar-width: auto;
+  scrollbar-color: #466782 #dce6ee;
+}
+
+.module-page .movement-mini-chart::-webkit-scrollbar {
+  width: 10px;
+}
+
+.module-page .movement-mini-chart::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #dce6ee;
+}
+
+.module-page .movement-mini-chart::-webkit-scrollbar-thumb {
+  border: 2px solid #dce6ee;
+  border-radius: 999px;
+  background: #466782;
+}
+
+.module-page .movement-chart-row {
+  grid-template-columns: 48px minmax(0, 1fr) 40px !important;
+  gap: 9px !important;
+  padding: 2px 0;
+}
+
+.module-page .movement-chart-row > strong {
+  color: #0f2940 !important;
+  font-size: 0.64rem !important;
+  font-weight: 950 !important;
+}
+
+.module-page .movement-chart-bars {
+  gap: 5px !important;
+}
+
+.module-page .movement-chart-bars > div {
+  height: 18px !important;
+  overflow: hidden;
+  border: 1px solid #b9c8d4 !important;
+  background: #dce5ec !important;
+  box-shadow: inset 0 1px 2px rgba(15, 41, 64, 0.09);
+}
+
+.module-page .movement-chart-bars i {
+  background:
+    linear-gradient(90deg, #008d54 0%, #12c77b 100%) !important;
+  box-shadow: inset 0 -2px 0 rgba(0, 78, 48, 0.16);
+}
+
+.module-page .movement-chart-bars > div:last-child i {
+  background:
+    linear-gradient(90deg, #154fd1 0%, #3b82f6 100%) !important;
+  box-shadow: inset 0 -2px 0 rgba(12, 53, 145, 0.17);
+}
+
+.module-page .movement-chart-bars span {
+  left: 7px !important;
+  z-index: 2;
+  color: #ffffff !important;
+  font-size: 0.49rem !important;
+  font-weight: 950 !important;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.75),
+    0 0 3px rgba(0, 0, 0, 0.35) !important;
+}
+
+.module-page .movement-chart-bars b {
+  right: 7px !important;
+  z-index: 2;
+  color: #0d2235 !important;
+  font-size: 0.54rem !important;
+  font-weight: 950 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.module-page .movement-chart-row > em {
+  color: #6d28d9 !important;
+  font-size: 0.65rem !important;
+  font-weight: 950 !important;
+}
+
+/* ---------- กล่องสรุปชั่วโมงที่เลือก ---------- */
+.module-page .timeline-focus-preview {
+  border-color: #a9bdcc !important;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #edf4f9 100%) !important;
+  box-shadow:
+    0 9px 20px rgba(15, 41, 64, 0.11) !important;
+}
+
+.module-page .timeline-focus-preview__time span {
+  color: #445d70 !important;
+  font-size: 0.54rem !important;
+}
+
+.module-page .timeline-focus-preview__time strong {
+  color: #0b2942 !important;
+  font-size: 0.94rem !important;
+}
+
+.module-page .timeline-focus-preview__time small {
+  color: #3f596d !important;
+  font-size: 0.54rem !important;
+  font-weight: 750 !important;
+}
+
+.module-page .timeline-focus-preview__metrics > div {
+  border-color: #afc1cf !important;
+  box-shadow: 0 3px 8px rgba(15, 41, 64, 0.06);
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="IN"] {
+  border-color: #6dd9a8 !important;
+  background: #dcfce7 !important;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="OUT"] {
+  border-color: #7db0ff !important;
+  background: #dbeafe !important;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="NET"] {
+  border-color: #bca5f4 !important;
+  background: #ede9fe !important;
+}
+
+.module-page .timeline-focus-preview__metrics [data-metric="TOTAL"] {
+  border-color: #aebdca !important;
+  background: #e8eef4 !important;
+}
+
+.module-page .timeline-focus-preview__metrics span {
+  color: #334c60 !important;
+  font-size: 0.49rem !important;
+}
+
+.module-page .timeline-focus-preview__metrics strong {
+  font-size: 0.82rem !important;
+  font-weight: 950 !important;
+}
+
+/* ---------- Stage / Carousel ---------- */
+.module-page .hourly-timeline-stage {
+  overflow: hidden !important;
+  border: 1px solid #9fb5c6 !important;
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(37, 99, 235, 0.16),
+      transparent 34%
+    ),
+    linear-gradient(180deg, #dce8f1 0%, #edf4f8 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(91, 117, 137, 0.12);
+}
+
+.module-page .hourly-timeline-center-line {
+  width: 4px !important;
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      #165dff 18%,
+      #165dff 82%,
+      transparent
+    ) !important;
+  box-shadow:
+    0 0 14px rgba(22, 93, 255, 0.48) !important;
+}
+
+.module-page .hourly-timeline-center-line::before {
+  border-bottom-color: #165dff !important;
+}
+
+.module-page .hourly-timeline {
+  min-height: 208px !important;
+  gap: 15px !important;
+  padding-top: 38px !important;
+  padding-bottom: 34px !important;
+  scrollbar-width: auto !important;
+  scrollbar-color: #165dff #b9c9d6 !important;
+  scrollbar-gutter: stable;
+}
+
+.module-page .hourly-timeline::-webkit-scrollbar {
+  height: 16px;
+}
+
+.module-page .hourly-timeline::-webkit-scrollbar-track {
+  border: 1px solid #a8bac8;
+  border-radius: 999px;
+  background: #cbd8e2;
+  box-shadow: inset 0 1px 3px rgba(15, 41, 64, 0.13);
+}
+
+.module-page .hourly-timeline::-webkit-scrollbar-thumb {
+  min-width: 60px;
+  border: 3px solid #cbd8e2;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #154fd1 0%, #3b82f6 100%);
+  box-shadow: 0 2px 6px rgba(21, 79, 209, 0.32);
+}
+
+.module-page .hourly-timeline::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(90deg, #103da7 0%, #2563eb 100%);
+}
+
+/* การ์ดข้างต้องยังอ่านได้ ไม่จางหรือเบลอจนกลืนกับพื้นหลัง */
+.module-page .timeline-hour--movement {
+  min-width: 102px !important;
+  min-height: 126px !important;
+  flex-basis: 102px !important;
+  border: 1px solid #9fb4c4 !important;
+  color: #102a40 !important;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #eaf1f6 100%) !important;
+  box-shadow:
+    0 7px 16px rgba(15, 41, 64, 0.13) !important;
+}
+
+.module-page .timeline-hour--movement:not(.is-centered) {
+  opacity: var(--timeline-focus-opacity) !important;
+  filter: none !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__time {
+  color: #173d59 !important;
+  font-size: 0.72rem !important;
+  font-weight: 950 !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement {
+  gap: 5px !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement > span {
+  border: 1px solid #c0cfda;
+  background: #ffffff !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement > span:first-child {
+  border-color: #8cddb9;
+  background: #e4f9ee !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement > span:last-child {
+  border-color: #97bcfa;
+  background: #e5efff !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement small {
+  color: #3b5366 !important;
+  font-size: 0.48rem !important;
+  font-weight: 850 !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement strong {
+  font-size: 0.78rem !important;
+  font-weight: 950 !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement > span:first-child strong {
+  color: #00864f !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__movement > span:last-child strong {
+  color: #154fd1 !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__net {
+  color: #3e5669 !important;
+  font-size: 0.48rem !important;
+  font-weight: 800 !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__net strong {
+  color: #6d28d9 !important;
+  font-size: 0.70rem !important;
+  font-weight: 950 !important;
+}
+
+.module-page .timeline-hour--movement .timeline-hour__caption {
+  color: #40586b !important;
+  font-size: 0.46rem !important;
+  font-weight: 750 !important;
+}
+
+/* การ์ดตรงกลาง: สีเข้มชัด และตัวเลขเข้า/ออกคนละสี */
+.module-page .timeline-hour--movement.is-centered {
+  border: 2px solid #165dff !important;
+  color: #ffffff !important;
+  background:
+    linear-gradient(150deg, #0a2f55 0%, #174c9e 52%, #2563eb 100%) !important;
+  box-shadow:
+    0 24px 48px rgba(15, 41, 64, 0.36),
+    0 0 0 6px rgba(22, 93, 255, 0.16) !important;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__time {
+  color: #ffffff !important;
+  font-size: 0.98rem !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement > span {
+  border-color: rgba(255, 255, 255, 0.56) !important;
+  background: rgba(255, 255, 255, 0.13) !important;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement small {
+  color: #e8f1ff !important;
+  font-size: 0.54rem !important;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement > span:first-child strong {
+  color: #38e19a !important;
+  font-size: 0.94rem !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.26);
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__movement > span:last-child strong {
+  color: #9fc5ff !important;
+  font-size: 0.94rem !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.26);
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net,
+.module-page .timeline-hour--movement.is-centered .timeline-hour__caption {
+  color: #e8f1ff !important;
+}
+
+.module-page .timeline-hour--movement.is-centered .timeline-hour__net strong {
+  color: #e2c7ff !important;
+  font-size: 0.86rem !important;
+}
+
+/* ปุ่มโหมดให้แยกจากพื้นหัวชัด */
+.module-page .hourly-timeline-panel .timeline-mode-group {
+  border-color: rgba(255, 255, 255, 0.42) !important;
+  background: rgba(3, 21, 37, 0.32) !important;
+}
+
+.module-page .hourly-timeline-panel .timeline-mode-group button {
+  color: #ffffff !important;
+  font-weight: 850 !important;
+}
+
+.module-page .hourly-timeline-panel .timeline-mode-group button.is-active {
+  color: #0b3150 !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.24) !important;
+}
+
+@media (min-width: 920px) {
+  .module-page .timeline-hour--movement {
+    min-width: 116px !important;
+    flex-basis: 116px !important;
+  }
+}
+
+@media (max-width: 679px) {
+  .module-page .movement-chart-panel {
+    padding: 10px !important;
+  }
+
+  .module-page .movement-chart-row {
+    grid-template-columns: 42px minmax(0, 1fr) 34px !important;
+    gap: 7px !important;
+  }
+
+  .module-page .movement-chart-bars > div {
+    height: 17px !important;
+  }
+
+  .module-page .hourly-timeline {
+    min-height: 196px !important;
+    gap: 12px !important;
+    padding-top: 34px !important;
+    padding-bottom: 30px !important;
+  }
+
+  .module-page .timeline-hour--movement {
+    min-width: 96px !important;
+    min-height: 120px !important;
+    flex-basis: 96px !important;
+  }
+}
+
