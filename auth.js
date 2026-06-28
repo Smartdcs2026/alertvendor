@@ -274,12 +274,14 @@
         }
       }
 
-      await showSuccess(
-        'เข้าสู่ระบบสำเร็จ',
-        'กำลังเปิดหน้าหลัก'
-      );
-
+      /*
+       * เข้าสู่ระบบสำเร็จ:
+       * ปิด SweetAlert และเปิดหน้าหลักทันที
+       * ไม่ต้องให้ผู้ใช้กดปุ่ม "ตกลง"
+       */
+      Swal.close();
       redirectToDashboard();
+      return;
 
     } catch (error) {
       Swal.close();
