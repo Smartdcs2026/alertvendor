@@ -18,8 +18,20 @@
   </title>
 
   <link
+    id="dynamicFavicon"
+    rel="icon"
+    type="image/png"
+    href="./icons/favicon-64.png"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    href="./icons/apple-touch-icon.png"
+  >
+
+  <link
     rel="stylesheet"
-    href="./styles.css?v=20260628-r17-high-contrast-movement"
+    href="./styles.css?v=20260628-r18-accumulated-overdue-badge"
   >
 
   <script
@@ -38,7 +50,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260628-r17-high-contrast-carousel"
+    src="./module.js?v=20260628-r18-accumulated-overdue-badge"
     defer
   ></script>
 </head>
@@ -70,6 +82,24 @@
           <span aria-hidden="true">←</span>
           หน้าหลัก
         </button>
+
+        <div
+          id="overdueAppBadge"
+          class="overdue-app-badge is-zero"
+          data-count="0"
+          role="status"
+          aria-live="polite"
+          aria-label="ไม่มีตู้เกินเวลาค้าง"
+          title="จำนวนตู้เกินเวลาสะสมที่ยังไม่มีเวลาออก"
+        >
+          <span class="overdue-app-badge__label">
+            เกินเวลาค้าง
+          </span>
+
+          <strong id="overdueAppBadgeCount">
+            0
+          </strong>
+        </div>
 
         <div class="module-user">
           <span id="userDisplayName">
