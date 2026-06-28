@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -18,16 +19,61 @@
     content="light"
   >
 
+  <meta
+    name="mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="default"
+  >
+
+  <meta
+    name="apple-mobile-web-app-title"
+    content="Alert Vendor"
+  >
+
   <title>
     เข้าสู่ระบบ | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
+
+  <!-- PWA Manifest -->
   <link
-  rel="manifest"
-  href="./manifest.webmanifest"
->
+    rel="manifest"
+    href="./manifest.webmanifest?v=20260628"
+  >
+
+  <!-- Browser favicon -->
+  <link
+    rel="icon"
+    type="image/png"
+    sizes="64x64"
+    href="./icons/favicon-64.png?v=20260628"
+  >
+
+  <link
+    rel="icon"
+    type="image/png"
+    sizes="32x32"
+    href="./icons/favicon-32.png?v=20260628"
+  >
+
+  <!-- iPhone / iPad Home Screen -->
+  <link
+    rel="apple-touch-icon"
+    sizes="180x180"
+    href="./icons/apple-touch-icon.png?v=20260628"
+  >
+
   <link
     rel="stylesheet"
-    href="./styles.css"
+    href="./styles.css?v=20260628-login-icon"
   >
 
   <script
@@ -60,35 +106,17 @@
       class="login-card"
       aria-labelledby="loginTitle"
     >
-      <div
-        class="brand-mark"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 64 64"
-          role="img"
+      <!-- ไอคอนระบบจริง -->
+      <div class="brand-mark">
+        <img
+          class="brand-mark__image"
+          src="./icons/icon-192.png?v=20260628"
+          alt="ไอคอนระบบติดตามสถานะรถและตู้สินค้า"
+          width="96"
+          height="96"
+          loading="eager"
+          decoding="async"
         >
-          <path
-            d="M10 17h29c4 0 7 3 7 7v4h5l7 9v12h-5a8 8 0 0 1-16 0H27a8 8 0 0 1-16 0H6V21c0-2 2-4 4-4Z"
-            fill="currentColor"
-          />
-          <path
-            d="M46 33h5l4 5h-9v-5Z"
-            fill="#ffffff"
-          />
-          <circle
-            cx="19"
-            cy="49"
-            r="4"
-            fill="#ffffff"
-          />
-          <circle
-            cx="45"
-            cy="49"
-            r="4"
-            fill="#ffffff"
-          />
-        </svg>
       </div>
 
       <header class="login-header">
@@ -106,7 +134,9 @@
       </header>
 
       <div class="date-time-panel">
-        <span>วันที่และเวลาปัจจุบัน</span>
+        <span>
+          วันที่และเวลาปัจจุบัน
+        </span>
 
         <strong id="currentDateTime">
           --/--/---- --:--:--
@@ -189,3 +219,4 @@
   </noscript>
 </body>
 </html>
+
