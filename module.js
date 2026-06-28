@@ -2516,24 +2516,28 @@
           proximity *
           proximity;
 
+        /*
+         * High Contrast Carousel
+         * การ์ดด้านข้างยังต้องอ่านได้ ไม่ย่อหรือจางมากเกินไป
+         */
         const scale =
-          0.52 +
-          eased * 0.93;
+          0.72 +
+          eased * 0.50;
 
         const opacity =
-          0.18 +
-          proximity * 0.82;
+          0.58 +
+          proximity * 0.42;
 
         const blur =
           Math.max(
             0,
             (
               1 - proximity
-            ) * 1.4
+            ) * 0.20
           );
 
         const lift =
-          eased * -13;
+          eased * -10;
 
         item.style.setProperty(
           '--timeline-focus-scale',
