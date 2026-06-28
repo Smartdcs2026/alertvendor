@@ -1,11 +1,15 @@
 {
+  "id": "./",
   "name": "ระบบติดตามสถานะรถและตู้สินค้า",
   "short_name": "Alert Vendor",
+  "description": "ระบบติดตามสถานะรถและตู้สินค้าในพื้นที่คลัง",
+  "lang": "th",
   "start_url": "./login.html?source=pwa",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#eef4f8",
-  "theme_color": "#123e68",
+  "theme_color": "#0f3d5e",
   "icons": [
     {
       "src": "./icons/icon-192.png",
@@ -17,7 +21,13 @@
       "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
