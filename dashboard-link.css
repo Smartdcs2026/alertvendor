@@ -1,16 +1,17 @@
 /**
  * dashboard-link.css
- * ปุ่มเปิด Dashboard แบบกะทัดรัดในหน้า Module
+ * ROUND 3 — Compact Header + High Contrast Dashboard Button
  *
- * ไฟล์นี้แยกจาก styles.css เพื่อไม่กระทบส่วนอื่นของระบบ
+ * เป้าหมาย:
+ * - ปุ่ม Dashboard อ่านชัดเจน
+ * - Header หน้า Module เป็นระเบียบทั้ง Desktop และ Mobile
+ * - ไม่สร้างแถวปุ่มขนาดใหญ่
+ * - ไม่แก้ไข styles.css หรือ module.js
  */
 
-.module-page .module-clock.module-clock--with-dashboard {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
+/* =========================================================
+   Dashboard button
+   ========================================================= */
 
 .module-page .module-dashboard-launcher {
   display: inline-flex;
@@ -20,15 +21,15 @@
   min-width: 0;
   min-height: 32px;
   margin: 0;
-  padding: 5px 9px;
-  color: #ffffff;
+  padding: 6px 10px;
+  color: #ffffff !important;
   text-decoration: none;
-  border: 1px solid #0b6f91;
+  border: 1px solid #075f83;
   border-radius: 8px;
-  background: linear-gradient(135deg, #0f4e73, #0f7895);
-  box-shadow: 0 4px 10px rgba(15, 78, 115, 0.18);
-  font-size: 0.68rem;
-  font-weight: 850;
+  background: linear-gradient(135deg, #0d5278, #087da0);
+  box-shadow: 0 4px 10px rgba(8, 83, 121, 0.22);
+  font-size: 0.69rem;
+  font-weight: 900;
   line-height: 1;
   white-space: nowrap;
   transition:
@@ -37,11 +38,26 @@
     box-shadow 0.15s ease;
 }
 
+/*
+ * styles.css มี .module-clock span ที่กำหนดสีข้อความไว้
+ * จึงต้องกำหนดสีของข้อความปุ่มโดยตรงเพื่อไม่ให้ถูกทับ
+ */
+.module-page .module-title-row
+.module-clock
+.module-dashboard-launcher > span {
+  display: inline !important;
+  overflow: hidden;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .module-page .module-dashboard-launcher:hover,
 .module-page .module-dashboard-launcher:focus-visible {
-  color: #ffffff;
-  background: linear-gradient(135deg, #0b4263, #0b6f91);
-  box-shadow: 0 6px 14px rgba(15, 78, 115, 0.24);
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #093f60, #066b8d);
+  box-shadow: 0 6px 14px rgba(8, 83, 121, 0.28);
   transform: translateY(-1px);
   outline: none;
 }
@@ -54,68 +70,189 @@
   width: 15px;
   height: 15px;
   flex: 0 0 15px;
+  color: #ffffff !important;
 }
 
-.module-page .module-dashboard-launcher > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* =========================================================
+   Clock + Dashboard control
+   ========================================================= */
+
+.module-page .module-title-row
+.module-clock.module-clock--with-dashboard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 270px;
+  width: auto;
+  padding: 7px 9px;
 }
 
-.module-page .module-clock.module-clock--with-dashboard > span {
+/* ซ่อนข้อความ “วันที่และเวลาปัจจุบัน” เพื่อประหยัดพื้นที่ */
+.module-page .module-title-row
+.module-clock.module-clock--with-dashboard > span {
+  display: none !important;
+}
+
+.module-page .module-title-row
+.module-clock.module-clock--with-dashboard > strong {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #173f5b;
+  font-size: 0.73rem;
+  font-weight: 900;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.module-page .module-clock.module-clock--with-dashboard > strong {
-  text-align: right;
-}
+/* =========================================================
+   Desktop header cleanup
+   ========================================================= */
 
-/* จอคอมพิวเตอร์: ปุ่มอยู่ในแถบนาฬิกา ไม่สร้างแถวใหม่ */
-@media (min-width: 640px) {
-  .module-page .module-clock.module-clock--with-dashboard {
-    min-width: 360px;
+@media (min-width: 680px) {
+  .module-page .module-header__inner {
+    padding-top: 8px;
+    padding-bottom: 9px;
+  }
+
+  .module-page .module-title-row {
+    column-gap: 18px;
+    row-gap: 1px;
+    margin-top: 6px;
+  }
+
+  .module-page .module-title-row
+  .module-clock.module-clock--with-dashboard {
+    justify-self: end;
+    min-width: 285px;
+    max-width: 330px;
   }
 }
 
-/* มือถือ: ปุ่มอยู่ซ้าย และวันที่เวลาเรียงขวา 2 บรรทัด */
-@media (max-width: 639px) {
-  .module-page .module-clock.module-clock--with-dashboard {
+/* =========================================================
+   Mobile header cleanup
+   ========================================================= */
+
+@media (max-width: 679px) {
+  .module-page .module-header__inner {
+    padding: 7px 8px 8px;
+  }
+
+  /* แถวบน: หน้าหลัก | เกินเวลาค้าง | ออกจากระบบ */
+  .module-page .module-header__top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .module-page .module-header__top > #backButton {
+    grid-column: 1;
+  }
+
+  .module-page .module-header__top > .overdue-app-badge {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .module-page .module-header__top > .module-user {
+    display: contents;
+  }
+
+  .module-page .module-user > span {
+    display: none !important;
+  }
+
+  .module-page .module-user > #logoutButton {
+    grid-column: 3;
+  }
+
+  .module-page .module-header__top .icon-text-button {
+    min-height: 34px;
+    padding: 6px 8px;
+    border-radius: 9px;
+    font-size: 0.67rem;
+    white-space: nowrap;
+  }
+
+  /*
+   * แถวข้อมูล Module:
+   * บรรทัด 1 = LIVE VEHICLE STATUS + ชื่อ Module
+   * บรรทัด 2 = Dashboard + วันเวลา
+   */
+  .module-page .module-title-row {
     grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    gap: 1px 8px;
-    padding: 7px 8px;
+    grid-template-areas:
+      "live title"
+      "clock clock";
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 5px;
+    margin-top: 5px;
+  }
+
+  .module-page .module-live-label {
+    grid-area: live;
+    max-width: 82px;
+  }
+
+  .module-page .module-title-row h1 {
+    grid-area: title;
+  }
+
+  .module-page .module-title-description {
+    display: none !important;
+  }
+
+  .module-page .module-title-row
+  .module-clock.module-clock--with-dashboard {
+    grid-area: clock;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 6px 8px;
+    border-radius: 9px;
   }
 
   .module-page .module-dashboard-launcher {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-    align-self: stretch;
-    min-height: 38px;
-    padding: 5px 8px;
+    min-height: 34px;
+    padding: 5px 9px;
     border-radius: 8px;
-    font-size: 0.66rem;
+    font-size: 0.67rem;
   }
 
-  .module-page .module-clock.module-clock--with-dashboard > span {
-    grid-column: 2;
-    grid-row: 1;
-    font-size: 0.56rem;
-    line-height: 1.15;
-    text-align: right;
-  }
-
-  .module-page .module-clock.module-clock--with-dashboard > strong {
-    grid-column: 2;
-    grid-row: 2;
-    font-size: 0.68rem;
-    line-height: 1.2;
-    text-align: right;
+  .module-page .module-title-row
+  .module-clock.module-clock--with-dashboard > strong {
+    overflow: hidden;
+    font-size: 0.67rem;
+    text-overflow: ellipsis;
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 390px) {
+  .module-page .module-header__top {
+    gap: 4px;
+  }
+
+  .module-page .module-header__top .icon-text-button {
+    padding-inline: 7px;
+    font-size: 0.62rem;
+  }
+
+  .module-page .module-title-row {
+    column-gap: 5px;
+  }
+
+  .module-page .module-live-label {
+    max-width: 68px;
+    font-size: 0.36rem;
+  }
+
   .module-page .module-dashboard-launcher {
     gap: 4px;
     padding-inline: 7px;
@@ -125,5 +262,10 @@
     width: 14px;
     height: 14px;
     flex-basis: 14px;
+  }
+
+  .module-page .module-title-row
+  .module-clock.module-clock--with-dashboard > strong {
+    font-size: 0.61rem;
   }
 }
