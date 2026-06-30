@@ -1,11 +1,6 @@
 /**
  * dashboard-link.js
- * ปุ่มเปิด Dashboard แบบกะทัดรัดในหน้า Module
- *
- * หลักการ:
- * - ไม่แทรกปุ่มเป็นแถวใหม่ใน .module-title-row
- * - ย้ายปุ่มเข้าไปอยู่ภายใน .module-clock
- * - ไม่แก้ไข Logic ของ module.js
+ * เพิ่มปุ่ม Dashboard แบบกะทัดรัดในแถบเวลา Module
  */
 (function (window, document) {
   'use strict';
