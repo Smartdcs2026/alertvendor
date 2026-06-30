@@ -6,6 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
+ * - รองรับ Receiving Flow, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
  */
 (function (window) {
   'use strict';
@@ -996,6 +997,55 @@
                 config.date ||
                 ''
             }
+          }
+        );
+
+      return response.data;
+    },
+
+
+
+    async getReceivingFlow(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(moduleId) +
+          '/receiving-flow',
+          {
+            query: {
+              mode: config.mode || 'ACTIVE'
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async completeReceiving(
+      moduleId,
+      record
+    ) {
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(moduleId) +
+          '/receiving-complete',
+          {
+            method: 'POST',
+            timeoutMs:
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+            body: record || {}
           }
         );
 
