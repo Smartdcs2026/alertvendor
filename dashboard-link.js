@@ -1,129 +1,73 @@
 /**
  * dashboard-link.js
- * เพิ่มปุ่ม Dashboard ในทุกหน้า Module
+ * ปุ่มเปิด Dashboard แบบกะทัดรัดในหน้า Module
  *
- * ไม่แก้ไข Logic ของ module.js
+ * หลักการ:
+ * - ไม่แทรกปุ่มเป็นแถวใหม่ใน .module-title-row
+ * - ย้ายปุ่มเข้าไปอยู่ภายใน .module-clock
+ * - ไม่แก้ไข Logic ของ module.js
  */
-(function (
-  window,
-  document
-) {
+(function (window, document) {
   'use strict';
 
-  document.addEventListener(
-    'DOMContentLoaded',
-    initializeDashboardLink
-  );
+  document.addEventListener('DOMContentLoaded', initializeDashboardLink);
 
   function initializeDashboardLink() {
-    if (
-      !document.body ||
-      document.body.dataset.page !==
-        'module'
-    ) {
+    if (!document.body || document.body.dataset.page !== 'module') {
       return;
     }
 
-    if (
-      document.getElementById(
-        'moduleDashboardLauncher'
-      )
-    ) {
+    const titleRow = document.querySelector('.module-title-row');
+    const clock = titleRow?.querySelector('.module-clock');
+
+    if (!titleRow || !clock) {
       return;
     }
 
-    const titleRow =
-      document.querySelector(
-        '.module-title-row'
-      );
-
-    if (!titleRow) {
-      return;
-    }
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-    const moduleId =
-      String(
-        params.get('id') || ''
-      ).trim();
+    const params = new URLSearchParams(window.location.search);
+    const moduleId = String(params.get('id') || '').trim();
 
     if (!moduleId) {
       return;
     }
 
-    const link =
-      document.createElement(
-        'a'
-      );
+    let link = document.getElementById('moduleDashboardLauncher');
 
-    link.id =
-      'moduleDashboardLauncher';
-
-    link.className =
-      'module-dashboard-launcher';
+    if (!link) {
+      link = document.createElement('a');
+      link.id = 'moduleDashboardLauncher';
+      link.className = 'module-dashboard-launcher';
+    }
 
     link.href =
-      './dashboard/index.html?module=' +
-      encodeURIComponent(
-        moduleId
-      );
+      './dashboard/index.html?module=' + encodeURIComponent(moduleId);
 
-    link.setAttribute(
-      'aria-label',
-      'เปิด Dashboard ของโมดูลนี้'
-    );
+    link.setAttribute('aria-label', 'เปิด Dashboard ของโมดูลนี้');
+    link.setAttribute('title', 'เปิด Dashboard');
 
     link.innerHTML = `
-      <span
+      <svg
         class="module-dashboard-launcher__icon"
+        viewBox="0 0 24 24"
         aria-hidden="true"
+        focusable="false"
       >
-        <svg
-          viewBox="0 0 24 24"
-          focusable="false"
-        >
-          <path
-            d="M4 19V9m5 10V5m5 14v-7m5 7V3"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round"
-          />
-        </svg>
-      </span>
+        <path
+          d="M4 19V9m5 10V5m5 14v-7m5 7V3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+        />
+      </svg>
 
-      <span>
-        <small>ANALYTICS</small>
-        <strong>เปิด Dashboard</strong>
-      </span>
-
-      <span
-        class="module-dashboard-launcher__arrow"
-        aria-hidden="true"
-      >
-        →
-      </span>
+      <span>Dashboard</span>
     `;
 
-    const clock =
-      titleRow.querySelector(
-        '.module-clock'
-      );
+    clock.classList.add('module-clock--with-dashboard');
 
-    if (clock) {
-      titleRow.insertBefore(
-        link,
-        clock
-      );
-
-    } else {
-      titleRow.appendChild(
-        link
-      );
+    if (link.parentElement !== clock) {
+      clock.insertBefore(link, clock.firstChild);
     }
   }
 })(window, document);
