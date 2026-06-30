@@ -1034,3 +1034,325 @@ body.dashboard-page {
       100%;
   }
 }
+
+/* =========================================================
+   EXECUTIVE DESKTOP LAYOUT — ROUND 2
+   กระชับสำหรับจอคอมพิวเตอร์และห้องประชุมผู้บริหาร
+   ========================================================= */
+
+@media (min-width: 1180px) {
+  .dashboard-page .dashboard-header__inner,
+  .dashboard-page .dashboard-main {
+    width:
+      min(1560px, calc(100% - 40px));
+  }
+
+  .dashboard-page .dashboard-header__inner {
+    padding:
+      14px 0 22px;
+  }
+
+  .dashboard-page .dashboard-header__top {
+    min-height:
+      38px;
+  }
+
+  .dashboard-page .dashboard-title {
+    align-items:
+      center;
+    margin-top:
+      16px;
+  }
+
+  .dashboard-page .dashboard-eyebrow {
+    margin-bottom:
+      3px;
+    font-size:
+      10px;
+  }
+
+  .dashboard-page .dashboard-title h1 {
+    font-size:
+      clamp(25px, 2.15vw, 34px);
+  }
+
+  .dashboard-page .dashboard-title p:last-child {
+    margin-top:
+      5px;
+    font-size:
+      13px;
+  }
+
+  .dashboard-page .dashboard-user-panel {
+    min-width:
+      205px;
+    padding:
+      10px 13px;
+    border-radius:
+      13px;
+  }
+
+  .dashboard-page .dashboard-user-panel strong {
+    margin:
+      1px 0;
+    font-size:
+      15px;
+  }
+
+  .dashboard-page .dashboard-user-panel span,
+  .dashboard-page .dashboard-user-panel small {
+    font-size:
+      11px;
+  }
+
+  .dashboard-page .dashboard-main {
+    padding:
+      16px 0 32px;
+  }
+
+  .dashboard-page .dashboard-notice {
+    min-height:
+      52px;
+    padding:
+      10px 14px;
+    border-radius:
+      12px;
+  }
+
+  .dashboard-page .dashboard-notice div span,
+  .dashboard-page .dashboard-notice > span {
+    font-size:
+      11px;
+  }
+
+  .dashboard-page .dashboard-filter-bar {
+    min-height:
+      62px;
+    margin-top:
+      12px;
+    padding:
+      10px 13px;
+    border-radius:
+      14px;
+  }
+
+  .dashboard-page .dashboard-segmented button {
+    min-height:
+      32px;
+    padding:
+      5px 10px;
+    font-size:
+      12px;
+  }
+
+  .dashboard-page .dashboard-thresholds span {
+    min-width:
+      102px;
+    padding:
+      6px 9px;
+    border-radius:
+      9px;
+  }
+
+  .dashboard-page .dashboard-kpi-grid {
+    grid-template-columns:
+      repeat(8, minmax(0, 1fr));
+    gap:
+      10px;
+    margin-top:
+      12px;
+  }
+
+  .dashboard-page .dashboard-kpi {
+    min-height:
+      94px;
+    padding:
+      13px 13px 11px;
+    border-radius:
+      14px;
+    box-shadow:
+      0 8px 20px rgba(31,68,92,.065);
+  }
+
+  .dashboard-page .dashboard-kpi::before {
+    width:
+      4px;
+  }
+
+  .dashboard-page .dashboard-kpi span {
+    font-size:
+      11px;
+  }
+
+  .dashboard-page .dashboard-kpi strong {
+    margin:
+      7px 0 3px;
+    font-size:
+      clamp(21px, 1.65vw, 28px);
+  }
+
+  .dashboard-page .dashboard-kpi small {
+    overflow:
+      hidden;
+    font-size:
+      9px;
+    line-height:
+      1.25;
+    text-overflow:
+      ellipsis;
+    white-space:
+      nowrap;
+  }
+
+  .dashboard-page .dashboard-chart-grid {
+    display:
+      grid;
+    grid-template-columns:
+      repeat(12, minmax(0, 1fr));
+    gap:
+      12px;
+    margin-top:
+      12px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel {
+    min-width:
+      0;
+    padding:
+      13px 14px 11px;
+    border-radius:
+      15px;
+    box-shadow:
+      0 9px 24px rgba(31,68,92,.07);
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(1) {
+    grid-column:
+      span 8;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(2) {
+    grid-column:
+      span 4;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(3) {
+    grid-column:
+      span 4;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(4) {
+    grid-column:
+      span 8;
+  }
+
+  .dashboard-page .dashboard-panel--wide {
+    grid-column:
+      auto;
+  }
+
+  .dashboard-page .dashboard-panel__header {
+    min-height:
+      38px;
+    margin-bottom:
+      7px;
+    gap:
+      10px;
+  }
+
+  .dashboard-page .dashboard-panel__header small {
+    font-size:
+      8px;
+  }
+
+  .dashboard-page .dashboard-panel__header h2 {
+    margin-top:
+      1px;
+    font-size:
+      14px;
+    line-height:
+      1.25;
+  }
+
+  .dashboard-page .dashboard-panel__header > span {
+    font-size:
+      10px;
+  }
+
+  .dashboard-page .dashboard-chart-wrap,
+  .dashboard-page .dashboard-chart-wrap--line,
+  .dashboard-page .dashboard-chart-wrap--bar {
+    min-height:
+      0;
+    height:
+      238px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(1)
+  .dashboard-chart-wrap {
+    height:
+      248px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(2)
+  .dashboard-chart-wrap {
+    height:
+      248px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(3)
+  .dashboard-chart-wrap {
+    height:
+      226px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(4)
+  .dashboard-chart-wrap {
+    height:
+      226px;
+  }
+
+  .dashboard-page .dashboard-chart-empty {
+    min-height:
+      100%;
+    font-size:
+      12px;
+  }
+
+  .dashboard-page .dashboard-record-panel {
+    margin-top:
+      12px;
+    padding:
+      15px;
+  }
+
+  .dashboard-page .dashboard-record-header {
+    margin-bottom:
+      11px;
+  }
+}
+
+@media (min-width: 1500px) {
+  .dashboard-page .dashboard-chart-wrap,
+  .dashboard-page .dashboard-chart-wrap--line,
+  .dashboard-page .dashboard-chart-wrap--bar {
+    height:
+      250px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(1)
+  .dashboard-chart-wrap,
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(2)
+  .dashboard-chart-wrap {
+    height:
+      260px;
+  }
+
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(3)
+  .dashboard-chart-wrap,
+  .dashboard-page .dashboard-chart-grid > .dashboard-panel:nth-child(4)
+  .dashboard-chart-wrap {
+    height:
+      238px;
+  }
+}
