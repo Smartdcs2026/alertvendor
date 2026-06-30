@@ -188,6 +188,11 @@
         'dashboardRefreshButton'
       );
 
+    const fullscreenButton =
+      document.getElementById(
+        'dashboardFullscreenButton'
+      );
+
     const periodGroup =
       document.getElementById(
         'dashboardPeriodGroup'
@@ -222,6 +227,25 @@
           });
         }
       );
+
+    fullscreenButton &&
+      fullscreenButton.addEventListener(
+        'click',
+        toggleDashboardFullscreen
+      );
+
+    document.addEventListener(
+      'fullscreenchange',
+      syncFullscreenButton
+    );
+
+    window.addEventListener(
+      'resize',
+      debounce(
+        resizeDashboardCharts,
+        120
+      )
+    );
 
     periodGroup &&
       periodGroup.addEventListener(
@@ -1934,6 +1958,9 @@
             'td'
           );
 
+        titleCell.dataset.label =
+          'ตู้/รายการ';
+
         titleCell.innerHTML = `
           <strong>${escapeHtml(getRecordTitle(record))}</strong>
           <small>${escapeHtml(getRecordSecondary(record))}</small>
@@ -1943,6 +1970,9 @@
           document.createElement(
             'td'
           );
+
+        detailCell.dataset.label =
+          'ข้อมูลประกอบ';
 
         detailCell.textContent =
           getRecordDetails(
@@ -1954,6 +1984,9 @@
             'td'
           );
 
+        inCell.dataset.label =
+          'เวลาเข้า';
+
         inCell.textContent =
           record.timestampIn ||
           '-';
@@ -1962,6 +1995,9 @@
           document.createElement(
             'td'
           );
+
+        durationCell.dataset.label =
+          'ระยะเวลา';
 
         durationCell.textContent =
           formatDurationCompact(
@@ -1972,6 +2008,9 @@
           document.createElement(
             'td'
           );
+
+        statusCell.dataset.label =
+          'สถานะ';
 
         statusCell.innerHTML = `
           <span
@@ -2548,6 +2587,82 @@
       key
     ] =
       null;
+  }
+
+  async function toggleDashboardFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.warn(
+        'ไม่สามารถเปิดโหมดเต็มจอได้',
+        error
+      );
+    }
+  }
+
+  function syncFullscreenButton() {
+    const button =
+      document.getElementById(
+        'dashboardFullscreenButton'
+      );
+
+    if (!button) {
+      return;
+    }
+
+    const isFullscreen =
+      Boolean(
+        document.fullscreenElement
+      );
+
+    button.setAttribute(
+      'aria-pressed',
+      isFullscreen
+        ? 'true'
+        : 'false'
+    );
+
+    const label =
+      button.querySelector(
+        '[data-fullscreen-label]'
+      );
+
+    if (label) {
+      label.textContent =
+        isFullscreen
+          ? 'ออกจากเต็มจอ'
+          : 'เต็มจอ';
+    }
+
+    document.body.dataset.fullscreen =
+      isFullscreen
+        ? 'TRUE'
+        : 'FALSE';
+
+    window.setTimeout(
+      resizeDashboardCharts,
+      80
+    );
+  }
+
+  function resizeDashboardCharts() {
+    Object.values(
+      state.charts
+    ).forEach(
+      (chart) => {
+        if (
+          chart &&
+          typeof chart.resize ===
+            'function'
+        ) {
+          chart.resize();
+        }
+      }
+    );
   }
 
   function goBackToModule() {
