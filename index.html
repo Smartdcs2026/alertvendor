@@ -13,17 +13,29 @@
     content="#0f3d5e"
   >
 
+  <meta
+    name="color-scheme"
+    content="light"
+  >
+
   <title>
-    หน้าหลัก | ระบบติดตามสถานะรถและตู้สินค้า
+    Dashboard | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
 
   <link
-  rel="manifest"
-  href="./manifest.webmanifest"
->
+    rel="icon"
+    type="image/png"
+    href="../icons/favicon-64.png"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    href="../icons/apple-touch-icon.png"
+  >
+
   <link
     rel="stylesheet"
-    href="./styles.css"
+    href="./dashboard.css?v=20260630-r1"
   >
 
   <script
@@ -32,226 +44,352 @@
   ></script>
 
   <script
-    src="./config.js"
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
     defer
   ></script>
 
   <script
-    src="./api.js"
+    src="./dashboard-config.js?v=20260630-r1"
     defer
   ></script>
 
   <script
-    src="./auth.js"
+    src="./dashboard-api.js?v=20260630-r1"
+    defer
+  ></script>
+
+  <script
+    src="./dashboard.js?v=20260630-r1"
     defer
   ></script>
 </head>
 
-<body
-  data-page="dashboard"
-  class="dashboard-page"
->
+<body class="dashboard-page">
   <div
-    id="pageLoading"
-    class="page-loading"
+    id="dashboardLoading"
+    class="dashboard-loading"
   >
-    <div class="spinner"></div>
+    <div class="dashboard-spinner"></div>
 
     <span>
-      กำลังตรวจสอบการเข้าสู่ระบบ
+      กำลังเตรียม Dashboard
     </span>
   </div>
 
-  <header class="app-header">
-    <div class="app-header__content">
-      <div class="app-brand">
-        <div
-          class="app-brand__icon"
-          aria-hidden="true"
+  <header class="dashboard-header">
+    <div class="dashboard-header__inner">
+      <div class="dashboard-header__top">
+        <button
+          id="dashboardBackButton"
+          class="dashboard-button dashboard-button--ghost"
+          type="button"
         >
-          รถ
-        </div>
+          <span aria-hidden="true">←</span>
+          กลับหน้าสถานะ
+        </button>
 
-        <div>
-          <p>
-            VEHICLE STATUS
-          </p>
+        <div class="dashboard-header__actions">
+          <span
+            id="dashboardConnection"
+            class="dashboard-connection"
+            data-state="LOADING"
+          >
+            กำลังเชื่อมต่อ
+          </span>
 
-          <h1>
-            ระบบติดตามสถานะรถและตู้สินค้า
-          </h1>
+          <button
+            id="dashboardRefreshButton"
+            class="dashboard-button dashboard-button--primary"
+            type="button"
+          >
+            รีเฟรช
+          </button>
         </div>
       </div>
 
-      <div class="header-actions">
-        <a
-          id="adminButton"
-          class="button button--admin button--compact is-hidden"
-          href="./admin.html"
-        >
-          จัดการระบบ
-        </a>
+      <div class="dashboard-title">
+        <div>
+          <p class="dashboard-eyebrow">
+            VEHICLE CONTROL TOWER
+          </p>
 
-        <button
-          id="changePasswordButton"
-          class="button button--secondary button--compact"
-          type="button"
-        >
-          เปลี่ยนรหัสผ่าน
-        </button>
+          <h1 id="dashboardModuleTitle">
+            กำลังโหลดข้อมูลโมดูล
+          </h1>
 
-        <button
-          id="logoutButton"
-          class="button button--danger-ghost button--compact"
-          type="button"
-        >
-          ออกจากระบบ
-        </button>
+          <p id="dashboardModuleDescription">
+            Dashboard วิเคราะห์ข้อมูลรถและตู้สินค้า
+          </p>
+        </div>
+
+        <div class="dashboard-user-panel">
+          <span>ผู้ใช้งาน</span>
+
+          <strong id="dashboardUserName">
+            -
+          </strong>
+
+          <small id="dashboardCurrentDateTime">
+            --/--/---- --:--:--
+          </small>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="dashboard-container">
-    <section class="welcome-panel">
+  <main class="dashboard-main">
+    <section class="dashboard-notice">
       <div>
-        <p class="eyebrow">
-          ยินดีต้อนรับ
-        </p>
+        <strong>Dashboard แบบอ่านอย่างเดียว</strong>
 
-        <h2 id="displayName">
-          กำลังโหลด...
-        </h2>
+        <span>
+          แยกออกจากหน้าปฏิบัติการเดิม และไม่บันทึกหรือแก้ไขข้อมูลต้นทาง
+        </span>
+      </div>
 
-        <div class="user-detail-row">
-          <span>
-            ชื่อผู้ใช้:
-            <strong id="usernameDisplay">
-              -
-            </strong>
-          </span>
+      <span id="dashboardLastUpdated">
+        ยังไม่ได้โหลดข้อมูล
+      </span>
+    </section>
 
-          <span
-            id="roleBadge"
-            class="role-badge"
-            data-role="USER"
+    <section class="dashboard-filter-bar">
+      <div>
+        <span>ช่วงข้อมูลกราฟเข้า–ออก</span>
+
+        <div
+          id="dashboardPeriodGroup"
+          class="dashboard-segmented"
+        >
+          <button
+            type="button"
+            data-period="ROLLING_24"
+            class="is-active"
           >
-            <strong id="roleDisplay">
-              -
-            </strong>
-          </span>
+            ย้อนหลัง 24 ชม.
+          </button>
+
+          <button
+            type="button"
+            data-period="TODAY"
+          >
+            วันนี้
+          </button>
         </div>
       </div>
 
-      <div class="welcome-time">
+      <div class="dashboard-thresholds">
         <span>
-          วันที่และเวลาปัจจุบัน
+          เฝ้าระวัง
+          <strong id="dashboardWarningThreshold">--</strong>
         </span>
 
-        <strong id="currentDateTime">
-          --/--/---- --:--:--
-        </strong>
+        <span>
+          เกินเวลา
+          <strong id="dashboardOverdueThreshold">--</strong>
+        </span>
 
-        <small>
-          Session หมดอายุ:
-          <span id="sessionExpiry">
-            -
-          </span>
-        </small>
+        <span>
+          เคลียร์อัตโนมัติ
+          <strong id="dashboardAutoCloseThreshold">--</strong>
+        </span>
       </div>
     </section>
 
     <section
-      class="summary-grid"
-      aria-label="สรุประบบ"
+      class="dashboard-kpi-grid"
+      aria-label="สรุปข้อมูลสำคัญ"
     >
-      <article class="summary-card">
-        <span class="summary-card__label">
-          โมดูลที่เข้าถึงได้
-        </span>
-
-        <strong
-          id="moduleCount"
-          class="summary-card__value"
-        >
-          0
-        </strong>
-
-        <span class="summary-card__unit">
-          ระบบ
-        </span>
+      <article class="dashboard-kpi" data-tone="IN">
+        <span>เข้า</span>
+        <strong id="kpiIn">0</strong>
+        <small>ตู้</small>
       </article>
 
-      <article class="summary-card">
-        <span class="summary-card__label">
-          สถานะการเชื่อมต่อ
-        </span>
+      <article class="dashboard-kpi" data-tone="OUT">
+        <span>ออกทั้งหมด</span>
+        <strong id="kpiOut">0</strong>
+        <small>ตู้</small>
+      </article>
 
-        <strong class="summary-card__status">
-          พร้อมใช้งาน
-        </strong>
+      <article class="dashboard-kpi" data-tone="ACTIVE">
+        <span>อยู่ในพื้นที่</span>
+        <strong id="kpiActive">0</strong>
+        <small>ตู้</small>
+      </article>
 
-        <span class="connection-indicator">
-          <span></span>
-          เชื่อมต่อแล้ว
-        </span>
+      <article class="dashboard-kpi" data-tone="NORMAL">
+        <span>ปกติ</span>
+        <strong id="kpiNormal">0</strong>
+        <small>ตู้</small>
+      </article>
+
+      <article class="dashboard-kpi" data-tone="WARNING">
+        <span>เฝ้าระวัง</span>
+        <strong id="kpiWarning">0</strong>
+        <small>ตู้</small>
+      </article>
+
+      <article class="dashboard-kpi" data-tone="OVERDUE">
+        <span>เกินเวลา</span>
+        <strong id="kpiOverdue">0</strong>
+        <small>ตู้</small>
+      </article>
+
+      <article class="dashboard-kpi" data-tone="TIME">
+        <span>เวลาเฉลี่ยคงค้าง</span>
+        <strong id="kpiAverageDuration">0 นาที</strong>
+        <small>ตู้ที่ยังอยู่ในพื้นที่</small>
+      </article>
+
+      <article class="dashboard-kpi" data-tone="MAX">
+        <span>เวลาสูงสุดคงค้าง</span>
+        <strong id="kpiMaximumDuration">0 นาที</strong>
+        <small>ตู้ที่ยังอยู่ในพื้นที่</small>
       </article>
     </section>
 
-    <section class="module-section">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">
-            ระบบที่เปิดใช้งาน
-          </p>
+    <section class="dashboard-chart-grid">
+      <article class="dashboard-panel dashboard-panel--wide">
+        <header class="dashboard-panel__header">
+          <div>
+            <small>HOURLY MOVEMENT</small>
+            <h2>ปริมาณเข้า–ออกรายชั่วโมง</h2>
+          </div>
 
-          <h2>
-            เลือกหน้าติดตามสถานะ
-          </h2>
+          <span id="hourlyChartPeriodLabel">
+            ย้อนหลัง 24 ชั่วโมง
+          </span>
+        </header>
+
+        <div class="dashboard-chart-wrap dashboard-chart-wrap--line">
+          <canvas id="hourlyMovementChart"></canvas>
+
+          <div
+            id="hourlyMovementEmpty"
+            class="dashboard-chart-empty is-hidden"
+          >
+            ยังไม่มีข้อมูลรายชั่วโมง
+          </div>
+        </div>
+      </article>
+
+      <article class="dashboard-panel">
+        <header class="dashboard-panel__header">
+          <div>
+            <small>CURRENT STATUS</small>
+            <h2>สัดส่วนสถานะปัจจุบัน</h2>
+          </div>
+        </header>
+
+        <div class="dashboard-chart-wrap">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </article>
+
+      <article class="dashboard-panel">
+        <header class="dashboard-panel__header">
+          <div>
+            <small>ACTIVE DURATION</small>
+            <h2>ช่วงเวลาที่อยู่ในพื้นที่</h2>
+          </div>
+        </header>
+
+        <div class="dashboard-chart-wrap">
+          <canvas id="durationChart"></canvas>
+        </div>
+      </article>
+
+      <article class="dashboard-panel dashboard-panel--wide">
+        <header class="dashboard-panel__header">
+          <div>
+            <small>OVERDUE PRIORITY</small>
+            <h2>ตู้เกินเวลาที่ต้องติดตามก่อน</h2>
+          </div>
+
+          <span id="topOverdueCount">
+            0 รายการ
+          </span>
+        </header>
+
+        <div class="dashboard-chart-wrap dashboard-chart-wrap--bar">
+          <canvas id="topOverdueChart"></canvas>
+
+          <div
+            id="topOverdueEmpty"
+            class="dashboard-chart-empty is-hidden"
+          >
+            ไม่มีตู้เกินเวลาค้าง
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="dashboard-panel dashboard-record-panel">
+      <header class="dashboard-panel__header dashboard-record-header">
+        <div>
+          <small>ACTIVE RECORDS</small>
+          <h2>รายการรถและตู้ที่ยังอยู่ในพื้นที่</h2>
         </div>
 
-        <button
-          id="refreshModulesButton"
-          class="button button--secondary button--compact"
-          type="button"
+        <div class="dashboard-record-tools">
+          <input
+            id="dashboardSearchInput"
+            type="search"
+            autocomplete="off"
+            placeholder="ค้นหาตู้ ทะเบียน บริษัท หรือข้อมูลอื่น"
+          >
+
+          <select id="dashboardStatusFilter">
+            <option value="ALL">
+              ทุกสถานะ
+            </option>
+
+            <option value="NORMAL">
+              ปกติ
+            </option>
+
+            <option value="WARNING">
+              เฝ้าระวัง
+            </option>
+
+            <option value="OVERDUE">
+              เกินเวลา
+            </option>
+
+            <option value="INCOMPLETE">
+              ข้อมูลไม่สมบูรณ์
+            </option>
+          </select>
+        </div>
+      </header>
+
+      <div class="dashboard-table-wrap">
+        <table class="dashboard-table">
+          <thead>
+            <tr>
+              <th>ตู้/รายการ</th>
+              <th>ข้อมูลประกอบ</th>
+              <th>เวลาเข้า</th>
+              <th>ระยะเวลา</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+
+          <tbody id="dashboardRecordTableBody"></tbody>
+        </table>
+
+        <div
+          id="dashboardRecordEmpty"
+          class="dashboard-empty is-hidden"
         >
-          รีเฟรช
-        </button>
+          ไม่พบข้อมูลตามเงื่อนไข
+        </div>
       </div>
-
-      <div
-        id="moduleLoading"
-        class="inline-loading"
-      >
-        <div class="spinner spinner--small"></div>
-
-        <span>
-          กำลังโหลดรายการระบบ
-        </span>
-      </div>
-
-      <div
-        id="moduleEmpty"
-        class="empty-state is-hidden"
-      >
-        <strong>
-          ยังไม่มีโมดูลที่เปิดใช้งาน
-        </strong>
-
-        <span>
-          ผู้ดูแลระบบสามารถเปิดโมดูลได้จากการตั้งค่าหลังบ้าน
-        </span>
-      </div>
-
-      <div
-        id="moduleList"
-        class="module-grid"
-      ></div>
     </section>
   </main>
 
-  <footer class="app-footer">
-    ระบบใช้เขตเวลา Asia/Bangkok และรูปแบบวันที่
-    dd/MM/yyyy HH:mm:ss
+  <footer class="dashboard-footer">
+    S&amp;LP SKDC906 · Dashboard แยกจากระบบปฏิบัติการเดิม
   </footer>
 </body>
 </html>
