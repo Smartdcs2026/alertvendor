@@ -1,0 +1,146 @@
+/**
+ * dashboard-link.css
+ * ปุ่มเปิด Dashboard ในหน้า Module
+ *
+ * แยกจาก styles.css เดิม
+ */
+
+.module-page .module-dashboard-launcher {
+  display:
+    inline-flex;
+  align-items:
+    center;
+  gap:
+    10px;
+  width:
+    fit-content;
+  min-height:
+    48px;
+  margin-top:
+    14px;
+  padding:
+    8px 11px;
+  color:
+    #e9f9ff;
+  text-decoration:
+    none;
+  border:
+    1px solid rgba(255,255,255,.18);
+  border-radius:
+    14px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,255,255,.12),
+      rgba(255,255,255,.06)
+    );
+  box-shadow:
+    0 8px 20px rgba(1,27,43,.14);
+  backdrop-filter:
+    blur(8px);
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
+}
+
+.module-page .module-dashboard-launcher:hover,
+.module-page .module-dashboard-launcher:focus-visible {
+  transform:
+    translateY(-1px);
+  color:
+    #fff;
+  border-color:
+    rgba(142,229,255,.58);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(22,163,74,.22),
+      rgba(14,165,233,.18)
+    );
+  box-shadow:
+    0 12px 26px rgba(1,27,43,.20);
+  outline:
+    none;
+}
+
+.module-page .module-dashboard-launcher__icon {
+  display:
+    inline-flex;
+  align-items:
+    center;
+  justify-content:
+    center;
+  flex:
+    0 0 34px;
+  width:
+    34px;
+  height:
+    34px;
+  color:
+    #7ee6ff;
+  border:
+    1px solid rgba(126,230,255,.26);
+  border-radius:
+    10px;
+  background:
+    rgba(126,230,255,.10);
+}
+
+.module-page .module-dashboard-launcher__icon svg {
+  width:
+    20px;
+  height:
+    20px;
+}
+
+.module-page .module-dashboard-launcher > span:nth-child(2) {
+  display:
+    grid;
+  gap:
+    1px;
+  line-height:
+    1.15;
+}
+
+.module-page .module-dashboard-launcher small {
+  color:
+    rgba(233,249,255,.64);
+  font-size:
+    8px;
+  font-weight:
+    900;
+  letter-spacing:
+    .15em;
+}
+
+.module-page .module-dashboard-launcher strong {
+  font-size:
+    13px;
+  font-weight:
+    900;
+}
+
+.module-page .module-dashboard-launcher__arrow {
+  margin-left:
+    4px;
+  color:
+    #7ee6ff;
+  font-size:
+    18px;
+}
+
+@media (max-width: 640px) {
+  .module-page .module-dashboard-launcher {
+    width:
+      100%;
+    justify-content:
+      flex-start;
+  }
+
+  .module-page .module-dashboard-launcher__arrow {
+    margin-left:
+      auto;
+  }
+}
