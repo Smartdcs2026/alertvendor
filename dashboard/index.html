@@ -35,7 +35,7 @@
 
   <link
     rel="stylesheet"
-    href="./dashboard.css?v=20260630-r2-executive"
+    href="./dashboard.css?v=20260630-r3-management-fullscreen"
   >
 
   <script
@@ -49,22 +49,22 @@
   ></script>
 
   <script
-    src="./dashboard-config.js?v=20260630-r2-executive"
+    src="./dashboard-config.js?v=20260630-r3-management-fullscreen"
     defer
   ></script>
 
   <script
-    src="./dashboard-api.js?v=20260630-r2-executive"
+    src="./dashboard-api.js?v=20260630-r3-management-fullscreen"
     defer
   ></script>
 
   <script
-    src="./dashboard.js?v=20260630-r2-executive"
+    src="./dashboard.js?v=20260630-r3-management-fullscreen"
     defer
   ></script>
 </head>
 
-<body class="dashboard-page">
+<body class="dashboard-page dashboard-page--management">
   <div
     id="dashboardLoading"
     class="dashboard-loading"
@@ -96,6 +96,17 @@
           >
             กำลังเชื่อมต่อ
           </span>
+
+          <button
+            id="dashboardFullscreenButton"
+            class="dashboard-button dashboard-button--display"
+            type="button"
+            aria-pressed="false"
+            title="เปิดการแสดงผลเต็มหน้าจอสำหรับจอ Management"
+          >
+            <span aria-hidden="true">⛶</span>
+            <span data-fullscreen-label>เต็มจอ</span>
+          </button>
 
           <button
             id="dashboardRefreshButton"
