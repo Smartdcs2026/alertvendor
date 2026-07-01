@@ -228,6 +228,12 @@
         }
       );
 
+    byId('dashboardResetFilters')
+      ?.addEventListener(
+        'click',
+        resetRecordFilters
+      );
+
     document.addEventListener(
       'click',
       handleDashboardClick
@@ -1088,6 +1094,42 @@
     }
 
     return null;
+  }
+
+
+  function resetRecordFilters() {
+    state.searchText = '';
+    state.statusFilter = 'ALL';
+    state.stageFilter = 'ALL';
+
+    const search =
+      byId(
+        'dashboardSearchInput'
+      );
+
+    const status =
+      byId(
+        'dashboardStatusFilter'
+      );
+
+    const stage =
+      byId(
+        'dashboardStageFilter'
+      );
+
+    if (search) {
+      search.value = '';
+    }
+
+    if (status) {
+      status.value = 'ALL';
+    }
+
+    if (stage) {
+      stage.value = 'ALL';
+    }
+
+    renderRecordTable();
   }
 
   function renderRecordTable() {
