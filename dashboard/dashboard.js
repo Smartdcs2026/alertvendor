@@ -1,79 +1,89 @@
 /**
  * dashboard.js
- * ROUND 28 — Executive Dashboard + Silent Refresh
+ * ROUND 30 — Executive Control Room Dashboard
  */
 (function (window, document) {
   'use strict';
 
-  const CONFIG =
-    window.DASHBOARD_CONFIG || {};
+  const CONFIG = window.DASHBOARD_CONFIG || {};
+  const API = window.DashboardAPI;
 
-  const API =
-    window.DashboardAPI;
+  const COLORS = Object.freeze({
+    green: '#0f9d7a',
+    amber: '#e88709',
+    red: '#e33434',
+    blue: '#2369d8',
+    purple: '#7c3aed',
+    slate: '#7b91a0',
+    navy: '#0b4868',
+    grid: '#e5edf2',
+    text: '#516b7d'
+  });
 
   const state = {
-    moduleId:
-      '',
+    moduleId: '',
+    session: null,
+    module: {},
+    records: [],
+    movement: {},
+    receiving: {
+      enabled: false,
+      summary: {},
+      records: []
+    },
+    receivingByRecordId: new Map(),
+    period: 'ROLLING_24',
+    searchText: '',
+    statusFilter: 'ALL',
+    stageFilter: 'ALL',
+    serverOffsetMs: 0,
+    signature: '',
+    refreshInProgress: false,
+    refreshTimer: null,
+    clockTimer: null,
+    charts: {
+      hourly: null,
+      status: null,
+      activeTrend: null,
+      longestWaiting: null
+    },
+    destroyed: false
+  };
 
-    session:
-      null,
+  const doughnutCenterPlugin = {
+    id: 'dashboardDoughnutCenter',
 
-    module:
-      {},
+    afterDraw(chart) {
+      if (
+        chart.canvas.id !== 'statusDistributionChart' ||
+        !chart.chartArea
+      ) {
+        return;
+      }
 
-    records:
-      [],
+      const {ctx, chartArea} = chart;
+      const total = state.records.length;
+      const x = (chartArea.left + chartArea.right) / 2;
+      const y = (chartArea.top + chartArea.bottom) / 2;
 
-    movement:
-      {},
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
 
-    receiving:
-      {
-        enabled:
-          false,
+      ctx.fillStyle = '#6a8190';
+      ctx.font = '700 9px system-ui';
+      ctx.fillText('รวม', x, y - 13);
 
-        summary:
-          {},
+      ctx.fillStyle = '#10283a';
+      ctx.font = '900 23px system-ui';
+      ctx.fillText(String(total), x, y + 4);
 
-        records:
-          []
-      },
+      ctx.fillStyle = '#6a8190';
+      ctx.font = '700 8px system-ui';
+      ctx.fillText('รายการ', x, y + 20);
 
-    receivingByRecordId:
-      new Map(),
-
-    period:
-      'ROLLING_24',
-
-    searchText:
-      '',
-
-    statusFilter:
-      'ALL',
-
-    stageFilter:
-      'ALL',
-
-    serverOffsetMs:
-      0,
-
-    signature:
-      '',
-
-    refreshInProgress:
-      false,
-
-    refreshTimer:
-      null,
-
-    clockTimer:
-      null,
-
-    chart:
-      null,
-
-    destroyed:
-      false
+      ctx.restore();
+    }
   };
 
   document.addEventListener(
@@ -93,31 +103,22 @@
 
     try {
       if (!API) {
-        throw new Error(
-          'ไม่พบ dashboard-api.js'
-        );
+        throw new Error('ไม่พบ dashboard-api.js');
       }
 
-      if (
-        typeof window.Chart ===
-          'undefined'
-      ) {
-        throw new Error(
-          'ไม่พบ Chart.js'
-        );
+      if (typeof window.Chart === 'undefined') {
+        throw new Error('ไม่พบ Chart.js');
       }
 
-      state.moduleId =
-        getModuleIdFromUrl();
+      Chart.register(doughnutCenterPlugin);
+
+      state.moduleId = getModuleIdFromUrl();
 
       if (!state.moduleId) {
-        throw new Error(
-          'ไม่พบรหัส Module'
-        );
+        throw new Error('ไม่พบรหัส Module');
       }
 
-      state.session =
-        await API.me();
+      state.session = await API.me();
 
       if (
         !state.session ||
@@ -127,14 +128,14 @@
         return;
       }
 
+      renderUserIdentity();
+
       await refreshDashboard({
         silent: false,
         initial: true
       });
     } catch (error) {
-      if (
-        isAuthenticationError(error)
-      ) {
+      if (isAuthenticationError(error)) {
         redirectToLogin();
         return;
       }
@@ -150,61 +151,41 @@
 
   function bindEvents() {
     byId('dashboardBackButton')
-      ?.addEventListener(
-        'click',
-        goBackToModule
-      );
+      ?.addEventListener('click', goBackToModule);
 
     byId('dashboardRefreshButton')
       ?.addEventListener(
         'click',
-        () => {
-          void refreshDashboard({
-            silent: false
-          });
-        }
+        () => void refreshDashboard({silent: false})
       );
 
     byId('dashboardFullscreenButton')
-      ?.addEventListener(
-        'click',
-        toggleFullscreen
-      );
+      ?.addEventListener('click', toggleFullscreen);
 
     byId('dashboardPeriodGroup')
       ?.addEventListener(
         'click',
         (event) => {
-          const button =
-            event.target.closest(
-              '[data-period]'
-            );
+          const button = event.target.closest('[data-period]');
 
           if (!button) {
             return;
           }
 
-          state.period =
-            String(
-              button.dataset.period ||
-              'ROLLING_24'
-            ).toUpperCase();
+          state.period = String(
+            button.dataset.period || 'ROLLING_24'
+          ).toUpperCase();
 
           document
-            .querySelectorAll(
-              '[data-period]'
-            )
+            .querySelectorAll('[data-period]')
             .forEach(
-              (item) => {
-                item.classList.toggle(
-                  'is-active',
-                  item === button
-                );
-              }
+              (item) => item.classList.toggle(
+                'is-active',
+                item === button
+              )
             );
 
-          renderFlowKpis();
-          renderHourlyChart(true);
+          renderPeriodDependentData(false);
         }
       );
 
@@ -213,17 +194,13 @@
         'input',
         debounce(
           (event) => {
-            state.searchText =
-              String(
-                event.target.value ||
-                ''
-              )
-                .trim()
-                .toLowerCase();
+            state.searchText = String(
+              event.target.value || ''
+            ).trim().toLowerCase();
 
             renderRecordTable();
           },
-          150
+          130
         )
       );
 
@@ -231,11 +208,9 @@
       ?.addEventListener(
         'change',
         (event) => {
-          state.statusFilter =
-            String(
-              event.target.value ||
-              'ALL'
-            ).toUpperCase();
+          state.statusFilter = String(
+            event.target.value || 'ALL'
+          ).toUpperCase();
 
           renderRecordTable();
         }
@@ -245,11 +220,9 @@
       ?.addEventListener(
         'change',
         (event) => {
-          state.stageFilter =
-            String(
-              event.target.value ||
-              'ALL'
-            ).toUpperCase();
+          state.stageFilter = String(
+            event.target.value || 'ALL'
+          ).toUpperCase();
 
           renderRecordTable();
         }
@@ -263,24 +236,20 @@
     document.addEventListener(
       'visibilitychange',
       () => {
-        if (
-          document.visibilityState ===
-            'visible'
-        ) {
-          void refreshDashboard({
-            silent: true
-          });
+        if (document.visibilityState === 'visible') {
+          void refreshDashboard({silent: true});
         }
       }
     );
 
     window.addEventListener(
       'online',
-      () => {
-        void refreshDashboard({
-          silent: true
-        });
-      }
+      () => void refreshDashboard({silent: true})
+    );
+
+    window.addEventListener(
+      'resize',
+      debounce(resizeCharts, 120)
     );
 
     document.addEventListener(
@@ -291,82 +260,61 @@
 
   function handleDashboardClick(event) {
     const statusButton =
-      event.target.closest(
-        '[data-status-filter]'
-      );
+      event.target.closest('[data-status-filter]');
 
     if (statusButton) {
-      state.statusFilter =
-        String(
-          statusButton.dataset
-            .statusFilter ||
-          'ALL'
-        ).toUpperCase();
+      state.statusFilter = String(
+        statusButton.dataset.statusFilter || 'ALL'
+      ).toUpperCase();
 
-      const select =
-        byId('dashboardStatusFilter');
+      const select = byId('dashboardStatusFilter');
 
       if (select) {
-        select.value =
-          state.statusFilter;
+        select.value = state.statusFilter;
       }
 
       renderRecordTable();
-      scrollToRecords();
+      focusRecordsPanel();
       return;
     }
 
     const stageButton =
-      event.target.closest(
-        '[data-stage-filter]'
-      );
+      event.target.closest('[data-stage-filter]');
 
     if (stageButton) {
-      state.stageFilter =
-        String(
-          stageButton.dataset
-            .stageFilter ||
-          'ALL'
-        ).toUpperCase();
+      state.stageFilter = String(
+        stageButton.dataset.stageFilter || 'ALL'
+      ).toUpperCase();
 
-      const select =
-        byId('dashboardStageFilter');
+      const select = byId('dashboardStageFilter');
 
       if (select) {
-        select.value =
-          state.stageFilter;
+        select.value = state.stageFilter;
       }
 
       renderRecordTable();
-      scrollToRecords();
+      focusRecordsPanel();
       return;
     }
 
-    const actionButton =
-      event.target.closest(
-        '[data-action-record]'
+    const recordButton =
+      event.target.closest('[data-focus-record]');
+
+    if (recordButton) {
+      const value = String(
+        recordButton.dataset.focusRecord || ''
       );
 
-    if (actionButton) {
-      const title =
-        String(
-          actionButton.dataset
-            .actionRecord ||
-          ''
-        );
+      state.searchText = value.toLowerCase();
 
-      state.searchText =
-        title.toLowerCase();
-
-      const search =
-        byId('dashboardSearchInput');
+      const search = byId('dashboardSearchInput');
 
       if (search) {
-        search.value = title;
+        search.value = value;
       }
 
       renderRecordTable();
-      scrollToRecords();
+      focusRecordsPanel();
     }
   }
 
@@ -379,170 +327,101 @@
     }
 
     const config =
-      options &&
-      typeof options === 'object'
+      options && typeof options === 'object'
         ? options
         : {};
 
-    const silent =
-      config.silent === true;
+    const silent = config.silent === true;
 
-    state.refreshInProgress =
-      true;
+    state.refreshInProgress = true;
 
     if (!silent) {
-      setConnectionState(
-        'LOADING',
-        'กำลังอัปเดต'
-      );
-
+      setConnectionState('LOADING', 'กำลังอัปเดต');
       setRefreshButtonLoading(true);
     }
 
     try {
-      const results =
-        await Promise.all([
-          API.getModule(
-            state.moduleId
-          ),
-
-          API.getActiveRecords(
-            state.moduleId
-          ),
-
-          API.getMovementSummary(
-            state.moduleId
-          ),
-
-          API.getReceivingFlow(
-            state.moduleId
-          )
-        ]);
-
-      const recordsResult =
-        results[1] || {};
+      const [
+        module,
+        recordsResult,
+        movement,
+        receiving
+      ] = await Promise.all([
+        API.getModule(state.moduleId),
+        API.getActiveRecords(state.moduleId),
+        API.getMovementSummary(state.moduleId),
+        API.getReceivingFlow(state.moduleId)
+      ]);
 
       state.module = {
-        ...(results[0] || {}),
-        ...(recordsResult.module || {})
+        ...(module || {}),
+        ...(
+          recordsResult &&
+          recordsResult.module ||
+          {}
+        )
       };
 
-      state.records =
-        Array.isArray(
-          recordsResult.records
-        )
-          ? recordsResult.records
-          : [];
+      state.records = Array.isArray(
+        recordsResult &&
+        recordsResult.records
+      )
+        ? recordsResult.records
+        : [];
 
-      state.movement =
-        results[2] || {};
+      state.movement = movement || {};
 
-      state.receiving =
-        results[3] || {
-          enabled: false,
-          summary: {},
-          records: []
-        };
+      state.receiving = receiving || {
+        enabled: false,
+        summary: {},
+        records: []
+      };
 
-      state.receivingByRecordId =
-        new Map();
-
-      (
-        Array.isArray(
-          state.receiving.records
-        )
-          ? state.receiving.records
-          : []
-      ).forEach(
-        (record) => {
-          if (
-            record &&
-            record.recordId
-          ) {
-            state.receivingByRecordId
-              .set(
-                String(
-                  record.recordId
-                ),
-                record
-              );
-          }
-        }
-      );
+      rebuildReceivingIndex();
 
       updateServerOffset(
-        recordsResult.generatedAt ||
+        recordsResult && recordsResult.generatedAt ||
         state.movement.generatedAt ||
         state.receiving.generatedAt
       );
 
       recalculateRecords();
 
-      const nextSignature =
-        buildStableSignature();
+      const nextSignature = buildStableSignature();
+      const changed = nextSignature !== state.signature;
+      state.signature = nextSignature;
 
-      const changed =
-        nextSignature !==
-        state.signature;
-
-      state.signature =
-        nextSignature;
-
-      if (
-        changed ||
-        config.initial === true
-      ) {
-        const scrollY =
-          window.scrollY;
-
-        renderDashboard({
-          silent: silent
-        });
-
-        if (silent) {
-          window.requestAnimationFrame(
-            () => {
-              window.scrollTo({
-                top: scrollY,
-                behavior: 'auto'
-              });
-            }
-          );
-        }
+      if (changed || config.initial === true) {
+        renderDashboard(silent);
       } else {
         updateLiveDurations();
       }
 
+      const generatedAt =
+        recordsResult && recordsResult.generatedAt ||
+        state.movement.generatedAt ||
+        state.receiving.generatedAt ||
+        formatBangkokDateTime(getServerNow());
+
       setText(
         'dashboardLastUpdated',
-        'ข้อมูลล่าสุด ' +
-        (
-          recordsResult.generatedAt ||
-          state.movement.generatedAt ||
-          state.receiving.generatedAt ||
-          formatBangkokDateTime(
-            getServerNow()
-          )
-        )
+        'อัปเดตล่าสุด ' + generatedAt
       );
 
-      setConnectionState(
-        'ONLINE',
-        'Live'
+      setText(
+        'summaryLastUpdate',
+        generatedAt
       );
+
+      setConnectionState('ONLINE', 'LIVE');
     } catch (error) {
-      if (
-        isAuthenticationError(error)
-      ) {
+      if (isAuthenticationError(error)) {
         redirectToLogin();
         return;
       }
 
       if (!silent) {
-        setConnectionState(
-          'ERROR',
-          'เชื่อมต่อไม่สำเร็จ'
-        );
+        setConnectionState('ERROR', 'ERROR');
 
         await showError(
           error,
@@ -555,8 +434,7 @@
         );
       }
     } finally {
-      state.refreshInProgress =
-        false;
+      state.refreshInProgress = false;
 
       if (!silent) {
         setRefreshButtonLoading(false);
@@ -566,19 +444,46 @@
     }
   }
 
-  function renderDashboard(options) {
+  function rebuildReceivingIndex() {
+    state.receivingByRecordId = new Map();
+
+    (
+      Array.isArray(state.receiving.records)
+        ? state.receiving.records
+        : []
+    ).forEach(
+      (record) => {
+        if (record && record.recordId) {
+          state.receivingByRecordId.set(
+            String(record.recordId),
+            record
+          );
+        }
+      }
+    );
+  }
+
+  function renderDashboard(silent) {
     renderModuleHeader();
     renderThresholds();
     renderSituation();
-    renderStatusKpis();
-    renderFlowKpis();
-    renderReceivingKpis();
-    renderHourlyChart(
-      options &&
-      options.silent === true
-    );
+    renderCurrentStatus();
+    renderReceiving();
+    renderOverdueList();
     renderActionQueue();
     renderRecordTable();
+    renderPeriodDependentData(silent);
+    renderStatusChart(silent);
+    renderLongestWaitingChart(silent);
+    renderSystemSummary();
+  }
+
+  function renderPeriodDependentData(silent) {
+    renderFlowSummary();
+    renderHourlyChart(silent);
+    renderActiveTrendChart(silent);
+    renderProcessFunnel();
+    renderSystemSummary();
   }
 
   function renderModuleHeader() {
@@ -592,153 +497,109 @@
     setText(
       'dashboardModuleDescription',
       state.module.description ||
-      'ติดตามสถานะรถและตู้สินค้าแบบเรียลไทม์'
+      'ติดตามรถและตู้สินค้าในพื้นที่แบบเรียลไทม์'
+    );
+  }
+
+  function renderUserIdentity() {
+    const user =
+      state.session &&
+      (
+        state.session.user ||
+        state.session
+      ) ||
+      {};
+
+    setText(
+      'dashboardUserName',
+      user.displayName ||
+      user.name ||
+      user.username ||
+      'ผู้ใช้งาน'
+    );
+
+    setText(
+      'dashboardUserRole',
+      String(user.role || 'Dashboard').toUpperCase()
     );
   }
 
   function renderThresholds() {
-    const thresholds =
-      getThresholds();
+    const thresholds = getThresholds();
 
     setText(
       'dashboardWarningThreshold',
-      thresholds.warningMinutes +
-      ' นาที'
+      thresholds.warningMinutes
     );
 
     setText(
       'dashboardOverdueThreshold',
-      thresholds.redMinutes +
-      ' นาที'
+      thresholds.redMinutes
     );
 
     setText(
       'dashboardAutoCloseThreshold',
-      thresholds.autoCloseHours +
-      ' ชม.'
+      thresholds.autoCloseHours
     );
   }
 
   function renderSituation() {
-    const counts =
-      countStatuses();
-
+    const counts = countStatuses();
     const receivingSummary =
       state.receiving.summary || {};
 
     let code = 'NORMAL';
+    let count = 0;
     let label = 'สถานการณ์ปกติ';
-    let message =
-      'ยังไม่มีรายการที่ต้องเร่งสั่งการ';
+    let message = 'ไม่มีรายการที่ต้องเร่งสั่งการ';
 
     if (counts.OVERDUE > 0) {
       code = 'CRITICAL';
+      count = counts.OVERDUE;
       label = 'ต้องเร่งดำเนินการ';
-      message =
-        counts.OVERDUE +
-        ' รายการเกินเวลา';
+      message = count + ' รายการเกินเวลา';
     } else if (
-      Number(
-        receivingSummary
-          .waitingGateOut
-      ) > 0
+      Number(receivingSummary.waitingGateOut) > 0
     ) {
       code = 'ACTION';
-      label = 'ต้องติดตาม Gate Out';
-      message =
-        receivingSummary
-          .waitingGateOut +
-        ' รายการรับสินค้าเสร็จแล้วแต่ยังไม่ออก';
+      count = Number(receivingSummary.waitingGateOut);
+      label = 'ติดตาม Gate Out';
+      message = count + ' รายการรับสินค้าเสร็จแล้ว';
     } else if (counts.WARNING > 0) {
       code = 'WATCH';
-      label = 'ต้องติดตามใกล้ชิด';
-      message =
-        counts.WARNING +
-        ' รายการใกล้เกินเวลา';
-    } else if (
-      counts.INCOMPLETE > 0
-    ) {
+      count = counts.WARNING;
+      label = 'ติดตามใกล้ชิด';
+      message = count + ' รายการใกล้เกินเวลา';
+    } else if (counts.INCOMPLETE > 0) {
       code = 'DATA';
-      label = 'ต้องตรวจสอบข้อมูล';
-      message =
-        counts.INCOMPLETE +
-        ' รายการข้อมูลไม่สมบูรณ์';
+      count = counts.INCOMPLETE;
+      label = 'ตรวจสอบข้อมูล';
+      message = count + ' รายการข้อมูลไม่สมบูรณ์';
     }
 
-    const panel =
-      byId('dashboardSituation');
+    const panel = byId('dashboardSituation');
 
     if (panel) {
       panel.dataset.state = code;
     }
 
-    setText(
-      'dashboardSituationLabel',
-      label
-    );
-
-    setText(
-      'dashboardSituationMessage',
-      message
-    );
+    setText('dashboardSituationCount', count);
+    setText('dashboardSituationLabel', label);
+    setText('dashboardSituationMessage', message);
   }
 
-  function renderStatusKpis() {
-    const counts =
-      countStatuses();
+  function renderCurrentStatus() {
+    const counts = countStatuses();
 
-    setText(
-      'kpiActive',
-      state.records.length
-    );
-
-    setText(
-      'kpiNormal',
-      counts.NORMAL
-    );
-
-    setText(
-      'kpiWarning',
-      counts.WARNING
-    );
-
-    setText(
-      'kpiOverdue',
-      counts.OVERDUE
-    );
-
-    setText(
-      'kpiIncomplete',
-      counts.INCOMPLETE
-    );
+    setText('kpiActive', state.records.length);
+    setText('kpiNormal', counts.NORMAL);
+    setText('kpiWarning', counts.WARNING);
+    setText('kpiOverdue', counts.OVERDUE);
+    setText('kpiIncomplete', counts.INCOMPLETE);
   }
 
-  function renderFlowKpis() {
-    const selected =
-      getSelectedMovement();
-
-    const inCount =
-      Number(selected.in) || 0;
-
-    const outReal =
-      Number(selected.outReal) || 0;
-
-    const outAuto =
-      Number(selected.outAuto) || 0;
-
-    const netActual =
-      inCount - outReal;
-
-    setText('kpiIn', inCount);
-    setText('kpiOutReal', outReal);
-    setText('kpiAutoClose', outAuto);
-
-    setText(
-      'kpiNetActual',
-      netActual > 0
-        ? '+' + netActual
-        : String(netActual)
-    );
+  function renderFlowSummary() {
+    const selected = getSelectedMovement();
 
     setText(
       'dashboardFlowPeriodLabel',
@@ -746,9 +607,26 @@
         ? 'วันนี้'
         : 'ย้อนหลัง 24 ชั่วโมง'
     );
+
+    setText(
+      'summaryGateIn',
+      Number(selected.in) || 0
+    );
+
+    setText(
+      'summaryGateOut',
+      Number(selected.outReal) || 0
+    );
+
+    setText(
+      'summaryActive',
+      state.records.length
+    );
+
+    setText('summaryModuleCount', 1);
   }
 
-  function renderReceivingKpis() {
+  function renderReceiving() {
     const section =
       byId('dashboardReceivingSection');
 
@@ -759,64 +637,38 @@
       !state.receiving ||
       state.receiving.enabled !== true
     ) {
-      section?.classList.add(
-        'is-hidden'
-      );
-
-      section?.setAttribute(
-        'aria-hidden',
-        'true'
-      );
-
-      stageFilter?.classList.add(
-        'is-hidden'
-      );
+      section?.classList.add('is-hidden');
+      section?.setAttribute('aria-hidden', 'true');
+      stageFilter?.classList.add('is-hidden');
 
       state.stageFilter = 'ALL';
       return;
     }
 
-    section?.classList.remove(
-      'is-hidden'
-    );
+    section?.classList.remove('is-hidden');
+    section?.removeAttribute('aria-hidden');
+    stageFilter?.classList.remove('is-hidden');
 
-    section?.removeAttribute(
-      'aria-hidden'
-    );
-
-    stageFilter?.classList.remove(
-      'is-hidden'
-    );
-
-    const summary =
-      state.receiving.summary || {};
+    const summary = state.receiving.summary || {};
 
     setText(
       'kpiWaitingReceiving',
-      Number(
-        summary.waitingReceiving
-      ) || 0
+      Number(summary.waitingReceiving) || 0
     );
 
     setText(
       'kpiWaitingGateOut',
-      Number(
-        summary.waitingGateOut
-      ) || 0
+      Number(summary.waitingGateOut) || 0
     );
 
     setText(
       'kpiReceivingToday',
-      Number(
-        summary.receivingCompletedToday
-      ) || 0
+      Number(summary.receivingCompletedToday) || 0
     );
 
     setText(
       'kpiMissingReceiving',
-      Number(
-        summary.exitedWithoutReceivingToday
-      ) || 0
+      Number(summary.exitedWithoutReceivingToday) || 0
     );
 
     setText(
@@ -834,150 +686,92 @@
     );
   }
 
-  function renderHourlyChart(silent) {
-    const canvas =
-      byId('hourlyMovementChart');
-
-    if (!canvas) {
-      return;
-    }
-
-    const hours =
-      getHourlyRows();
-
-    byId('hourlyMovementEmpty')
-      ?.classList.toggle(
-        'is-hidden',
-        hours.length > 0
-      );
-
-    canvas.classList.toggle(
-      'is-hidden',
-      hours.length === 0
-    );
-
-    if (hours.length === 0) {
-      state.chart?.destroy();
-      state.chart = null;
-      return;
-    }
-
-    const data = {
-      labels:
-        hours.map(getHourLabel),
-
-      datasets: [
-        {
-          label: 'Gate In',
-          data: hours.map(
-            (hour) =>
-              Number(hour.in) || 0
-          ),
-          backgroundColor: '#0f9d7a',
-          borderRadius: 4
-        },
-        {
-          label: 'Gate Out จริง',
-          data: hours.map(
-            (hour) =>
-              Number(hour.outReal) || 0
-          ),
-          backgroundColor: '#2563eb',
-          borderRadius: 4
-        },
-        {
-          label: 'ระบบเคลียร์ข้อมูล',
-          data: hours.map(
-            (hour) =>
-              Number(hour.outAuto) || 0
-          ),
-          backgroundColor: '#7c3aed',
-          borderRadius: 4
-        }
-      ]
-    };
-
-    if (state.chart) {
-      state.chart.data = data;
-
-      state.chart.update(
-        silent
-          ? 'none'
-          : undefined
-      );
-
-      return;
-    }
-
-    state.chart =
-      new Chart(
-        canvas,
-        {
-          type: 'bar',
-          data: data,
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            interaction: {
-              mode: 'index',
-              intersect: false
-            },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  usePointStyle: true,
-                  boxWidth: 8,
-                  font: {
-                    size: 10
-                  }
-                }
-              }
-            },
-            scales: {
-              x: {
-                grid: {
-                  display: false
-                },
-                ticks: {
-                  maxRotation: 0,
-                  autoSkip: true,
-                  maxTicksLimit: 12
-                }
-              },
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  precision: 0
-                }
-              }
-            }
-          }
-        }
-      );
-  }
-
-  function renderActionQueue() {
-    const container =
-      byId('dashboardActionQueue');
+  function renderOverdueList() {
+    const container = byId('dashboardOverdueList');
 
     if (!container) {
       return;
     }
 
-    const queue =
-      state.records
-        .map(buildActionItem)
-        .filter(Boolean)
-        .sort(
-          (left, right) =>
-            left.priority -
-              right.priority ||
-            right.seconds -
-              left.seconds
-        )
-        .slice(0, 8);
+    const items = state.records
+      .filter(
+        (record) =>
+          record.statusCode === 'OVERDUE' ||
+          record.statusCode === 'WARNING'
+      )
+      .sort(
+        (left, right) =>
+          statusPriority(left.statusCode) -
+            statusPriority(right.statusCode) ||
+          Number(right.durationSeconds) -
+            Number(left.durationSeconds)
+      )
+      .slice(0, 7);
+
+    const overdueCount = state.records.filter(
+      (record) => record.statusCode === 'OVERDUE'
+    ).length;
+
+    setText(
+      'dashboardOverdueListCount',
+      overdueCount + ' รายการ'
+    );
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          ไม่มีรายการเกินเวลาหรือเฝ้าระวัง
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = items.map(
+      (record, index) => {
+        const dimensions =
+          extractRecordDimensions(record);
+
+        return `
+          <button
+            type="button"
+            class="overdue-item"
+            data-tone="${escapeHtml(record.statusCode)}"
+            data-focus-record="${escapeHtml(dimensions.title)}"
+          >
+            <span class="overdue-item__rank">
+              ${index + 1}
+            </span>
+
+            <span class="overdue-item__main">
+              <strong>${escapeHtml(dimensions.title)}</strong>
+              <span>${escapeHtml(dimensions.company)}</span>
+            </span>
+
+            <span class="overdue-item__time">
+              ${escapeHtml(formatDuration(record.durationSeconds))}
+            </span>
+          </button>
+        `;
+      }
+    ).join('');
+  }
+
+  function renderActionQueue() {
+    const container = byId('dashboardActionQueue');
+
+    if (!container) {
+      return;
+    }
+
+    const queue = state.records
+      .map(buildActionItem)
+      .filter(Boolean)
+      .sort(
+        (left, right) =>
+          left.priority - right.priority ||
+          right.seconds - left.seconds
+      )
+      .slice(0, 8);
 
     setText(
       'dashboardActionCount',
@@ -986,129 +780,100 @@
 
     if (queue.length === 0) {
       container.innerHTML = `
-        <div class="dashboard-empty">
-          ไม่มีรายการที่ต้องเร่งสั่งการ
+        <div class="empty-state">
+          ไม่มีรายการที่ต้องสั่งการ
         </div>
       `;
       return;
     }
 
-    container.innerHTML =
-      queue.map(
-        (item, index) => `
-          <button
-            type="button"
-            class="dashboard-action-item"
-            data-priority="${item.code}"
-            data-action-record="${escapeHtml(item.title)}"
-          >
-            <span class="dashboard-action-rank">
-              ${index + 1}
-            </span>
+    container.innerHTML = queue.map(
+      (item, index) => `
+        <button
+          type="button"
+          class="action-item"
+          data-priority="${escapeHtml(item.code)}"
+          data-focus-record="${escapeHtml(item.title)}"
+        >
+          <span class="action-item__rank">
+            ${index + 1}
+          </span>
 
-            <span class="dashboard-action-main">
-              <strong>${escapeHtml(item.title)}</strong>
-              <small>${escapeHtml(item.action)}</small>
-            </span>
+          <span class="action-item__main">
+            <strong>${escapeHtml(item.title)}</strong>
+            <small>${escapeHtml(item.action)}</small>
+          </span>
 
-            <span class="dashboard-action-time">
-              ${escapeHtml(formatDuration(item.seconds))}
-            </span>
-          </button>
-        `
-      ).join('');
+          <span class="action-item__time">
+            ${escapeHtml(formatDuration(item.seconds))}
+          </span>
+        </button>
+      `
+    ).join('');
   }
 
   function buildActionItem(record) {
     const receiving =
-      state.receivingByRecordId
-        .get(
-          String(
-            record.recordId || ''
-          )
-        );
+      state.receivingByRecordId.get(
+        String(record.recordId || '')
+      );
 
-    if (
-      record.statusCode ===
-        'OVERDUE'
-    ) {
+    const dimensions =
+      extractRecordDimensions(record);
+
+    if (record.statusCode === 'OVERDUE') {
       return {
         priority: 0,
         code: 'OVERDUE',
-        title: getRecordTitle(record),
-        action:
-          'เกิน SLA ต้องเร่งติดตาม',
-        seconds:
-          Number(
-            record.durationSeconds
-          ) || 0
+        title: dimensions.title,
+        action: 'เกิน SLA ต้องเร่งติดตาม',
+        seconds: Number(record.durationSeconds) || 0
       };
     }
 
     if (
       receiving &&
-      receiving.stageCode ===
-        'WAITING_GATE_OUT'
+      receiving.stageCode === 'WAITING_GATE_OUT'
     ) {
       return {
         priority: 1,
         code: 'WAITING_GATE_OUT',
-        title: getRecordTitle(record),
-        action:
-          'รับสินค้าเสร็จแล้ว รอ Gate Out',
-        seconds:
-          Number(
-            receiving.currentStageSeconds
-          ) || 0
+        title: dimensions.title,
+        action: 'รับสินค้าเสร็จแล้ว รอ Gate Out',
+        seconds: Number(receiving.currentStageSeconds) || 0
       };
     }
 
-    if (
-      record.statusCode ===
-        'INCOMPLETE'
-    ) {
+    if (record.statusCode === 'INCOMPLETE') {
       return {
         priority: 2,
         code: 'INCOMPLETE',
-        title: getRecordTitle(record),
-        action:
-          'ตรวจสอบข้อมูลต้นทาง',
-        seconds: 0
+        title: dimensions.title,
+        action: 'ตรวจสอบข้อมูลต้นทาง',
+        seconds: Number(record.durationSeconds) || 0
       };
     }
 
-    if (
-      record.statusCode ===
-        'WARNING'
-    ) {
+    if (record.statusCode === 'WARNING') {
       return {
         priority: 3,
         code: 'WARNING',
-        title: getRecordTitle(record),
-        action:
-          'ใกล้ถึงเกณฑ์เกินเวลา',
-        seconds:
-          Number(
-            record.durationSeconds
-          ) || 0
+        title: dimensions.title,
+        action: 'ใกล้ถึงเกณฑ์เกินเวลา',
+        seconds: Number(record.durationSeconds) || 0
       };
     }
 
     if (
       receiving &&
-      receiving.stageCode ===
-        'WAITING_RECEIVING'
+      receiving.stageCode === 'WAITING_RECEIVING'
     ) {
       return {
         priority: 4,
         code: 'WAITING_RECEIVING',
-        title: getRecordTitle(record),
-        action:
-          'รอบันทึกรับสินค้าเสร็จ',
-        seconds:
-          Number(
-            receiving.currentStageSeconds
-          ) || 0
+        title: dimensions.title,
+        action: 'รอบันทึกรับสินค้าเสร็จ',
+        seconds: Number(receiving.currentStageSeconds) || 0
       };
     }
 
@@ -1116,17 +881,20 @@
   }
 
   function renderRecordTable() {
-    const tbody =
-      byId('dashboardRecordTableBody');
+    const tbody = byId('dashboardRecordTableBody');
 
     if (!tbody) {
       return;
     }
 
-    const records =
-      state.records
-        .filter(recordMatchesFilters)
-        .sort(compareRecords);
+    const records = state.records
+      .filter(recordMatchesFilters)
+      .sort(compareRecords);
+
+    setText(
+      'dashboardRecordTotal',
+      records.length + ' รายการ'
+    );
 
     tbody.innerHTML = '';
 
@@ -1140,58 +908,58 @@
       document.createDocumentFragment();
 
     records.forEach(
-      (record) => {
+      (record, index) => {
         const receiving =
-          state.receivingByRecordId
-            .get(
-              String(
-                record.recordId || ''
-              )
-            );
+          state.receivingByRecordId.get(
+            String(record.recordId || '')
+          );
 
-        const row =
-          document.createElement('tr');
+        const dimensions =
+          extractRecordDimensions(record);
 
-        row.dataset.status =
-          record.statusCode ||
-          'INCOMPLETE';
+        const stageCode =
+          receiving && receiving.stageCode ||
+          'ACTIVE';
 
         const stageLabel =
-          receiving
-            ? receiving.stageLabel
-            : 'อยู่ในพื้นที่';
+          receiving && receiving.stageLabel ||
+          'อยู่ในพื้นที่';
 
         const stageSeconds =
-          receiving
-            ? Number(
-                receiving.currentStageSeconds
-              ) || 0
-            : Number(
-                record.durationSeconds
-              ) || 0;
+          receiving &&
+          (
+            receiving.stageCode === 'WAITING_RECEIVING' ||
+            receiving.stageCode === 'WAITING_GATE_OUT'
+          )
+            ? Number(receiving.currentStageSeconds) || 0
+            : Number(record.durationSeconds) || 0;
+
+        const row = document.createElement('tr');
+
+        row.dataset.status =
+          record.statusCode || 'INCOMPLETE';
 
         row.innerHTML = `
-          <td data-label="รายการ">
-            <strong>${escapeHtml(getRecordTitle(record))}</strong>
-            <small>${escapeHtml(getRecordSecondary(record))}</small>
-          </td>
+          <td data-label="#">${index + 1}</td>
 
-          <td data-label="ขั้นตอน">
-            <span
-              class="dashboard-stage-badge"
-              data-stage="${escapeHtml(receiving && receiving.stageCode || 'ACTIVE')}"
-            >
-              ${escapeHtml(stageLabel)}
+          <td data-label="รายการ / บริษัท">
+            <span class="record-main">
+              <strong>${escapeHtml(dimensions.title)}</strong>
+              <small>${escapeHtml(dimensions.company)}</small>
             </span>
           </td>
 
-          <td data-label="เวลาเข้า">
+          <td data-label="ทะเบียน / รหัส">
+            <strong>${escapeHtml(dimensions.identifier)}</strong>
+          </td>
+
+          <td data-label="เวลาเข้า Gate In">
             ${escapeHtml(record.timestampIn || '-')}
           </td>
 
-          <td data-label="เวลาช่วงปัจจุบัน">
+          <td data-label="เวลาปัจจุบัน / ระยะเวลา">
             <strong
-              class="dashboard-live-duration"
+              class="record-duration"
               data-live-record="${escapeHtml(record.recordId || '')}"
             >
               ${escapeHtml(formatDuration(stageSeconds))}
@@ -1200,10 +968,19 @@
 
           <td data-label="สถานะ SLA">
             <span
-              class="dashboard-status-badge"
+              class="status-badge"
               data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}"
             >
               ${escapeHtml(getStatusLabel(record.statusCode))}
+            </span>
+          </td>
+
+          <td data-label="ขั้นตอนปัจจุบัน">
+            <span
+              class="stage-badge"
+              data-stage="${escapeHtml(stageCode)}"
+            >
+              ${escapeHtml(stageLabel)}
             </span>
           </td>
         `;
@@ -1218,26 +995,21 @@
   function recordMatchesFilters(record) {
     if (
       state.statusFilter !== 'ALL' &&
-      record.statusCode !==
-        state.statusFilter
+      record.statusCode !== state.statusFilter
     ) {
       return false;
     }
 
     const receiving =
-      state.receivingByRecordId
-        .get(
-          String(
-            record.recordId || ''
-          )
-        );
+      state.receivingByRecordId.get(
+        String(record.recordId || '')
+      );
 
     if (
       state.stageFilter !== 'ALL' &&
       (
         !receiving ||
-        receiving.stageCode !==
-          state.stageFilter
+        receiving.stageCode !== state.stageFilter
       )
     ) {
       return false;
@@ -1247,54 +1019,438 @@
       return true;
     }
 
+    const dimensions =
+      extractRecordDimensions(record);
+
     return [
-      getRecordTitle(record),
-      getRecordSecondary(record),
+      dimensions.title,
+      dimensions.company,
+      dimensions.identifier,
       record.searchText || '',
-      receiving &&
-      receiving.stageLabel || ''
+      receiving && receiving.stageLabel || ''
     ]
       .join(' ')
       .toLowerCase()
       .includes(state.searchText);
   }
 
-  function recalculateRecords() {
-    const nowMs =
-      getServerNow().getTime();
+  function renderHourlyChart(silent) {
+    const canvas = byId('hourlyMovementChart');
 
-    const thresholds =
-      getThresholds();
+    if (!canvas) {
+      return;
+    }
+
+    const hours = getHourlyRows();
+
+    byId('hourlyMovementEmpty')
+      ?.classList.toggle(
+        'is-hidden',
+        hours.length > 0
+      );
+
+    canvas.classList.toggle(
+      'is-hidden',
+      hours.length === 0
+    );
+
+    if (hours.length === 0) {
+      destroyChart('hourly');
+      return;
+    }
+
+    const data = {
+      labels: hours.map(getHourLabel),
+      datasets: [
+        {
+          label: 'Gate In',
+          data: hours.map(
+            (hour) => Number(hour.in) || 0
+          ),
+          backgroundColor: COLORS.green,
+          borderRadius: 3,
+          barPercentage: .78,
+          categoryPercentage: .78
+        },
+        {
+          label: 'Gate Out จริง',
+          data: hours.map(
+            (hour) => Number(hour.outReal) || 0
+          ),
+          backgroundColor: COLORS.blue,
+          borderRadius: 3,
+          barPercentage: .78,
+          categoryPercentage: .78
+        },
+        {
+          label: 'ระบบเคลียร์อัตโนมัติ',
+          data: hours.map(
+            (hour) => Number(hour.outAuto) || 0
+          ),
+          backgroundColor: COLORS.purple,
+          borderRadius: 3,
+          barPercentage: .78,
+          categoryPercentage: .78
+        }
+      ]
+    };
+
+    state.charts.hourly = upsertChart(
+      state.charts.hourly,
+      canvas,
+      {
+        type: 'bar',
+        data: data,
+        options: createCartesianOptions({
+          silent: silent,
+          stacked: false,
+          legend: true,
+          maxTicks: 12
+        })
+      }
+    );
+  }
+
+  function renderStatusChart(silent) {
+    const canvas =
+      byId('statusDistributionChart');
+
+    if (!canvas) {
+      return;
+    }
+
+    const counts = countStatuses();
+
+    const data = {
+      labels: [
+        'ปกติ',
+        'เฝ้าระวัง',
+        'เกินเวลา',
+        'ข้อมูลไม่สมบูรณ์'
+      ],
+      datasets: [
+        {
+          data: [
+            counts.NORMAL,
+            counts.WARNING,
+            counts.OVERDUE,
+            counts.INCOMPLETE
+          ],
+          backgroundColor: [
+            COLORS.green,
+            COLORS.amber,
+            COLORS.red,
+            COLORS.purple
+          ],
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          hoverOffset: 2
+        }
+      ]
+    };
+
+    state.charts.status = upsertChart(
+      state.charts.status,
+      canvas,
+      {
+        type: 'doughnut',
+        data: data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: silent
+            ? false
+            : {duration: 250},
+          cutout: '62%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                usePointStyle: true,
+                pointStyle: 'circle',
+                boxWidth: 7,
+                boxHeight: 7,
+                padding: 8,
+                color: COLORS.text,
+                font: {
+                  size: 8,
+                  weight: '700'
+                },
+                generateLabels(chart) {
+                  const generator =
+                    Chart.defaults.plugins
+                      .legend.labels.generateLabels;
+
+                  const labels = generator(chart);
+
+                  const total =
+                    chart.data.datasets[0].data.reduce(
+                      (sum, value) =>
+                        sum + Number(value),
+                      0
+                    );
+
+                  return labels.map(
+                    (item, index) => {
+                      const value = Number(
+                        chart.data.datasets[0].data[index]
+                      ) || 0;
+
+                      const percent = total > 0
+                        ? (
+                            value / total * 100
+                          ).toFixed(1)
+                        : '0.0';
+
+                      return {
+                        ...item,
+                        text:
+                          item.text +
+                          ' ' +
+                          value +
+                          ' (' +
+                          percent +
+                          '%)'
+                      };
+                    }
+                  );
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label(context) {
+                  const total =
+                    context.dataset.data.reduce(
+                      (sum, value) =>
+                        sum + Number(value),
+                      0
+                    );
+
+                  const value =
+                    Number(context.raw) || 0;
+
+                  const percent = total > 0
+                    ? (
+                        value / total * 100
+                      ).toFixed(1)
+                    : '0.0';
+
+                  return (
+                    context.label +
+                    ': ' +
+                    value +
+                    ' รายการ (' +
+                    percent +
+                    '%)'
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    );
+  }
+
+  function renderActiveTrendChart(silent) {
+    const canvas = byId('activeTrendChart');
+
+    if (!canvas) {
+      return;
+    }
+
+    const hours = getHourlyRows();
+
+    const data = {
+      labels: hours.map(getHourLabel),
+      datasets: [
+        {
+          label: 'รายการ Active',
+          data: deriveActiveTrend(
+            hours,
+            state.records.length
+          ),
+          borderColor: COLORS.blue,
+          backgroundColor:
+            'rgba(35, 105, 216, .14)',
+          fill: true,
+          tension: .32,
+          pointRadius: 1.8,
+          pointHoverRadius: 4,
+          borderWidth: 2
+        }
+      ]
+    };
+
+    state.charts.activeTrend = upsertChart(
+      state.charts.activeTrend,
+      canvas,
+      {
+        type: 'line',
+        data: data,
+        options: createCartesianOptions({
+          silent: silent,
+          legend: false,
+          maxTicks: 8
+        })
+      }
+    );
+  }
+
+  function renderLongestWaitingChart(silent) {
+    const canvas = byId('longestWaitingChart');
+
+    if (!canvas) {
+      return;
+    }
+
+    const groups = aggregateLongestWaiting();
+
+    const data = {
+      labels: groups.map(
+        (item) => truncateText(item.label, 24)
+      ),
+      datasets: [
+        {
+          label: 'เวลารอสูงสุด',
+          data: groups.map(
+            (item) => Number(
+              (item.seconds / 3600).toFixed(2)
+            )
+          ),
+          backgroundColor: COLORS.blue,
+          borderRadius: 4,
+          barPercentage: .62
+        }
+      ]
+    };
+
+    const options = createCartesianOptions({
+      silent: silent,
+      legend: false,
+      maxTicks: 6,
+      horizontal: true
+    });
+
+    options.scales.x.ticks.callback =
+      (value) => value + ' ชม.';
+
+    options.plugins.tooltip = {
+      callbacks: {
+        label(context) {
+          return (
+            'เวลารอสูงสุด: ' +
+            formatDuration(
+              Number(context.raw) * 3600
+            )
+          );
+        }
+      }
+    };
+
+    state.charts.longestWaiting = upsertChart(
+      state.charts.longestWaiting,
+      canvas,
+      {
+        type: 'bar',
+        data: data,
+        options: options
+      }
+    );
+  }
+
+  function renderProcessFunnel() {
+    const today = state.movement.today || {};
+    const summary = state.receiving.summary || {};
+
+    const gateIn = Number(today.in) || 0;
+    const receiving =
+      Number(summary.receivingCompletedToday) || 0;
+    const gateOut = Number(today.outReal) || 0;
+
+    setText('funnelGateIn', gateIn);
+    setText('funnelReceiving', receiving);
+    setText('funnelGateOut', gateOut);
+
+    const rate = gateIn > 0
+      ? Math.round(gateOut / gateIn * 100)
+      : 0;
+
+    setText(
+      'funnelCompletionRate',
+      rate + '%'
+    );
+  }
+
+  function renderSystemSummary() {
+    const selected = getSelectedMovement();
+
+    const incomplete =
+      state.records.filter(
+        (record) =>
+          record.statusCode === 'INCOMPLETE'
+      ).length;
+
+    const quality = state.records.length > 0
+      ? Math.max(
+          0,
+          Math.round(
+            (
+              state.records.length -
+              incomplete
+            ) /
+            state.records.length *
+            100
+          )
+        )
+      : 100;
+
+    setText(
+      'summaryGateIn',
+      Number(selected.in) || 0
+    );
+
+    setText(
+      'summaryGateOut',
+      Number(selected.outReal) || 0
+    );
+
+    setText(
+      'summaryActive',
+      state.records.length
+    );
+
+    setText(
+      'summaryDataQuality',
+      quality + '%'
+    );
+  }
+
+  function recalculateRecords() {
+    const nowMs = getServerNow().getTime();
+    const thresholds = getThresholds();
 
     state.records.forEach(
       (record) => {
         const timestampInMs =
-          Number(
-            record.timestampInEpochMs
-          );
+          Number(record.timestampInEpochMs);
 
         if (
           !record.isCurrentlyInArea ||
-          !Number.isFinite(
-            timestampInMs
-          )
+          !Number.isFinite(timestampInMs)
         ) {
           record.durationSeconds = 0;
-          record.statusCode =
-            'INCOMPLETE';
+          record.statusCode = 'INCOMPLETE';
           return;
         }
 
-        record.durationSeconds =
-          Math.max(
-            0,
-            Math.floor(
-              (
-                nowMs -
-                timestampInMs
-              ) / 1000
-            )
-          );
+        record.durationSeconds = Math.max(
+          0,
+          Math.floor(
+            (nowMs - timestampInMs) / 1000
+          )
+        );
 
         record.statusCode =
           record.durationSeconds >=
@@ -1309,54 +1465,41 @@
   }
 
   function updateLiveDurations() {
-    const nowMs =
-      getServerNow().getTime();
+    const nowMs = getServerNow().getTime();
 
     document
-      .querySelectorAll(
-        '[data-live-record]'
-      )
+      .querySelectorAll('[data-live-record]')
       .forEach(
         (element) => {
-          const recordId =
-            String(
-              element.dataset.liveRecord ||
-              ''
-            );
+          const recordId = String(
+            element.dataset.liveRecord || ''
+          );
 
-          const record =
-            state.records.find(
-              (item) =>
-                String(
-                  item.recordId || ''
-                ) === recordId
-            );
+          const record = state.records.find(
+            (item) =>
+              String(item.recordId || '') ===
+              recordId
+          );
 
           if (!record) {
             return;
           }
 
           const receiving =
-            state.receivingByRecordId
-              .get(recordId);
+            state.receivingByRecordId.get(recordId);
 
           let startMs =
-            Number(
-              record.timestampInEpochMs
-            );
+            Number(record.timestampInEpochMs);
 
           if (
             receiving &&
             receiving.stageCode ===
               'WAITING_GATE_OUT' &&
-            receiving
-              .receivingCompleteEpochMs
+            receiving.receivingCompleteEpochMs
           ) {
-            startMs =
-              Number(
-                receiving
-                  .receivingCompleteEpochMs
-              );
+            startMs = Number(
+              receiving.receivingCompleteEpochMs
+            );
           }
 
           const seconds =
@@ -1364,10 +1507,7 @@
               ? Math.max(
                   0,
                   Math.floor(
-                    (
-                      nowMs -
-                      startMs
-                    ) / 1000
+                    (nowMs - startMs) / 1000
                   )
                 )
               : 0;
@@ -1378,105 +1518,30 @@
       );
   }
 
-  function startClock() {
-    updateClock();
-
-    state.clockTimer =
-      window.setInterval(
-        () => {
-          updateClock();
-          updateLiveDurations();
-        },
-        1000
-      );
-  }
-
-  function updateClock() {
-    setText(
-      'dashboardCurrentDateTime',
-      formatBangkokDateTime(
-        getServerNow()
-      )
-    );
-  }
-
-  function scheduleRefresh() {
-    if (state.destroyed) {
-      return;
-    }
-
-    if (state.refreshTimer) {
-      window.clearTimeout(
-        state.refreshTimer
-      );
-    }
-
-    const seconds =
-      Math.max(
-        10,
-        Math.min(
-          60,
-          Number(
-            state.module.refreshSeconds
-          ) ||
-          Number(
-            CONFIG.REFRESH_SECONDS
-          ) ||
-          15
-        )
-      );
-
-    state.refreshTimer =
-      window.setTimeout(
-        () => {
-          if (
-            document.visibilityState ===
-              'visible'
-          ) {
-            void refreshDashboard({
-              silent: true
-            });
-          } else {
-            scheduleRefresh();
-          }
-        },
-        seconds * 1000
-      );
-  }
-
   function getThresholds() {
     const thresholds =
       state.movement.thresholds || {};
 
     const warningMinutes =
-      Number(
-        thresholds.warningStartMinutes
-      ) ||
-      Number(
-        state.module.warningStartMinutes
-      ) || 45;
+      Number(thresholds.warningStartMinutes) ||
+      Number(state.module.warningStartMinutes) ||
+      45;
 
     const redMinutes =
-      Number(
-        thresholds.redStartMinutes
-      ) ||
-      Number(
-        state.module.redStartMinutes
-      ) || 60;
+      Number(thresholds.redStartMinutes) ||
+      Number(state.module.redStartMinutes) ||
+      60;
 
     const autoCloseHours =
-      Number(
-        thresholds.autoCloseHours
-      ) || 36;
+      Number(thresholds.autoCloseHours) ||
+      36;
 
     return {
-      warningMinutes: warningMinutes,
-      redMinutes: redMinutes,
-      autoCloseHours: autoCloseHours,
-      warningSeconds:
-        warningMinutes * 60,
-      redSeconds:
-        redMinutes * 60
+      warningMinutes,
+      redMinutes,
+      autoCloseHours,
+      warningSeconds: warningMinutes * 60,
+      redSeconds: redMinutes * 60
     };
   }
 
@@ -1489,13 +1554,11 @@
     return selected &&
       typeof selected === 'object'
         ? selected
-        : state.movement.currentRound ||
-          {};
+        : state.movement.currentRound || {};
   }
 
   function getHourlyRows() {
-    const hours =
-      state.movement.hours || {};
+    const hours = state.movement.hours || {};
 
     return state.period === 'TODAY'
       ? (
@@ -1520,18 +1583,15 @@
 
     state.records.forEach(
       (record) => {
-        const code =
-          String(
-            record.statusCode ||
-            'INCOMPLETE'
-          ).toUpperCase();
+        const code = String(
+          record.statusCode || 'INCOMPLETE'
+        ).toUpperCase();
 
         if (
-          Object.prototype
-            .hasOwnProperty.call(
-              result,
-              code
-            )
+          Object.prototype.hasOwnProperty.call(
+            result,
+            code
+          )
         ) {
           result[code] += 1;
         } else {
@@ -1543,78 +1603,378 @@
     return result;
   }
 
-  function compareRecords(left, right) {
-    const order = {
+  function statusPriority(code) {
+    return {
       OVERDUE: 0,
       WARNING: 1,
       INCOMPLETE: 2,
       NORMAL: 3
-    };
+    }[String(code || '')] ?? 9;
+  }
 
+  function compareRecords(left, right) {
     return (
-      (
-        order[left.statusCode] ?? 9
-      ) -
-      (
-        order[right.statusCode] ?? 9
-      )
-    ) ||
-    (
-      Number(
-        right.durationSeconds
-      ) -
-      Number(
-        left.durationSeconds
-      )
+      statusPriority(left.statusCode) -
+      statusPriority(right.statusCode)
+    ) || (
+      Number(right.durationSeconds) -
+      Number(left.durationSeconds)
     );
   }
 
-  function getRecordTitle(record) {
-    return String(
+  function extractRecordDimensions(record) {
+    const fields = Array.isArray(record.fields)
+      ? record.fields
+      : [];
+
+    const primary = String(
       record.primaryValue ||
       record.recordId ||
       'ไม่ระบุรายการ'
+    ).trim();
+
+    const company =
+      findFieldValue(
+        fields,
+        [
+          'บริษัท',
+          'vendor',
+          'company',
+          'ผู้รับบริการ',
+          'ลูกค้า',
+          'ผู้ขนส่ง'
+        ]
+      ) ||
+      firstSecondaryValue(fields) ||
+      primary;
+
+    const identifier =
+      findFieldValue(
+        fields,
+        [
+          'ทะเบียน',
+          'registration',
+          'plate',
+          'หมายเลขรถ',
+          'เลขตู้',
+          'container',
+          'รหัส'
+        ]
+      ) ||
+      sourceRowIdentifier(record.recordId);
+
+    return {
+      title: primary,
+      company: company,
+      identifier: identifier || '-'
+    };
+  }
+
+  function findFieldValue(fields, patterns) {
+    const normalizedPatterns =
+      patterns.map(normalizeText);
+
+    for (const field of fields) {
+      if (!field || field.primary) {
+        continue;
+      }
+
+      const label = normalizeText(
+        field.label ||
+        field.header ||
+        field.name ||
+        field.key ||
+        ''
+      );
+
+      const value = String(
+        field.value ??
+        field.displayValue ??
+        ''
+      ).trim();
+
+      if (!value) {
+        continue;
+      }
+
+      if (
+        normalizedPatterns.some(
+          (pattern) =>
+            label.includes(pattern)
+        )
+      ) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+  function firstSecondaryValue(fields) {
+    const field = fields.find(
+      (item) =>
+        item &&
+        !item.primary &&
+        String(
+          item.value ??
+          item.displayValue ??
+          ''
+        ).trim()
+    );
+
+    return field
+      ? String(
+          field.value ??
+          field.displayValue
+        ).trim()
+      : '';
+  }
+
+  function sourceRowIdentifier(recordId) {
+    const text = String(recordId || '');
+    const index = text.lastIndexOf(':');
+
+    return index >= 0
+      ? text.slice(index + 1)
+      : text;
+  }
+
+  function aggregateLongestWaiting() {
+    const groups = new Map();
+
+    state.records.forEach(
+      (record) => {
+        const dimensions =
+          extractRecordDimensions(record);
+
+        const key =
+          dimensions.company ||
+          dimensions.title;
+
+        const seconds =
+          Number(record.durationSeconds) || 0;
+
+        const current = groups.get(key);
+
+        if (
+          !current ||
+          seconds > current.seconds
+        ) {
+          groups.set(
+            key,
+            {
+              label: key,
+              seconds: seconds
+            }
+          );
+        }
+      }
+    );
+
+    return Array.from(groups.values())
+      .sort(
+        (left, right) =>
+          right.seconds - left.seconds
+      )
+      .slice(0, 5);
+  }
+
+  function deriveActiveTrend(
+    hours,
+    currentActive
+  ) {
+    if (
+      !Array.isArray(hours) ||
+      hours.length === 0
+    ) {
+      return [];
+    }
+
+    const netChanges = hours.map(
+      (hour) =>
+        (Number(hour.in) || 0) -
+        (Number(hour.outReal) || 0) -
+        (Number(hour.outAuto) || 0)
+    );
+
+    const totalNet = netChanges.reduce(
+      (sum, value) => sum + value,
+      0
+    );
+
+    let running = Math.max(
+      0,
+      Number(currentActive) - totalNet
+    );
+
+    return netChanges.map(
+      (change) => {
+        running = Math.max(
+          0,
+          running + change
+        );
+
+        return running;
+      }
     );
   }
 
-  function getRecordSecondary(record) {
-    const fields =
-      Array.isArray(record.fields)
-        ? record.fields
-        : [];
+  function createCartesianOptions(options) {
+    const config = options || {};
+    const horizontal =
+      config.horizontal === true;
 
-    return fields
-      .filter(
-        (field) =>
-          field &&
-          field.value &&
-          !field.primary
-      )
-      .slice(0, 2)
-      .map(
-        (field) => field.value
-      )
-      .join(' · ') ||
-      'ไม่มีข้อมูลประกอบ';
-  }
+    const indexAxis =
+      horizontal ? 'y' : 'x';
 
-  function getStatusLabel(code) {
+    const valueAxis =
+      horizontal ? 'x' : 'y';
+
     return {
-      NORMAL: 'ปกติ',
-      WARNING: 'เฝ้าระวัง',
-      OVERDUE: 'เกินเวลา',
-      INCOMPLETE: 'ข้อมูลไม่สมบูรณ์'
-    }[
-      String(code || '')
-    ] || 'ไม่ทราบสถานะ';
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: config.silent
+        ? false
+        : {duration: 220},
+      indexAxis: indexAxis,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: config.legend !== false,
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'rectRounded',
+            boxWidth: 7,
+            boxHeight: 7,
+            padding: 8,
+            color: COLORS.text,
+            font: {
+              size: 7,
+              weight: '700'
+            }
+          }
+        },
+        tooltip: {
+          displayColors: true,
+          bodyFont: {size: 9},
+          titleFont: {size: 9}
+        }
+      },
+      scales: {
+        [indexAxis]: {
+          stacked: config.stacked === true,
+          grid: {
+            display: horizontal,
+            color: COLORS.grid
+          },
+          ticks: {
+            color: COLORS.text,
+            font: {size: 7},
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: config.maxTicks || 10
+          },
+          border: {display: false}
+        },
+        [valueAxis]: {
+          stacked: config.stacked === true,
+          beginAtZero: true,
+          grid: {color: COLORS.grid},
+          ticks: {
+            color: COLORS.text,
+            precision: 0,
+            font: {size: 7}
+          },
+          border: {display: false}
+        }
+      }
+    };
   }
 
-  function getHourLabel(hour) {
-    return String(
-      hour.label ||
-      hour.hourLabel ||
-      hour.hour ||
-      '--:00'
+  function upsertChart(
+    existingChart,
+    canvas,
+    config
+  ) {
+    if (existingChart) {
+      existingChart.data = config.data;
+      existingChart.options = config.options;
+      existingChart.update('none');
+      return existingChart;
+    }
+
+    return new Chart(canvas, config);
+  }
+
+  function destroyChart(name) {
+    state.charts[name]?.destroy();
+    state.charts[name] = null;
+  }
+
+  function resizeCharts() {
+    Object.values(state.charts)
+      .forEach(
+        (chart) => chart?.resize()
+      );
+  }
+
+  function startClock() {
+    updateClock();
+
+    state.clockTimer = window.setInterval(
+      () => {
+        updateClock();
+        updateLiveDurations();
+      },
+      1000
+    );
+  }
+
+  function updateClock() {
+    setText(
+      'dashboardCurrentDateTime',
+      formatBangkokDateTime(
+        getServerNow()
+      )
+    );
+  }
+
+  function scheduleRefresh() {
+    if (state.destroyed) {
+      return;
+    }
+
+    if (state.refreshTimer) {
+      window.clearTimeout(
+        state.refreshTimer
+      );
+    }
+
+    const seconds = Math.max(
+      10,
+      Math.min(
+        60,
+        Number(state.module.refreshSeconds) ||
+        Number(CONFIG.REFRESH_SECONDS) ||
+        15
+      )
+    );
+
+    state.refreshTimer = window.setTimeout(
+      () => {
+        if (
+          document.visibilityState === 'visible'
+        ) {
+          void refreshDashboard({silent: true});
+        } else {
+          scheduleRefresh();
+        }
+      },
+      seconds * 1000
     );
   }
 
@@ -1624,77 +1984,45 @@
         id:
           state.module.id ||
           state.module.moduleId,
-        name:
-          state.module.name,
+        name: state.module.name,
         description:
           state.module.description,
         refreshSeconds:
           state.module.refreshSeconds
       },
 
-      records:
-        state.records.map(
-          (record) => ({
-            id:
-              record.recordId,
-            status:
-              record.statusCode,
-            in:
-              record.timestampInEpochMs,
-            out:
-              record.timestampOutEpochMs,
-            primary:
-              record.primaryValue
-          })
-        ),
+      records: state.records.map(
+        (record) => ({
+          id: record.recordId,
+          status: record.statusCode,
+          timestampIn:
+            record.timestampInEpochMs,
+          timestampOut:
+            record.timestampOutEpochMs,
+          primary: record.primaryValue
+        })
+      ),
 
-      /*
-       * ตัด generatedAt / servedAt / remaining time ออกจาก Signature
-       * เพื่อไม่ให้ Dashboard วาด DOM ใหม่ทุกครั้งที่ Silent Refresh
-       */
       movement: {
         thresholds:
           state.movement.thresholds || {},
-
-        currentState: {
-          activeNow:
-            state.movement.currentState &&
-            state.movement.currentState.activeNow,
-          normal:
-            state.movement.currentState &&
-            state.movement.currentState.normal,
-          warning:
-            state.movement.currentState &&
-            state.movement.currentState.warning,
-          overdue:
-            state.movement.currentState &&
-            state.movement.currentState.overdue,
-          incomplete:
-            state.movement.currentState &&
-            state.movement.currentState.incomplete,
-          nearAutoClose:
-            state.movement.currentState &&
-            state.movement.currentState.nearAutoClose
-        },
-
+        currentState:
+          state.movement.currentState || {},
         today:
-          stableMovementMetric(
+          stableMetric(
             state.movement.today
           ),
-
         rolling24:
-          stableMovementMetric(
+          stableMetric(
             state.movement.rolling24
           ),
-
-        hoursToday:
-          stableMovementHours(
+        todayHours:
+          stableHours(
             state.movement.hours &&
             state.movement.hours.today
           ),
-
-        hoursRolling24:
-          stableMovementHours(
+        rollingHours:
+          stableHours(
             state.movement.hours &&
             state.movement.hours.rolling24
           )
@@ -1705,29 +2033,23 @@
           state.receiving.enabled,
         summary:
           state.receiving.summary,
-        records:
-          (
-            state.receiving.records ||
-            []
-          ).map(
-            (record) => ({
-              id:
-                record.recordId,
-              stage:
-                record.stageCode,
-              receiving:
-                record
-                  .receivingCompleteEpochMs,
-              out:
-                record.timestampOutEpochMs
-            })
-          )
+        records: (
+          state.receiving.records || []
+        ).map(
+          (record) => ({
+            id: record.recordId,
+            stage: record.stageCode,
+            receiving:
+              record.receivingCompleteEpochMs,
+            out:
+              record.timestampOutEpochMs
+          })
+        )
       }
     });
   }
 
-
-  function stableMovementMetric(metric) {
+  function stableMetric(metric) {
     const source =
       metric &&
       typeof metric === 'object'
@@ -1735,33 +2057,25 @@
         : {};
 
     return {
-      in:
-        Number(source.in) || 0,
-      outReal:
-        Number(source.outReal) || 0,
-      outAuto:
-        Number(source.outAuto) || 0,
-      outTotal:
-        Number(source.outTotal) || 0,
+      in: Number(source.in) || 0,
+      outReal: Number(source.outReal) || 0,
+      outAuto: Number(source.outAuto) || 0,
+      outTotal: Number(source.outTotal) || 0,
       movementTotal:
         Number(source.movementTotal) || 0,
-      net:
-        Number(source.net) || 0
+      net: Number(source.net) || 0
     };
   }
 
-
-  function stableMovementHours(hours) {
+  function stableHours(hours) {
     return (
       Array.isArray(hours)
         ? hours
         : []
     ).map(
       (hour) => ({
-        label:
-          getHourLabel(hour),
-        in:
-          Number(hour.in) || 0,
+        label: getHourLabel(hour),
+        in: Number(hour.in) || 0,
         outReal:
           Number(hour.outReal) || 0,
         outAuto:
@@ -1773,8 +2087,7 @@
   }
 
   function updateServerOffset(value) {
-    const date =
-      parseSystemDateTime(value);
+    const date = parseSystemDateTime(value);
 
     if (date) {
       state.serverOffsetMs =
@@ -1784,19 +2097,17 @@
   }
 
   function parseSystemDateTime(value) {
-    const text =
-      String(value || '').trim();
+    const text = String(value || '').trim();
 
-    const match =
-      text.match(
-        /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/
-      );
+    const match = text.match(
+      /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/
+    );
 
     if (!match) {
       return null;
     }
 
-    return new Date(
+    const date = new Date(
       match[3] + '-' +
       match[2] + '-' +
       match[1] + 'T' +
@@ -1804,6 +2115,10 @@
       match[5] + ':' +
       match[6] + '+07:00'
     );
+
+    return Number.isNaN(date.getTime())
+      ? null
+      : date;
   }
 
   function getServerNow() {
@@ -1818,22 +2133,14 @@
       new Intl.DateTimeFormat(
         'en-GB',
         {
-          timeZone:
-            'Asia/Bangkok',
-          day:
-            '2-digit',
-          month:
-            '2-digit',
-          year:
-            'numeric',
-          hour:
-            '2-digit',
-          minute:
-            '2-digit',
-          second:
-            '2-digit',
-          hour12:
-            false
+          timeZone: 'Asia/Bangkok',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
         }
       )
         .formatToParts(date)
@@ -1857,24 +2164,16 @@
   }
 
   function formatDuration(seconds) {
-    const total =
-      Math.max(
-        0,
-        Math.floor(
-          Number(seconds) || 0
-        )
-      );
+    const total = Math.max(
+      0,
+      Math.floor(Number(seconds) || 0)
+    );
 
-    const hours =
-      Math.floor(total / 3600);
-
-    const minutes =
-      Math.floor(
-        (total % 3600) / 60
-      );
-
-    const remaining =
-      total % 60;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor(
+      (total % 3600) / 60
+    );
+    const remaining = total % 60;
 
     return (
       String(hours).padStart(2, '0') +
@@ -1891,12 +2190,42 @@
       : '--:--:--';
   }
 
-  function setConnectionState(
-    code,
-    text
-  ) {
-    const element =
-      byId('dashboardConnection');
+  function getStatusLabel(code) {
+    return {
+      NORMAL: 'ปกติ',
+      WARNING: 'เฝ้าระวัง',
+      OVERDUE: 'เกินเวลา',
+      INCOMPLETE: 'ข้อมูลไม่สมบูรณ์'
+    }[String(code || '')] ||
+      'ไม่ทราบสถานะ';
+  }
+
+  function getHourLabel(hour) {
+    return String(
+      hour.label ||
+      hour.hourLabel ||
+      hour.hour ||
+      '--:00'
+    );
+  }
+
+  function normalizeText(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  function truncateText(value, maxLength) {
+    const text = String(value || '');
+
+    return text.length > maxLength
+      ? text.slice(0, maxLength - 1) + '…'
+      : text;
+  }
+
+  function setConnectionState(code, text) {
+    const element = byId('dashboardConnection');
 
     if (element) {
       element.dataset.state = code;
@@ -1904,11 +2233,8 @@
     }
   }
 
-  function setRefreshButtonLoading(
-    loading
-  ) {
-    const button =
-      byId('dashboardRefreshButton');
+  function setRefreshButtonLoading(loading) {
+    const button = byId('dashboardRefreshButton');
 
     if (!button) {
       return;
@@ -1916,10 +2242,13 @@
 
     button.disabled = loading;
 
-    button.textContent =
-      loading
-        ? 'กำลังอัปเดต...'
+    const label = button.querySelector('span');
+
+    if (label) {
+      label.textContent = loading
+        ? 'กำลังอัปเดต'
         : 'รีเฟรช';
+    }
   }
 
   function showLoading(show) {
@@ -1933,8 +2262,7 @@
   async function showError(error, title) {
     if (!window.Swal) {
       window.alert(
-        error &&
-        error.message ||
+        error && error.message ||
         title
       );
       return;
@@ -1944,8 +2272,7 @@
       icon: 'error',
       title: title,
       text:
-        error &&
-        error.message ||
+        error && error.message ||
         'เกิดข้อผิดพลาด',
       confirmButtonText: 'ตกลง'
     });
@@ -2003,36 +2330,58 @@
         '[data-fullscreen-label]'
       );
 
+    const button =
+      byId('dashboardFullscreenButton');
+
     if (label) {
       label.textContent =
         document.fullscreenElement
           ? 'ออกเต็มจอ'
           : 'เต็มจอ';
     }
+
+    button?.setAttribute(
+      'aria-pressed',
+      String(
+        Boolean(
+          document.fullscreenElement
+        )
+      )
+    );
+
+    window.setTimeout(
+      resizeCharts,
+      80
+    );
   }
 
-  function scrollToRecords() {
-    document
-      .querySelector(
-        '.dashboard-record-panel'
-      )
-      ?.scrollIntoView({
+  function focusRecordsPanel() {
+    const panel =
+      document.querySelector(
+        '.records-panel'
+      );
+
+    if (
+      panel &&
+      window.innerWidth < 1180
+    ) {
+      panel.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
       });
+    }
   }
 
   function setText(id, value) {
     const element = byId(id);
 
     if (element) {
-      element.textContent =
-        String(
-          value === null ||
-          value === undefined
-            ? ''
-            : value
-        );
+      element.textContent = String(
+        value === null ||
+        value === undefined
+          ? ''
+          : value
+      );
     }
   }
 
@@ -2058,9 +2407,7 @@
     return String(
       new URL(
         window.location.href
-      ).searchParams.get(
-        'module'
-      ) || ''
+      ).searchParams.get('module') || ''
     ).trim();
   }
 
@@ -2070,11 +2417,10 @@
     return function (...args) {
       window.clearTimeout(timer);
 
-      timer =
-        window.setTimeout(
-          () => fn(...args),
-          wait
-        );
+      timer = window.setTimeout(
+        () => fn(...args),
+        wait
+      );
     };
   }
 
@@ -2093,7 +2439,8 @@
       );
     }
 
-    state.chart?.destroy();
+    Object.keys(state.charts)
+      .forEach(destroyChart);
   }
 
 })(window, document);
