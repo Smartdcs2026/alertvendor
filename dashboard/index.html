@@ -10,13 +10,13 @@
 
   <link rel="icon" type="image/png" href="../icons/favicon-64.png">
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./dashboard.css?v=20260702-r36-executive-reference">
+  <link rel="stylesheet" href="./dashboard.css?v=20260702-r37-responsive-mobile">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="./dashboard-config.js?v=20260701-r30-control-room" defer></script>
   <script src="./dashboard-api.js?v=20260701-r30-control-room" defer></script>
-  <script src="./dashboard.js?v=20260702-r36-executive-reference" defer></script>
+  <script src="./dashboard.js?v=20260702-r37-responsive-mobile" defer></script>
 </head>
 
 <body class="dashboard-page">
@@ -387,8 +387,34 @@
       </aside>
     </section>
 
+    <nav
+      id="mobileAnalyticsTabs"
+      class="mobile-analytics-tabs"
+      aria-label="เลือกกราฟ Dashboard"
+    >
+      <button type="button" data-chart-tab="hourly" class="is-active">
+        การเคลื่อนไหว
+      </button>
+
+      <button type="button" data-chart-tab="status">
+        สถานะ
+      </button>
+
+      <button type="button" data-chart-tab="trend">
+        แนวโน้ม
+      </button>
+
+      <button type="button" data-chart-tab="waiting">
+        รอนาน
+      </button>
+
+      <button type="button" data-chart-tab="flow">
+        กระบวนการ
+      </button>
+    </nav>
+
     <section class="analytics-row">
-      <article class="panel chart-panel chart-panel--flow">
+      <article class="panel chart-panel chart-panel--flow is-mobile-active" data-chart-panel="hourly">
         <header class="chart-panel__header">
           <div>
             <small>HOURLY FLOW</small>
@@ -404,7 +430,7 @@
         </div>
       </article>
 
-      <article class="panel chart-panel">
+      <article class="panel chart-panel" data-chart-panel="status">
         <header class="chart-panel__header">
           <div>
             <small>STATUS DISTRIBUTION</small>
@@ -417,7 +443,7 @@
         </div>
       </article>
 
-      <article class="panel chart-panel">
+      <article class="panel chart-panel" data-chart-panel="trend">
         <header class="chart-panel__header">
           <div>
             <small>ACTIVE TREND</small>
@@ -430,7 +456,7 @@
         </div>
       </article>
 
-      <article class="panel chart-panel">
+      <article class="panel chart-panel" data-chart-panel="waiting">
         <header class="chart-panel__header">
           <div>
             <small>LONGEST WAITING</small>
@@ -443,7 +469,7 @@
         </div>
       </article>
 
-      <article class="panel chart-panel process-panel">
+      <article class="panel chart-panel process-panel" data-chart-panel="flow">
         <header class="chart-panel__header">
           <div>
             <small>FLOW COMPLETION TODAY</small>
@@ -507,6 +533,11 @@
         </div>
       </article>
     </section>
+
+    <div class="mobile-section-title mobile-system-title">
+      <small>SYSTEM SUMMARY</small>
+      <strong>ภาพรวมข้อมูลล่าสุด</strong>
+    </div>
 
     <footer class="system-summary">
       <div class="system-summary__title">
