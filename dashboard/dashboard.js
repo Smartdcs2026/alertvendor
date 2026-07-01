@@ -371,11 +371,14 @@
 
       state.movement = movement || {};
 
-      state.receiving = receiving || {
-        enabled: false,
-        summary: {},
-        records: []
-      };
+      state.receiving =
+        normalizeDashboardReceivingFlow(
+          receiving
+        ) || {
+          enabled: false,
+          summary: {},
+          records: []
+        };
 
       rebuildReceivingIndex();
 
@@ -442,6 +445,213 @@
 
       scheduleRefresh();
     }
+  }
+
+
+  function normalizeDashboardReceivingFlow(
+    flow
+  ) {
+    if (
+      !flow ||
+      typeof flow !== 'object'
+    ) {
+      return flow;
+    }
+
+    const records =
+      (
+        Array.isArray(flow.records)
+          ? flow.records
+          : []
+      ).map(
+        normalizeDashboardReceivingRecord
+      );
+
+    const active =
+      records.filter(
+        (record) =>
+          record.isCurrentlyInArea ===
+            true
+      );
+
+    return {
+      ...flow,
+      records:
+        records,
+      summary: {
+        ...(flow.summary || {}),
+        activeTotal:
+          active.length,
+        waitingReceiving:
+          active.filter(
+            (record) =>
+              record.stageCode ===
+                'WAITING_RECEIVING'
+          ).length,
+        waitingGateOut:
+          active.filter(
+            (record) =>
+              record.stageCode ===
+                'WAITING_GATE_OUT'
+          ).length
+      }
+    };
+  }
+
+
+  function normalizeDashboardReceivingRecord(
+    sourceRecord
+  ) {
+    const record =
+      sourceRecord &&
+      typeof sourceRecord === 'object'
+        ? sourceRecord
+        : {};
+
+    const isActive =
+      record.isCurrentlyInArea ===
+        true;
+
+    const hasReceiving =
+      Boolean(
+        record.receivingCompleteEpochMs ||
+        record.receivingCompleteAt
+      );
+
+    const timestampOutEpochMs =
+      Number(
+        record.timestampOutEpochMs
+      );
+
+    const hasTimestampOut =
+      Number.isFinite(
+        timestampOutEpochMs
+      ) &&
+      timestampOutEpochMs > 0;
+
+    const gateOutSource =
+      String(
+        record.gateOutSource ||
+        ''
+      ).toUpperCase();
+
+    if (isActive) {
+      const nowMs =
+        Date.now() +
+        state.serverOffsetMs;
+
+      const timestampInEpochMs =
+        Number(
+          record.timestampInEpochMs
+        );
+
+      const receivingEpochMs =
+        Number(
+          record.receivingCompleteEpochMs
+        );
+
+      const currentStageSeconds =
+        hasReceiving &&
+        Number.isFinite(
+          receivingEpochMs
+        )
+          ? Math.max(
+              0,
+              Math.floor(
+                (
+                  nowMs -
+                  receivingEpochMs
+                ) /
+                1000
+              )
+            )
+          : Number.isFinite(
+                timestampInEpochMs
+              )
+            ? Math.max(
+                0,
+                Math.floor(
+                  (
+                    nowMs -
+                    timestampInEpochMs
+                  ) /
+                  1000
+                )
+              )
+            : Number(
+                record.currentStageSeconds
+              ) || 0;
+
+      return {
+        ...record,
+        stageCode:
+          hasReceiving
+            ? 'WAITING_GATE_OUT'
+            : 'WAITING_RECEIVING',
+        stageLabel:
+          hasReceiving
+            ? 'รับสินค้าเสร็จ รอ Gate Out'
+            : 'รอรับสินค้าเสร็จ',
+        isExited:
+          false,
+        timestampOut:
+          '',
+        timestampOutEpochMs:
+          null,
+        gateOutSource:
+          'PENDING',
+        gateOutSourceLabel:
+          'ยังไม่มีการสแกน Gate Out',
+        currentStageSeconds:
+          currentStageSeconds
+      };
+    }
+
+    const hasAutoClose =
+      hasTimestampOut &&
+      gateOutSource ===
+        'AUTO_CLOSE';
+
+    const hasRealGateOut =
+      hasTimestampOut &&
+      gateOutSource ===
+        'SCANNER';
+
+    if (hasAutoClose) {
+      return {
+        ...record,
+        stageCode:
+          hasReceiving
+            ? 'AUTO_CLOSED_AFTER_RECEIVING'
+            : 'AUTO_CLOSED_WITHOUT_RECEIVING',
+        stageLabel:
+          hasReceiving
+            ? 'รับสินค้าเสร็จแล้ว แต่ไม่พบ Gate Out จริง — ระบบเคลียร์ข้อมูล'
+            : 'ระบบเคลียร์ข้อมูล โดยไม่มีข้อมูลรับสินค้าเสร็จ'
+      };
+    }
+
+    if (hasRealGateOut) {
+      return {
+        ...record,
+        stageCode:
+          hasReceiving
+            ? 'EXITED_AFTER_RECEIVING'
+            : 'EXITED_WITHOUT_RECEIVING',
+        stageLabel:
+          hasReceiving
+            ? 'Gate Out จริงแล้ว — กระบวนการสมบูรณ์'
+            : 'Gate Out จริงแล้ว โดยไม่มีข้อมูลรับสินค้าเสร็จ'
+      };
+    }
+
+    return {
+      ...record,
+      stageCode:
+        'INACTIVE_WITHOUT_GATE_OUT_TIME',
+      stageLabel:
+        'รายการไม่ Active แต่ไม่พบเวลา Gate Out ที่ยืนยันได้'
+    };
   }
 
   function rebuildReceivingIndex() {
