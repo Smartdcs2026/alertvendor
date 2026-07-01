@@ -47,7 +47,8 @@
       activeTrend: null,
       longestWaiting: null
     },
-    destroyed: false
+    destroyed: false,
+    mobileChart: 'hourly'
   };
 
   const doughnutCenterPlugin = {
@@ -129,6 +130,7 @@
       }
 
       renderUserIdentity();
+      syncResponsiveDashboard();
 
       await refreshDashboard({
         silent: false,
@@ -234,6 +236,12 @@
         resetRecordFilters
       );
 
+    byId('mobileAnalyticsTabs')
+      ?.addEventListener(
+        'click',
+        handleMobileChartTab
+      );
+
     document.addEventListener(
       'click',
       handleDashboardClick
@@ -255,13 +263,116 @@
 
     window.addEventListener(
       'resize',
-      debounce(resizeCharts, 120)
+      debounce(
+        () => {
+          syncResponsiveDashboard();
+          resizeCharts();
+        },
+        120
+      )
     );
 
     document.addEventListener(
       'fullscreenchange',
       syncFullscreenButton
     );
+  }
+
+
+  function handleMobileChartTab(event) {
+    const button =
+      event.target.closest(
+        '[data-chart-tab]'
+      );
+
+    if (!button) {
+      return;
+    }
+
+    setMobileChartTab(
+      String(
+        button.dataset.chartTab ||
+        'hourly'
+      )
+    );
+  }
+
+
+  function setMobileChartTab(chartKey) {
+    const safeKey =
+      [
+        'hourly',
+        'status',
+        'trend',
+        'waiting',
+        'flow'
+      ].includes(chartKey)
+        ? chartKey
+        : 'hourly';
+
+    state.mobileChart =
+      safeKey;
+
+    document
+      .querySelectorAll(
+        '[data-chart-tab]'
+      )
+      .forEach(
+        (button) => {
+          const active =
+            button.dataset.chartTab ===
+            safeKey;
+
+          button.classList.toggle(
+            'is-active',
+            active
+          );
+
+          button.setAttribute(
+            'aria-selected',
+            String(active)
+          );
+        }
+      );
+
+    document
+      .querySelectorAll(
+        '[data-chart-panel]'
+      )
+      .forEach(
+        (panel) => {
+          panel.classList.toggle(
+            'is-mobile-active',
+            panel.dataset.chartPanel ===
+              safeKey
+          );
+        }
+      );
+
+    window.setTimeout(
+      resizeCharts,
+      80
+    );
+  }
+
+
+  function syncResponsiveDashboard() {
+    const mobile =
+      window.matchMedia(
+        '(max-width: 760px)'
+      ).matches;
+
+    document.body.classList.toggle(
+      'is-mobile-dashboard',
+      mobile
+    );
+
+    if (mobile) {
+      setMobileChartTab(
+        state.mobileChart ||
+        'hourly'
+      );
+    }
   }
 
   function handleDashboardClick(event) {
