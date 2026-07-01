@@ -209,26 +209,34 @@
           }
         );
 
-      state.flow = result || null;
-      configureReceivingRefresh(result);
+      const normalizedResult =
+        normalizeReceivingFlowResult(
+          result
+        );
+
+      state.flow =
+        normalizedResult || null;
+      configureReceivingRefresh(
+        normalizedResult
+      );
 
       if (
         Number.isFinite(
           Number(
-            result &&
-            result.generatedAtEpochMs
+            normalizedResult &&
+            normalizedResult.generatedAtEpochMs
           )
         )
       ) {
         state.serverOffsetMs =
           Number(
-            result.generatedAtEpochMs
+            normalizedResult.generatedAtEpochMs
           ) - Date.now();
       }
 
       if (
-        !result ||
-        result.enabled !== true
+        !normalizedResult ||
+        normalizedResult.enabled !== true
       ) {
         disableReceivingUi();
         correctMovementTerminology();
@@ -240,7 +248,7 @@
 
       const nextSignature =
         buildReceivingFlowSignature(
-          result
+          normalizedResult
         );
 
       const changed =
@@ -254,9 +262,9 @@
 
       (
         Array.isArray(
-          result.records
+          normalizedResult.records
         )
-          ? result.records
+          ? normalizedResult.records
           : []
       ).forEach(
         (record) => {
@@ -276,9 +284,9 @@
 
       setText(
         'receivingUpdatedAt',
-        result.generatedAt
+        normalizedResult.generatedAt
           ? 'ข้อมูลล่าสุด ' +
-            result.generatedAt
+            normalizedResult.generatedAt
           : 'ข้อมูลเป็นปัจจุบัน'
       );
 
@@ -322,6 +330,313 @@
       state.loading = false;
       scheduleNextReceivingRefresh();
     }
+  }
+
+
+  function normalizeReceivingFlowResult(
+    result
+  ) {
+    if (
+      !result ||
+      typeof result !== 'object'
+    ) {
+      return result;
+    }
+
+    const records =
+      (
+        Array.isArray(
+          result.records
+        )
+          ? result.records
+          : []
+      ).map(
+        normalizeReceivingRecordState
+      );
+
+    const activeRecords =
+      records.filter(
+        (record) =>
+          record.isCurrentlyInArea ===
+            true
+      );
+
+    const summary = {
+      ...(
+        result.summary ||
+        {}
+      ),
+
+      activeTotal:
+        activeRecords.length,
+
+      waitingReceiving:
+        activeRecords.filter(
+          (record) =>
+            record.stageCode ===
+              'WAITING_RECEIVING'
+        ).length,
+
+      waitingGateOut:
+        activeRecords.filter(
+          (record) =>
+            record.stageCode ===
+              'WAITING_GATE_OUT'
+        ).length
+    };
+
+    const priority =
+      activeRecords
+        .slice()
+        .sort(
+          (left, right) => {
+            const leftPriority =
+              left.stageCode ===
+                'WAITING_GATE_OUT'
+                ? 2
+                : 1;
+
+            const rightPriority =
+              right.stageCode ===
+                'WAITING_GATE_OUT'
+                ? 2
+                : 1;
+
+            return (
+              rightPriority -
+                leftPriority ||
+              (
+                Number(
+                  right.currentStageSeconds
+                ) || 0
+              ) -
+                (
+                  Number(
+                    left.currentStageSeconds
+                  ) || 0
+                )
+            );
+          }
+        )
+        .slice(
+          0,
+          10
+        );
+
+    return {
+      ...result,
+      summary:
+        summary,
+      priority:
+        priority,
+      records:
+        records
+    };
+  }
+
+
+  function normalizeReceivingRecordState(
+    sourceItem
+  ) {
+    const item =
+      sourceItem &&
+      typeof sourceItem === 'object'
+        ? sourceItem
+        : {};
+
+    const isActive =
+      item.isCurrentlyInArea ===
+        true;
+
+    const hasReceiving =
+      Boolean(
+        item.receivingCompleteEpochMs ||
+        item.receivingCompleteAt
+      );
+
+    const rawTimestampOutEpochMs =
+      Number(
+        item.timestampOutEpochMs
+      );
+
+    const hasTimestampOut =
+      Number.isFinite(
+        rawTimestampOutEpochMs
+      ) &&
+      rawTimestampOutEpochMs > 0;
+
+    const gateOutSource =
+      String(
+        item.gateOutSource ||
+        ''
+      ).toUpperCase();
+
+    /*
+     * รายการ Active ยังอยู่ในพื้นที่
+     * จึงห้ามแสดงว่า Gate Out แล้วทุกกรณี
+     */
+    if (isActive) {
+      const nowMs =
+        getReceivingNowMs();
+
+      const timestampInEpochMs =
+        Number(
+          item.timestampInEpochMs
+        );
+
+      const receivingEpochMs =
+        Number(
+          item.receivingCompleteEpochMs
+        );
+
+      const activeStageSeconds =
+        hasReceiving &&
+        Number.isFinite(
+          receivingEpochMs
+        )
+          ? Math.max(
+              0,
+              Math.floor(
+                (
+                  nowMs -
+                  receivingEpochMs
+                ) /
+                1000
+              )
+            )
+          : Number.isFinite(
+                timestampInEpochMs
+              )
+            ? Math.max(
+                0,
+                Math.floor(
+                  (
+                    nowMs -
+                    timestampInEpochMs
+                  ) /
+                  1000
+                )
+              )
+            : Number(
+                item.currentStageSeconds
+              ) || 0;
+
+      return {
+        ...item,
+        stageCode:
+          hasReceiving
+            ? 'WAITING_GATE_OUT'
+            : 'WAITING_RECEIVING',
+        stageLabel:
+          hasReceiving
+            ? 'รับสินค้าเสร็จ รอ Gate Out'
+            : 'รอรับสินค้าเสร็จ',
+        isExited:
+          false,
+        hasRealGateOut:
+          false,
+        hasAutoClose:
+          false,
+        rawTimestampOutEpochMs:
+          hasTimestampOut
+            ? rawTimestampOutEpochMs
+            : null,
+        timestampOut:
+          '',
+        timestampOutEpochMs:
+          null,
+        gateOutSource:
+          'PENDING',
+        gateOutSourceLabel:
+          'ยังไม่มีการสแกน Gate Out',
+        canCompleteReceiving:
+          !hasReceiving,
+        currentStageSeconds:
+          activeStageSeconds,
+        receivingToGateOutSeconds:
+          hasReceiving
+            ? activeStageSeconds
+            : null,
+        receivingToGateOutDisplay:
+          hasReceiving
+            ? formatDuration(
+                activeStageSeconds
+              )
+            : '',
+        arrivalToReceivingSeconds:
+          hasReceiving
+            ? item.arrivalToReceivingSeconds
+            : activeStageSeconds,
+        arrivalToReceivingDisplay:
+          hasReceiving
+            ? item.arrivalToReceivingDisplay
+            : formatDuration(
+                activeStageSeconds
+              )
+      };
+    }
+
+    const hasAutoClose =
+      hasTimestampOut &&
+      gateOutSource ===
+        'AUTO_CLOSE';
+
+    const hasRealGateOut =
+      hasTimestampOut &&
+      gateOutSource ===
+        'SCANNER';
+
+    let stageCode =
+      'INACTIVE_WITHOUT_GATE_OUT_TIME';
+
+    let stageLabel =
+      'รายการไม่ Active แต่ไม่พบเวลา Gate Out ที่ยืนยันได้';
+
+    if (hasAutoClose) {
+      stageCode =
+        hasReceiving
+          ? 'AUTO_CLOSED_AFTER_RECEIVING'
+          : 'AUTO_CLOSED_WITHOUT_RECEIVING';
+
+      stageLabel =
+        hasReceiving
+          ? 'รับสินค้าเสร็จแล้ว แต่ไม่พบ Gate Out จริง — ระบบเคลียร์ข้อมูล'
+          : 'ระบบเคลียร์ข้อมูล โดยไม่มีข้อมูลรับสินค้าเสร็จ';
+
+    } else if (hasRealGateOut) {
+      stageCode =
+        hasReceiving
+          ? 'EXITED_AFTER_RECEIVING'
+          : 'EXITED_WITHOUT_RECEIVING';
+
+      stageLabel =
+        hasReceiving
+          ? 'Gate Out จริงแล้ว — กระบวนการสมบูรณ์'
+          : 'Gate Out จริงแล้ว โดยไม่มีข้อมูลรับสินค้าเสร็จ';
+    }
+
+    return {
+      ...item,
+      stageCode:
+        stageCode,
+      stageLabel:
+        stageLabel,
+      isExited:
+        hasAutoClose ||
+        hasRealGateOut,
+      hasRealGateOut:
+        hasRealGateOut,
+      hasAutoClose:
+        hasAutoClose,
+      canCompleteReceiving:
+        false,
+      gateOutSourceLabel:
+        hasAutoClose
+          ? 'ระบบเคลียร์ข้อมูล ไม่ใช่ Gate Out จริง'
+          : hasRealGateOut
+            ? 'Gate Out จริง'
+            : 'ไม่พบเวลา Gate Out ที่ยืนยันได้'
+    };
   }
 
 
@@ -649,7 +964,13 @@
       return;
     }
 
-    container.innerHTML = items.slice(0, 5).map((item, index) => `
+    container.innerHTML = items.slice(0, 5).map((sourceItem, index) => {
+      const item =
+        normalizeReceivingRecordState(
+          sourceItem
+        );
+
+      return `
       <article
         class="receiving-priority-item"
         data-stage="${escapeHtml(item.stageCode || '')}"
@@ -684,7 +1005,8 @@
           </button>
         </div>
       </article>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function observeIncompleteSummary() {
@@ -954,8 +1276,13 @@
 
 
   function buildReceivingCardSignature(
-    item
+    sourceItem
   ) {
+    const item =
+      normalizeReceivingRecordState(
+        sourceItem
+      );
+
     return JSON.stringify({
       recordId:
         item.recordId || '',
@@ -992,8 +1319,19 @@
   }
 
 
-  function buildReceivingStageHtml(item) {
-    const hasReceiving = Boolean(item.receivingCompleteAt);
+  function buildReceivingStageHtml(
+    sourceItem
+  ) {
+    const item =
+      normalizeReceivingRecordState(
+        sourceItem
+      );
+
+    const hasReceiving =
+      Boolean(
+        item.receivingCompleteEpochMs ||
+        item.receivingCompleteAt
+      );
     const stageOneLabel = hasReceiving
       ? 'เข้า → รับสินค้าเสร็จ'
       : 'เข้า → รอรับสินค้าเสร็จ';
@@ -1043,8 +1381,8 @@
               : item.gateOutSource === 'AUTO_CLOSE'
                 ? 'ระบบเคลียร์ ไม่ใช่ Gate Out จริง'
                 : hasReceiving
-                  ? 'กำลังรอ Gate Out'
-                  : 'ยังไม่เริ่มช่วงที่ 2'}
+                  ? 'กำลังรอสแกน Gate Out'
+                  : 'เริ่มนับหลังบันทึกรับสินค้าเสร็จ'}
           </small>
         </div>
       </div>
@@ -1079,10 +1417,15 @@
    * แสดงข้อมูลทุกช่องที่ API ส่งมาใน item.fields
    */
   function buildReceivingReviewHtml(
-    item,
+    sourceItem,
     elapsedSeconds,
     reviewDate
   ) {
+    const item =
+      normalizeReceivingRecordState(
+        sourceItem
+      );
+
     const fields =
       normalizeReceivingReviewFields(
         item
@@ -1678,11 +2021,16 @@
         result &&
         result.record
       ) {
+        const normalizedRecord =
+          normalizeReceivingRecordState(
+            result.record
+          );
+
         state.records.set(
           String(
-            result.record.recordId
+            normalizedRecord.recordId
           ),
-          result.record
+          normalizedRecord
         );
 
         /*
@@ -1787,8 +2135,13 @@
 
     document.querySelectorAll('[data-receiving-live-timer]').forEach((element) => {
       const recordId = String(element.dataset.receivingLiveTimer || '');
-      const item = state.records.get(recordId);
-      if (!item) return;
+      const sourceItem = state.records.get(recordId);
+      if (!sourceItem) return;
+
+      const item =
+        normalizeReceivingRecordState(
+          sourceItem
+        );
 
       const phase = String(element.dataset.receivingPhase || '').toUpperCase();
       let seconds = Number(item.currentStageSeconds) || 0;
@@ -1837,7 +2190,12 @@
       return;
     }
     document.querySelectorAll('.vehicle-card[data-record-id]').forEach((card) => {
-      const item = state.records.get(String(card.dataset.recordId || ''));
+      const sourceItem = state.records.get(String(card.dataset.recordId || ''));
+      const item = sourceItem
+        ? normalizeReceivingRecordState(
+            sourceItem
+          )
+        : null;
       const visible = state.stageFilter === 'ALL' || (
         item && item.stageCode === state.stageFilter
       );
@@ -1866,8 +2224,13 @@
   }
 
   async function copyRecordMessage(recordId) {
-    const item = state.records.get(String(recordId || ''));
-    if (!item) return;
+    const sourceItem = state.records.get(String(recordId || ''));
+    if (!sourceItem) return;
+
+    const item =
+      normalizeReceivingRecordState(
+        sourceItem
+      );
 
     const generatedAt = state.flow && state.flow.generatedAt
       ? state.flow.generatedAt
@@ -1889,8 +2252,8 @@
       'ช่วงรับเสร็จ → Gate Out: ' + (
         item.receivingToGateOutDisplay || 'ยังไม่เริ่ม'
       ),
-      'Gate Out: ' + (item.timestampOut || 'ยังไม่มีเวลาออก'),
-      'แหล่งเวลาออก: ' + (item.gateOutSourceLabel || '-'),
+      'Gate Out: ' + (item.timestampOut || 'ยังไม่มีการสแกน Gate Out'),
+      'สถานะเวลาออก: ' + (item.gateOutSourceLabel || 'ยังไม่มีการสแกน Gate Out'),
       generatedAt ? 'ข้อมูล ณ ' + generatedAt : ''
     ].filter(Boolean);
 
