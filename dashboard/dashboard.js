@@ -1706,25 +1706,114 @@
   }
 
   function renderProcessFunnel() {
-    const today = state.movement.today || {};
-    const summary = state.receiving.summary || {};
+    const today =
+      state.movement.today || {};
 
-    const gateIn = Number(today.in) || 0;
+    const receivingSummary =
+      state.receiving.summary || {};
+
+    const gateIn =
+      Number(
+        today.in
+      ) || 0;
+
     const receiving =
-      Number(summary.receivingCompletedToday) || 0;
-    const gateOut = Number(today.outReal) || 0;
+      Number(
+        receivingSummary
+          .receivingCompletedToday
+      ) || 0;
 
-    setText('funnelGateIn', gateIn);
-    setText('funnelReceiving', receiving);
-    setText('funnelGateOut', gateOut);
+    const gateOut =
+      Number(
+        today.outReal
+      ) || 0;
 
-    const rate = gateIn > 0
-      ? Math.round(gateOut / gateIn * 100)
-      : 0;
+    const missingReceiving =
+      Number(
+        receivingSummary
+          .exitedWithoutReceivingToday
+      ) || 0;
+
+    const autoClose =
+      Number(
+        today.outAuto
+      ) || 0;
+
+    setText(
+      'funnelGateIn',
+      gateIn
+    );
+
+    setText(
+      'funnelReceiving',
+      receiving
+    );
+
+    setText(
+      'funnelGateOut',
+      gateOut
+    );
+
+    setText(
+      'funnelMissingReceiving',
+      missingReceiving
+    );
+
+    setText(
+      'funnelAutoClose',
+      autoClose
+    );
+
+    const percentOfGateIn =
+      (value) =>
+        gateIn > 0
+          ? Math.round(
+              Number(value) /
+              gateIn *
+              100
+            )
+          : 0;
+
+    setText(
+      'funnelGateInPercent',
+      gateIn > 0
+        ? '100%'
+        : '0%'
+    );
+
+    setText(
+      'funnelReceivingPercent',
+      percentOfGateIn(
+        receiving
+      ) + '%'
+    );
+
+    setText(
+      'funnelGateOutPercent',
+      percentOfGateIn(
+        gateOut
+      ) + '%'
+    );
+
+    setText(
+      'funnelMissingPercent',
+      percentOfGateIn(
+        missingReceiving
+      ) + '%'
+    );
+
+    setText(
+      'funnelAutoPercent',
+      percentOfGateIn(
+        autoClose
+      ) + '%'
+    );
 
     setText(
       'funnelCompletionRate',
-      rate + '%'
+      percentOfGateIn(
+        gateOut
+      ) + '%'
     );
   }
 
