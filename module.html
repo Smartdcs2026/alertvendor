@@ -16,30 +16,12 @@
   <title>
     สถานะรถ | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
-  <link
-  rel="manifest"
-  href="./manifest.webmanifest"
->
-  <link
-    id="dynamicFavicon"
-    rel="icon"
-    type="image/png"
-    href="./icons/favicon-64.png"
-  >
-
-  <link
-    rel="apple-touch-icon"
-    href="./icons/apple-touch-icon.png"
-  >
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260628-r18-accumulated-overdue-badge"
+    href="./styles.css?v=20260630-r27-module-feature"
   >
-<link
-  rel="stylesheet"
-  href="./dashboard-link.css?v=20260630-r3-header-contrast"
->
+
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
@@ -51,20 +33,19 @@
   ></script>
 
   <script
-    src="./api.js?v=20260626-r15-movement-summary"
+    src="./api.js?v=20260630-r26-receiving-flow"
     defer
   ></script>
 
   <script
-    src="./module.js?v=20260628-r18-accumulated-overdue-badge"
+    src="./module.js?v=20260626-r16-movement-ui"
     defer
   ></script>
 
-<script
-  src="./dashboard-link.js?v=20260630-r3-header-contrast"
-  defer
-></script>
-
+  <script
+    src="./receiving.js?v=20260630-r27-module-feature"
+    defer
+  ></script>
 </head>
 
 <body
@@ -94,24 +75,6 @@
           <span aria-hidden="true">←</span>
           หน้าหลัก
         </button>
-
-        <div
-          id="overdueAppBadge"
-          class="overdue-app-badge is-zero"
-          data-count="0"
-          role="status"
-          aria-live="polite"
-          aria-label="ไม่มีตู้เกินเวลาค้าง"
-          title="จำนวนตู้เกินเวลาสะสมที่ยังไม่มีเวลาออก"
-        >
-          <span class="overdue-app-badge__label">
-            เกินเวลาค้าง
-          </span>
-
-          <strong id="overdueAppBadgeCount">
-            0
-          </strong>
-        </div>
 
         <div class="module-user">
           <span id="userDisplayName">
@@ -223,32 +186,139 @@
       </div>
 
       <div class="warehouse-control-tower__metrics">
-        <div>
+        <button
+          type="button"
+          data-summary-filter="ALL"
+        >
           <span>อยู่ในพื้นที่</span>
           <strong id="controlTotal">0</strong>
-        </div>
+        </button>
 
-        <div data-metric="NORMAL">
+        <button
+          type="button"
+          data-metric="NORMAL"
+          data-summary-filter="NORMAL"
+        >
           <span>ปกติ</span>
           <strong id="controlNormal">0</strong>
-        </div>
+        </button>
 
-        <div data-metric="WARNING">
+        <button
+          type="button"
+          data-metric="WARNING"
+          data-summary-filter="WARNING"
+        >
           <span>เฝ้าระวัง</span>
           <strong id="controlWarning">0</strong>
-        </div>
+        </button>
 
-        <div data-metric="OVERDUE">
+        <button
+          type="button"
+          data-metric="OVERDUE"
+          data-summary-filter="OVERDUE"
+        >
           <span>เกินเวลา</span>
           <strong id="controlOverdue">0</strong>
-        </div>
+        </button>
+
+        <button
+          type="button"
+          data-metric="INCOMPLETE"
+          data-summary-filter="INCOMPLETE"
+        >
+          <span>ข้อมูลไม่สมบูรณ์</span>
+          <strong id="controlIncomplete">0</strong>
+        </button>
 
         <div data-metric="AUTO_CLOSE">
-          <span>ใกล้ครบ 36 ชม.</span>
+          <span id="controlNearAutoCloseLabel">ใกล้ครบ -- ชม.</span>
           <strong id="controlNearAutoClose">0</strong>
+          <small>รวมอยู่ในเกินเวลา</small>
         </div>
       </div>
 
+    </section>
+
+
+    <section
+      id="receivingFlowPanel"
+      class="receiving-flow-panel is-hidden"
+      aria-label="การติดตามการรับสินค้า"
+      aria-hidden="true"
+    >
+      <div class="receiving-flow-panel__header">
+        <div>
+          <small>RECEIVING FLOW</small>
+          <h2>สถานะการรับสินค้าและ Gate Out</h2>
+          <p id="receivingUpdatedAt">กำลังโหลดข้อมูล</p>
+        </div>
+
+        <div class="receiving-flow-filters">
+          <button type="button" class="is-active" data-receiving-filter="ALL">ทั้งหมด</button>
+          <button type="button" data-receiving-filter="WAITING_RECEIVING">รอรับเสร็จ</button>
+          <button type="button" data-receiving-filter="WAITING_GATE_OUT">รับเสร็จรอออก</button>
+        </div>
+      </div>
+
+      <div class="receiving-flow-panel__body">
+        <div class="receiving-flow-summary">
+          <div class="receiving-flow-metric" data-metric="WAITING_RECEIVING">
+            <span>รอรับสินค้าเสร็จ</span>
+            <strong id="receivingWaitingCount">0</strong>
+            <small>รายการ</small>
+          </div>
+
+          <div class="receiving-flow-metric" data-metric="WAITING_GATE_OUT">
+            <span>รับเสร็จ รอ Gate Out</span>
+            <strong id="receivingWaitingGateOutCount">0</strong>
+            <small>รายการ</small>
+          </div>
+
+          <div class="receiving-flow-metric" data-metric="COMPLETED_TODAY">
+            <span>รับสินค้าเสร็จวันนี้</span>
+            <strong id="receivingCompletedTodayCount">0</strong>
+            <small>รายการ</small>
+          </div>
+
+          <div class="receiving-flow-metric" data-metric="GATE_OUT">
+            <span>Gate Out จริงวันนี้</span>
+            <strong id="receivingGateOutTodayCount">0</strong>
+            <small>รายการ</small>
+          </div>
+
+          <div class="receiving-flow-metric" data-metric="AUTO_CLOSE">
+            <span>ระบบเคลียร์วันนี้</span>
+            <strong id="receivingAutoClosedTodayCount">0</strong>
+            <small>ไม่ใช่ Gate Out</small>
+          </div>
+
+          <div class="receiving-flow-metric receiving-flow-metric--duration" data-metric="STAGE_ONE_AVG">
+            <span>เฉลี่ย เข้า → รับเสร็จ</span>
+            <strong id="receivingAverageStageOne">--:--:--</strong>
+            <small>[h]:mm:ss</small>
+          </div>
+
+          <div class="receiving-flow-metric receiving-flow-metric--duration" data-metric="STAGE_TWO_AVG">
+            <span>เฉลี่ย รับเสร็จ → ออกจริง</span>
+            <strong id="receivingAverageStageTwo">--:--:--</strong>
+            <small>[h]:mm:ss</small>
+          </div>
+        </div>
+
+        <div class="receiving-priority-panel">
+          <div class="receiving-priority-panel__title">
+            <div>
+              <small>ACTION QUEUE</small>
+              <strong>รายการที่ควรติดตามก่อน</strong>
+            </div>
+            <span>เรียงตามเวลารอสูงสุด</span>
+          </div>
+
+          <div id="receivingPriorityList" class="receiving-priority-list">
+            <div class="receiving-priority-empty">กำลังประเมินรายการ</div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section
@@ -309,7 +379,7 @@
             </div>
 
             <div data-metric="OUT">
-              <span>ออกทั้งหมด</span>
+              <span>ออก/เคลียร์รวม</span>
               <strong id="movementOutTotal">0</strong>
               <small>ตู้</small>
             </div>
@@ -321,7 +391,7 @@
             </div>
 
             <div data-metric="NET">
-              <span>สุทธิ</span>
+              <span>สุทธิรวม</span>
               <strong id="movementNet">0</strong>
               <small>ตู้</small>
             </div>
@@ -329,21 +399,25 @@
 
           <div class="movement-secondary-metrics">
             <div>
-              <span>ออกจริง</span>
+              <span>ออกจริง Gate Out</span>
               <strong id="movementOutReal">0</strong>
             </div>
 
             <div data-metric="AUTO_CLOSE">
-              <span>ระบบปิด</span>
+              <span>ระบบเคลียร์ข้อมูล</span>
               <strong id="movementOutAuto">0</strong>
             </div>
 
-            <div>
+            <div class="movement-secondary-duplicate" aria-hidden="true">
               <span>อยู่ในพื้นที่</span>
               <strong id="movementActiveNow">0</strong>
             </div>
 
-            <div data-metric="OVERDUE">
+            <div
+              class="movement-secondary-duplicate"
+              data-metric="OVERDUE"
+              aria-hidden="true"
+            >
               <span>เกินเวลา</span>
               <strong id="movementOverdueNow">0</strong>
             </div>
@@ -459,7 +533,7 @@
           <span data-status="NORMAL">ปกติ</span>
           <span data-status="WARNING">เฝ้าระวัง</span>
           <span data-status="OVERDUE">เกินเวลา</span>
-          <span data-status="AUTO_CLOSE">ใกล้ครบ 36 ชม.</span>
+          <span id="timelineAutoCloseLegend" data-status="AUTO_CLOSE">ใกล้ครบ -- ชม.</span>
         </div>
 
         <button
@@ -474,8 +548,9 @@
 
     <section
       id="summarySection"
-      class="vehicle-summary-grid"
-      aria-label="สรุปสถานะรถ"
+      class="vehicle-summary-grid executive-data-source"
+      aria-label="ข้อมูลสรุปสำหรับระบบ"
+      aria-hidden="true"
     >
       <button
         class="vehicle-summary-card"
