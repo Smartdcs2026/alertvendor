@@ -11955,3 +11955,52 @@ button.receiving-flow-metric {
       repeat(2, minmax(0, 1fr));
   }
 }
+
+/************************************************************
+ * ROUND 29 — Immediate Receiving Interaction + Stable Timeline
+ ************************************************************/
+
+.module-page .receiving-complete-button,
+.module-page .receiving-copy-button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.module-page .receiving-complete-button {
+  transition:
+    transform .08s ease,
+    filter .12s ease,
+    opacity .12s ease;
+}
+
+.module-page .receiving-complete-button.is-pressed {
+  transform: scale(.975);
+  filter: brightness(.94);
+}
+
+body.receiving-dialog-open {
+  overscroll-behavior: none;
+}
+
+.module-page #moduleHourlyDetails,
+.module-page .hourly-timeline-panel,
+.module-page #hourlyTimeline,
+.module-page .timeline-focus-preview {
+  overflow-anchor: none;
+}
+
+.module-page #hourlyTimeline {
+  scroll-behavior: auto;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x;
+}
+
+.module-page #hourlyTimeline * {
+  overflow-anchor: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-page .receiving-complete-button {
+    transition: none;
+  }
+}
