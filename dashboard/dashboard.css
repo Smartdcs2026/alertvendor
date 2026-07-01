@@ -1646,3 +1646,680 @@ body.dashboard-page {
 .dashboard-page .process-rate {
   margin-top: 2px;
 }
+
+/************************************************************
+ * ROUND 36 — Executive Reference Dashboard
+ * Layout based on approved example #2
+ ************************************************************/
+
+:root {
+  --r36-header-height: 76px;
+  --r36-gap: 10px;
+}
+
+/* ---------- Global density and canvas ---------- */
+
+.dashboard-page {
+  background:
+    linear-gradient(
+      180deg,
+      #eef4f8 0,
+      #f5f8fa 100%
+    );
+}
+
+.dashboard-page .control-header {
+  min-height: var(--r36-header-height);
+  background:
+    linear-gradient(
+      102deg,
+      #031f38 0%,
+      #063b5b 62%,
+      #073f60 100%
+    );
+}
+
+.dashboard-page .control-header__inner {
+  min-height: var(--r36-header-height);
+  width: min(1920px, calc(100% - 22px));
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.dashboard-page .control-brand__mark {
+  width: 48px;
+  height: 48px;
+  flex-basis: 48px;
+  border-radius: 12px;
+}
+
+.dashboard-page .control-brand__mark svg {
+  width: 37px;
+  height: 37px;
+}
+
+.dashboard-page .control-brand__text small {
+  font-size: 10px;
+}
+
+.dashboard-page .control-brand__text h1 {
+  font-size: clamp(23px, 1.75vw, 31px);
+}
+
+.dashboard-page .control-brand__text p {
+  font-size: 9.5px;
+}
+
+.dashboard-page .live-block strong {
+  font-size: 13px;
+}
+
+.dashboard-page .live-block small {
+  font-size: 8px;
+}
+
+.dashboard-page .header-action-button {
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 11px;
+}
+
+.dashboard-page .header-action-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.dashboard-page .header-user {
+  min-width: 128px;
+}
+
+.dashboard-page .header-user__avatar {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+}
+
+.dashboard-page .header-user strong {
+  font-size: 10.5px;
+}
+
+.dashboard-page .header-user small {
+  font-size: 8px;
+}
+
+/* ---------- One-screen executive grid ---------- */
+
+.dashboard-page .control-main {
+  width: min(1920px, calc(100% - 22px));
+  height: calc(100vh - var(--r36-header-height));
+  grid-template-rows:
+    138px
+    minmax(350px, 1fr)
+    270px
+    82px;
+  gap: var(--r36-gap);
+  padding: 9px 0 10px;
+}
+
+.dashboard-page .panel {
+  border-radius: 12px;
+  border-color: #d4e0e7;
+  box-shadow:
+    0 5px 16px
+    rgba(16, 54, 78, .065);
+}
+
+.dashboard-page .panel-heading,
+.dashboard-page .chart-panel__header {
+  padding: 9px 11px 6px;
+}
+
+.dashboard-page .panel-heading small,
+.dashboard-page .chart-panel__header small {
+  font-size: 8.5px;
+  letter-spacing: .07em;
+}
+
+.dashboard-page .panel-heading h2,
+.dashboard-page .chart-panel__header h2 {
+  font-size: 13px;
+}
+
+.dashboard-page .chart-panel__header h2 span {
+  color: #738996;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* ---------- Top command row ---------- */
+
+.dashboard-page .command-row {
+  grid-template-columns:
+    minmax(300px, .95fr)
+    minmax(780px, 2.85fr)
+    minmax(330px, 1.05fr);
+  gap: var(--r36-gap);
+}
+
+.dashboard-page .situation-panel {
+  border-left-width: 5px;
+}
+
+.dashboard-page .situation-content {
+  padding: 0 15px 12px;
+}
+
+.dashboard-page .situation-content strong {
+  font-size: 32px;
+}
+
+.dashboard-page .situation-content span {
+  font-size: 13px;
+}
+
+.dashboard-page .situation-content small {
+  font-size: 9px;
+}
+
+.dashboard-page .situation-symbol {
+  width: 58px;
+  height: 58px;
+  flex-basis: 58px;
+}
+
+.dashboard-page .situation-symbol svg {
+  width: 38px;
+  height: 38px;
+}
+
+.dashboard-page .status-command-grid {
+  gap: 8px;
+  padding: 0 10px 9px;
+}
+
+.dashboard-page .status-command-card {
+  grid-template-columns: 33px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 7px;
+  align-content: center;
+  padding: 8px 9px 8px 12px;
+  border-radius: 9px;
+}
+
+.dashboard-page .status-command-card__dot {
+  display: none;
+}
+
+.dashboard-page .status-command-card__icon {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  border-radius: 50%;
+  color: currentColor;
+  background: color-mix(in srgb, currentColor 12%, white);
+}
+
+.dashboard-page .status-command-card__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.dashboard-page .status-command-card > span:not(.status-command-card__icon) {
+  grid-column: 2;
+  font-size: 9.5px;
+}
+
+.dashboard-page .status-command-card strong {
+  grid-column: 2;
+  font-size: 25px;
+}
+
+.dashboard-page .status-command-card small {
+  grid-column: 2;
+  font-size: 7.5px;
+}
+
+.dashboard-page .threshold-grid {
+  gap: 8px;
+  padding: 0 9px 9px;
+}
+
+.dashboard-page .threshold-grid > div {
+  border-radius: 10px;
+}
+
+.dashboard-page .threshold-grid span {
+  font-size: 8.5px;
+}
+
+.dashboard-page .threshold-grid strong {
+  font-size: 25px;
+}
+
+.dashboard-page .threshold-grid small {
+  font-size: 7.5px;
+}
+
+/* ---------- Main operational region ---------- */
+
+.dashboard-page .operations-row {
+  grid-template-columns:
+    minmax(285px, .92fr)
+    minmax(760px, 2.7fr)
+    minmax(315px, 1fr);
+  gap: var(--r36-gap);
+}
+
+.dashboard-page .overdue-panel {
+  grid-template-rows: auto minmax(0, 1fr) 42px;
+}
+
+.dashboard-page .overdue-list,
+.dashboard-page .action-queue {
+  gap: 6px;
+  padding: 0 9px 7px;
+}
+
+.dashboard-page .overdue-item {
+  min-height: 48px;
+  grid-template-columns: 31px minmax(0, 1fr) auto;
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+
+.dashboard-page .overdue-item__rank,
+.dashboard-page .action-item__rank {
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+
+.dashboard-page .overdue-item__main strong,
+.dashboard-page .action-item__main strong {
+  font-size: 11px;
+}
+
+.dashboard-page .overdue-item__main span,
+.dashboard-page .action-item__main small {
+  font-size: 8.5px;
+}
+
+.dashboard-page .overdue-item__time,
+.dashboard-page .action-item__time {
+  font-size: 10.5px;
+}
+
+.dashboard-page .panel-footer-button {
+  min-height: 34px;
+  margin: 0 9px 8px;
+  font-size: 10px;
+}
+
+.dashboard-page .records-panel__heading {
+  min-height: 50px;
+  padding-bottom: 7px;
+}
+
+.dashboard-page .records-toolbar {
+  grid-template-columns:
+    auto
+    minmax(185px, 1fr)
+    142px
+    150px
+    36px;
+  gap: 6px;
+}
+
+.dashboard-page .records-toolbar input,
+.dashboard-page .records-toolbar select {
+  min-height: 33px;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 9.5px;
+}
+
+.dashboard-page .records-filter-reset {
+  width: 36px;
+  min-height: 33px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #cad8e1;
+  border-radius: 8px;
+  color: #3b5b6d;
+  background: #fff;
+  cursor: pointer;
+}
+
+.dashboard-page .records-filter-reset:hover {
+  border-color: #7fa2b4;
+  background: #f2f8fb;
+}
+
+.dashboard-page .records-filter-reset svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dashboard-page .records-table-shell {
+  margin: 0 9px 9px;
+  border-radius: 8px;
+}
+
+.dashboard-page .records-table {
+  font-size: 11px;
+}
+
+.dashboard-page .records-table th {
+  height: 35px;
+  padding: 7px 8px;
+  font-size: 10px;
+}
+
+.dashboard-page .records-table td {
+  height: 41px;
+  padding: 7px 8px;
+  font-size: 10.5px;
+}
+
+.dashboard-page .record-main strong {
+  font-size: 11.5px;
+}
+
+.dashboard-page .record-main small {
+  font-size: 8.5px;
+}
+
+.dashboard-page .record-duration {
+  font-size: 12px;
+}
+
+.dashboard-page .status-badge,
+.dashboard-page .stage-badge {
+  min-height: 24px;
+  padding: 4px 9px;
+  font-size: 9px;
+}
+
+.dashboard-page .operations-side {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.dashboard-page .receiving-panel {
+  display: none !important;
+}
+
+.dashboard-page .action-panel {
+  min-height: 0;
+}
+
+.dashboard-page .action-item {
+  min-height: 43px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  border-radius: 8px;
+  padding: 5px 7px;
+}
+
+/* ---------- Analytics row ---------- */
+
+.dashboard-page .analytics-row {
+  grid-template-columns:
+    1.18fr
+    .83fr
+    1.08fr
+    1.05fr
+    .9fr;
+  gap: var(--r36-gap);
+}
+
+.dashboard-page .chart-panel__header {
+  min-height: 44px;
+}
+
+.dashboard-page .chart-shell {
+  padding: 0 9px 9px;
+}
+
+.dashboard-page .chart-shell--doughnut {
+  padding: 0 10px 7px;
+}
+
+/* Make Chart.js canvas labels more readable by giving more room */
+.dashboard-page .chart-panel canvas {
+  image-rendering: auto;
+}
+
+/* ---------- Flow Completion: clear horizontal process bars ---------- */
+
+.dashboard-page .process-panel {
+  grid-template-rows: auto minmax(0, 1fr) 35px;
+}
+
+.dashboard-page .process-funnel--five {
+  align-content: start;
+  justify-items: stretch;
+  gap: 5px;
+  padding: 4px 10px 2px;
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage {
+  width: 100% !important;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    54px;
+  grid-template-rows: 1fr;
+  align-items: center;
+  column-gap: 8px;
+  padding: 5px 16px 5px 12px;
+  border-left: 4px solid currentColor;
+  border-radius: 7px 0 0 7px;
+  clip-path:
+    polygon(
+      0 0,
+      96% 0,
+      100% 50%,
+      96% 100%,
+      0 100%
+    );
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage span {
+  grid-column: 1;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage strong {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 17px;
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage small {
+  grid-column: 3;
+  grid-row: 1;
+  font-size: 8px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="IN"] {
+  color: #08775f;
+  background: #d8f3eb;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="RECEIVING"] {
+  color: #2369d8;
+  background: #e2edff;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="OUT"] {
+  color: #1e5fc5;
+  background: #dce8ff;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="MISSING"] {
+  color: #c77300;
+  background: #fff0d8;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="AUTO"] {
+  color: #7133c8;
+  background: #eee2ff;
+}
+
+.dashboard-page .process-rate {
+  margin: 0 10px 8px;
+}
+
+.dashboard-page .process-rate span {
+  font-size: 8px;
+}
+
+.dashboard-page .process-rate strong {
+  font-size: 13px;
+}
+
+/* ---------- Footer ---------- */
+
+.dashboard-page .system-summary {
+  grid-template-columns:
+    1.1fr
+    repeat(4, .9fr)
+    1.25fr
+    1fr;
+  min-height: 82px;
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+
+.dashboard-page .system-summary__title small {
+  font-size: 8px;
+}
+
+.dashboard-page .system-summary__title strong {
+  font-size: 15px;
+}
+
+.dashboard-page .system-summary__item span {
+  font-size: 8px;
+}
+
+.dashboard-page .system-summary__item strong {
+  font-size: 20px;
+}
+
+.dashboard-page .system-summary__item small {
+  font-size: 7.5px;
+}
+
+.dashboard-page .system-summary__item--wide strong {
+  font-size: 13px;
+}
+
+/* ---------- Large monitor ---------- */
+
+@media (min-width: 1700px) and (min-height: 900px) {
+  .dashboard-page .records-table th {
+    font-size: 11px;
+  }
+
+  .dashboard-page .records-table td {
+    font-size: 11.5px;
+  }
+
+  .dashboard-page .record-main strong {
+    font-size: 12.5px;
+  }
+
+  .dashboard-page .record-duration {
+    font-size: 13px;
+  }
+}
+
+/* ---------- Responsive fallback ---------- */
+
+@media (max-width: 1450px) {
+  .dashboard-page .control-main {
+    grid-template-rows:
+      126px
+      minmax(330px, 1fr)
+      245px
+      72px;
+  }
+
+  .dashboard-page .command-row {
+    grid-template-columns:
+      minmax(230px, .85fr)
+      minmax(620px, 2.45fr)
+      minmax(270px, .95fr);
+  }
+
+  .dashboard-page .operations-row {
+    grid-template-columns:
+      minmax(230px, .78fr)
+      minmax(590px, 2.3fr)
+      minmax(260px, .9fr);
+  }
+
+  .dashboard-page .records-table th {
+    font-size: 9px;
+  }
+
+  .dashboard-page .records-table td {
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dashboard-page .control-main {
+    height: auto;
+  }
+
+  .dashboard-page .receiving-panel {
+    display: grid !important;
+  }
+
+  .dashboard-page .operations-side {
+    grid-template-rows: 190px 210px;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-page .status-command-card {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .dashboard-page .records-toolbar {
+    grid-template-columns: 1fr 44px;
+  }
+
+  .dashboard-page .records-toolbar .panel-count,
+  .dashboard-page .records-toolbar input,
+  .dashboard-page .records-toolbar select {
+    grid-column: 1;
+  }
+
+  .dashboard-page .records-filter-reset {
+    grid-column: 2;
+    grid-row: 1 / 5;
+    width: 44px;
+    height: 100%;
+  }
+}
