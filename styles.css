@@ -12546,3 +12546,469 @@ body.receiving-dialog-open {
       left;
   }
 }
+
+/************************************************************
+ * ROUND 34 — Monitor Dashboard + Mobile-first Module Header
+ ************************************************************/
+
+/* ---------- Dashboard: monitor-readable table ---------- */
+
+.dashboard-page .records-table {
+  font-size: 10.5px;
+}
+
+.dashboard-page .records-table th {
+  min-height: 32px;
+  padding: 7px 8px;
+  font-size: 9.5px;
+  line-height: 1.25;
+}
+
+.dashboard-page .records-table td {
+  padding: 7px 8px;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.dashboard-page .record-main strong {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.dashboard-page .record-main small {
+  margin-top: 2px;
+  font-size: 8.5px;
+}
+
+.dashboard-page .record-duration {
+  font-size: 11.5px;
+  font-weight: 950;
+}
+
+.dashboard-page .status-badge,
+.dashboard-page .stage-badge {
+  min-height: 23px;
+  padding: 4px 8px;
+  font-size: 8.5px;
+}
+
+.dashboard-page .overdue-item__main strong,
+.dashboard-page .action-item__main strong {
+  font-size: 9.5px;
+}
+
+.dashboard-page .overdue-item__main span,
+.dashboard-page .action-item__main small {
+  font-size: 7.8px;
+}
+
+.dashboard-page .overdue-item__time,
+.dashboard-page .action-item__time {
+  font-size: 9px;
+}
+
+/* ---------- Dashboard: five-stage flow completion ---------- */
+
+.dashboard-page .process-funnel--five {
+  gap: 2px;
+  padding: 1px 7px 0;
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage {
+  min-height: 27px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  padding: 3px 10px;
+  clip-path:
+    polygon(
+      4% 0,
+      96% 0,
+      89% 100%,
+      11% 100%
+    );
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage span {
+  overflow: hidden;
+  font-size: 7.5px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage strong {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  font-size: 15px;
+}
+
+.dashboard-page .process-funnel--five
+.process-funnel__stage small {
+  font-size: 6.5px;
+  font-weight: 850;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="IN"] {
+  width: 100%;
+  background: #ccefe5;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="RECEIVING"] {
+  width: 90%;
+  background: #d9e8ff;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="OUT"] {
+  width: 80%;
+  background: #dce8ff;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="MISSING"] {
+  width: 69%;
+  background: #ffe2bb;
+}
+
+.dashboard-page .process-funnel--five
+[data-stage="AUTO"] {
+  width: 58%;
+  background: #eadcff;
+}
+
+.dashboard-page .process-rate {
+  margin-top: 2px;
+}
+
+/* ---------- Module: unified command header ---------- */
+
+.module-page .module-header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  min-height: 68px;
+  border: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      105deg,
+      #042641,
+      #075170
+    );
+  box-shadow:
+    0 8px 22px
+    rgba(3, 39, 64, .2);
+}
+
+.module-page .module-header__inner {
+  width:
+    min(1280px, calc(100% - 20px));
+  margin: 0 auto;
+  padding: 7px 0;
+}
+
+.module-page .module-command-bar {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(250px, 1fr)
+    auto
+    auto
+    auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.module-page .module-command-back,
+.module-page .module-command-logout {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid
+    rgba(255, 255, 255, .24);
+  border-radius: 9px;
+  padding: 6px 10px;
+  color: #ffffff;
+  background:
+    rgba(255, 255, 255, .07);
+  cursor: pointer;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.module-page .module-command-back svg {
+  width: 19px;
+  height: 19px;
+}
+
+.module-page .module-command-brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.module-page .module-command-brand__icon {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  display: grid;
+  place-items: center;
+  border: 1px solid
+    rgba(109, 231, 220, .45);
+  border-radius: 10px;
+  color: #70e2d7;
+  background:
+    rgba(255, 255, 255, .05);
+}
+
+.module-page .module-command-brand__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.module-page .module-command-brand__text {
+  min-width: 0;
+}
+
+.module-page .module-command-brand__text
+.module-live-label {
+  margin: 0;
+  color: #76e2d6 !important;
+  font-size: 7.5px;
+  font-weight: 950;
+  letter-spacing: .11em;
+}
+
+.module-page .module-command-brand__text h1 {
+  margin: 1px 0 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size:
+    clamp(17px, 2vw, 24px);
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-page .module-command-brand__text
+.module-title-description {
+  margin: 1px 0 0;
+  overflow: hidden;
+  color: #c8dce7 !important;
+  font-size: 7.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-page .module-command-kpi {
+  min-width: 82px;
+  min-height: 40px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  border: 1px solid
+    rgba(255, 255, 255, .18);
+  border-radius: 9px;
+  padding: 4px 8px;
+  color: #ffffff;
+  background:
+    rgba(255, 255, 255, .07);
+}
+
+.module-page .module-command-kpi
+.overdue-app-badge__label {
+  color: #bad1dc;
+  font-size: 7px;
+}
+
+.module-page .module-command-kpi strong {
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.module-page .module-clock {
+  min-width: 160px;
+  display: grid;
+  grid-template-columns:
+    auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+}
+
+.module-page .module-clock__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #93f2b2;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.module-page .module-clock__live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #45df7b;
+  box-shadow:
+    0 0 0 4px
+    rgba(69, 223, 123, .14);
+}
+
+.module-page .module-clock strong {
+  font-size: 9px;
+  font-variant-numeric:
+    tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.module-page .module-clock
+.module-dashboard-launcher {
+  grid-column: 1 / -1;
+  min-height: 27px;
+  padding: 4px 8px;
+  font-size: 7.5px;
+}
+
+.module-page .module-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #c5d8e3;
+  font-size: 7.5px;
+  white-space: nowrap;
+}
+
+.module-page .module-command-logout {
+  min-height: 34px;
+  border-color:
+    rgba(255, 153, 153, .35);
+  color: #ffd1d1;
+  padding: 5px 8px;
+  font-size: 7.5px;
+}
+
+/*
+ * กราฟละเอียดรายชั่วโมงถูกย้ายไป Dashboard
+ * เพื่อลด DOM redraw และลดอาการกระตุกในหน้า Module
+ */
+.module-page #moduleHourlyDetailToggle,
+.module-page #moduleHourlyDetails,
+.module-page .hourly-timeline-panel {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .module-page .module-command-bar {
+    grid-template-columns:
+      auto minmax(0, 1fr) auto auto;
+  }
+
+  .module-page .module-command-kpi {
+    display: none;
+  }
+
+  .module-page .module-user > span {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .module-page .module-header {
+    min-height: 60px;
+  }
+
+  .module-page .module-header__inner {
+    width:
+      calc(100% - 12px);
+    padding: 5px 0;
+  }
+
+  .module-page .module-command-bar {
+    min-height: 50px;
+    grid-template-columns:
+      auto minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .module-page .module-command-back {
+    width: 36px;
+    min-height: 36px;
+    padding: 0;
+  }
+
+  .module-page .module-command-back span {
+    display: none;
+  }
+
+  .module-page .module-command-brand__icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .module-page .module-command-brand__icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .module-page .module-command-brand__text
+  .module-live-label {
+    font-size: 6px;
+  }
+
+  .module-page .module-command-brand__text h1 {
+    font-size: 15px;
+  }
+
+  .module-page .module-command-brand__text
+  .module-title-description {
+    display: none;
+  }
+
+  .module-page .module-clock {
+    min-width: 0;
+    grid-template-columns: 1fr;
+    justify-items: end;
+  }
+
+  .module-page .module-clock__live {
+    display: none;
+  }
+
+  .module-page .module-clock strong {
+    font-size: 7.2px;
+  }
+
+  .module-page .module-clock
+  .module-dashboard-launcher {
+    min-height: 25px;
+    padding: 3px 7px;
+    font-size: 7px;
+  }
+
+  .module-page .module-user {
+    grid-column: 1 / -1;
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .module-page .module-command-brand__icon {
+    display: none;
+  }
+
+  .module-page .module-command-brand__text h1 {
+    font-size: 14px;
+  }
+}
