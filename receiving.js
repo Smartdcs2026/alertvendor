@@ -31,9 +31,14 @@
     refreshTimer: null,
     tickTimer: null,
     observer: null,
+    observerRaf: null,
     incompleteObserver: null,
+    cardSignatures: new Map(),
     serverOffsetMs: 0,
     loading: false,
+    dialogOpen: false,
+    savingRecordId: '',
+    refreshPending: false,
     destroyed: false
   };
 
@@ -78,7 +83,15 @@
   function bindPanelEvents() {
     const panel = document.getElementById('receivingFlowPanel');
     panel && panel.addEventListener('click', handlePanelClick);
-    document.addEventListener('click', handleReceivingCardClick);
+    /*
+     * ใช้ Capture Phase เพื่อให้ปุ่มตอบสนองก่อน Click Handler
+     * ของการ์ดหรือ Module อื่น และเปิดหน้าต่างยืนยันทันที
+     */
+    document.addEventListener(
+      'click',
+      handleReceivingCardClick,
+      true
+    );
   }
 
   function handlePanelClick(event) {
@@ -116,10 +129,37 @@
     if (completeButton) {
       event.preventDefault();
       event.stopPropagation();
-      void handleCompleteReceiving(
-        completeButton.dataset.receivingCompleteRecord,
-        completeButton
+      event.stopImmediatePropagation();
+
+      if (
+        state.dialogOpen ||
+        state.savingRecordId
+      ) {
+        return;
+      }
+
+      completeButton.classList.add(
+        'is-pressed'
       );
+
+      /*
+       * ให้ Browser วาดสถานะกดก่อนหนึ่ง Frame
+       * แล้วจึงเปิด SweetAlert ซึ่งผู้ใช้จะเห็นทันที
+       */
+      window.requestAnimationFrame(
+        () => {
+          completeButton.classList.remove(
+            'is-pressed'
+          );
+
+          void handleCompleteReceiving(
+            completeButton.dataset
+              .receivingCompleteRecord,
+            completeButton
+          );
+        }
+      );
+
       return;
     }
 
@@ -136,6 +176,19 @@
       state.loading ||
       state.destroyed
     ) {
+      return;
+    }
+
+    /*
+     * ห้าม Silent Refresh สร้าง DOM ใหม่ระหว่างเปิดกล่องยืนยัน
+     * หรือระหว่างบันทึก เพราะทำให้ปุ่ม/การ์ดถูกแทนที่กลางคัน
+     */
+    if (
+      state.dialogOpen ||
+      state.savingRecordId
+    ) {
+      state.refreshPending = true;
+      scheduleNextReceivingRefresh(900);
       return;
     }
 
@@ -301,7 +354,9 @@
   }
 
 
-  function scheduleNextReceivingRefresh() {
+  function scheduleNextReceivingRefresh(
+    overrideDelayMs
+  ) {
     if (state.destroyed) {
       return;
     }
@@ -312,10 +367,31 @@
       );
     }
 
+    const delayMs =
+      Number.isFinite(
+        Number(overrideDelayMs)
+      )
+        ? Math.max(
+            300,
+            Number(overrideDelayMs)
+          )
+        : state.refreshDelayMs;
+
     state.refreshTimer =
       window.setTimeout(
         () => {
           state.refreshTimer = null;
+
+          if (
+            state.dialogOpen ||
+            state.savingRecordId
+          ) {
+            state.refreshPending = true;
+            scheduleNextReceivingRefresh(
+              900
+            );
+            return;
+          }
 
           if (
             document.visibilityState ===
@@ -324,13 +400,35 @@
             void loadReceivingFlow({
               silent: true
             });
-
           } else {
             scheduleNextReceivingRefresh();
           }
         },
-        state.refreshDelayMs
+        delayMs
       );
+  }
+
+
+  function requestPendingReceivingRefresh() {
+    if (
+      !state.refreshPending ||
+      state.dialogOpen ||
+      state.savingRecordId ||
+      state.destroyed
+    ) {
+      return;
+    }
+
+    state.refreshPending = false;
+
+    window.setTimeout(
+      () => {
+        void loadReceivingFlow({
+          silent: true
+        });
+      },
+      0
+    );
   }
 
 
@@ -657,46 +755,242 @@
 
 
   function observeVehicleCards() {
-    const list = document.getElementById('vehicleList');
-    if (!list) return;
+    const list =
+      document.getElementById(
+        'vehicleList'
+      );
 
-    state.observer = new MutationObserver(() => {
-      window.requestAnimationFrame(() => {
-        decorateVehicleCards();
-        applyReceivingFilter();
-      });
-    });
+    if (!list) {
+      return;
+    }
 
-    state.observer.observe(list, { childList: true, subtree: true });
+    state.observer =
+      new MutationObserver(
+        (mutations) => {
+          /*
+           * การเปลี่ยน innerHTML ภายใน Receiving Card
+           * เกิดจากตัว Receiving เอง จึงต้องไม่นำกลับมา
+           * เรียก decorateVehicleCards ซ้ำเป็นวงจรไม่สิ้นสุด
+           */
+          const hasExternalMutation =
+            mutations.some(
+              (mutation) => {
+                const target =
+                  mutation.target;
+
+                if (
+                  target instanceof Element &&
+                  target.closest(
+                    '.receiving-card-stage'
+                  )
+                ) {
+                  return false;
+                }
+
+                const changedNodes = [
+                  ...mutation.addedNodes,
+                  ...mutation.removedNodes
+                ];
+
+                if (
+                  changedNodes.length > 0 &&
+                  changedNodes.every(
+                    isReceivingOwnedNode
+                  )
+                ) {
+                  return false;
+                }
+
+                return true;
+              }
+            );
+
+          if (!hasExternalMutation) {
+            return;
+          }
+
+          if (state.observerRaf) {
+            return;
+          }
+
+          state.observerRaf =
+            window.requestAnimationFrame(
+              () => {
+                state.observerRaf = null;
+                decorateVehicleCards();
+                applyReceivingFilter();
+              }
+            );
+        }
+      );
+
+    state.observer.observe(
+      list,
+      {
+        childList: true,
+        subtree: true
+      }
+    );
   }
+
+
+  function isReceivingOwnedNode(node) {
+    if (!(node instanceof Element)) {
+      return true;
+    }
+
+    return (
+      node.classList.contains(
+        'receiving-card-stage'
+      ) ||
+      Boolean(
+        node.closest(
+          '.receiving-card-stage'
+        )
+      )
+    );
+  }
+
 
   function decorateVehicleCards() {
     if (!state.enabled) {
       removeReceivingDecorations();
       return;
     }
-    document.querySelectorAll('.vehicle-card[data-record-id]').forEach((card) => {
-      const recordId = String(card.dataset.recordId || '');
-      const item = state.records.get(recordId);
-      if (!item) return;
 
-      card.dataset.receivingStage = item.stageCode || 'UNKNOWN';
+    document
+      .querySelectorAll(
+        '.vehicle-card[data-record-id]'
+      )
+      .forEach(
+        (card) => {
+          const recordId =
+            String(
+              card.dataset.recordId ||
+              ''
+            );
 
-      let stage = card.querySelector('.receiving-card-stage');
-      if (!stage) {
-        stage = document.createElement('section');
-        stage.className = 'receiving-card-stage';
+          const item =
+            state.records.get(
+              recordId
+            );
 
-        const footer = card.querySelector('.vehicle-card__footer');
-        footer ? card.insertBefore(stage, footer) : card.appendChild(stage);
-      }
+          if (!item) {
+            return;
+          }
 
-      stage.dataset.stage = item.stageCode || 'UNKNOWN';
-      stage.innerHTML = buildReceivingStageHtml(item);
-    });
+          card.dataset.receivingStage =
+            item.stageCode ||
+            'UNKNOWN';
+
+          let stage =
+            card.querySelector(
+              '.receiving-card-stage'
+            );
+
+          if (!stage) {
+            stage =
+              document.createElement(
+                'section'
+              );
+
+            stage.className =
+              'receiving-card-stage';
+
+            const footer =
+              card.querySelector(
+                '.vehicle-card__footer'
+              );
+
+            footer
+              ? card.insertBefore(
+                  stage,
+                  footer
+                )
+              : card.appendChild(
+                  stage
+                );
+          }
+
+          const signature =
+            buildReceivingCardSignature(
+              item
+            );
+
+          /*
+           * ไม่เขียน innerHTML ซ้ำเมื่อข้อมูลโครงสร้างเดิม
+           * ตัวเลขเวลาที่เดินทุกวินาทีอัปเดตเฉพาะ textContent
+           */
+          if (
+            stage.dataset
+              .receivingSignature ===
+              signature
+          ) {
+            return;
+          }
+
+          stage.dataset.stage =
+            item.stageCode ||
+            'UNKNOWN';
+
+          stage.dataset
+            .receivingSignature =
+            signature;
+
+          stage.innerHTML =
+            buildReceivingStageHtml(
+              item
+            );
+
+          state.cardSignatures.set(
+            recordId,
+            signature
+          );
+        }
+      );
 
     updateVisibleStageTimers();
   }
+
+
+  function buildReceivingCardSignature(
+    item
+  ) {
+    return JSON.stringify({
+      recordId:
+        item.recordId || '',
+      stageCode:
+        item.stageCode || '',
+      stageLabel:
+        item.stageLabel || '',
+      receivingCompleteEpochMs:
+        Number(
+          item.receivingCompleteEpochMs
+        ) || 0,
+      timestampOutEpochMs:
+        Number(
+          item.timestampOutEpochMs
+        ) || 0,
+      gateOutSource:
+        item.gateOutSource || '',
+      canCompleteReceiving:
+        item.canCompleteReceiving ===
+          true,
+      arrivalToReceivingSeconds:
+        item.receivingCompleteEpochMs
+          ? Number(
+              item.arrivalToReceivingSeconds
+            ) || 0
+          : null,
+      receivingToGateOutSeconds:
+        item.timestampOutEpochMs
+          ? Number(
+              item.receivingToGateOutSeconds
+            ) || 0
+          : null
+    });
+  }
+
 
   function buildReceivingStageHtml(item) {
     const hasReceiving = Boolean(item.receivingCompleteAt);
@@ -779,79 +1073,201 @@
     `;
   }
 
-  async function handleCompleteReceiving(recordId, button) {
-    const item = state.records.get(String(recordId || ''));
+  async function handleCompleteReceiving(
+    recordId,
+    button
+  ) {
+    const cleanRecordId =
+      String(recordId || '');
 
-    if (!item || !item.canCompleteReceiving) {
+    const item =
+      state.records.get(
+        cleanRecordId
+      );
+
+    if (
+      state.dialogOpen ||
+      state.savingRecordId
+    ) {
+      return;
+    }
+
+    if (
+      !item ||
+      !item.canCompleteReceiving
+    ) {
       await showMessage({
         icon: 'info',
         title: 'ไม่สามารถบันทึกได้',
-        text: 'รายการนี้บันทึกรับสินค้าเสร็จแล้ว หรือมีเวลาออกแล้ว'
+        text:
+          'รายการนี้บันทึกรับสินค้าเสร็จแล้ว หรือมีเวลาออกแล้ว'
       });
       return;
     }
 
-    const now = new Date(getReceivingNowMs());
-    const elapsedSeconds = item.timestampInEpochMs
-      ? Math.max(0, Math.floor((now.getTime() - Number(item.timestampInEpochMs)) / 1000))
-      : item.arrivalToReceivingSeconds;
+    state.dialogOpen = true;
+    document.body.classList.add(
+      'receiving-dialog-open'
+    );
 
-    const confirmation = await window.Swal.fire({
-      icon: 'question',
-      title: 'ยืนยันรับสินค้าเสร็จ',
-      html: `
-        <div class="receiving-confirm-dialog">
-          <div><span>รายการ</span><strong>${escapeHtml(item.primaryValue || '-')}</strong></div>
-          <div><span>เวลาเข้าพื้นที่</span><strong>${escapeHtml(item.timestampIn || '-')}</strong></div>
-          <div><span>ระยะเวลาตั้งแต่เข้า</span><strong>${escapeHtml(formatDuration(elapsedSeconds))}</strong></div>
-          <p>
-            ระบบจะบันทึกวันและเวลาจาก Server
-            ในรูปแบบ dd/MM/yyyy HH:mm:ss
-          </p>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'ยืนยันรับสินค้าเสร็จ',
-      cancelButtonText: 'ยกเลิก',
-      reverseButtons: true,
-      allowOutsideClick: false
-    });
+    const now =
+      new Date(
+        getReceivingNowMs()
+      );
 
-    if (!confirmation.isConfirmed) return;
-
-    setButtonLoading(button, true, 'กำลังบันทึก...');
+    const elapsedSeconds =
+      item.timestampInEpochMs
+        ? Math.max(
+            0,
+            Math.floor(
+              (
+                now.getTime() -
+                Number(
+                  item.timestampInEpochMs
+                )
+              ) / 1000
+            )
+          )
+        : item
+            .arrivalToReceivingSeconds;
 
     try {
-      const result = await API.completeReceiving(state.moduleId, {
-        recordId: item.recordId,
-        sourceRowNumber: item.sourceRowNumber,
-        expectedTimestampIn: item.expectedTimestampIn || item.timestampIn,
-        expectedTimestampInEpochMs:
-          item.expectedTimestampInEpochMs || item.timestampInEpochMs,
-        expectedPrimaryValue: item.expectedPrimaryValue || item.primaryValue
-      });
+      /*
+       * ไม่มีการเรียก API หรืออ่านข้อมูลใหม่ก่อนเปิดกล่องนี้
+       * กล่องยืนยันจึงต้องปรากฏทันทีหลังแตะปุ่ม
+       */
+      const confirmation =
+        await window.Swal.fire({
+          icon: 'question',
+          title:
+            'ยืนยันรับสินค้าเสร็จ',
+          html: `
+            <div class="receiving-confirm-dialog">
+              <div>
+                <span>รายการ</span>
+                <strong>${escapeHtml(item.primaryValue || '-')}</strong>
+              </div>
 
-      if (result && result.record) {
-        state.records.set(String(result.record.recordId), result.record);
+              <div>
+                <span>เวลาเข้าพื้นที่</span>
+                <strong>${escapeHtml(item.timestampIn || '-')}</strong>
+              </div>
+
+              <div>
+                <span>ระยะเวลาตั้งแต่เข้า</span>
+                <strong>${escapeHtml(formatDuration(elapsedSeconds))}</strong>
+              </div>
+
+              <p>
+                ระบบจะบันทึกวันและเวลาจาก Server
+                ในรูปแบบ dd/MM/yyyy HH:mm:ss
+              </p>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText:
+            'ยืนยันรับสินค้าเสร็จ',
+          cancelButtonText:
+            'ยกเลิก',
+          reverseButtons: true,
+          allowOutsideClick: false,
+          returnFocus: false
+        });
+
+      if (!confirmation.isConfirmed) {
+        return;
       }
 
-      renderReceivingPanel();
-      decorateVehicleCards();
-      applyReceivingFilter();
+      state.savingRecordId =
+        cleanRecordId;
+
+      setButtonLoading(
+        button,
+        true,
+        'กำลังบันทึก...'
+      );
+
+      const result =
+        await API.completeReceiving(
+          state.moduleId,
+          {
+            recordId:
+              item.recordId,
+            sourceRowNumber:
+              item.sourceRowNumber,
+            expectedTimestampIn:
+              item.expectedTimestampIn ||
+              item.timestampIn,
+            expectedTimestampInEpochMs:
+              item.expectedTimestampInEpochMs ||
+              item.timestampInEpochMs,
+            expectedPrimaryValue:
+              item.expectedPrimaryValue ||
+              item.primaryValue
+          }
+        );
+
+      if (
+        result &&
+        result.record
+      ) {
+        state.records.set(
+          String(
+            result.record.recordId
+          ),
+          result.record
+        );
+
+        /*
+         * ปรับเฉพาะการ์ดที่บันทึกสำเร็จ
+         * ไม่วาดการ์ดทั้งหมดใหม่
+         */
+        const card =
+          Array.from(
+            document.querySelectorAll(
+              '.vehicle-card[data-record-id]'
+            )
+          ).find(
+            (element) =>
+              String(
+                element.dataset.recordId ||
+                ''
+              ) ===
+              cleanRecordId
+          );
+
+        if (card) {
+          const stage =
+            card.querySelector(
+              '.receiving-card-stage'
+            );
+
+          if (stage) {
+            delete stage.dataset
+              .receivingSignature;
+          }
+        }
+
+        decorateVehicleCards();
+      }
 
       await window.Swal.fire({
         icon: 'success',
-        title: result && result.alreadyCompleted
-          ? 'รายการนี้บันทึกแล้ว'
-          : 'บันทึกรับสินค้าเสร็จแล้ว',
+        title:
+          result &&
+          result.alreadyCompleted
+            ? 'รายการนี้บันทึกแล้ว'
+            : 'บันทึกรับสินค้าเสร็จแล้ว',
         html: `
           <div class="receiving-success-dialog">
             <span>วันเวลารับสินค้าเสร็จ</span>
+
             <strong>
               ${escapeHtml(
                 result && (
                   result.receivingCompleteAt ||
-                  result.record && result.record.receivingCompleteAt
+                  result.record &&
+                  result.record.receivingCompleteAt
                 ) || '-'
               )}
             </strong>
@@ -862,22 +1278,42 @@
               ${escapeHtml(
                 result && (
                   result.arrivalToReceivingDisplay ||
-                  result.record && result.record.arrivalToReceivingDisplay
+                  result.record &&
+                  result.record.arrivalToReceivingDisplay
                 ) || '-'
               )}
             </strong>
           </div>
         `,
-        confirmButtonText: 'ตกลง'
+        confirmButtonText: 'ตกลง',
+        returnFocus: false
       });
 
-      void loadReceivingFlow({ silent: true });
+      state.refreshPending = true;
+
     } catch (error) {
-      await showApiError(error, 'บันทึกรับสินค้าเสร็จไม่สำเร็จ');
+      await showApiError(
+        error,
+        'บันทึกรับสินค้าเสร็จไม่สำเร็จ'
+      );
+
     } finally {
-      setButtonLoading(button, false);
+      setButtonLoading(
+        button,
+        false
+      );
+
+      state.savingRecordId = '';
+      state.dialogOpen = false;
+
+      document.body.classList.remove(
+        'receiving-dialog-open'
+      );
+
+      requestPendingReceivingRefresh();
     }
   }
+
 
   function updateVisibleStageTimers() {
     const nowMs = getReceivingNowMs();
@@ -1136,7 +1572,18 @@
     if (state.refreshTimer) window.clearTimeout(state.refreshTimer);
     if (state.tickTimer) window.clearInterval(state.tickTimer);
     if (state.observer) state.observer.disconnect();
+    if (state.observerRaf) {
+      window.cancelAnimationFrame(
+        state.observerRaf
+      );
+    }
     if (state.incompleteObserver) state.incompleteObserver.disconnect();
+
+    document.removeEventListener(
+      'click',
+      handleReceivingCardClick,
+      true
+    );
 
     document.removeEventListener(
       'visibilitychange',
