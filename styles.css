@@ -11773,3 +11773,72 @@ span[data-feature="RECEIVING"][data-enabled="TRUE"] {
       1 / -1;
   }
 }
+
+/************************************************************
+ * ROUND 27 HOTFIX — Dashboard Launcher Fallback
+ * ทำให้ปุ่ม Dashboard ยังแสดงได้แม้ dashboard-link.css โหลดไม่สำเร็จ
+ ************************************************************/
+
+.module-page .module-dashboard-launcher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid #075f83;
+  border-radius: 8px;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #0d5278, #087da0);
+  box-shadow: 0 4px 10px rgba(8, 83, 121, 0.22);
+  text-decoration: none;
+  font-size: 0.69rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.module-page .module-dashboard-launcher > span {
+  display: inline !important;
+  color: #ffffff !important;
+}
+
+.module-page .module-dashboard-launcher__icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  color: #ffffff !important;
+}
+
+.module-page .module-clock.module-clock--with-dashboard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.module-page .module-clock.module-clock--with-dashboard > span {
+  display: none !important;
+}
+
+.module-page .module-clock.module-clock--with-dashboard > strong {
+  min-width: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 679px) {
+  .module-page .module-title-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "live title"
+      "clock clock";
+    row-gap: 5px;
+  }
+
+  .module-page .module-clock.module-clock--with-dashboard {
+    grid-area: clock;
+    width: 100%;
+    min-width: 0;
+  }
+}
