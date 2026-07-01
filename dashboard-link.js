@@ -1,68 +1,276 @@
 /**
  * dashboard-link.js
- * เพิ่มปุ่ม Dashboard แบบกะทัดรัดในแถบเวลา Module
+ * ROUND 35 — Dashboard Launcher Compatibility
+ *
+ * รองรับ Header เดิมและ Header แบบ Unified Command Bar
  */
 (function (window, document) {
   'use strict';
 
-  document.addEventListener('DOMContentLoaded', initializeDashboardLink);
+  const BUTTON_ID =
+    'moduleDashboardLauncher';
 
-  function initializeDashboardLink() {
-    if (!document.body || document.body.dataset.page !== 'module') {
+  const state = {
+    observer: null,
+    retryTimer: null,
+    destroyed: false
+  };
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    initializeDashboardLauncher
+  );
+
+  window.addEventListener(
+    'beforeunload',
+    destroyDashboardLauncher
+  );
+
+  function initializeDashboardLauncher() {
+    ensureDashboardLauncher();
+
+    state.observer =
+      new MutationObserver(
+        debounce(
+          ensureDashboardLauncher,
+          80
+        )
+      );
+
+    state.observer.observe(
+      document.body,
+      {
+        childList: true,
+        subtree: true
+      }
+    );
+
+    scheduleRetry();
+  }
+
+
+  function ensureDashboardLauncher() {
+    if (state.destroyed) {
       return;
     }
 
-    const titleRow = document.querySelector('.module-title-row');
-    const clock = titleRow?.querySelector('.module-clock');
+    const existing =
+      document.getElementById(
+        BUTTON_ID
+      );
 
-    if (!titleRow || !clock) {
+    const target =
+      resolveLauncherTarget();
+
+    if (!target) {
+      scheduleRetry();
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const moduleId = String(params.get('id') || '').trim();
+    if (existing) {
+      if (
+        existing.parentElement !==
+        target
+      ) {
+        target.appendChild(
+          existing
+        );
+      }
+
+      syncLauncherHref(
+        existing
+      );
+
+      return;
+    }
+
+    const button =
+      createDashboardLauncher();
+
+    target.appendChild(
+      button
+    );
+  }
+
+
+  function resolveLauncherTarget() {
+    return (
+      document.querySelector(
+        '.module-command-bar .module-clock'
+      ) ||
+      document.querySelector(
+        '.module-header .module-clock'
+      ) ||
+      document.querySelector(
+        '.module-title-row .module-clock'
+      ) ||
+      document.querySelector(
+        '.module-clock'
+      ) ||
+      document.querySelector(
+        '.module-command-bar'
+      ) ||
+      document.querySelector(
+        '.module-header__inner'
+      )
+    );
+  }
+
+
+  function createDashboardLauncher() {
+    const button =
+      document.createElement(
+        'button'
+      );
+
+    button.id =
+      BUTTON_ID;
+
+    button.type =
+      'button';
+
+    button.className =
+      'module-dashboard-launcher';
+
+    button.setAttribute(
+      'aria-label',
+      'เปิด Dashboard'
+    );
+
+    button.setAttribute(
+      'title',
+      'เปิด Dashboard'
+    );
+
+    button.innerHTML = `
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M4 20V10M10 20V4M16 20v-7M22 20H2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+
+      <span>
+        Dashboard
+      </span>
+    `;
+
+    button.addEventListener(
+      'click',
+      openDashboard
+    );
+
+    syncLauncherHref(
+      button
+    );
+
+    return button;
+  }
+
+
+  function syncLauncherHref(button) {
+    button.dataset.moduleId =
+      getModuleId();
+  }
+
+
+  function openDashboard() {
+    const moduleId =
+      getModuleId();
 
     if (!moduleId) {
       return;
     }
 
-    let link = document.getElementById('moduleDashboardLauncher');
+    const dashboardUrl =
+      new URL(
+        './dashboard/index.html',
+        window.location.href
+      );
 
-    if (!link) {
-      link = document.createElement('a');
-      link.id = 'moduleDashboardLauncher';
-      link.className = 'module-dashboard-launcher';
+    dashboardUrl.searchParams.set(
+      'module',
+      moduleId
+    );
+
+    window.location.href =
+      dashboardUrl.toString();
+  }
+
+
+  function getModuleId() {
+    return String(
+      new URL(
+        window.location.href
+      ).searchParams.get(
+        'id'
+      ) ||
+      ''
+    ).trim();
+  }
+
+
+  function scheduleRetry() {
+    if (
+      state.destroyed ||
+      state.retryTimer
+    ) {
+      return;
     }
 
-    link.href =
-      './dashboard/index.html?module=' + encodeURIComponent(moduleId);
+    state.retryTimer =
+      window.setTimeout(
+        () => {
+          state.retryTimer = null;
+          ensureDashboardLauncher();
+        },
+        350
+      );
+  }
 
-    link.setAttribute('aria-label', 'เปิด Dashboard ของโมดูลนี้');
-    link.setAttribute('title', 'เปิด Dashboard');
 
-    link.innerHTML = `
-      <svg
-        class="module-dashboard-launcher__icon"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path
-          d="M4 19V9m5 10V5m5 14v-7m5 7V3"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.2"
-          stroke-linecap="round"
-        />
-      </svg>
+  function debounce(
+    fn,
+    delay
+  ) {
+    let timer = null;
 
-      <span>Dashboard</span>
-    `;
+    return function (...args) {
+      window.clearTimeout(
+        timer
+      );
 
-    clock.classList.add('module-clock--with-dashboard');
+      timer =
+        window.setTimeout(
+          () => {
+            timer = null;
+            fn(...args);
+          },
+          delay
+        );
+    };
+  }
 
-    if (link.parentElement !== clock) {
-      clock.insertBefore(link, clock.firstChild);
+
+  function destroyDashboardLauncher() {
+    state.destroyed = true;
+
+    if (state.observer) {
+      state.observer.disconnect();
+    }
+
+    if (state.retryTimer) {
+      window.clearTimeout(
+        state.retryTimer
+      );
     }
   }
+
 })(window, document);
