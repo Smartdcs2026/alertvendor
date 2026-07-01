@@ -10,13 +10,13 @@
 
   <link rel="icon" type="image/png" href="../icons/favicon-64.png">
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./dashboard.css?v=20260701-r30-control-room">
+  <link rel="stylesheet" href="./dashboard.css?v=20260702-r34-monitor-flow">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="./dashboard-config.js?v=20260701-r30-control-room" defer></script>
   <script src="./dashboard-api.js?v=20260701-r30-control-room" defer></script>
-  <script src="./dashboard.js?v=20260702-r33-receiving-stage-truth" defer></script>
+  <script src="./dashboard.js?v=20260702-r34-monitor-flow" defer></script>
 </head>
 
 <body class="dashboard-page">
@@ -391,33 +391,63 @@
       <article class="panel chart-panel process-panel">
         <header class="chart-panel__header">
           <div>
-            <small>PROCESS FLOW</small>
-            <h2>ภาพรวมกระบวนการวันนี้</h2>
+            <small>FLOW COMPLETION TODAY</small>
+            <h2>ความคืบหน้ากระบวนการวันนี้</h2>
           </div>
         </header>
 
-        <div id="processFunnel" class="process-funnel">
-          <div class="process-funnel__stage" data-stage="IN">
-            <span>Gate In</span>
+        <div
+          id="processFunnel"
+          class="process-funnel process-funnel--five"
+        >
+          <div
+            class="process-funnel__stage"
+            data-stage="IN"
+          >
+            <span>Gate In วันนี้</span>
             <strong id="funnelGateIn">0</strong>
-            <small>รายการ</small>
+            <small id="funnelGateInPercent">100%</small>
           </div>
 
-          <div class="process-funnel__stage" data-stage="RECEIVING">
+          <div
+            class="process-funnel__stage"
+            data-stage="RECEIVING"
+          >
             <span>รับสินค้าเสร็จ</span>
             <strong id="funnelReceiving">0</strong>
-            <small>รายการ</small>
+            <small id="funnelReceivingPercent">0%</small>
           </div>
 
-          <div class="process-funnel__stage" data-stage="OUT">
+          <div
+            class="process-funnel__stage"
+            data-stage="OUT"
+          >
             <span>Gate Out จริง</span>
             <strong id="funnelGateOut">0</strong>
-            <small>รายการ</small>
+            <small id="funnelGateOutPercent">0%</small>
+          </div>
+
+          <div
+            class="process-funnel__stage"
+            data-stage="MISSING"
+          >
+            <span>ออกโดยไม่มีรับเสร็จ</span>
+            <strong id="funnelMissingReceiving">0</strong>
+            <small id="funnelMissingPercent">0%</small>
+          </div>
+
+          <div
+            class="process-funnel__stage"
+            data-stage="AUTO"
+          >
+            <span>Auto Close</span>
+            <strong id="funnelAutoClose">0</strong>
+            <small id="funnelAutoPercent">0%</small>
           </div>
         </div>
 
         <div class="process-rate">
-          <span>อัตราผ่านกระบวนการ</span>
+          <span>อัตรา Gate Out จริงต่อ Gate In</span>
           <strong id="funnelCompletionRate">0%</strong>
         </div>
       </article>
