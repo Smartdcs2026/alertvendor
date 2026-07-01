@@ -513,8 +513,7 @@
     setText('receivingWaitingCount', formatNumber(summary.waitingReceiving));
     setText('receivingWaitingGateOutCount', formatNumber(summary.waitingGateOut));
     setText('receivingCompletedTodayCount', formatNumber(summary.receivingCompletedToday));
-    setText('receivingGateOutTodayCount', formatNumber(summary.actualGateOutToday));
-    setText('receivingAutoClosedTodayCount', formatNumber(summary.autoClosedToday));
+    setText('receivingMissingCount', formatNumber(summary.exitedWithoutReceivingToday));
     setText(
       'receivingAverageStageOne',
       summary.averageArrivalToReceiving && summary.averageArrivalToReceiving.display
@@ -825,6 +824,7 @@
     try {
       const result = await API.completeReceiving(state.moduleId, {
         recordId: item.recordId,
+        sourceRowNumber: item.sourceRowNumber,
         expectedTimestampIn: item.expectedTimestampIn || item.timestampIn,
         expectedTimestampInEpochMs:
           item.expectedTimestampInEpochMs || item.timestampInEpochMs,
@@ -852,6 +852,17 @@
                 result && (
                   result.receivingCompleteAt ||
                   result.record && result.record.receivingCompleteAt
+                ) || '-'
+              )}
+            </strong>
+
+            <span>Gate In → รับสินค้าเสร็จ</span>
+
+            <strong>
+              ${escapeHtml(
+                result && (
+                  result.arrivalToReceivingDisplay ||
+                  result.record && result.record.arrivalToReceivingDisplay
                 ) || '-'
               )}
             </strong>
@@ -993,35 +1004,15 @@
   }
 
   function correctMovementTerminology() {
-    setMetricLabel('#movementOverview [data-metric="OUT"] > span', 'ออก/เคลียร์รวม');
-    setMetricLabel('#movementOverview [data-metric="NET"] > span', 'สุทธิรวม');
+    setMetricLabel(
+      '.movement-chart-legend [data-series="OUT"]',
+      'ออก/เคลียร์รวม'
+    );
 
-    const outReal = document.getElementById('movementOutReal');
-    if (outReal && outReal.previousElementSibling) {
-      outReal.previousElementSibling.textContent = 'ออกจริง Gate Out';
-    }
-
-    const outAuto = document.getElementById('movementOutAuto');
-    if (outAuto && outAuto.previousElementSibling) {
-      outAuto.previousElementSibling.textContent = 'ระบบเคลียร์ข้อมูล';
-    }
-
-    setMetricLabel('.movement-chart-legend [data-series="OUT"]', 'ออก/เคลียร์');
-    setMetricLabel('#timelineFocusPreview [data-metric="OUT"] span', 'ออก/เคลียร์');
-
-    const overview = document.getElementById('movementOverview');
-    if (overview && !overview.querySelector('.movement-data-definition')) {
-      const note = document.createElement('div');
-      note.className = 'movement-data-definition';
-      note.innerHTML = `
-        <strong>คำจำกัดความข้อมูล</strong>
-        <span>
-          ออก/เคลียร์รวม = Gate Out จริง + ระบบเคลียร์อัตโนมัติ
-          โดยระบบเคลียร์ไม่ใช่การออกจากคลังจริง
-        </span>
-      `;
-      overview.appendChild(note);
-    }
+    setMetricLabel(
+      '#timelineFocusPreview [data-metric="OUT"] span',
+      'ออก/เคลียร์'
+    );
   }
 
   function setMetricLabel(selector, text) {
