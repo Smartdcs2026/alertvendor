@@ -36,7 +36,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260701-r27-hotfix-dashboard-button"
+    href="./styles.css?v=20260701-r28-executive-dedup"
   >
 
   <link
@@ -65,7 +65,12 @@
   ></script>
 
   <script
-    src="./receiving.js?v=20260701-r27-hotfix-dashboard-button"
+    src="./receiving.js?v=20260701-r28-performance"
+    defer
+  ></script>
+
+  <script
+    src="./module-executive.js?v=20260701-r28-executive-dedup"
     defer
   ></script>
 
@@ -306,47 +311,63 @@
       </div>
 
       <div class="receiving-flow-panel__body">
-        <div class="receiving-flow-summary">
-          <div class="receiving-flow-metric" data-metric="WAITING_RECEIVING">
+        <div class="receiving-flow-summary receiving-flow-summary--executive">
+          <button
+            type="button"
+            class="receiving-flow-metric"
+            data-metric="WAITING_RECEIVING"
+            data-receiving-filter="WAITING_RECEIVING"
+          >
             <span>รอรับสินค้าเสร็จ</span>
             <strong id="receivingWaitingCount">0</strong>
-            <small>รายการ</small>
-          </div>
+            <small>ต้องติดตามขั้นตอนรับสินค้า</small>
+          </button>
 
-          <div class="receiving-flow-metric" data-metric="WAITING_GATE_OUT">
+          <button
+            type="button"
+            class="receiving-flow-metric"
+            data-metric="WAITING_GATE_OUT"
+            data-receiving-filter="WAITING_GATE_OUT"
+          >
             <span>รับเสร็จ รอ Gate Out</span>
             <strong id="receivingWaitingGateOutCount">0</strong>
-            <small>รายการ</small>
-          </div>
+            <small>ต้องติดตามการออกพื้นที่</small>
+          </button>
 
-          <div class="receiving-flow-metric" data-metric="COMPLETED_TODAY">
+          <div
+            class="receiving-flow-metric"
+            data-metric="COMPLETED_TODAY"
+          >
             <span>รับสินค้าเสร็จวันนี้</span>
             <strong id="receivingCompletedTodayCount">0</strong>
-            <small>รายการ</small>
+            <small>เหตุการณ์ที่บันทึกสำเร็จ</small>
           </div>
 
-          <div class="receiving-flow-metric" data-metric="GATE_OUT">
-            <span>Gate Out จริงวันนี้</span>
-            <strong id="receivingGateOutTodayCount">0</strong>
-            <small>รายการ</small>
+          <div
+            class="receiving-flow-metric"
+            data-metric="DATA_QUALITY"
+          >
+            <span>ออกโดยไม่บันทึกรับเสร็จ</span>
+            <strong id="receivingMissingCount">0</strong>
+            <small>ข้อมูลกระบวนการไม่ครบ</small>
           </div>
 
-          <div class="receiving-flow-metric" data-metric="AUTO_CLOSE">
-            <span>ระบบเคลียร์วันนี้</span>
-            <strong id="receivingAutoClosedTodayCount">0</strong>
-            <small>ไม่ใช่ Gate Out</small>
-          </div>
-
-          <div class="receiving-flow-metric receiving-flow-metric--duration" data-metric="STAGE_ONE_AVG">
+          <div
+            class="receiving-flow-metric receiving-flow-metric--duration"
+            data-metric="STAGE_ONE_AVG"
+          >
             <span>เฉลี่ย เข้า → รับเสร็จ</span>
             <strong id="receivingAverageStageOne">--:--:--</strong>
-            <small>[h]:mm:ss</small>
+            <small>ระยะเวลาช่วงรับสินค้า</small>
           </div>
 
-          <div class="receiving-flow-metric receiving-flow-metric--duration" data-metric="STAGE_TWO_AVG">
-            <span>เฉลี่ย รับเสร็จ → ออกจริง</span>
+          <div
+            class="receiving-flow-metric receiving-flow-metric--duration"
+            data-metric="STAGE_TWO_AVG"
+          >
+            <span>เฉลี่ย รับเสร็จ → Gate Out</span>
             <strong id="receivingAverageStageTwo">--:--:--</strong>
-            <small>[h]:mm:ss</small>
+            <small>เฉพาะ Gate Out จริง</small>
           </div>
         </div>
 
@@ -398,6 +419,16 @@
             วันนี้
           </button>
         </div>
+
+        <button
+          id="moduleHourlyDetailToggle"
+          class="module-hourly-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="moduleHourlyDetails"
+        >
+          ดูรายละเอียดรายชั่วโมง
+        </button>
       </div>
 
       <div class="movement-overview__body">
@@ -416,56 +447,42 @@
             <p id="movementAnalysisMessage"></p>
           </div>
 
-          <div class="movement-primary-metrics">
+          <div class="movement-primary-metrics movement-primary-metrics--executive">
             <div data-metric="IN">
-              <span>เข้า</span>
+              <span>Gate In</span>
               <strong id="movementIn">0</strong>
-              <small>ตู้</small>
+              <small>เข้าพื้นที่</small>
             </div>
 
-            <div data-metric="OUT">
-              <span>ออก/เคลียร์รวม</span>
-              <strong id="movementOutTotal">0</strong>
-              <small>ตู้</small>
-            </div>
-
-            <div data-metric="TOTAL">
-              <span>เคลื่อนไหวรวม</span>
-              <strong id="movementTotal">0</strong>
-              <small>ครั้ง</small>
-            </div>
-
-            <div data-metric="NET">
-              <span>สุทธิรวม</span>
-              <strong id="movementNet">0</strong>
-              <small>ตู้</small>
-            </div>
-          </div>
-
-          <div class="movement-secondary-metrics">
-            <div>
-              <span>ออกจริง Gate Out</span>
+            <div data-metric="OUT_REAL">
+              <span>Gate Out จริง</span>
               <strong id="movementOutReal">0</strong>
+              <small>สแกนออกจากพื้นที่</small>
+            </div>
+
+            <div data-metric="NET_ACTUAL">
+              <span>สุทธิจริง</span>
+              <strong id="movementNetActual">0</strong>
+              <small>เข้า − Gate Out จริง</small>
             </div>
 
             <div data-metric="AUTO_CLOSE">
               <span>ระบบเคลียร์ข้อมูล</span>
               <strong id="movementOutAuto">0</strong>
+              <small>ไม่ใช่ Gate Out จริง</small>
             </div>
+          </div>
 
-            <div class="movement-secondary-duplicate" aria-hidden="true">
-              <span>อยู่ในพื้นที่</span>
-              <strong id="movementActiveNow">0</strong>
-            </div>
-
-            <div
-              class="movement-secondary-duplicate"
-              data-metric="OVERDUE"
-              aria-hidden="true"
-            >
-              <span>เกินเวลา</span>
-              <strong id="movementOverdueNow">0</strong>
-            </div>
+          <!--
+            ID ชุดเดิมยังคงไว้ให้ module.js ใช้คำนวณ
+            แต่ไม่แสดงซ้ำต่อผู้บริหาร
+          -->
+          <div class="movement-executive-datasource" aria-hidden="true">
+            <strong id="movementOutTotal">0</strong>
+            <strong id="movementTotal">0</strong>
+            <strong id="movementNet">0</strong>
+            <strong id="movementActiveNow">0</strong>
+            <strong id="movementOverdueNow">0</strong>
           </div>
         </div>
 
@@ -473,12 +490,12 @@
           <div class="movement-chart-panel__header">
             <div>
               <span>HOURLY FLOW</span>
-              <strong>ปริมาณเข้า–ออกในช่วงที่เลือก</strong>
+              <strong>แนวโน้มเข้าและออก/เคลียร์รวม</strong>
             </div>
 
             <div class="movement-chart-legend">
               <span data-series="IN">เข้า</span>
-              <span data-series="OUT">ออก</span>
+              <span data-series="OUT">ออก/เคลียร์รวม</span>
             </div>
           </div>
 
@@ -494,7 +511,7 @@
       </div>
     </section>
 
-    <section class="hourly-timeline-panel" aria-label="การเคลื่อนไหวรายชั่วโมง">
+    <section id="moduleHourlyDetails" class="hourly-timeline-panel is-collapsed" aria-label="การเคลื่อนไหวรายชั่วโมง" hidden>
       <div class="hourly-timeline-panel__header">
         <div>
           <small>24-HOUR MOVEMENT</small>
@@ -528,7 +545,7 @@
         <div class="timeline-focus-preview__time">
           <span>ชั่วโมงตรงกลาง</span>
           <strong id="timelineFocusLabel">--:00–--:59</strong>
-          <small id="timelineFocusOutDetail">ออกจริง 0 • ระบบปิด 0</small>
+          <small id="timelineFocusOutDetail">Gate Out จริง 0 • ระบบเคลียร์ 0</small>
         </div>
 
         <div class="timeline-focus-preview__metrics">
