@@ -1,16 +1,11 @@
 /**
  * dashboard-config.js
- * การตั้งค่าระบบ Dashboard แยก
- *
- * ไฟล์นี้ไม่มี Secret
+ * ROUND 28 — Executive Dashboard
  */
 (function (window) {
   'use strict';
 
   window.DASHBOARD_CONFIG = Object.freeze({
-    APP_NAME:
-      'Vehicle Control Tower Dashboard',
-
     API_BASE:
       'https://alertvendor.somchaibutphon.workers.dev',
 
@@ -23,14 +18,11 @@
     MODULE_URL:
       '../module.html',
 
-    TIMEZONE:
-      'Asia/Bangkok',
-
     API_TIMEOUT_MS:
       60000,
 
     REFRESH_SECONDS:
-      60,
+      15,
 
     ACTIVE_RECORD_LIMIT:
       5000
