@@ -19,7 +19,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260627-r22-custom-autoclose"
+    href="./styles.css?v=20260630-r27-module-feature"
   >
 
   <script
@@ -38,9 +38,9 @@
   ></script>
 
   <script
-  src="./admin.js?v=20260627-r23-custom-hours-1-to-168"
-  defer
-></script>
+    src="./admin.js?v=20260630-r27-module-feature"
+    defer
+  ></script>
 </head>
 
 <body
@@ -1105,6 +1105,24 @@
               </span>
             </label>
 
+
+            <label class="admin-toggle admin-toggle--feature">
+              <input
+                id="adminReceivingEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                <strong>
+                  เปิดหน้าบันทึกรับสินค้าเสร็จ
+                </strong>
+
+                <small>
+                  เมื่อเปิด User และ Admin ที่เข้าถึง Module นี้จะเห็น Receiving Flow และปุ่มบันทึก
+                </small>
+              </span>
+            </label>
+
             <label class="admin-toggle">
               <input
                 id="adminShowToUsers"
@@ -1265,7 +1283,7 @@
   <datalist id="adminSourceColumnOptions"></datalist>
 
   <footer class="app-footer">
- S&LP SKDC906
+    S&LP SKDC06
   </footer>
 </body>
 </html>
