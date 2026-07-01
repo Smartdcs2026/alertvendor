@@ -11775,70 +11775,183 @@ span[data-feature="RECEIVING"][data-enabled="TRUE"] {
 }
 
 /************************************************************
- * ROUND 27 HOTFIX — Dashboard Launcher Fallback
- * ทำให้ปุ่ม Dashboard ยังแสดงได้แม้ dashboard-link.css โหลดไม่สำเร็จ
+ * ROUND 28 — Executive Dedup Module
  ************************************************************/
 
-.module-page .module-dashboard-launcher {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid #075f83;
-  border-radius: 8px;
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #0d5278, #087da0);
-  box-shadow: 0 4px 10px rgba(8, 83, 121, 0.22);
-  text-decoration: none;
-  font-size: 0.69rem;
-  font-weight: 900;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.module-page .module-dashboard-launcher > span {
-  display: inline !important;
-  color: #ffffff !important;
-}
-
-.module-page .module-dashboard-launcher__icon {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 15px;
-  color: #ffffff !important;
-}
-
-.module-page .module-clock.module-clock--with-dashboard {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.module-page .module-clock.module-clock--with-dashboard > span {
+.module-page .movement-executive-datasource {
   display: none !important;
 }
 
-.module-page .module-clock.module-clock--with-dashboard > strong {
-  min-width: 0;
-  text-align: right;
+.module-page .movement-overview__header {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.module-page .module-hourly-toggle {
+  min-height: 34px;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 9px;
+  padding: 6px 9px;
+  color: #ffffff;
+  background: rgba(255,255,255,.12);
+  cursor: pointer;
+  font-size: .54rem;
+  font-weight: 900;
   white-space: nowrap;
 }
 
+.module-page .module-hourly-toggle:hover,
+.module-page .module-hourly-toggle:focus-visible {
+  background: rgba(255,255,255,.22);
+}
+
+.module-page .movement-primary-metrics--executive {
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="OUT_REAL"] {
+  border-color: #a9c7fb;
+  background: #ebf2ff;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="OUT_REAL"]::before {
+  background: #2563eb;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="OUT_REAL"] strong {
+  color: #2158d8;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="NET_ACTUAL"] {
+  border-color: #c8d2dd;
+  background: #eef2f6;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="NET_ACTUAL"]::before {
+  background: #334155;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="NET_ACTUAL"] strong {
+  color: #253342;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="AUTO_CLOSE"] {
+  border-color: #d1bef7;
+  background: #f2ebff;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="AUTO_CLOSE"]::before {
+  background: #7c3aed;
+}
+
+.module-page
+.movement-primary-metrics--executive
+[data-metric="AUTO_CLOSE"] strong {
+  color: #6c2ed9;
+}
+
+.module-page .hourly-timeline-panel[hidden] {
+  display: none !important;
+}
+
+body.module-hourly-expanded
+.movement-chart-panel {
+  display: none;
+}
+
+.module-page .receiving-flow-summary--executive {
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+}
+
+.module-page
+.receiving-flow-summary--executive
+button.receiving-flow-metric {
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.module-page
+.receiving-flow-summary--executive
+[data-metric="DATA_QUALITY"] {
+  border-color: #efaaaa;
+  background: #fff0f0;
+}
+
+.module-page
+.receiving-flow-summary--executive
+[data-metric="DATA_QUALITY"]::before {
+  background: #dc2626;
+}
+
+.module-page
+.receiving-flow-summary--executive
+[data-metric="DATA_QUALITY"] strong {
+  color: #b42323;
+}
+
+.module-page .receiving-flow-metric small {
+  min-height: 1.4em;
+  line-height: 1.35;
+}
+
 @media (max-width: 679px) {
-  .module-page .module-title-row {
-    grid-template-columns: auto minmax(0, 1fr);
+  .module-page .movement-overview__header {
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto;
     grid-template-areas:
-      "live title"
-      "clock clock";
-    row-gap: 5px;
+      "heading scope"
+      "toggle toggle";
   }
 
-  .module-page .module-clock.module-clock--with-dashboard {
-    grid-area: clock;
+  .module-page
+  .movement-overview__header
+  > div:first-child {
+    grid-area: heading;
+  }
+
+  .module-page .movement-scope-group {
+    grid-area: scope;
+  }
+
+  .module-page .module-hourly-toggle {
+    grid-area: toggle;
     width: 100%;
-    min-width: 0;
+  }
+
+  .module-page
+  .movement-primary-metrics--executive {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .module-page
+  .receiving-flow-summary--executive {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 }
