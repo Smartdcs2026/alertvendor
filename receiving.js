@@ -1073,6 +1073,421 @@
     `;
   }
 
+
+  /**
+   * สร้างข้อมูลตรวจทานก่อนบันทึกรับสินค้าเสร็จ
+   * แสดงข้อมูลทุกช่องที่ API ส่งมาใน item.fields
+   */
+  function buildReceivingReviewHtml(
+    item,
+    elapsedSeconds,
+    reviewDate
+  ) {
+    const fields =
+      normalizeReceivingReviewFields(
+        item
+      );
+
+    const fieldRows =
+      fields.length > 0
+        ? fields
+            .map(
+              (field) => `
+                <div
+                  class="receiving-review-field${field.missing ? ' is-missing' : ''}"
+                >
+                  <span>${escapeHtml(field.label)}</span>
+
+                  <strong>
+                    ${escapeHtml(
+                      field.missing
+                        ? 'ไม่มีข้อมูล'
+                        : field.value
+                    )}
+                  </strong>
+                </div>
+              `
+            )
+            .join('')
+        : `
+            <div class="receiving-review-empty">
+              ไม่มีข้อมูลประกอบเพิ่มเติมในรายการนี้
+            </div>
+          `;
+
+    const sourceRowNumber =
+      Number(
+        item.sourceRowNumber
+      );
+
+    const technicalLine = [
+      item.recordId
+        ? 'รหัสรายการ: ' +
+          String(item.recordId)
+        : '',
+
+      Number.isInteger(
+        sourceRowNumber
+      )
+        ? 'แถวต้นทาง: ' +
+          sourceRowNumber
+        : ''
+    ]
+      .filter(Boolean)
+      .join(' • ');
+
+    return `
+      <div class="receiving-review-dialog">
+        <section class="receiving-review-identity">
+          <small>รายการที่กำลังบันทึก</small>
+
+          <strong>
+            ${escapeHtml(
+              item.primaryValue ||
+              item.expectedPrimaryValue ||
+              '-'
+            )}
+          </strong>
+
+          <span>
+            ${escapeHtml(
+              item.stageLabel ||
+              'รอรับสินค้าเสร็จ'
+            )}
+          </span>
+
+          ${
+            technicalLine
+              ? `
+                  <em>
+                    ${escapeHtml(technicalLine)}
+                  </em>
+                `
+              : ''
+          }
+        </section>
+
+        <section class="receiving-review-summary">
+          <div>
+            <span>เวลาเข้า Gate In</span>
+
+            <strong>
+              ${escapeHtml(
+                item.timestampIn ||
+                item.expectedTimestampIn ||
+                '-'
+              )}
+            </strong>
+          </div>
+
+          <div>
+            <span>ระยะเวลาตั้งแต่เข้า</span>
+
+            <strong>
+              ${escapeHtml(
+                formatDuration(
+                  elapsedSeconds
+                )
+              )}
+            </strong>
+          </div>
+
+          <div>
+            <span>เวลาตรวจทานปัจจุบัน</span>
+
+            <strong>
+              ${escapeHtml(
+                formatReceivingReviewDateTime(
+                  reviewDate
+                )
+              )}
+            </strong>
+          </div>
+
+          <div>
+            <span>ขั้นตอนหลังบันทึก</span>
+
+            <strong>
+              รับเสร็จ รอ Gate Out
+            </strong>
+          </div>
+        </section>
+
+        <section class="receiving-review-section">
+          <header>
+            <div>
+              <small>RECORD DETAILS</small>
+              <h3>ข้อมูลรายการทั้งหมด</h3>
+            </div>
+
+            <span>
+              ${fields.length} ช่องข้อมูล
+            </span>
+          </header>
+
+          <div class="receiving-review-fields">
+            ${fieldRows}
+          </div>
+        </section>
+
+        <label class="receiving-review-acknowledge">
+          <input
+            id="receivingReviewCheckbox"
+            type="checkbox"
+            value="REVIEWED"
+          >
+
+          <span>
+            <strong>
+              ตรวจสอบข้อมูลครบถ้วนแล้ว
+            </strong>
+
+            <small>
+              ยืนยันว่ารายการ รถ/ตู้ เวลาเข้า
+              และข้อมูลประกอบด้านบนถูกต้อง
+            </small>
+          </span>
+        </label>
+
+        <p class="receiving-review-note">
+          ระบบจะใช้วันและเวลาจริงจาก Server
+          ตอนกดยืนยันบันทึก ในรูปแบบ
+          dd/MM/yyyy HH:mm:ss
+        </p>
+      </div>
+    `;
+  }
+
+
+  function normalizeReceivingReviewFields(
+    item
+  ) {
+    const source =
+      Array.isArray(
+        item && item.fields
+      )
+        ? item.fields
+        : [];
+
+    const primaryValue =
+      String(
+        item &&
+        (
+          item.primaryValue ||
+          item.expectedPrimaryValue
+        ) ||
+        ''
+      ).trim();
+
+    const results = [];
+    const seen = new Set();
+
+    source.forEach(
+      (field, index) => {
+        const normalized =
+          normalizeReceivingReviewField(
+            field,
+            index
+          );
+
+        /*
+         * รายการหลักแสดงแล้วในส่วนหัว
+         * จึงไม่แสดงซ้ำในตารางรายละเอียด
+         */
+        if (
+          normalized.primary ||
+          (
+            primaryValue &&
+            normalized.value ===
+              primaryValue &&
+            normalized.label ===
+              'รายการหลัก'
+          )
+        ) {
+          return;
+        }
+
+        const signature =
+          (
+            normalized.label +
+            '\u0000' +
+            normalized.value
+          ).toLowerCase();
+
+        if (seen.has(signature)) {
+          return;
+        }
+
+        seen.add(signature);
+        results.push(normalized);
+      }
+    );
+
+    return results;
+  }
+
+
+  function normalizeReceivingReviewField(
+    field,
+    index
+  ) {
+    if (
+      field === null ||
+      field === undefined
+    ) {
+      return {
+        label:
+          'ข้อมูลช่องที่ ' +
+          (index + 1),
+        value: '',
+        missing: true,
+        primary: false
+      };
+    }
+
+    if (
+      typeof field !==
+        'object'
+    ) {
+      const primitiveValue =
+        String(field).trim();
+
+      return {
+        label:
+          'ข้อมูลช่องที่ ' +
+          (index + 1),
+        value:
+          primitiveValue,
+        missing:
+          !primitiveValue,
+        primary: false
+      };
+    }
+
+    const label =
+      String(
+        field.label ||
+        field.displayName ||
+        field.header ||
+        field.name ||
+        field.key ||
+        (
+          field.primary
+            ? 'รายการหลัก'
+            : 'ข้อมูลช่องที่ ' +
+              (index + 1)
+        )
+      ).trim();
+
+    const rawValue =
+      field.displayValue ??
+      field.value ??
+      field.text ??
+      field.content ??
+      '';
+
+    const value =
+      Array.isArray(rawValue)
+        ? rawValue
+            .map(
+              (entry) =>
+                String(
+                  entry === null ||
+                  entry === undefined
+                    ? ''
+                    : entry
+                ).trim()
+            )
+            .filter(Boolean)
+            .join(', ')
+        : String(
+            rawValue === null ||
+            rawValue === undefined
+              ? ''
+              : rawValue
+          ).trim();
+
+    return {
+      label:
+        label ||
+        'ข้อมูลช่องที่ ' +
+        (index + 1),
+      value:
+        value,
+      missing:
+        !value,
+      primary:
+        field.primary === true
+    };
+  }
+
+
+  function formatReceivingReviewDateTime(
+    date
+  ) {
+    const safeDate =
+      date instanceof Date
+        ? date
+        : new Date(date);
+
+    if (
+      Number.isNaN(
+        safeDate.getTime()
+      )
+    ) {
+      return '-';
+    }
+
+    const parts =
+      new Intl.DateTimeFormat(
+        'en-GB',
+        {
+          timeZone:
+            'Asia/Bangkok',
+          day:
+            '2-digit',
+          month:
+            '2-digit',
+          year:
+            'numeric',
+          hour:
+            '2-digit',
+          minute:
+            '2-digit',
+          second:
+            '2-digit',
+          hour12:
+            false
+        }
+      )
+        .formatToParts(
+          safeDate
+        )
+        .reduce(
+          (result, part) => {
+            result[part.type] =
+              part.value;
+
+            return result;
+          },
+          {}
+        );
+
+    return (
+      parts.day +
+      '/' +
+      parts.month +
+      '/' +
+      parts.year +
+      ' ' +
+      parts.hour +
+      ':' +
+      parts.minute +
+      ':' +
+      parts.second
+    );
+  }
+
   async function handleCompleteReceiving(
     recordId,
     button
@@ -1140,38 +1555,90 @@
         await window.Swal.fire({
           icon: 'question',
           title:
-            'ยืนยันรับสินค้าเสร็จ',
-          html: `
-            <div class="receiving-confirm-dialog">
-              <div>
-                <span>รายการ</span>
-                <strong>${escapeHtml(item.primaryValue || '-')}</strong>
-              </div>
-
-              <div>
-                <span>เวลาเข้าพื้นที่</span>
-                <strong>${escapeHtml(item.timestampIn || '-')}</strong>
-              </div>
-
-              <div>
-                <span>ระยะเวลาตั้งแต่เข้า</span>
-                <strong>${escapeHtml(formatDuration(elapsedSeconds))}</strong>
-              </div>
-
-              <p>
-                ระบบจะบันทึกวันและเวลาจาก Server
-                ในรูปแบบ dd/MM/yyyy HH:mm:ss
-              </p>
-            </div>
-          `,
+            'ตรวจสอบข้อมูลก่อนบันทึก',
+          html:
+            buildReceivingReviewHtml(
+              item,
+              elapsedSeconds,
+              now
+            ),
+          width:
+            760,
           showCancelButton: true,
           confirmButtonText:
-            'ยืนยันรับสินค้าเสร็จ',
+            'ตรวจสอบแล้ว ยืนยันบันทึก',
           cancelButtonText:
-            'ยกเลิก',
+            'ย้อนกลับ',
           reverseButtons: true,
+          focusConfirm: false,
           allowOutsideClick: false,
-          returnFocus: false
+          allowEscapeKey: true,
+          returnFocus: false,
+          customClass: {
+            popup:
+              'receiving-review-popup',
+            htmlContainer:
+              'receiving-review-html',
+            confirmButton:
+              'receiving-review-confirm-button',
+            cancelButton:
+              'receiving-review-cancel-button'
+          },
+          didOpen: () => {
+            const checkbox =
+              document.getElementById(
+                'receivingReviewCheckbox'
+              );
+
+            const confirmButton =
+              window.Swal
+                .getConfirmButton();
+
+            if (confirmButton) {
+              confirmButton.disabled =
+                true;
+            }
+
+            if (
+              checkbox &&
+              confirmButton
+            ) {
+              checkbox.addEventListener(
+                'change',
+                () => {
+                  confirmButton.disabled =
+                    !checkbox.checked;
+
+                  if (
+                    checkbox.checked
+                  ) {
+                    window.Swal
+                      .resetValidationMessage();
+                  }
+                }
+              );
+            }
+          },
+          preConfirm: () => {
+            const checkbox =
+              document.getElementById(
+                'receivingReviewCheckbox'
+              );
+
+            if (
+              !checkbox ||
+              checkbox.checked !== true
+            ) {
+              window.Swal
+                .showValidationMessage(
+                  'กรุณาตรวจสอบข้อมูลทั้งหมด และทำเครื่องหมายยืนยันก่อนบันทึก'
+                );
+
+              return false;
+            }
+
+            return true;
+          }
         });
 
       if (!confirmation.isConfirmed) {
