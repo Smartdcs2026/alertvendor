@@ -2,456 +2,469 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#062c4b">
+  <meta name="color-scheme" content="light">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  >
+  <title>Vehicle Control Tower Dashboard</title>
 
-  <meta
-    name="theme-color"
-    content="#0f3d5e"
-  >
+  <link rel="icon" type="image/png" href="../icons/favicon-64.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./dashboard.css?v=20260701-r30-control-room">
 
-  <title>
-    Executive Dashboard | Vehicle Control Tower
-  </title>
-
-  <link
-    rel="icon"
-    type="image/png"
-    href="../icons/favicon-64.png"
-  >
-
-  <link
-    rel="stylesheet"
-    href="./dashboard.css?v=20260701-r28-executive"
-  >
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
-    defer
-  ></script>
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
-    defer
-  ></script>
-
-  <script
-    src="./dashboard-config.js?v=20260701-r28-executive"
-    defer
-  ></script>
-
-  <script
-    src="./dashboard-api.js?v=20260701-r28-executive"
-    defer
-  ></script>
-
-  <script
-    src="./dashboard.js?v=20260701-r28-executive"
-    defer
-  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="./dashboard-config.js?v=20260701-r30-control-room" defer></script>
+  <script src="./dashboard-api.js?v=20260701-r30-control-room" defer></script>
+  <script src="./dashboard.js?v=20260701-r30-control-room" defer></script>
 </head>
 
 <body class="dashboard-page">
-  <div
-    id="dashboardLoading"
-    class="dashboard-loading"
-  >
+  <div id="dashboardLoading" class="dashboard-loading" role="status" aria-live="polite">
     <div class="dashboard-spinner"></div>
-    <span>กำลังเตรียม Dashboard</span>
+    <strong>กำลังเตรียม Control Tower</strong>
+    <span>กำลังประมวลผลข้อมูลล่าสุด</span>
   </div>
 
-  <header class="dashboard-header">
-    <div class="dashboard-header__inner">
-      <button
-        id="dashboardBackButton"
-        class="dashboard-button dashboard-button--ghost"
-        type="button"
-      >
-        ← หน้าสถานะ
+  <header class="control-header">
+    <div class="control-header__inner">
+      <button id="dashboardBackButton" class="header-icon-button" type="button" aria-label="กลับไปหน้าสถานะ">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
 
-      <div class="dashboard-title">
-        <small>VEHICLE CONTROL TOWER</small>
-        <h1 id="dashboardModuleTitle">
-          กำลังโหลด Module
-        </h1>
-        <p id="dashboardModuleDescription">
-          Executive operations dashboard
-        </p>
-      </div>
-
-      <div class="dashboard-header__right">
-        <div class="dashboard-live-meta">
-          <span
-            id="dashboardConnection"
-            class="dashboard-connection"
-            data-state="LOADING"
-          >
-            กำลังเชื่อมต่อ
-          </span>
-
-          <strong id="dashboardCurrentDateTime">
-            --/--/---- --:--:--
-          </strong>
-
-          <small id="dashboardLastUpdated">
-            ยังไม่ได้โหลดข้อมูล
-          </small>
+      <div class="control-brand">
+        <div class="control-brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48">
+            <path d="M24 5 39 11v11c0 10-6.5 17.2-15 21-8.5-3.8-15-11-15-21V11L24 5Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+            <path d="m17 24 5 5 10-11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
 
-        <button
-          id="dashboardFullscreenButton"
-          class="dashboard-button"
-          type="button"
-          aria-pressed="false"
-        >
-          ⛶
+        <div class="control-brand__text">
+          <small>VEHICLE CONTROL TOWER</small>
+          <h1 id="dashboardModuleTitle">กำลังโหลด Module</h1>
+          <p id="dashboardModuleDescription">Executive operations dashboard</p>
+        </div>
+      </div>
+
+      <div class="control-header__actions">
+        <div class="live-block">
+          <span id="dashboardConnection" class="live-status" data-state="LOADING">LIVE</span>
+          <strong id="dashboardCurrentDateTime">--/--/---- --:--:--</strong>
+          <small id="dashboardLastUpdated">ยังไม่ได้โหลดข้อมูล</small>
+        </div>
+
+        <button id="dashboardRefreshButton" class="header-action-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 6v5h-5M4 18v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6.1 9A7 7 0 0 1 18.5 6.5L20 11M4 13l1.5 4.5A7 7 0 0 0 17.9 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>รีเฟรช</span>
+        </button>
+
+        <button id="dashboardFullscreenButton" class="header-action-button" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span data-fullscreen-label>เต็มจอ</span>
         </button>
 
-        <button
-          id="dashboardRefreshButton"
-          class="dashboard-button dashboard-button--primary"
-          type="button"
-        >
-          รีเฟรช
-        </button>
+        <div class="header-user">
+          <span class="header-user__avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+
+          <div>
+            <strong id="dashboardUserName">ผู้ใช้งาน</strong>
+            <small id="dashboardUserRole">Dashboard</small>
+          </div>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="dashboard-main">
-    <section
-      id="dashboardSituation"
-      class="dashboard-situation"
-      data-state="NORMAL"
-    >
-      <div>
-        <small>EXECUTIVE SITUATION</small>
+  <main class="control-main">
+    <section class="command-row">
+      <article id="dashboardSituation" class="panel situation-panel" data-state="NORMAL">
+        <header class="panel-heading panel-heading--compact">
+          <div>
+            <small>EXECUTIVE SITUATION</small>
+            <h2>สถานการณ์ที่ต้องสั่งการ</h2>
+          </div>
+        </header>
 
-        <strong id="dashboardSituationLabel">
-          กำลังประเมินสถานการณ์
-        </strong>
+        <div class="situation-content">
+          <div>
+            <strong id="dashboardSituationCount">0</strong>
+            <span id="dashboardSituationLabel">กำลังประเมิน</span>
+            <small id="dashboardSituationMessage">กรุณารอสักครู่</small>
+          </div>
 
-        <span id="dashboardSituationMessage">
-          กรุณารอสักครู่
-        </span>
-      </div>
+          <div class="situation-symbol" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M24 6 44 41H4L24 6Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M24 18v11M24 35v.5" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </article>
 
-      <div class="dashboard-controls">
-        <div
-          id="dashboardPeriodGroup"
-          class="dashboard-segmented"
-        >
-          <button
-            type="button"
-            data-period="ROLLING_24"
-            class="is-active"
-          >
-            24 ชั่วโมง
+      <article class="panel status-command-panel">
+        <header class="panel-heading panel-heading--compact">
+          <div>
+            <small>CURRENT STATUS</small>
+            <h2>สถานะปัจจุบันที่ใช้สั่งการ</h2>
+          </div>
+        </header>
+
+        <div class="status-command-grid">
+          <button class="status-command-card" data-tone="ACTIVE" data-status-filter="ALL" type="button">
+            <span class="status-command-card__dot"></span>
+            <span>อยู่ในพื้นที่</span>
+            <strong id="kpiActive">0</strong>
+            <small>รายการ Active</small>
           </button>
 
-          <button
-            type="button"
-            data-period="TODAY"
-          >
-            วันนี้
+          <button class="status-command-card" data-tone="NORMAL" data-status-filter="NORMAL" type="button">
+            <span class="status-command-card__dot"></span>
+            <span>ปกติ</span>
+            <strong id="kpiNormal">0</strong>
+            <small>ยังไม่ถึงเกณฑ์</small>
+          </button>
+
+          <button class="status-command-card" data-tone="WARNING" data-status-filter="WARNING" type="button">
+            <span class="status-command-card__dot"></span>
+            <span>เฝ้าระวัง</span>
+            <strong id="kpiWarning">0</strong>
+            <small>ควรติดตาม</small>
+          </button>
+
+          <button class="status-command-card" data-tone="OVERDUE" data-status-filter="OVERDUE" type="button">
+            <span class="status-command-card__dot"></span>
+            <span>เกินเวลา</span>
+            <strong id="kpiOverdue">0</strong>
+            <small>ต้องเร่งดำเนินการ</small>
+          </button>
+
+          <button class="status-command-card" data-tone="INCOMPLETE" data-status-filter="INCOMPLETE" type="button">
+            <span class="status-command-card__dot"></span>
+            <span>ข้อมูลไม่สมบูรณ์</span>
+            <strong id="kpiIncomplete">0</strong>
+            <small>ตรวจสอบต้นทาง</small>
           </button>
         </div>
+      </article>
 
-        <div class="dashboard-thresholds">
-          <span>
-            เฝ้าระวัง
+      <article class="panel threshold-panel">
+        <header class="panel-heading panel-heading--compact threshold-heading">
+          <div>
+            <small>SLA THRESHOLDS</small>
+            <h2>เกณฑ์ควบคุม</h2>
+          </div>
+
+          <div id="dashboardPeriodGroup" class="period-switch">
+            <button type="button" data-period="ROLLING_24" class="is-active">24 ชม.</button>
+            <button type="button" data-period="TODAY">วันนี้</button>
+          </div>
+        </header>
+
+        <div class="threshold-grid">
+          <div data-tone="WARNING">
+            <span>เฝ้าระวัง</span>
             <strong id="dashboardWarningThreshold">--</strong>
-          </span>
+            <small>นาที</small>
+          </div>
 
-          <span>
-            เกินเวลา
+          <div data-tone="OVERDUE">
+            <span>เกินเวลา</span>
             <strong id="dashboardOverdueThreshold">--</strong>
-          </span>
+            <small>นาที</small>
+          </div>
 
-          <span>
-            Auto Close
+          <div data-tone="AUTO">
+            <span>Auto Close</span>
             <strong id="dashboardAutoCloseThreshold">--</strong>
-          </span>
+            <small>ชั่วโมง</small>
+          </div>
         </div>
-      </div>
+      </article>
     </section>
 
-    <section class="dashboard-section">
-      <header class="dashboard-section__header">
-        <div>
-          <small>CURRENT STATUS</small>
-          <h2>สถานะที่ผู้บริหารต้องใช้สั่งการ</h2>
-        </div>
-      </header>
+    <section class="operations-row">
+      <article class="panel overdue-panel">
+        <header class="panel-heading">
+          <div>
+            <small>TOP OVERDUE ITEMS</small>
+            <h2>รายการเกินเวลาสูงสุด</h2>
+          </div>
 
-      <div class="dashboard-kpi-grid dashboard-kpi-grid--status">
-        <button
-          class="dashboard-kpi"
-          data-tone="ACTIVE"
-          data-status-filter="ALL"
-          type="button"
-        >
-          <span>อยู่ในพื้นที่</span>
-          <strong id="kpiActive">0</strong>
-          <small>รายการที่ยังไม่มีเวลาออก</small>
-        </button>
+          <span id="dashboardOverdueListCount" class="panel-count panel-count--danger">0 รายการ</span>
+        </header>
 
-        <button
-          class="dashboard-kpi"
-          data-tone="NORMAL"
-          data-status-filter="NORMAL"
-          type="button"
-        >
-          <span>ปกติ</span>
-          <strong id="kpiNormal">0</strong>
-          <small>ยังไม่ถึงเกณฑ์ติดตาม</small>
-        </button>
-
-        <button
-          class="dashboard-kpi"
-          data-tone="WARNING"
-          data-status-filter="WARNING"
-          type="button"
-        >
-          <span>เฝ้าระวัง</span>
-          <strong id="kpiWarning">0</strong>
-          <small>ควรเตรียมติดตาม</small>
-        </button>
-
-        <button
-          class="dashboard-kpi"
-          data-tone="OVERDUE"
-          data-status-filter="OVERDUE"
-          type="button"
-        >
-          <span>เกินเวลา</span>
-          <strong id="kpiOverdue">0</strong>
-          <small>ต้องเร่งดำเนินการ</small>
-        </button>
-
-        <button
-          class="dashboard-kpi"
-          data-tone="INCOMPLETE"
-          data-status-filter="INCOMPLETE"
-          type="button"
-        >
-          <span>ข้อมูลไม่สมบูรณ์</span>
-          <strong id="kpiIncomplete">0</strong>
-          <small>ตรวจสอบข้อมูลต้นทาง</small>
-        </button>
-      </div>
-    </section>
-
-    <section class="dashboard-section">
-      <header class="dashboard-section__header">
-        <div>
-          <small>OPERATIONAL FLOW</small>
-          <h2>การเคลื่อนไหวในช่วงที่เลือก</h2>
+        <div id="dashboardOverdueList" class="overdue-list">
+          <div class="empty-state">กำลังประมวลผล</div>
         </div>
 
-        <span id="dashboardFlowPeriodLabel">
-          ย้อนหลัง 24 ชั่วโมง
-        </span>
-      </header>
+        <button id="dashboardShowAllOverdue" class="panel-footer-button" type="button" data-status-filter="OVERDUE">
+          ดูรายการทั้งหมด
+          <span aria-hidden="true">→</span>
+        </button>
+      </article>
 
-      <div class="dashboard-kpi-grid dashboard-kpi-grid--flow">
-        <article class="dashboard-kpi" data-tone="IN">
-          <span>Gate In</span>
-          <strong id="kpiIn">0</strong>
-          <small>เข้าพื้นที่</small>
-        </article>
+      <article class="panel records-panel">
+        <header class="panel-heading records-panel__heading">
+          <div>
+            <small>ACTIVE RECORDS</small>
+            <h2>รายการรถและตู้ที่ยังอยู่ในพื้นที่</h2>
+          </div>
 
-        <article class="dashboard-kpi" data-tone="OUT">
-          <span>Gate Out จริง</span>
-          <strong id="kpiOutReal">0</strong>
-          <small>สแกนออกจากพื้นที่</small>
-        </article>
+          <div class="records-toolbar">
+            <span id="dashboardRecordTotal" class="panel-count">0 รายการ</span>
 
-        <article class="dashboard-kpi" data-tone="NET">
-          <span>สุทธิจริง</span>
-          <strong id="kpiNetActual">0</strong>
-          <small>Gate In − Gate Out จริง</small>
-        </article>
+            <input id="dashboardSearchInput" type="search" autocomplete="off" placeholder="ค้นหารายการ บริษัท ทะเบียน" aria-label="ค้นหารายการ">
 
-        <article class="dashboard-kpi" data-tone="AUTO_CLOSE">
-          <span>ระบบเคลียร์ข้อมูล</span>
-          <strong id="kpiAutoClose">0</strong>
-          <small>ไม่ใช่ Gate Out จริง</small>
-        </article>
-      </div>
-    </section>
+            <select id="dashboardStatusFilter" aria-label="กรองสถานะ SLA">
+              <option value="ALL">ทุกสถานะ SLA</option>
+              <option value="NORMAL">ปกติ</option>
+              <option value="WARNING">เฝ้าระวัง</option>
+              <option value="OVERDUE">เกินเวลา</option>
+              <option value="INCOMPLETE">ข้อมูลไม่สมบูรณ์</option>
+            </select>
 
-    <section
-      id="dashboardReceivingSection"
-      class="dashboard-section is-hidden"
-      aria-hidden="true"
-    >
-      <header class="dashboard-section__header">
-        <div>
-          <small>RECEIVING PROCESS</small>
-          <h2>ขั้นตอนรับสินค้า</h2>
+            <select id="dashboardStageFilter" class="is-hidden" aria-label="กรองขั้นตอน">
+              <option value="ALL">ทุกขั้นตอน</option>
+              <option value="WAITING_RECEIVING">รอรับสินค้าเสร็จ</option>
+              <option value="WAITING_GATE_OUT">รับเสร็จ รอ Gate Out</option>
+            </select>
+          </div>
+        </header>
+
+        <div class="records-table-shell">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>รายการ / บริษัท</th>
+                <th>ทะเบียน / รหัส</th>
+                <th>เวลาเข้า Gate In</th>
+                <th>เวลาปัจจุบัน / ระยะเวลา</th>
+                <th>สถานะ SLA</th>
+                <th>ขั้นตอนปัจจุบัน</th>
+              </tr>
+            </thead>
+
+            <tbody id="dashboardRecordTableBody"></tbody>
+          </table>
+
+          <div id="dashboardRecordEmpty" class="empty-state is-hidden">
+            ไม่พบข้อมูลตามเงื่อนไข
+          </div>
         </div>
+      </article>
 
-        <span>
-          แสดงเมื่อ Admin เปิดใช้งาน
-        </span>
-      </header>
+      <aside class="operations-side">
+        <article id="dashboardReceivingSection" class="panel receiving-panel is-hidden" aria-hidden="true">
+          <header class="panel-heading">
+            <div>
+              <small>RECEIVING PROCESS</small>
+              <h2>ขั้นตอนรับสินค้า</h2>
+            </div>
+          </header>
 
-      <div class="dashboard-kpi-grid dashboard-kpi-grid--receiving">
-        <button
-          class="dashboard-kpi"
-          data-tone="WAITING_RECEIVING"
-          data-stage-filter="WAITING_RECEIVING"
-          type="button"
-        >
-          <span>รอรับสินค้าเสร็จ</span>
-          <strong id="kpiWaitingReceiving">0</strong>
-          <small>อยู่ในช่วงที่ 1</small>
-        </button>
+          <div class="receiving-grid">
+            <button type="button" data-tone="WAITING" data-stage-filter="WAITING_RECEIVING">
+              <span>รอรับสินค้าเสร็จ</span>
+              <strong id="kpiWaitingReceiving">0</strong>
+              <small>อยู่ในช่วงที่ 1</small>
+            </button>
 
-        <button
-          class="dashboard-kpi"
-          data-tone="WAITING_GATE_OUT"
-          data-stage-filter="WAITING_GATE_OUT"
-          type="button"
-        >
-          <span>รับเสร็จ รอ Gate Out</span>
-          <strong id="kpiWaitingGateOut">0</strong>
-          <small>อยู่ในช่วงที่ 2</small>
-        </button>
+            <button type="button" data-tone="GATE_OUT" data-stage-filter="WAITING_GATE_OUT">
+              <span>รับเสร็จ รอ Gate Out</span>
+              <strong id="kpiWaitingGateOut">0</strong>
+              <small>อยู่ในช่วงที่ 2</small>
+            </button>
 
-        <article class="dashboard-kpi" data-tone="RECEIVED">
-          <span>รับสินค้าเสร็จวันนี้</span>
-          <strong id="kpiReceivingToday">0</strong>
-          <small>เหตุการณ์ที่บันทึกแล้ว</small>
+            <div data-tone="TODAY">
+              <span>รับสินค้าเสร็จวันนี้</span>
+              <strong id="kpiReceivingToday">0</strong>
+              <small>เหตุการณ์ที่บันทึก</small>
+            </div>
+
+            <div data-tone="QUALITY">
+              <span>ออกโดยไม่มีรับเสร็จ</span>
+              <strong id="kpiMissingReceiving">0</strong>
+              <small>ข้อมูลไม่ครบ</small>
+            </div>
+
+            <div class="receiving-grid__duration" data-tone="STAGE_ONE">
+              <span>เฉลี่ย เข้า → รับเสร็จ</span>
+              <strong id="kpiAverageStageOne">--:--:--</strong>
+              <small>ช่วงที่ 1</small>
+            </div>
+
+            <div class="receiving-grid__duration" data-tone="STAGE_TWO">
+              <span>เฉลี่ย รับเสร็จ → ออก</span>
+              <strong id="kpiAverageStageTwo">--:--:--</strong>
+              <small>เฉพาะ Gate Out จริง</small>
+            </div>
+          </div>
         </article>
 
-        <article class="dashboard-kpi" data-tone="DATA_QUALITY">
-          <span>ออกโดยไม่มีรับเสร็จ</span>
-          <strong id="kpiMissingReceiving">0</strong>
-          <small>ข้อมูลกระบวนการไม่ครบ</small>
-        </article>
+        <article class="panel action-panel">
+          <header class="panel-heading">
+            <div>
+              <small>ACTION QUEUE</small>
+              <h2>รายการที่ควรสั่งการก่อน</h2>
+            </div>
 
-        <article class="dashboard-kpi dashboard-kpi--duration" data-tone="STAGE_ONE">
-          <span>เฉลี่ย เข้า → รับเสร็จ</span>
-          <strong id="kpiAverageStageOne">--:--:--</strong>
-          <small>ระยะเวลาช่วงที่ 1</small>
-        </article>
+            <span id="dashboardActionCount" class="panel-count">0 รายการ</span>
+          </header>
 
-        <article class="dashboard-kpi dashboard-kpi--duration" data-tone="STAGE_TWO">
-          <span>เฉลี่ย รับเสร็จ → ออก</span>
-          <strong id="kpiAverageStageTwo">--:--:--</strong>
-          <small>เฉพาะ Gate Out จริง</small>
+          <div id="dashboardActionQueue" class="action-queue">
+            <div class="empty-state">กำลังประเมินรายการ</div>
+          </div>
         </article>
-      </div>
+      </aside>
     </section>
 
-    <section class="dashboard-workspace">
-      <article class="dashboard-panel">
-        <header class="dashboard-panel__header">
+    <section class="analytics-row">
+      <article class="panel chart-panel chart-panel--flow">
+        <header class="chart-panel__header">
           <div>
             <small>HOURLY FLOW</small>
-            <h2>Gate In, Gate Out จริง และระบบเคลียร์</h2>
+            <h2>การเคลื่อนไหวรายชั่วโมง</h2>
           </div>
+
+          <span id="dashboardFlowPeriodLabel">ย้อนหลัง 24 ชั่วโมง</span>
         </header>
 
-        <div class="dashboard-chart-wrap">
+        <div class="chart-shell">
           <canvas id="hourlyMovementChart"></canvas>
-
-          <div
-            id="hourlyMovementEmpty"
-            class="dashboard-empty is-hidden"
-          >
-            ยังไม่มีข้อมูลรายชั่วโมง
-          </div>
+          <div id="hourlyMovementEmpty" class="empty-state is-hidden">ยังไม่มีข้อมูลรายชั่วโมง</div>
         </div>
       </article>
 
-      <article class="dashboard-panel">
-        <header class="dashboard-panel__header">
+      <article class="panel chart-panel">
+        <header class="chart-panel__header">
           <div>
-            <small>ACTION QUEUE</small>
-            <h2>รายการที่ควรสั่งการก่อน</h2>
+            <small>STATUS DISTRIBUTION</small>
+            <h2>สัดส่วนสถานะปัจจุบัน</h2>
           </div>
-
-          <span id="dashboardActionCount">
-            0 รายการ
-          </span>
         </header>
 
-        <div
-          id="dashboardActionQueue"
-          class="dashboard-action-queue"
-        >
-          <div class="dashboard-empty">
-            กำลังประเมินรายการ
+        <div class="chart-shell chart-shell--doughnut">
+          <canvas id="statusDistributionChart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel chart-panel">
+        <header class="chart-panel__header">
+          <div>
+            <small>ACTIVE TREND</small>
+            <h2>แนวโน้มรายการคงค้าง</h2>
           </div>
+        </header>
+
+        <div class="chart-shell">
+          <canvas id="activeTrendChart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel chart-panel">
+        <header class="chart-panel__header">
+          <div>
+            <small>LONGEST WAITING</small>
+            <h2>บริษัทหรือรายการที่รอนานที่สุด</h2>
+          </div>
+        </header>
+
+        <div class="chart-shell">
+          <canvas id="longestWaitingChart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel chart-panel process-panel">
+        <header class="chart-panel__header">
+          <div>
+            <small>PROCESS FLOW</small>
+            <h2>ภาพรวมกระบวนการวันนี้</h2>
+          </div>
+        </header>
+
+        <div id="processFunnel" class="process-funnel">
+          <div class="process-funnel__stage" data-stage="IN">
+            <span>Gate In</span>
+            <strong id="funnelGateIn">0</strong>
+            <small>รายการ</small>
+          </div>
+
+          <div class="process-funnel__stage" data-stage="RECEIVING">
+            <span>รับสินค้าเสร็จ</span>
+            <strong id="funnelReceiving">0</strong>
+            <small>รายการ</small>
+          </div>
+
+          <div class="process-funnel__stage" data-stage="OUT">
+            <span>Gate Out จริง</span>
+            <strong id="funnelGateOut">0</strong>
+            <small>รายการ</small>
+          </div>
+        </div>
+
+        <div class="process-rate">
+          <span>อัตราผ่านกระบวนการ</span>
+          <strong id="funnelCompletionRate">0%</strong>
         </div>
       </article>
     </section>
 
-    <section class="dashboard-panel dashboard-record-panel">
-      <header class="dashboard-panel__header dashboard-record-header">
-        <div>
-          <small>ACTIVE RECORDS</small>
-          <h2>รายการรถและตู้ที่ยังอยู่ในพื้นที่</h2>
-        </div>
-
-        <div class="dashboard-record-tools">
-          <input
-            id="dashboardSearchInput"
-            type="search"
-            autocomplete="off"
-            placeholder="ค้นหาตู้ ทะเบียน บริษัท"
-          >
-
-          <select id="dashboardStatusFilter">
-            <option value="ALL">ทุกสถานะ</option>
-            <option value="NORMAL">ปกติ</option>
-            <option value="WARNING">เฝ้าระวัง</option>
-            <option value="OVERDUE">เกินเวลา</option>
-            <option value="INCOMPLETE">ข้อมูลไม่สมบูรณ์</option>
-          </select>
-
-          <select
-            id="dashboardStageFilter"
-            class="is-hidden"
-          >
-            <option value="ALL">ทุกขั้นตอน</option>
-            <option value="WAITING_RECEIVING">รอรับสินค้าเสร็จ</option>
-            <option value="WAITING_GATE_OUT">รับเสร็จ รอ Gate Out</option>
-          </select>
-        </div>
-      </header>
-
-      <div class="dashboard-table-wrap">
-        <table class="dashboard-table">
-          <thead>
-            <tr>
-              <th>รายการ</th>
-              <th>ขั้นตอนปัจจุบัน</th>
-              <th>เวลาเข้า</th>
-              <th>เวลาช่วงปัจจุบัน</th>
-              <th>สถานะ SLA</th>
-            </tr>
-          </thead>
-
-          <tbody id="dashboardRecordTableBody"></tbody>
-        </table>
-
-        <div
-          id="dashboardRecordEmpty"
-          class="dashboard-empty is-hidden"
-        >
-          ไม่พบข้อมูลตามเงื่อนไข
-        </div>
+    <footer class="system-summary">
+      <div class="system-summary__title">
+        <small>SYSTEM SUMMARY</small>
+        <strong>ภาพรวมระบบ</strong>
       </div>
-    </section>
+
+      <div class="system-summary__item">
+        <span>Module</span>
+        <strong id="summaryModuleCount">1</strong>
+        <small>โมดูลปัจจุบัน</small>
+      </div>
+
+      <div class="system-summary__item">
+        <span>Gate In</span>
+        <strong id="summaryGateIn">0</strong>
+        <small>ช่วงที่เลือก</small>
+      </div>
+
+      <div class="system-summary__item">
+        <span>Gate Out จริง</span>
+        <strong id="summaryGateOut">0</strong>
+        <small>ช่วงที่เลือก</small>
+      </div>
+
+      <div class="system-summary__item">
+        <span>รถในพื้นที่</span>
+        <strong id="summaryActive">0</strong>
+        <small>รายการ Active</small>
+      </div>
+
+      <div class="system-summary__item system-summary__item--wide">
+        <span>LAST DATA UPDATE</span>
+        <strong id="summaryLastUpdate">--/--/---- --:--:--</strong>
+        <small>เวลาจากระบบ</small>
+      </div>
+
+      <div class="system-summary__item">
+        <span>DATA QUALITY</span>
+        <strong id="summaryDataQuality">0%</strong>
+        <small>ข้อมูลสมบูรณ์</small>
+      </div>
+    </footer>
   </main>
 </body>
 </html>
