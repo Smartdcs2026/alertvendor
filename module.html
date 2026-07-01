@@ -18,8 +18,30 @@
   </title>
 
   <link
+    rel="manifest"
+    href="./manifest.webmanifest"
+  >
+
+  <link
+    id="dynamicFavicon"
+    rel="icon"
+    type="image/png"
+    href="./icons/favicon-64.png"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    href="./icons/apple-touch-icon.png"
+  >
+
+  <link
     rel="stylesheet"
-    href="./styles.css?v=20260630-r27-module-feature"
+    href="./styles.css?v=20260701-r27-hotfix-dashboard-button"
+  >
+
+  <link
+    rel="stylesheet"
+    href="./dashboard-link.css?v=20260630-r3-header-contrast"
   >
 
   <script
@@ -33,17 +55,22 @@
   ></script>
 
   <script
-    src="./api.js?v=20260630-r26-receiving-flow"
+    src="./api.js?v=20260630-r27-module-feature"
     defer
   ></script>
 
   <script
-    src="./module.js?v=20260626-r16-movement-ui"
+    src="./module.js?v=20260628-r18-accumulated-overdue-badge"
     defer
   ></script>
 
   <script
-    src="./receiving.js?v=20260630-r27-module-feature"
+    src="./receiving.js?v=20260701-r27-hotfix-dashboard-button"
+    defer
+  ></script>
+
+  <script
+    src="./dashboard-link.js?v=20260630-r3-header-contrast"
     defer
   ></script>
 </head>
@@ -75,6 +102,24 @@
           <span aria-hidden="true">←</span>
           หน้าหลัก
         </button>
+
+        <div
+          id="overdueAppBadge"
+          class="overdue-app-badge is-zero"
+          data-count="0"
+          role="status"
+          aria-live="polite"
+          aria-label="ไม่มีตู้เกินเวลาค้าง"
+          title="จำนวนตู้เกินเวลาสะสมที่ยังไม่มีเวลาออก"
+        >
+          <span class="overdue-app-badge__label">
+            เกินเวลาค้าง
+          </span>
+
+          <strong id="overdueAppBadgeCount">
+            0
+          </strong>
+        </div>
 
         <div class="module-user">
           <span id="userDisplayName">
