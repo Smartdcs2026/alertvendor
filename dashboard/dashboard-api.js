@@ -1,12 +1,6 @@
 /**
  * dashboard-api.js
- * API สำหรับ Dashboard แบบอ่านอย่างเดียว
- *
- * มีเฉพาะคำสั่ง GET:
- * - ตรวจ Session
- * - อ่านข้อมูล Module
- * - อ่าน Active Records
- * - อ่าน Movement Summary
+ * API แบบอ่านอย่างเดียวสำหรับ Dashboard
  */
 (function (window) {
   'use strict';
@@ -58,25 +52,25 @@
   function getAccessToken() {
     try {
       return String(
-        window.sessionStorage.getItem(
-          TOKEN_STORAGE_KEY
-        ) || ''
+        window.sessionStorage
+          .getItem(
+            TOKEN_STORAGE_KEY
+          ) || ''
       ).trim();
-
     } catch (error) {
       return '';
     }
   }
 
-  function clearAccessToken() {
+  function clearSession() {
     try {
-      window.sessionStorage.removeItem(
-        TOKEN_STORAGE_KEY
-      );
-
+      window.sessionStorage
+        .removeItem(
+          TOKEN_STORAGE_KEY
+        );
     } catch (error) {
       console.warn(
-        'ล้าง Session Token ไม่สำเร็จ',
+        'ล้าง Session ไม่สำเร็จ',
         error
       );
     }
@@ -101,12 +95,10 @@
     );
   }
 
-  function buildUrl(
-    path,
-    query
-  ) {
+  function buildUrl(path, query) {
     const cleanPath =
-      String(path || '').startsWith('/')
+      String(path || '')
+        .startsWith('/')
         ? String(path)
         : '/' + String(path || '');
 
@@ -115,36 +107,27 @@
         API_BASE + cleanPath
       );
 
-    if (
-      query &&
-      typeof query === 'object'
-    ) {
-      Object.entries(query)
-        .forEach(
-          ([key, value]) => {
-            if (
-              value === undefined ||
-              value === null ||
-              value === ''
-            ) {
-              return;
-            }
-
-            url.searchParams.set(
-              key,
-              String(value)
-            );
-          }
-        );
-    }
+    Object.entries(
+      query || {}
+    ).forEach(
+      ([key, value]) => {
+        if (
+          value !== undefined &&
+          value !== null &&
+          value !== ''
+        ) {
+          url.searchParams.set(
+            key,
+            String(value)
+          );
+        }
+      }
+    );
 
     return url.toString();
   }
 
-  async function request(
-    path,
-    options
-  ) {
+  async function request(path, options) {
     if (!API_BASE) {
       throw new DashboardAPIError(
         'ยังไม่ได้ตั้งค่า API_BASE',
@@ -159,50 +142,35 @@
         ? options
         : {};
 
-    const token =
-      getAccessToken();
-
-    if (!token) {
-      throw new DashboardAPIError(
-        'ไม่พบ Session กรุณาเข้าสู่ระบบใหม่',
-        'AUTH_REQUIRED',
-        401
-      );
-    }
-
     const controller =
       new AbortController();
 
     const timeoutId =
       window.setTimeout(
         () => controller.abort(),
-        Math.max(
-          5000,
-          Number(
-            config.timeoutMs ||
-            CONFIG.API_TIMEOUT_MS ||
-            60000
-          )
-        )
+        Number(
+          CONFIG.API_TIMEOUT_MS
+        ) || 60000
       );
 
     const headers =
-      new Headers();
+      new Headers({
+        Accept:
+          'application/json',
 
-    headers.set(
-      'Accept',
-      'application/json'
-    );
+        'X-Request-Id':
+          createRequestId()
+      });
 
-    headers.set(
-      'Authorization',
-      'Bearer ' + token
-    );
+    const token =
+      getAccessToken();
 
-    headers.set(
-      'X-Request-Id',
-      createRequestId()
-    );
+    if (token) {
+      headers.set(
+        'Authorization',
+        'Bearer ' + token
+      );
+    }
 
     try {
       const response =
@@ -215,16 +183,14 @@
             method:
               'GET',
 
-            headers,
-
-            credentials:
-              'omit',
+            headers:
+              headers,
 
             cache:
               'no-store',
 
-            redirect:
-              'follow',
+            credentials:
+              'omit',
 
             signal:
               controller.signal
@@ -238,53 +204,29 @@
 
       try {
         payload =
-          JSON.parse(
-            text || '{}'
-          );
-
+          JSON.parse(text);
       } catch (error) {
         throw new DashboardAPIError(
-          'API ไม่ได้ส่ง JSON ที่ถูกต้องกลับมา',
+          'API ส่งข้อมูลที่ไม่ใช่ JSON',
           'INVALID_JSON_RESPONSE',
-          response.status,
-          {
-            preview:
-              String(text || '').slice(
-                0,
-                250
-              )
-          }
+          response.status
         );
       }
-
-      const apiError =
-        payload &&
-        payload.error
-          ? payload.error
-          : {};
 
       if (
         !response.ok ||
         payload.success !== true
       ) {
-        if (
-          response.status === 401 ||
-          [
-            'AUTH_REQUIRED',
-            'SESSION_EXPIRED',
-            'INVALID_SESSION',
-            'INVALID_SESSION_SIGNATURE',
-            'SESSION_VERSION_EXPIRED'
-          ].includes(
-            apiError.code
-          )
-        ) {
-          clearAccessToken();
+        const apiError =
+          payload.error || {};
+
+        if (response.status === 401) {
+          clearSession();
         }
 
         throw new DashboardAPIError(
           apiError.message ||
-          'Dashboard API ทำงานไม่สำเร็จ',
+          'เกิดข้อผิดพลาดจากระบบ',
           apiError.code ||
           'API_ERROR',
           response.status,
@@ -294,7 +236,6 @@
       }
 
       return payload.data;
-
     } catch (error) {
       if (
         error &&
@@ -308,26 +249,19 @@
       }
 
       if (
-        error instanceof DashboardAPIError
+        error instanceof
+        DashboardAPIError
       ) {
         throw error;
       }
 
       throw new DashboardAPIError(
         navigator.onLine
-          ? 'ไม่สามารถเชื่อมต่อ Dashboard API ได้'
-          : 'อุปกรณ์ไม่ได้เชื่อมต่ออินเทอร์เน็ต',
+          ? 'เชื่อมต่อระบบไม่สำเร็จ'
+          : 'อุปกรณ์ไม่มีอินเทอร์เน็ต',
         'NETWORK_ERROR',
-        0,
-        {
-          originalMessage:
-            error &&
-            error.message
-              ? error.message
-              : String(error)
-        }
+        0
       );
-
     } finally {
       window.clearTimeout(
         timeoutId
@@ -335,74 +269,81 @@
     }
   }
 
-  const DashboardAPI = Object.freeze({
-    Error:
-      DashboardAPIError,
-
-    getAccessToken,
-
-    clearSession:
-      clearAccessToken,
-
-    async me() {
-      return request(
-        '/api/auth/me'
-      );
-    },
-
-    async getModule(
-      moduleId
-    ) {
-      return request(
-        '/api/modules/' +
-        encodeURIComponent(
-          moduleId
-        )
-      );
-    },
-
-    async getActiveRecords(
-      moduleId
-    ) {
-      return request(
-        '/api/modules/' +
-        encodeURIComponent(
-          moduleId
-        ) +
-        '/records',
-        {
-          query: {
-            mode:
-              'active',
-
-            limit:
-              Number(
-                CONFIG.ACTIVE_RECORD_LIMIT
-              ) || 5000
-          }
-        }
-      );
-    },
-
-    async getMovementSummary(
-      moduleId
-    ) {
-      return request(
-        '/api/modules/' +
-        encodeURIComponent(
-          moduleId
-        ) +
-        '/movement-summary',
-        {
-          query: {
-            mode:
-              'all'
-          }
-        }
-      );
-    }
-  });
-
   window.DashboardAPI =
-    DashboardAPI;
+    Object.freeze({
+      Error:
+        DashboardAPIError,
+
+      clearSession:
+        clearSession,
+
+      me() {
+        return request(
+          '/api/auth/me'
+        );
+      },
+
+      getModule(moduleId) {
+        return request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          )
+        );
+      },
+
+      getActiveRecords(moduleId) {
+        return request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/records',
+          {
+            query: {
+              mode:
+                'active',
+
+              limit:
+                Number(
+                  CONFIG.ACTIVE_RECORD_LIMIT
+                ) || 5000
+            }
+          }
+        );
+      },
+
+      getMovementSummary(moduleId) {
+        return request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/movement-summary',
+          {
+            query: {
+              mode:
+                'all'
+            }
+          }
+        );
+      },
+
+      getReceivingFlow(moduleId) {
+        return request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/receiving-flow',
+          {
+            query: {
+              mode:
+                'ACTIVE'
+            }
+          }
+        );
+      }
+    });
+
 })(window);
