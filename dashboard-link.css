@@ -1,80 +1,119 @@
 /**
  * dashboard-link.css
- * ปุ่มเปิด Dashboard ในส่วนหัวหน้า Module
+ * ROUND 35 — Dashboard Launcher Compatibility
  */
 
-.module-page .module-dashboard-launcher {
-  min-height: 32px;
+.module-dashboard-launcher {
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid #075f83;
+  border: 1px solid rgba(255, 255, 255, .24);
   border-radius: 8px;
-  padding: 6px 10px;
-  color: #ffffff !important;
+  padding: 5px 9px;
+  color: #ffffff;
   background:
-    linear-gradient(135deg, #0d5278, #087da0);
+    linear-gradient(
+      135deg,
+      #0c7190,
+      #07546f
+    );
   box-shadow:
-    0 4px 10px rgba(8,83,121,.22);
-  text-decoration: none;
-  font-size: .69rem;
+    0 4px 12px
+    rgba(3, 40, 64, .16);
+  cursor: pointer;
+  font: inherit;
+  font-size: 8px;
   font-weight: 900;
   white-space: nowrap;
+  transition:
+    transform .12s ease,
+    filter .12s ease,
+    box-shadow .12s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.module-page
-.module-dashboard-launcher
-> span {
-  display: inline !important;
-  color: #ffffff !important;
+.module-dashboard-launcher:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    0 6px 16px
+    rgba(3, 40, 64, .22);
 }
 
-.module-page
-.module-dashboard-launcher__icon {
+.module-dashboard-launcher:active {
+  transform: scale(.97);
+}
+
+.module-dashboard-launcher svg {
   width: 15px;
   height: 15px;
   flex: 0 0 15px;
-  color: #ffffff !important;
 }
 
-.module-page
-.module-clock.module-clock--with-dashboard {
-  display: grid;
-  grid-template-columns:
-    auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
+.module-command-bar
+.module-clock
+.module-dashboard-launcher {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 27px;
+  padding: 4px 8px;
 }
 
-.module-page
-.module-clock.module-clock--with-dashboard
-> span {
-  display: none !important;
+.module-command-bar >
+.module-dashboard-launcher {
+  align-self: center;
 }
 
-.module-page
-.module-clock.module-clock--with-dashboard
-> strong {
-  min-width: 0;
-  text-align: right;
-  white-space: nowrap;
-}
-
-@media (max-width: 679px) {
-  .module-page .module-title-row {
-    grid-template-columns:
-      auto minmax(0, 1fr);
-    grid-template-areas:
-      "live title"
-      "clock clock";
-    row-gap: 5px;
+@media (max-width: 900px) {
+  .module-dashboard-launcher {
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: 7.5px;
   }
 
-  .module-page
-  .module-clock.module-clock--with-dashboard {
-    grid-area: clock;
-    width: 100%;
-    min-width: 0;
+  .module-dashboard-launcher svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .module-command-bar
+  .module-clock
+  .module-dashboard-launcher {
+    width: auto;
+    min-width: 82px;
+    min-height: 26px;
+    justify-self: end;
+    padding: 3px 7px;
+    font-size: 7px;
+  }
+
+  .module-dashboard-launcher svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+@media (max-width: 380px) {
+  .module-command-bar
+  .module-clock
+  .module-dashboard-launcher {
+    min-width: 34px;
+    width: 34px;
+    padding: 0;
+  }
+
+  .module-command-bar
+  .module-clock
+  .module-dashboard-launcher span {
+    display: none;
+  }
+
+  .module-dashboard-launcher svg {
+    width: 15px;
+    height: 15px;
   }
 }
