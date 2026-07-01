@@ -1,271 +1,80 @@
 /**
  * dashboard-link.css
- * ROUND 3 — Compact Header + High Contrast Dashboard Button
- *
- * เป้าหมาย:
- * - ปุ่ม Dashboard อ่านชัดเจน
- * - Header หน้า Module เป็นระเบียบทั้ง Desktop และ Mobile
- * - ไม่สร้างแถวปุ่มขนาดใหญ่
- * - ไม่แก้ไข styles.css หรือ module.js
+ * ปุ่มเปิด Dashboard ในส่วนหัวหน้า Module
  */
 
-/* =========================================================
-   Dashboard button
-   ========================================================= */
-
 .module-page .module-dashboard-launcher {
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 0;
-  min-height: 32px;
-  margin: 0;
-  padding: 6px 10px;
-  color: #ffffff !important;
-  text-decoration: none;
   border: 1px solid #075f83;
   border-radius: 8px;
-  background: linear-gradient(135deg, #0d5278, #087da0);
-  box-shadow: 0 4px 10px rgba(8, 83, 121, 0.22);
-  font-size: 0.69rem;
+  padding: 6px 10px;
+  color: #ffffff !important;
+  background:
+    linear-gradient(135deg, #0d5278, #087da0);
+  box-shadow:
+    0 4px 10px rgba(8,83,121,.22);
+  text-decoration: none;
+  font-size: .69rem;
   font-weight: 900;
-  line-height: 1;
   white-space: nowrap;
-  transition:
-    transform 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease;
 }
 
-/*
- * styles.css มี .module-clock span ที่กำหนดสีข้อความไว้
- * จึงต้องกำหนดสีของข้อความปุ่มโดยตรงเพื่อไม่ให้ถูกทับ
- */
-.module-page .module-title-row
-.module-clock
-.module-dashboard-launcher > span {
+.module-page
+.module-dashboard-launcher
+> span {
   display: inline !important;
-  overflow: hidden;
   color: #ffffff !important;
-  opacity: 1 !important;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.module-page .module-dashboard-launcher:hover,
-.module-page .module-dashboard-launcher:focus-visible {
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #093f60, #066b8d);
-  box-shadow: 0 6px 14px rgba(8, 83, 121, 0.28);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.module-page .module-dashboard-launcher:active {
-  transform: translateY(0);
-}
-
-.module-page .module-dashboard-launcher__icon {
+.module-page
+.module-dashboard-launcher__icon {
   width: 15px;
   height: 15px;
   flex: 0 0 15px;
   color: #ffffff !important;
 }
 
-/* =========================================================
-   Clock + Dashboard control
-   ========================================================= */
-
-.module-page .module-title-row
+.module-page
 .module-clock.module-clock--with-dashboard {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns:
+    auto minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  min-width: 270px;
-  width: auto;
-  padding: 7px 9px;
+  gap: 8px;
 }
 
-/* ซ่อนข้อความ “วันที่และเวลาปัจจุบัน” เพื่อประหยัดพื้นที่ */
-.module-page .module-title-row
-.module-clock.module-clock--with-dashboard > span {
+.module-page
+.module-clock.module-clock--with-dashboard
+> span {
   display: none !important;
 }
 
-.module-page .module-title-row
-.module-clock.module-clock--with-dashboard > strong {
+.module-page
+.module-clock.module-clock--with-dashboard
+> strong {
   min-width: 0;
-  color: #173f5b;
-  font-size: 0.73rem;
-  font-weight: 900;
   text-align: right;
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* =========================================================
-   Desktop header cleanup
-   ========================================================= */
-
-@media (min-width: 680px) {
-  .module-page .module-header__inner {
-    padding-top: 8px;
-    padding-bottom: 9px;
-  }
-
-  .module-page .module-title-row {
-    column-gap: 18px;
-    row-gap: 1px;
-    margin-top: 6px;
-  }
-
-  .module-page .module-title-row
-  .module-clock.module-clock--with-dashboard {
-    justify-self: end;
-    min-width: 285px;
-    max-width: 330px;
-  }
-}
-
-/* =========================================================
-   Mobile header cleanup
-   ========================================================= */
-
 @media (max-width: 679px) {
-  .module-page .module-header__inner {
-    padding: 7px 8px 8px;
-  }
-
-  /* แถวบน: หน้าหลัก | เกินเวลาค้าง | ออกจากระบบ */
-  .module-page .module-header__top {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .module-page .module-header__top > #backButton {
-    grid-column: 1;
-  }
-
-  .module-page .module-header__top > .overdue-app-badge {
-    grid-column: 2;
-    width: 100%;
-    min-width: 0;
-    justify-content: center;
-  }
-
-  .module-page .module-header__top > .module-user {
-    display: contents;
-  }
-
-  .module-page .module-user > span {
-    display: none !important;
-  }
-
-  .module-page .module-user > #logoutButton {
-    grid-column: 3;
-  }
-
-  .module-page .module-header__top .icon-text-button {
-    min-height: 34px;
-    padding: 6px 8px;
-    border-radius: 9px;
-    font-size: 0.67rem;
-    white-space: nowrap;
-  }
-
-  /*
-   * แถวข้อมูล Module:
-   * บรรทัด 1 = LIVE VEHICLE STATUS + ชื่อ Module
-   * บรรทัด 2 = Dashboard + วันเวลา
-   */
   .module-page .module-title-row {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns:
+      auto minmax(0, 1fr);
     grid-template-areas:
       "live title"
       "clock clock";
-    align-items: center;
-    column-gap: 6px;
     row-gap: 5px;
-    margin-top: 5px;
   }
 
-  .module-page .module-live-label {
-    grid-area: live;
-    max-width: 82px;
-  }
-
-  .module-page .module-title-row h1 {
-    grid-area: title;
-  }
-
-  .module-page .module-title-description {
-    display: none !important;
-  }
-
-  .module-page .module-title-row
+  .module-page
   .module-clock.module-clock--with-dashboard {
     grid-area: clock;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 8px;
     width: 100%;
     min-width: 0;
-    max-width: none;
-    padding: 6px 8px;
-    border-radius: 9px;
-  }
-
-  .module-page .module-dashboard-launcher {
-    min-height: 34px;
-    padding: 5px 9px;
-    border-radius: 8px;
-    font-size: 0.67rem;
-  }
-
-  .module-page .module-title-row
-  .module-clock.module-clock--with-dashboard > strong {
-    overflow: hidden;
-    font-size: 0.67rem;
-    text-overflow: ellipsis;
-  }
-}
-
-@media (max-width: 390px) {
-  .module-page .module-header__top {
-    gap: 4px;
-  }
-
-  .module-page .module-header__top .icon-text-button {
-    padding-inline: 7px;
-    font-size: 0.62rem;
-  }
-
-  .module-page .module-title-row {
-    column-gap: 5px;
-  }
-
-  .module-page .module-live-label {
-    max-width: 68px;
-    font-size: 0.36rem;
-  }
-
-  .module-page .module-dashboard-launcher {
-    gap: 4px;
-    padding-inline: 7px;
-  }
-
-  .module-page .module-dashboard-launcher__icon {
-    width: 14px;
-    height: 14px;
-    flex-basis: 14px;
-  }
-
-  .module-page .module-title-row
-  .module-clock.module-clock--with-dashboard > strong {
-    font-size: 0.61rem;
   }
 }
