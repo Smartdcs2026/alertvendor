@@ -11,8 +11,8 @@
  * - รักษาการเลื่อนภายใน Module Editor
  * - รองรับตัวเลือก “อื่นๆ” และกรอกเวลา Auto Close เอง
  * - รองรับเวลา Auto Close แบบกำหนดเองตั้งแต่ 1–168 ชั่วโมง
- * - รองรับ CONCAT แบบกำหนดรูปแบบตำแหน่ง เช่น {1}{2} {3}
- * - ตรวจสอบรูปแบบ CONCAT ก่อนบันทึกเพื่อป้องกันค่าติดกันผิดรูปแบบ
+ * - Admin เปิด/ปิด Receiving Flow แยกตาม Module
+ * - Dashboard Admin รีเฟรชเงียบโดยไม่รบกวนผู้ใช้
  */
 (function (window, document) {
   'use strict';
@@ -29,6 +29,9 @@
     currentExpectedUpdatedAt: '',
     sourceMetadata: null,
     clockTimer: null,
+    silentRefreshTimer: null,
+    dashboardSignature: '',
+    destroyed: false,
     loading: false,
     moduleSaving: false
   };
@@ -75,6 +78,7 @@
   };
 
   document.addEventListener('DOMContentLoaded', initializeAdminPage);
+  window.addEventListener('beforeunload', destroyAdminPage);
 
   async function initializeAdminPage() {
     if (!API || typeof Swal === 'undefined') {
@@ -95,7 +99,10 @@
         !session.user ||
         session.user.role !== 'ADMIN'
       ) {
-        throw createLocalError('ADMIN_REQUIRED', 'หน้านี้สำหรับผู้ดูแลระบบเท่านั้น');
+        throw createLocalError(
+          'ADMIN_REQUIRED',
+          'หน้านี้สำหรับผู้ดูแลระบบเท่านั้น'
+        );
       }
 
       state.session = session;
@@ -111,8 +118,13 @@
 
       state.schema = results[0];
       state.dashboard = results[1];
+      state.dashboardSignature =
+        buildAdminDashboardSignature(
+          state.dashboard
+        );
 
       renderAll();
+      startSilentDashboardRefresh();
     } catch (error) {
       showPageLoading(false);
       await handleFatalError(error);
@@ -140,9 +152,7 @@
     byId('adminValidateQuickButton')?.addEventListener('click', validateSystem);
     byId('adminValidateSystemButton')?.addEventListener('click', validateSystem);
     byId('adminCreateModuleButton')?.addEventListener('click', createNewModule);
-    byId('adminCreateUserButton')?.addEventListener('click', () =>
-      openUserDialog(null)
-    );
+    byId('adminCreateUserButton')?.addEventListener('click', () => openUserDialog(null));
     byId('adminSettingsForm')?.addEventListener('submit', saveSettings);
     byId('adminSettingsFields')?.addEventListener(
       'change',
@@ -164,10 +174,7 @@
     byId('adminFieldRows')?.addEventListener('click', handleDynamicRowClick);
 
     document.addEventListener('keydown', (event) => {
-      if (
-        event.key === 'Escape' &&
-        !byId('adminModuleEditor')?.classList.contains('is-hidden')
-      ) {
+      if (event.key === 'Escape' && !byId('adminModuleEditor')?.classList.contains('is-hidden')) {
         closeModuleEditor();
       }
     });
@@ -215,17 +222,15 @@
       return;
     }
 
-    container.innerHTML = sheets
-      .map((item) => {
-        const ok =
-          item.exists && (!item.missingHeaders || item.missingHeaders.length === 0);
-        const detail = !item.exists
-          ? 'ไม่พบชีต'
-          : item.missingHeaders && item.missingHeaders.length
-            ? 'ขาด: ' + item.missingHeaders.join(', ')
-            : Number(item.rowCount || 0) + ' แถวข้อมูล';
+    container.innerHTML = sheets.map((item) => {
+      const ok = item.exists && (!item.missingHeaders || item.missingHeaders.length === 0);
+      const detail = !item.exists
+        ? 'ไม่พบชีต'
+        : item.missingHeaders && item.missingHeaders.length
+          ? 'ขาด: ' + item.missingHeaders.join(', ')
+          : (Number(item.rowCount || 0) + ' แถวข้อมูล');
 
-        return `
+      return `
         <div class="admin-status-item" data-status="${ok ? 'OK' : 'ERROR'}">
           <span class="admin-status-dot"></span>
           <div>
@@ -234,8 +239,7 @@
           </div>
         </div>
       `;
-      })
-      .join('');
+    }).join('');
   }
 
   function renderModules() {
@@ -247,17 +251,13 @@
       : [];
 
     if (modules.length === 0) {
-      container.innerHTML = emptyHtml(
-        'ยังไม่มีโมดูล',
-        'กด “สร้างโมดูลใหม่” เพื่อเพิ่ม Vendor หรือประเภทรถ'
-      );
+      container.innerHTML = emptyHtml('ยังไม่มีโมดูล', 'กด “สร้างโมดูลใหม่” เพื่อเพิ่ม Vendor หรือประเภทรถ');
       return;
     }
 
-    container.innerHTML = modules
-      .map((item) => {
-        const statusLabel = LABELS.moduleStatus[item.status] || item.status || '-';
-        return `
+    container.innerHTML = modules.map((item) => {
+      const statusLabel = LABELS.moduleStatus[item.status] || item.status || '-';
+      return `
         <article class="admin-module-card" data-module-id="${escapeHtml(item.moduleId)}">
           <div class="admin-module-card__head">
             <div>
@@ -287,6 +287,7 @@
             ${flagHtml('User', item.showToUsers)}
             ${flagHtml('Alert', item.alertEnabled)}
             ${flagHtml('Checkout', item.checkoutEnabled)}
+            ${flagHtml('Receiving', item.receivingEnabled)}
             ${flagHtml('Calendar', item.calendarEnabled)}
           </div>
 
@@ -307,24 +308,23 @@
           </div>
         </article>
       `;
-      })
-      .join('');
+    }).join('');
   }
 
   function renderUsers() {
     const container = byId('adminUserList');
     if (!container) return;
 
-    const users = Array.isArray(state.dashboard?.users) ? state.dashboard.users : [];
+    const users = Array.isArray(state.dashboard?.users)
+      ? state.dashboard.users
+      : [];
 
     if (users.length === 0) {
       container.innerHTML = emptyHtml('ยังไม่มีข้อมูลผู้ใช้งาน');
       return;
     }
 
-    container.innerHTML = users
-      .map(
-        (user) => `
+    container.innerHTML = users.map((user) => `
       <article class="admin-user-card" data-user-id="${escapeHtml(user.userId || '')}">
         <div class="admin-user-card__identity">
           <div class="admin-user-avatar">
@@ -365,9 +365,7 @@
           </button>
         </div>
       </article>
-    `
-      )
-      .join('');
+    `).join('');
   }
 
   function renderSettings() {
@@ -425,18 +423,17 @@
       }
     ];
 
-    container.innerHTML = definitions
-      .map((definition) => {
-        const key = definition.key;
-        const current = settings[key]?.value;
-        const updated = settings[key]?.updatedAt || '-';
-        const updatedBy = settings[key]?.updatedBy || '-';
-        const featuredClass = definition.featured
-          ? ' admin-setting-item--featured'
-          : '';
+    container.innerHTML = definitions.map((definition) => {
+      const key = definition.key;
+      const current = settings[key]?.value;
+      const updated = settings[key]?.updatedAt || '-';
+      const updatedBy = settings[key]?.updatedBy || '-';
+      const featuredClass = definition.featured
+        ? ' admin-setting-item--featured'
+        : '';
 
-        if (definition.type === 'boolean') {
-          return `
+      if (definition.type === 'boolean') {
+        return `
           <label class="admin-setting-item admin-setting-item--toggle${featuredClass}">
             <div>
               <strong>${escapeHtml(definition.label)}</strong>
@@ -450,41 +447,46 @@
             >
           </label>
         `;
-        }
+      }
 
-        if (definition.type === 'select') {
-          const currentNumber = Number(current || 36);
-          const options = Array.isArray(definition.options)
-            ? definition.options.slice()
-            : [];
+      if (definition.type === 'select') {
+        const currentNumber = Number(current || 36);
+        const options = Array.isArray(definition.options)
+          ? definition.options.slice()
+          : [];
 
-          const isPresetValue = options.includes(currentNumber);
+        const isPresetValue =
+          options.includes(currentNumber);
 
-          const minimum = Number(definition.minimum || 1);
+        const minimum =
+          Number(definition.minimum || 1);
 
-          const maximum = Number(definition.maximum || 168);
+        const maximum =
+          Number(definition.maximum || 168);
 
-          return `
+        return `
           <label class="admin-setting-item${featuredClass}">
             <span>${escapeHtml(definition.label)}</span>
 
             <select
               data-setting-key="${key}"
               data-setting-number="TRUE"
-              data-setting-select-custom="${definition.allowCustom ? 'TRUE' : 'FALSE'}"
+              data-setting-select-custom="${
+                definition.allowCustom ? 'TRUE' : 'FALSE'
+              }"
             >
-              ${options
-                .map(
-                  (hours) => `
+              ${options.map((hours) => `
                 <option
                   value="${Number(hours)}"
-                  ${Number(hours) === currentNumber ? 'selected' : ''}
+                  ${
+                    Number(hours) === currentNumber
+                      ? 'selected'
+                      : ''
+                  }
                 >
                   ${Number(hours)} ชั่วโมง
                 </option>
-              `
-                )
-                .join('')}
+              `).join('')}
 
               ${
                 definition.allowCustom
@@ -548,9 +550,9 @@
             <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
           </label>
         `;
-        }
+      }
 
-        return `
+      return `
         <label class="admin-setting-item${featuredClass}">
           <span>${escapeHtml(definition.label)}</span>
           <input
@@ -562,42 +564,54 @@
           <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
         </label>
       `;
-      })
-      .join('');
+    }).join('');
 
     syncAdminCustomSettingControls();
   }
 
+
   function handleAdminSettingFieldChange(event) {
-    const select = event.target?.closest?.('[data-setting-select-custom="TRUE"]');
+    const select = event.target?.closest?.(
+      '[data-setting-select-custom="TRUE"]'
+    );
 
     if (!select) return;
 
     syncAdminCustomSettingControls(select);
   }
 
+
   function syncAdminCustomSettingControls(changedSelect) {
     const selects = changedSelect
       ? [changedSelect]
-      : Array.from(document.querySelectorAll('[data-setting-select-custom="TRUE"]'));
+      : Array.from(
+          document.querySelectorAll(
+            '[data-setting-select-custom="TRUE"]'
+          )
+        );
 
     selects.forEach((select) => {
-      const key = String(select.dataset.settingKey || '').trim();
+      const key =
+        String(select.dataset.settingKey || '').trim();
 
       if (!key) return;
 
-      const customContainer = document.querySelector(
-        `[data-custom-setting-container="${cssEscape(key)}"]`
-      );
+      const customContainer =
+        document.querySelector(
+          `[data-custom-setting-container="${cssEscape(key)}"]`
+        );
 
-      const customInput = document.querySelector(
-        `[data-setting-custom-for="${cssEscape(key)}"]`
-      );
+      const customInput =
+        document.querySelector(
+          `[data-setting-custom-for="${cssEscape(key)}"]`
+        );
 
-      const isCustom = String(select.value || '').toUpperCase() === 'CUSTOM';
+      const isCustom =
+        String(select.value || '').toUpperCase() === 'CUSTOM';
 
       if (customContainer) {
-        customContainer.dataset.active = isCustom ? 'TRUE' : 'FALSE';
+        customContainer.dataset.active =
+          isCustom ? 'TRUE' : 'FALSE';
       }
 
       if (customInput) {
@@ -613,6 +627,7 @@
     });
   }
 
+
   function renderAudit(items, containerId) {
     const container = byId(containerId);
     if (!container) return;
@@ -624,9 +639,7 @@
       return;
     }
 
-    container.innerHTML = list
-      .map(
-        (item) => `
+    container.innerHTML = list.map((item) => `
       <article class="admin-audit-item" data-result="${escapeHtml(item.result || '')}">
         <div class="admin-audit-item__head">
           <strong>${escapeHtml(item.action || '-')}</strong>
@@ -640,9 +653,7 @@
         <p>${escapeHtml(item.details || 'ไม่มีรายละเอียด')}</p>
         ${item.requestId ? `<small>Request ID: ${escapeHtml(item.requestId)}</small>` : ''}
       </article>
-    `
-      )
-      .join('');
+    `).join('');
   }
 
   async function refreshDashboard() {
@@ -654,6 +665,10 @@
 
     try {
       state.dashboard = await API.getAdminDashboard({ auditLimit: 30 });
+      state.dashboardSignature =
+        buildAdminDashboardSignature(
+          state.dashboard
+        );
       renderAll();
       toast('รีเฟรชข้อมูลแล้ว', 'success');
     } catch (error) {
@@ -662,6 +677,175 @@
       state.loading = false;
       setButtonLoading(button, false);
     }
+  }
+
+
+  function startSilentDashboardRefresh() {
+    if (state.silentRefreshTimer) {
+      window.clearInterval(
+        state.silentRefreshTimer
+      );
+    }
+
+    state.silentRefreshTimer =
+      window.setInterval(
+        refreshDashboardSilently,
+        30000
+      );
+
+    document.addEventListener(
+      'visibilitychange',
+      handleAdminVisibilityChange
+    );
+  }
+
+
+  function handleAdminVisibilityChange() {
+    if (
+      document.visibilityState ===
+        'visible'
+    ) {
+      void refreshDashboardSilently();
+    }
+  }
+
+
+  async function refreshDashboardSilently() {
+    if (
+      state.destroyed ||
+      state.loading ||
+      state.moduleSaving ||
+      document.visibilityState !==
+        'visible'
+    ) {
+      return;
+    }
+
+    const editor =
+      byId(
+        'adminModuleEditor'
+      );
+
+    if (
+      editor &&
+      !editor.classList.contains(
+        'is-hidden'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const nextDashboard =
+        await API.getAdminDashboard({
+          auditLimit:
+            30
+        });
+
+      const nextSignature =
+        buildAdminDashboardSignature(
+          nextDashboard
+        );
+
+      if (
+        nextSignature ===
+        state.dashboardSignature
+      ) {
+        setText(
+          'adminGeneratedAt',
+          nextDashboard.generatedAt
+            ? 'ข้อมูลล่าสุด ' +
+              nextDashboard.generatedAt
+            : 'ข้อมูลเป็นปัจจุบัน'
+        );
+
+        return;
+      }
+
+      const previousScrollY =
+        window.scrollY;
+
+      const previousTab =
+        state.currentTab;
+
+      state.dashboard =
+        nextDashboard;
+
+      state.dashboardSignature =
+        nextSignature;
+
+      renderAll();
+      switchTab(
+        previousTab
+      );
+
+      window.requestAnimationFrame(
+        () => {
+          window.scrollTo({
+            top:
+              previousScrollY,
+
+            behavior:
+              'auto'
+          });
+        }
+      );
+
+    } catch (error) {
+      /*
+       * Silent Refresh ห้ามแสดง Popup, Toast หรือ Loading
+       */
+      console.warn(
+        'Silent Admin Dashboard Refresh ไม่สำเร็จ',
+        error
+      );
+    }
+  }
+
+
+  function buildAdminDashboardSignature(
+    dashboard
+  ) {
+    const source =
+      dashboard &&
+      typeof dashboard ===
+        'object'
+        ? dashboard
+        : {};
+
+    return JSON.stringify({
+      modules:
+        source.modules || [],
+
+      users:
+        source.users || [],
+
+      settings:
+        source.settings || [],
+
+      structure:
+        source.structure || {},
+
+      recentAudit:
+        source.recentAudit || []
+    });
+  }
+
+
+  function destroyAdminPage() {
+    state.destroyed =
+      true;
+
+    if (state.silentRefreshTimer) {
+      window.clearInterval(
+        state.silentRefreshTimer
+      );
+    }
+
+    document.removeEventListener(
+      'visibilitychange',
+      handleAdminVisibilityChange
+    );
   }
 
   function switchTab(tab) {
@@ -745,10 +929,7 @@
     setValue('adminTimestampOutColumn', module.timestampOutColumn || '');
     setValue('adminDurationColumn', module.durationColumn || '');
     setValue('adminCheckoutUserColumn', module.checkoutUserColumn || '');
-    setValue(
-      'adminCurrentStatusMethod',
-      module.currentStatusMethod || 'TIMESTAMP_OUT_EMPTY_AND_DURATION_EMPTY'
-    );
+    setValue('adminCurrentStatusMethod', module.currentStatusMethod || 'TIMESTAMP_OUT_EMPTY_AND_DURATION_EMPTY');
     setValue('adminCustomStatusColumn', module.customStatusColumn || '');
     setValue('adminCustomStatusOperator', module.customStatusOperator || '');
     setValue('adminCustomStatusValue', module.customStatusValue || '');
@@ -764,6 +945,7 @@
 
     setChecked('adminAlertEnabled', module.alertEnabled !== false);
     setChecked('adminCheckoutEnabled', module.checkoutEnabled !== false);
+    setChecked('adminReceivingEnabled', Boolean(module.receivingEnabled));
     setChecked('adminShowToUsers', Boolean(module.showToUsers));
     setChecked('adminHistoryEnabled', module.historyEnabled !== false);
     setChecked('adminCalendarEnabled', module.calendarEnabled !== false);
@@ -778,7 +960,7 @@
     setText('adminModuleEditorTitle', isNew ? 'สร้างโมดูลใหม่' : 'แก้ไขโมดูล');
     setText(
       'adminModuleEditorStatus',
-      isNew ? 'ยังไม่ได้บันทึก' : 'แก้ไขล่าสุด ' + (expectedUpdatedAt || '-')
+      isNew ? 'ยังไม่ได้บันทึก' : ('แก้ไขล่าสุด ' + (expectedUpdatedAt || '-'))
     );
     setText('adminSourceInspectStatus', 'ยังไม่ได้ตรวจสอบแหล่งข้อมูล');
 
@@ -788,8 +970,7 @@
     filters.forEach(addFilterRow);
     fields.forEach(addFieldRow);
 
-    if (fields.length === 0)
-      addFieldRow({ primary: true, visible: true, searchable: true });
+    if (fields.length === 0) addFieldRow({ primary: true, visible: true, searchable: true });
 
     updateDynamicCounts();
 
@@ -797,15 +978,21 @@
     document.body.classList.add('admin-editor-open');
 
     window.requestAnimationFrame(() => {
-      const editorBody = byId('adminModuleForm');
+      const editorBody =
+        byId('adminModuleForm');
 
       if (editorBody) {
         editorBody.scrollTop = 0;
       }
 
-      const firstInput = byId('adminModuleId');
+      const firstInput =
+        byId('adminModuleId');
 
-      if (isNew && firstInput && typeof firstInput.focus === 'function') {
+      if (
+        isNew &&
+        firstInput &&
+        typeof firstInput.focus === 'function'
+      ) {
         firstInput.focus({
           preventScroll: true
         });
@@ -827,50 +1014,83 @@
       return;
     }
 
-    const saveButton = byId('adminSaveModuleButton');
+    const saveButton =
+      byId('adminSaveModuleButton');
 
     let payload;
     let validation;
 
     try {
-      payload = readModulePayload();
+      payload =
+        readModulePayload();
 
-      validation = validateModulePayload(payload);
+      validation =
+        validateModulePayload(
+          payload
+        );
+
     } catch (error) {
-      await showValidationErrors(collectErrorMessages(error), 'ข้อมูลโมดูลยังไม่ครบ');
+      await showValidationErrors(
+        collectErrorMessages(
+          error
+        ),
+        'ข้อมูลโมดูลยังไม่ครบ'
+      );
 
-      focusValidationTarget(error && error.focusTarget ? error.focusTarget : '');
+      focusValidationTarget(
+        error &&
+        error.focusTarget
+          ? error.focusTarget
+          : ''
+      );
 
       return;
     }
 
-    if (validation.errors.length > 0) {
-      await showValidationErrors(validation.errors, 'ข้อมูลโมดูลยังไม่ครบ');
+    if (
+      validation.errors.length >
+      0
+    ) {
+      await showValidationErrors(
+        validation.errors,
+        'ข้อมูลโมดูลยังไม่ครบ'
+      );
 
-      focusValidationTarget(validation.firstTarget);
+      focusValidationTarget(
+        validation.firstTarget
+      );
 
       return;
     }
 
-    const warningHtml = validation.warnings.length
-      ? `
+    const warningHtml =
+      validation.warnings.length
+        ? `
           <div class="admin-source-warning">
             <strong>คำเตือนก่อนบันทึก</strong>
             <ul class="admin-warning-list">
               ${validation.warnings
-                .map((item) => `<li>${escapeHtml(item)}</li>`)
+                .map(
+                  (item) =>
+                    `<li>${escapeHtml(item)}</li>`
+                )
                 .join('')}
             </ul>
           </div>
         `
-      : '';
+        : '';
 
-    const confirmation = await Swal.fire({
-      icon: validation.warnings.length ? 'warning' : 'question',
+    const confirmation =
+      await Swal.fire({
+        icon:
+          validation.warnings.length
+            ? 'warning'
+            : 'question',
 
-      title: 'ยืนยันบันทึกโมดูล',
+        title:
+          'ยืนยันบันทึกโมดูล',
 
-      html: `
+        html: `
           <div class="admin-confirm-box">
             <strong>${escapeHtml(payload.module.name)}</strong>
             <span>รหัส: ${escapeHtml(payload.module.moduleId)}</span>
@@ -879,76 +1099,121 @@
               •
               ${payload.fields.length} ฟิลด์
             </span>
+            <span>
+              Receiving Flow:
+              <strong>
+                ${payload.module.receivingEnabled ? 'เปิด' : 'ปิด'}
+              </strong>
+            </span>
           </div>
           ${warningHtml}
         `,
 
-      showCancelButton: true,
+        showCancelButton:
+          true,
 
-      confirmButtonText: 'บันทึก',
+        confirmButtonText:
+          'บันทึก',
 
-      cancelButtonText: 'ยกเลิก',
+        cancelButtonText:
+          'ยกเลิก',
 
-      reverseButtons: true,
+        reverseButtons:
+          true,
 
-      focusCancel: validation.warnings.length > 0
-    });
+        focusCancel:
+          validation.warnings.length >
+          0
+      });
 
     if (!confirmation.isConfirmed) {
       return;
     }
 
-    state.moduleSaving = true;
+    state.moduleSaving =
+      true;
 
-    setButtonLoading(saveButton, true, 'กำลังบันทึก...');
+    setButtonLoading(
+      saveButton,
+      true,
+      'กำลังบันทึก...'
+    );
 
-    showLoading('กำลังบันทึกโมดูล', 'ระบบกำลังตรวจสอบข้อมูลต้นทางและบันทึกทุกส่วน');
+    showLoading(
+      'กำลังบันทึกโมดูล',
+      'ระบบกำลังตรวจสอบข้อมูลต้นทางและบันทึกทุกส่วน'
+    );
 
     try {
-      const result = await API.saveAdminModuleBundle(payload);
+      const result =
+        await API.saveAdminModuleBundle(
+          payload
+        );
 
       Swal.close();
 
       closeModuleEditor();
 
-      const serverWarnings = Array.isArray(
-        result && result.validation && result.validation.warnings
-      )
-        ? result.validation.warnings
-        : [];
+      const serverWarnings =
+        Array.isArray(
+          result &&
+          result.validation &&
+          result.validation.warnings
+        )
+          ? result.validation.warnings
+          : [];
 
       await Swal.fire({
-        icon: serverWarnings.length ? 'warning' : 'success',
+        icon:
+          serverWarnings.length
+            ? 'warning'
+            : 'success',
 
-        title: result.message || 'บันทึกโมดูลแล้ว',
+        title:
+          result.message ||
+          'บันทึกโมดูลแล้ว',
 
-        html: serverWarnings.length
-          ? `
+        html:
+          serverWarnings.length
+            ? `
               <div class="swal-error-content">
                 <div>
                   บันทึกสำเร็จ แต่มีคำเตือน
                 </div>
                 <ul class="admin-warning-list">
                   ${serverWarnings
-                    .map((item) => `<li>${escapeHtml(item)}</li>`)
+                    .map(
+                      (item) =>
+                        `<li>${escapeHtml(item)}</li>`
+                    )
                     .join('')}
                 </ul>
               </div>
             `
-          : '',
+            : '',
 
-        confirmButtonText: 'ตกลง'
+        confirmButtonText:
+          'ตกลง'
       });
 
       await refreshDashboard();
+
     } catch (error) {
       Swal.close();
 
-      await showApiError(error, 'บันทึกโมดูลไม่สำเร็จ');
-    } finally {
-      state.moduleSaving = false;
+      await showApiError(
+        error,
+        'บันทึกโมดูลไม่สำเร็จ'
+      );
 
-      setButtonLoading(saveButton, false);
+    } finally {
+      state.moduleSaving =
+        false;
+
+      setButtonLoading(
+        saveButton,
+        false
+      );
     }
   }
 
@@ -978,6 +1243,7 @@
       alertRepeatMinutes: numberValue('adminAlertRepeatMinutes', 10),
       refreshSeconds: numberValue('adminRefreshSeconds', 30),
       checkoutEnabled: checked('adminCheckoutEnabled'),
+      receivingEnabled: checked('adminReceivingEnabled'),
       showToUsers: checked('adminShowToUsers'),
       historyEnabled: checked('adminHistoryEnabled'),
       calendarEnabled: checked('adminCalendarEnabled'),
@@ -990,42 +1256,42 @@
       displayOrder: numberValue('adminModuleDisplayOrder', 100)
     };
 
-    const filters = Array.from(
-      document.querySelectorAll('#adminFilterRows [data-filter-row]')
-    ).map((row, index) => ({
-      filterId: row.dataset.filterId || '',
-      order: index + 1,
-      column: normalizeColumn(row.querySelector('[data-filter-column]')?.value),
-      operator: row.querySelector('[data-filter-operator]')?.value || 'EQUALS',
-      value: String(row.querySelector('[data-filter-value]')?.value || '').trim(),
-      connector: row.querySelector('[data-filter-connector]')?.value || 'AND',
-      ignoreCase: Boolean(row.querySelector('[data-filter-ignore-case]')?.checked),
-      trim: Boolean(row.querySelector('[data-filter-trim]')?.checked),
-      active: Boolean(row.querySelector('[data-filter-active]')?.checked)
-    }));
+    const filters = Array.from(document.querySelectorAll('#adminFilterRows [data-filter-row]'))
+      .map((row, index) => ({
+        filterId: row.dataset.filterId || '',
+        order: index + 1,
+        column: normalizeColumn(row.querySelector('[data-filter-column]')?.value),
+        operator: row.querySelector('[data-filter-operator]')?.value || 'EQUALS',
+        value: String(row.querySelector('[data-filter-value]')?.value || '').trim(),
+        connector: row.querySelector('[data-filter-connector]')?.value || 'AND',
+        ignoreCase: Boolean(row.querySelector('[data-filter-ignore-case]')?.checked),
+        trim: Boolean(row.querySelector('[data-filter-trim]')?.checked),
+        active: Boolean(row.querySelector('[data-filter-active]')?.checked)
+      }));
 
-    const fields = Array.from(
-      document.querySelectorAll('#adminFieldRows [data-field-row]')
-    ).map((row, index) => ({
-      fieldRowId: row.dataset.fieldRowId || '',
-      fieldId: String(row.querySelector('[data-field-id]')?.value || '').trim(),
-      displayName: String(row.querySelector('[data-field-name]')?.value || '').trim(),
-      sourceColumns: String(row.querySelector('[data-field-columns]')?.value || '')
-        .split(',')
-        .map(normalizeColumn)
-        .filter(Boolean)
-        .filter(
-          (column, columnIndex, columns) => columns.indexOf(column) === columnIndex
-        ),
-      type: row.querySelector('[data-field-type]')?.value || 'TEXT',
-      separator: String(row.querySelector('[data-field-separator]')?.value || ''),
-      position: row.querySelector('[data-field-position]')?.value || 'BODY',
-      order: index + 1,
-      visible: Boolean(row.querySelector('[data-field-visible]')?.checked),
-      adminOnly: Boolean(row.querySelector('[data-field-admin-only]')?.checked),
-      searchable: Boolean(row.querySelector('[data-field-searchable]')?.checked),
-      primary: Boolean(row.querySelector('[data-field-primary]')?.checked)
-    }));
+    const fields = Array.from(document.querySelectorAll('#adminFieldRows [data-field-row]'))
+      .map((row, index) => ({
+        fieldRowId: row.dataset.fieldRowId || '',
+        fieldId: String(row.querySelector('[data-field-id]')?.value || '').trim(),
+        displayName: String(row.querySelector('[data-field-name]')?.value || '').trim(),
+        sourceColumns: String(row.querySelector('[data-field-columns]')?.value || '')
+          .split(',')
+          .map(normalizeColumn)
+          .filter(Boolean)
+          .filter(
+            (column, columnIndex, columns) =>
+              columns.indexOf(column) ===
+              columnIndex
+          ),
+        type: row.querySelector('[data-field-type]')?.value || 'TEXT',
+        separator: String(row.querySelector('[data-field-separator]')?.value || ''),
+        position: row.querySelector('[data-field-position]')?.value || 'BODY',
+        order: index + 1,
+        visible: Boolean(row.querySelector('[data-field-visible]')?.checked),
+        adminOnly: Boolean(row.querySelector('[data-field-admin-only]')?.checked),
+        searchable: Boolean(row.querySelector('[data-field-searchable]')?.checked),
+        primary: Boolean(row.querySelector('[data-field-primary]')?.checked)
+      }));
 
     return {
       expectedUpdatedAt: value('adminExpectedUpdatedAt'),
@@ -1036,42 +1302,100 @@
   }
 
   function validateModulePayload(payload) {
-    const module = payload && payload.module ? payload.module : {};
+    const module =
+      payload &&
+      payload.module
+        ? payload.module
+        : {};
 
-    const filters = Array.isArray(payload && payload.filters) ? payload.filters : [];
+    const filters =
+      Array.isArray(
+        payload &&
+        payload.filters
+      )
+        ? payload.filters
+        : [];
 
-    const fields = Array.isArray(payload && payload.fields) ? payload.fields : [];
+    const fields =
+      Array.isArray(
+        payload &&
+        payload.fields
+      )
+        ? payload.fields
+        : [];
 
     const errors = [];
     const warnings = [];
 
     let firstTarget = '';
 
-    const addError = (message, target) => {
-      errors.push(String(message));
+    const addError = (
+      message,
+      target
+    ) => {
+      errors.push(
+        String(message)
+      );
 
-      if (!firstTarget && target) {
-        firstTarget = target;
+      if (
+        !firstTarget &&
+        target
+      ) {
+        firstTarget =
+          target;
       }
     };
 
-    const addWarning = (message) => {
-      warnings.push(String(message));
+    const addWarning = (
+      message
+    ) => {
+      warnings.push(
+        String(message)
+      );
     };
 
-    const limits = state.schema && state.schema.limits ? state.schema.limits : {};
+    const limits =
+      state.schema &&
+      state.schema.limits
+        ? state.schema.limits
+        : {};
 
-    const minRefreshSeconds = positiveInteger(limits.minRefreshSeconds, 10);
+    const minRefreshSeconds =
+      positiveInteger(
+        limits.minRefreshSeconds,
+        10
+      );
 
-    const maxRefreshSeconds = positiveInteger(limits.maxRefreshSeconds, 3600);
+    const maxRefreshSeconds =
+      positiveInteger(
+        limits.maxRefreshSeconds,
+        3600
+      );
 
-    const maxHistoryMonths = positiveInteger(limits.maxHistoryMonths, 120);
+    const maxHistoryMonths =
+      positiveInteger(
+        limits.maxHistoryMonths,
+        120
+      );
 
-    const maxFilters = positiveInteger(limits.maxFiltersPerModule, 50);
+    const maxFilters =
+      positiveInteger(
+        limits.maxFiltersPerModule,
+        50
+      );
 
-    const maxFields = positiveInteger(limits.maxFieldsPerModule, 50);
+    const maxFields =
+      positiveInteger(
+        limits.maxFieldsPerModule,
+        50
+      );
 
-    if (!/^[a-z0-9][a-z0-9_-]{1,49}$/.test(module.moduleId || '')) {
+    if (
+      !/^[a-z0-9][a-z0-9_-]{1,49}$/
+        .test(
+          module.moduleId || ''
+        )
+    ) {
       addError(
         'รหัสโมดูลต้องยาว 2–50 ตัว และใช้เฉพาะ a-z, 0-9, _ หรือ -',
         '#adminModuleId'
@@ -1079,18 +1403,41 @@
     }
 
     if (!module.name) {
-      addError('กรุณาระบุชื่อโมดูล', '#adminModuleName');
+      addError(
+        'กรุณาระบุชื่อโมดูล',
+        '#adminModuleName'
+      );
     }
 
-    if (String(module.name || '').length > 200) {
-      addError('ชื่อโมดูลต้องไม่เกิน 200 ตัวอักษร', '#adminModuleName');
+    if (
+      String(
+        module.name || ''
+      ).length > 200
+    ) {
+      addError(
+        'ชื่อโมดูลต้องไม่เกิน 200 ตัวอักษร',
+        '#adminModuleName'
+      );
     }
 
-    if (String(module.description || '').length > 2000) {
-      addError('คำอธิบายต้องไม่เกิน 2,000 ตัวอักษร', '#adminModuleDescription');
+    if (
+      String(
+        module.description || ''
+      ).length > 2000
+    ) {
+      addError(
+        'คำอธิบายต้องไม่เกิน 2,000 ตัวอักษร',
+        '#adminModuleDescription'
+      );
     }
 
-    if (!/^[A-Za-z0-9_-]{20,}$/.test(module.sourceSpreadsheetId || '')) {
+    if (
+      !/^[A-Za-z0-9_-]{20,}$/
+        .test(
+          module.sourceSpreadsheetId ||
+          ''
+        )
+    ) {
       addError(
         'กรุณาระบุ Google Spreadsheet ID ต้นทางให้ถูกต้อง',
         '#adminSourceSpreadsheetId'
@@ -1098,41 +1445,70 @@
     }
 
     if (!module.sourceSheetName) {
-      addError('กรุณาระบุชื่อชีตต้นทาง', '#adminSourceSheetName');
+      addError(
+        'กรุณาระบุชื่อชีตต้นทาง',
+        '#adminSourceSheetName'
+      );
     }
 
     if (
-      !Number.isInteger(module.headerRow) ||
+      !Number.isInteger(
+        module.headerRow
+      ) ||
       module.headerRow < 1 ||
       module.headerRow > 100
     ) {
-      addError('แถวหัวตารางต้องเป็นจำนวนเต็มระหว่าง 1–100', '#adminHeaderRow');
+      addError(
+        'แถวหัวตารางต้องเป็นจำนวนเต็มระหว่าง 1–100',
+        '#adminHeaderRow'
+      );
     }
 
     if (!module.timestampInColumn) {
-      addError('กรุณาระบุคอลัมน์เวลาเข้า', '#adminTimestampInColumn');
+      addError(
+        'กรุณาระบุคอลัมน์เวลาเข้า',
+        '#adminTimestampInColumn'
+      );
     }
 
-    if (module.greenStartMinutes < 0) {
-      addError('นาทีเริ่มสีเขียวต้องไม่น้อยกว่า 0', '#adminGreenStartMinutes');
+    if (
+      module.greenStartMinutes < 0
+    ) {
+      addError(
+        'นาทีเริ่มสีเขียวต้องไม่น้อยกว่า 0',
+        '#adminGreenStartMinutes'
+      );
     }
 
-    if (module.warningStartMinutes < module.greenStartMinutes) {
+    if (
+      module.warningStartMinutes <
+      module.greenStartMinutes
+    ) {
       addError(
         'นาทีเริ่มสีส้มต้องไม่น้อยกว่านาทีเริ่มสีเขียว',
         '#adminWarningStartMinutes'
       );
     }
 
-    if (module.redStartMinutes <= module.warningStartMinutes) {
-      addError('นาทีเริ่มสีแดงต้องมากกว่านาทีเริ่มสีส้ม', '#adminRedStartMinutes');
+    if (
+      module.redStartMinutes <=
+      module.warningStartMinutes
+    ) {
+      addError(
+        'นาทีเริ่มสีแดงต้องมากกว่านาทีเริ่มสีส้ม',
+        '#adminRedStartMinutes'
+      );
     }
 
     if (
       module.alertEnabled &&
-      (!Number.isInteger(module.alertRepeatMinutes) ||
+      (
+        !Number.isInteger(
+          module.alertRepeatMinutes
+        ) ||
         module.alertRepeatMinutes < 1 ||
-        module.alertRepeatMinutes > 1440)
+        module.alertRepeatMinutes > 1440
+      )
     ) {
       addError(
         'นาทีแจ้งเตือนซ้ำต้องอยู่ระหว่าง 1–1,440 นาที',
@@ -1141,9 +1517,13 @@
     }
 
     if (
-      !Number.isInteger(module.refreshSeconds) ||
-      module.refreshSeconds < minRefreshSeconds ||
-      module.refreshSeconds > maxRefreshSeconds
+      !Number.isInteger(
+        module.refreshSeconds
+      ) ||
+      module.refreshSeconds <
+        minRefreshSeconds ||
+      module.refreshSeconds >
+        maxRefreshSeconds
     ) {
       addError(
         `วินาทีรีเฟรชต้องอยู่ระหว่าง ${minRefreshSeconds}–${maxRefreshSeconds} วินาที`,
@@ -1152,9 +1532,12 @@
     }
 
     if (
-      !Number.isInteger(module.historyMonths) ||
+      !Number.isInteger(
+        module.historyMonths
+      ) ||
       module.historyMonths < 1 ||
-      module.historyMonths > maxHistoryMonths
+      module.historyMonths >
+        maxHistoryMonths
     ) {
       addError(
         `เดือนย้อนหลังต้องอยู่ระหว่าง 1–${maxHistoryMonths} เดือน`,
@@ -1163,64 +1546,117 @@
     }
 
     if (
-      !Number.isInteger(module.displayOrder) ||
+      !Number.isInteger(
+        module.displayOrder
+      ) ||
       module.displayOrder < 1 ||
       module.displayOrder > 9999
     ) {
-      addError('ลำดับแสดงต้องเป็นจำนวนเต็มระหว่าง 1–9,999', '#adminModuleDisplayOrder');
+      addError(
+        'ลำดับแสดงต้องเป็นจำนวนเต็มระหว่าง 1–9,999',
+        '#adminModuleDisplayOrder'
+      );
     }
 
-    if (module.currentStatusMethod === 'TIMESTAMP_OUT_EMPTY_AND_DURATION_EMPTY') {
+    if (
+      module.currentStatusMethod ===
+      'TIMESTAMP_OUT_EMPTY_AND_DURATION_EMPTY'
+    ) {
       if (!module.timestampOutColumn) {
-        addError('วิธีตรวจสถานะนี้ต้องระบุคอลัมน์เวลาออก', '#adminTimestampOutColumn');
+        addError(
+          'วิธีตรวจสถานะนี้ต้องระบุคอลัมน์เวลาออก',
+          '#adminTimestampOutColumn'
+        );
       }
 
       if (!module.durationColumn) {
-        addError('วิธีตรวจสถานะนี้ต้องระบุคอลัมน์ระยะเวลา', '#adminDurationColumn');
+        addError(
+          'วิธีตรวจสถานะนี้ต้องระบุคอลัมน์ระยะเวลา',
+          '#adminDurationColumn'
+        );
       }
     }
 
     if (
-      module.currentStatusMethod === 'TIMESTAMP_OUT_EMPTY' &&
+      module.currentStatusMethod ===
+        'TIMESTAMP_OUT_EMPTY' &&
       !module.timestampOutColumn
     ) {
-      addError('วิธีตรวจสถานะนี้ต้องระบุคอลัมน์เวลาออก', '#adminTimestampOutColumn');
+      addError(
+        'วิธีตรวจสถานะนี้ต้องระบุคอลัมน์เวลาออก',
+        '#adminTimestampOutColumn'
+      );
     }
 
-    if (module.currentStatusMethod === 'CUSTOM') {
+    if (
+      module.currentStatusMethod ===
+      'CUSTOM'
+    ) {
       if (!module.customStatusColumn) {
-        addError('สถานะกำหนดเองต้องระบุคอลัมน์สถานะ', '#adminCustomStatusColumn');
+        addError(
+          'สถานะกำหนดเองต้องระบุคอลัมน์สถานะ',
+          '#adminCustomStatusColumn'
+        );
       }
 
       if (!module.customStatusOperator) {
-        addError('สถานะกำหนดเองต้องระบุตัวดำเนินการ', '#adminCustomStatusOperator');
+        addError(
+          'สถานะกำหนดเองต้องระบุตัวดำเนินการ',
+          '#adminCustomStatusOperator'
+        );
       }
 
       if (
         module.customStatusOperator &&
-        !['IS_EMPTY', 'IS_NOT_EMPTY'].includes(module.customStatusOperator) &&
+        ![
+          'IS_EMPTY',
+          'IS_NOT_EMPTY'
+        ].includes(
+          module.customStatusOperator
+        ) &&
         !module.customStatusValue
       ) {
-        addError('สถานะกำหนดเองต้องระบุค่าที่ใช้ตรวจสอบ', '#adminCustomStatusValue');
+        addError(
+          'สถานะกำหนดเองต้องระบุค่าที่ใช้ตรวจสอบ',
+          '#adminCustomStatusValue'
+        );
       }
     }
 
-    if (module.checkoutEnabled && !module.timestampOutColumn) {
-      addError('เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์เวลาออก', '#adminTimestampOutColumn');
+    if (
+      module.checkoutEnabled &&
+      !module.timestampOutColumn
+    ) {
+      addError(
+        'เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์เวลาออก',
+        '#adminTimestampOutColumn'
+      );
     }
 
-    if (module.checkoutEnabled && !module.durationColumn) {
-      addError('เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์ระยะเวลา', '#adminDurationColumn');
+    if (
+      module.checkoutEnabled &&
+      !module.durationColumn
+    ) {
+      addError(
+        'เมื่อเปิดบันทึกออก ต้องระบุคอลัมน์ระยะเวลา',
+        '#adminDurationColumn'
+      );
     }
 
-    if (module.afterCheckoutStatusColumn && !module.afterCheckoutStatusValue) {
+    if (
+      module.afterCheckoutStatusColumn &&
+      !module.afterCheckoutStatusValue
+    ) {
       addError(
         'เมื่อระบุคอลัมน์สถานะหลังออก ต้องระบุค่าสถานะหลังออก',
         '#adminAfterCheckoutStatusValue'
       );
     }
 
-    if (module.afterCheckoutStatusValue && !module.afterCheckoutStatusColumn) {
+    if (
+      module.afterCheckoutStatusValue &&
+      !module.afterCheckoutStatusColumn
+    ) {
       addError(
         'เมื่อระบุค่าสถานะหลังออก ต้องระบุคอลัมน์สถานะหลังออก',
         '#adminAfterCheckoutStatusColumn'
@@ -1228,114 +1664,229 @@
     }
 
     const coreColumns = [
-      ['คอลัมน์เวลาเข้า', module.timestampInColumn],
-      ['คอลัมน์เวลาออก', module.timestampOutColumn],
-      ['คอลัมน์ระยะเวลา', module.durationColumn]
-    ].filter((item) => Boolean(item[1]));
-
-    const duplicateCoreColumns = findDuplicateValues(
-      coreColumns.map((item) => item[1])
+      [
+        'คอลัมน์เวลาเข้า',
+        module.timestampInColumn
+      ],
+      [
+        'คอลัมน์เวลาออก',
+        module.timestampOutColumn
+      ],
+      [
+        'คอลัมน์ระยะเวลา',
+        module.durationColumn
+      ]
+    ].filter(
+      (item) =>
+        Boolean(item[1])
     );
 
-    if (duplicateCoreColumns.length > 0) {
+    const duplicateCoreColumns =
+      findDuplicateValues(
+        coreColumns.map(
+          (item) =>
+            item[1]
+        )
+      );
+
+    if (
+      duplicateCoreColumns.length >
+      0
+    ) {
       addError(
         'คอลัมน์เวลาเข้า เวลาออก และระยะเวลา ต้องไม่ใช้คอลัมน์เดียวกัน',
         '#adminTimestampInColumn'
       );
     }
 
-    if (module.showCalendarToUsers && !module.calendarEnabled) {
+    if (
+      module.showCalendarToUsers &&
+      !module.calendarEnabled
+    ) {
       addError(
         'ต้องเปิดปฏิทินก่อน จึงจะแสดงปฏิทินแก่ User ได้',
         '#adminCalendarEnabled'
       );
     }
 
-    if (module.status === 'PUBLISHED' && !module.showToUsers) {
-      addWarning('สถานะเป็น “เปิดใช้งาน” แต่ยังปิดการแสดงแก่ User');
+    if (
+      module.status ===
+        'PUBLISHED' &&
+      !module.showToUsers
+    ) {
+      addWarning(
+        'สถานะเป็น “เปิดใช้งาน” แต่ยังปิดการแสดงแก่ User'
+      );
     }
 
-    if (module.showToUsers && module.status === 'DRAFT') {
+    if (
+      module.showToUsers &&
+      module.status ===
+        'DRAFT'
+    ) {
       addWarning(
         'เปิดแสดงแก่ User แล้ว แต่สถานะโมดูลยังเป็นฉบับร่าง จึงยังไม่แสดงในหน้าผู้ใช้'
       );
     }
 
-    if (filters.length > maxFilters) {
-      addError(`เงื่อนไขมีได้ไม่เกิน ${maxFilters} รายการ`, '#adminFilterRows');
+    if (
+      filters.length >
+      maxFilters
+    ) {
+      addError(
+        `เงื่อนไขมีได้ไม่เกิน ${maxFilters} รายการ`,
+        '#adminFilterRows'
+      );
     }
 
-    const activeFilters = filters.filter((filter) => filter.active);
+    const activeFilters =
+      filters.filter(
+        (filter) =>
+          filter.active
+      );
 
-    if (activeFilters.length === 0) {
-      addWarning('ยังไม่มีเงื่อนไขที่เปิดใช้งาน โมดูลจะอ่านข้อมูลทุกแถวจากชีตต้นทาง');
+    if (
+      activeFilters.length ===
+      0
+    ) {
+      addWarning(
+        'ยังไม่มีเงื่อนไขที่เปิดใช้งาน โมดูลจะอ่านข้อมูลทุกแถวจากชีตต้นทาง'
+      );
     }
 
-    filters.forEach((filter, index) => {
-      const rowSelector = `#adminFilterRows [data-filter-row]:nth-child(${index + 1})`;
+    filters.forEach(
+      (filter, index) => {
+        const rowSelector =
+          `#adminFilterRows [data-filter-row]:nth-child(${index + 1})`;
 
-      if (!filter.column) {
-        addError(
-          `เงื่อนไขที่ ${index + 1} ยังไม่ระบุคอลัมน์`,
-          `${rowSelector} [data-filter-column]`
-        );
+        if (!filter.column) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} ยังไม่ระบุคอลัมน์`,
+            `${rowSelector} [data-filter-column]`
+          );
+        }
+
+        if (
+          !Object.prototype
+            .hasOwnProperty
+            .call(
+              LABELS.operators,
+              filter.operator
+            )
+        ) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} มีตัวดำเนินการไม่ถูกต้อง`,
+            `${rowSelector} [data-filter-operator]`
+          );
+        }
+
+        if (
+          filter.active &&
+          ![
+            'IS_EMPTY',
+            'IS_NOT_EMPTY'
+          ].includes(
+            filter.operator
+          ) &&
+          !filter.value
+        ) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} ยังไม่ระบุค่าที่ใช้กรอง`,
+            `${rowSelector} [data-filter-value]`
+          );
+        }
+
+        if (
+          ![
+            'AND',
+            'OR'
+          ].includes(
+            filter.connector
+          )
+        ) {
+          addError(
+            `เงื่อนไขที่ ${index + 1} มีตัวเชื่อมไม่ถูกต้อง`,
+            `${rowSelector} [data-filter-connector]`
+          );
+        }
       }
-
-      if (!Object.prototype.hasOwnProperty.call(LABELS.operators, filter.operator)) {
-        addError(
-          `เงื่อนไขที่ ${index + 1} มีตัวดำเนินการไม่ถูกต้อง`,
-          `${rowSelector} [data-filter-operator]`
-        );
-      }
-
-      if (
-        filter.active &&
-        !['IS_EMPTY', 'IS_NOT_EMPTY'].includes(filter.operator) &&
-        !filter.value
-      ) {
-        addError(
-          `เงื่อนไขที่ ${index + 1} ยังไม่ระบุค่าที่ใช้กรอง`,
-          `${rowSelector} [data-filter-value]`
-        );
-      }
-
-      if (!['AND', 'OR'].includes(filter.connector)) {
-        addError(
-          `เงื่อนไขที่ ${index + 1} มีตัวเชื่อมไม่ถูกต้อง`,
-          `${rowSelector} [data-filter-connector]`
-        );
-      }
-    });
-
-    if (fields.length > maxFields) {
-      addError(`ฟิลด์มีได้ไม่เกิน ${maxFields} รายการ`, '#adminFieldRows');
-    }
-
-    if (fields.length === 0) {
-      addError('ต้องมีฟิลด์แสดงผลอย่างน้อย 1 รายการ', '#adminFieldRows');
-    }
-
-    const fieldIds = fields.map((field) => String(field.fieldId || '').toLowerCase());
-
-    const duplicateFieldIds = findDuplicateValues(fieldIds.filter(Boolean));
-
-    if (duplicateFieldIds.length > 0) {
-      addError('พบรหัสฟิลด์ซ้ำ: ' + duplicateFieldIds.join(', '), '#adminFieldRows');
-    }
-
-    const visibleFields = fields.filter(
-      (field) => field.visible && field.position !== 'HIDDEN'
     );
 
-    if (visibleFields.length === 0) {
-      addError('ต้องเปิดแสดงผลอย่างน้อย 1 ฟิลด์', '#adminFieldRows');
+    if (
+      fields.length >
+      maxFields
+    ) {
+      addError(
+        `ฟิลด์มีได้ไม่เกิน ${maxFields} รายการ`,
+        '#adminFieldRows'
+      );
     }
 
-    const primaryFields = fields.filter(
-      (field) => field.primary && field.visible && field.position !== 'HIDDEN'
-    );
+    if (
+      fields.length ===
+      0
+    ) {
+      addError(
+        'ต้องมีฟิลด์แสดงผลอย่างน้อย 1 รายการ',
+        '#adminFieldRows'
+      );
+    }
 
-    if (primaryFields.length !== 1) {
+    const fieldIds =
+      fields.map(
+        (field) =>
+          String(
+            field.fieldId || ''
+          ).toLowerCase()
+      );
+
+    const duplicateFieldIds =
+      findDuplicateValues(
+        fieldIds.filter(Boolean)
+      );
+
+    if (
+      duplicateFieldIds.length >
+      0
+    ) {
+      addError(
+        'พบรหัสฟิลด์ซ้ำ: ' +
+        duplicateFieldIds.join(', '),
+        '#adminFieldRows'
+      );
+    }
+
+    const visibleFields =
+      fields.filter(
+        (field) =>
+          field.visible &&
+          field.position !==
+            'HIDDEN'
+      );
+
+    if (
+      visibleFields.length ===
+      0
+    ) {
+      addError(
+        'ต้องเปิดแสดงผลอย่างน้อย 1 ฟิลด์',
+        '#adminFieldRows'
+      );
+    }
+
+    const primaryFields =
+      fields.filter(
+        (field) =>
+          field.primary &&
+          field.visible &&
+          field.position !==
+            'HIDDEN'
+      );
+
+    if (
+      primaryFields.length !==
+      1
+    ) {
       addError(
         'ต้องกำหนดฟิลด์ข้อมูลหลักที่แสดงบนหัวการ์ดจำนวน 1 รายการเท่านั้น',
         '#adminFieldRows'
@@ -1343,7 +1894,8 @@
     }
 
     if (
-      primaryFields.length === 1 &&
+      primaryFields.length ===
+        1 &&
       primaryFields[0].adminOnly &&
       module.showToUsers
     ) {
@@ -1353,123 +1905,95 @@
       );
     }
 
-    fields.forEach((field, index) => {
-      const rowSelector = `#adminFieldRows [data-field-row]:nth-child(${index + 1})`;
+    fields.forEach(
+      (field, index) => {
+        const rowSelector =
+          `#adminFieldRows [data-field-row]:nth-child(${index + 1})`;
 
-      if (!field.fieldId) {
-        addError(
-          `ฟิลด์ที่ ${index + 1} ยังไม่ระบุรหัสฟิลด์`,
-          `${rowSelector} [data-field-id]`
-        );
-      }
-
-      if (!field.displayName) {
-        addError(
-          `ฟิลด์ที่ ${index + 1} ยังไม่ระบุชื่อที่แสดง`,
-          `${rowSelector} [data-field-name]`
-        );
-      }
-
-      if (field.sourceColumns.length === 0) {
-        addError(
-          `ฟิลด์ที่ ${index + 1} ยังไม่ระบุคอลัมน์ต้นทาง`,
-          `${rowSelector} [data-field-columns]`
-        );
-      }
-
-      if (field.type !== 'CONCAT' && field.sourceColumns.length > 1) {
-        addError(
-          `ฟิลด์ “${field.displayName || index + 1}” ใช้หลายคอลัมน์ ต้องเลือกประเภท “รวมหลายคอลัมน์”`,
-          `${rowSelector} [data-field-type]`
-        );
-      }
-
-      if (!Object.prototype.hasOwnProperty.call(LABELS.fieldTypes, field.type)) {
-        addError(
-          `ฟิลด์ที่ ${index + 1} มีประเภทข้อมูลไม่ถูกต้อง`,
-          `${rowSelector} [data-field-type]`
-        );
-      }
-
-      if (field.type === 'CONCAT') {
-        const concatFormat = String(field.separator ?? '');
-
-        if (concatFormat.length > 120) {
+        if (!field.fieldId) {
           addError(
-            `ฟิลด์ “${field.displayName || index + 1}” กำหนดตัวคั่น/รูปแบบได้ไม่เกิน 120 ตัวอักษร`,
-            `${rowSelector} [data-field-separator]`
+            `ฟิลด์ที่ ${index + 1} ยังไม่ระบุรหัสฟิลด์`,
+            `${rowSelector} [data-field-id]`
           );
         }
 
-        const hasAnyBrace = /[{}]/.test(concatFormat);
-
-        const placeholderMatches = Array.from(concatFormat.matchAll(/\{(\d+)\}/g));
-
-        const formatRemainder = concatFormat.replace(/\{\d+\}/g, '');
+        if (!field.displayName) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} ยังไม่ระบุชื่อที่แสดง`,
+            `${rowSelector} [data-field-name]`
+          );
+        }
 
         if (
-          hasAnyBrace &&
-          (placeholderMatches.length === 0 || /[{}]/.test(formatRemainder))
+          field.sourceColumns.length ===
+          0
         ) {
           addError(
-            `ฟิลด์ “${field.displayName || index + 1}” มีรูปแบบ CONCAT ไม่ถูกต้อง กรุณาใช้รูปแบบ เช่น {1}{2} {3}`,
-            `${rowSelector} [data-field-separator]`
+            `ฟิลด์ที่ ${index + 1} ยังไม่ระบุคอลัมน์ต้นทาง`,
+            `${rowSelector} [data-field-columns]`
           );
         }
 
-        if (placeholderMatches.length > 0) {
-          const invalidPlaceholder = placeholderMatches.find((match) => {
-            const position = Number(match[1]);
-
-            return (
-              !Number.isInteger(position) ||
-              position < 1 ||
-              position > field.sourceColumns.length
-            );
-          });
-
-          if (invalidPlaceholder) {
-            addError(
-              `ฟิลด์ “${field.displayName || index + 1}” อ้างตำแหน่ง ${invalidPlaceholder[0]} แต่มีคอลัมน์ต้นทางเพียง ${field.sourceColumns.length} คอลัมน์`,
-              `${rowSelector} [data-field-separator]`
-            );
-          }
-
-          const referencedPositions = new Set(
-            placeholderMatches.map((match) => Number(match[1]))
+        if (
+          field.type !==
+            'CONCAT' &&
+          field.sourceColumns.length >
+            1
+        ) {
+          addError(
+            `ฟิลด์ “${field.displayName || index + 1}” ใช้หลายคอลัมน์ ต้องเลือกประเภท “รวมหลายคอลัมน์”`,
+            `${rowSelector} [data-field-type]`
           );
+        }
 
-          const missingPositions = field.sourceColumns
-            .map((column, columnIndex) => columnIndex + 1)
-            .filter((position) => !referencedPositions.has(position));
+        if (
+          !Object.prototype
+            .hasOwnProperty
+            .call(
+              LABELS.fieldTypes,
+              field.type
+            )
+        ) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} มีประเภทข้อมูลไม่ถูกต้อง`,
+            `${rowSelector} [data-field-type]`
+          );
+        }
 
-          if (missingPositions.length > 0) {
-            addWarning(
-              `ฟิลด์ “${field.displayName || index + 1}” ยังไม่ได้ใช้ตำแหน่ง ${missingPositions.map((position) => `{${position}}`).join(', ')} ในรูปแบบ CONCAT`
-            );
-          }
+        if (
+          !Object.prototype
+            .hasOwnProperty
+            .call(
+              LABELS.fieldPositions,
+              field.position
+            )
+        ) {
+          addError(
+            `ฟิลด์ที่ ${index + 1} มีตำแหน่งแสดงไม่ถูกต้อง`,
+            `${rowSelector} [data-field-position]`
+          );
+        }
+
+        if (
+          field.primary &&
+          (
+            !field.visible ||
+            field.position ===
+              'HIDDEN'
+          )
+        ) {
+          addError(
+            `ฟิลด์ข้อมูลหลักลำดับ ${index + 1} ต้องเปิดแสดงผลและห้ามอยู่ในตำแหน่งซ่อน`,
+            `${rowSelector} [data-field-visible]`
+          );
         }
       }
-
-      if (
-        !Object.prototype.hasOwnProperty.call(LABELS.fieldPositions, field.position)
-      ) {
-        addError(
-          `ฟิลด์ที่ ${index + 1} มีตำแหน่งแสดงไม่ถูกต้อง`,
-          `${rowSelector} [data-field-position]`
-        );
-      }
-
-      if (field.primary && (!field.visible || field.position === 'HIDDEN')) {
-        addError(
-          `ฟิลด์ข้อมูลหลักลำดับ ${index + 1} ต้องเปิดแสดงผลและห้ามอยู่ในตำแหน่งซ่อน`,
-          `${rowSelector} [data-field-visible]`
-        );
-      }
-    });
+    );
 
     return {
-      valid: errors.length === 0,
+      valid:
+        errors.length ===
+        0,
 
       errors,
       warnings,
@@ -1505,12 +2029,17 @@
           html: createSheetListHtml(result.sheets || []),
           confirmButtonText: 'ปิด',
           didOpen: () => {
-            document.querySelectorAll('[data-select-sheet]').forEach((sheetButton) => {
-              sheetButton.addEventListener('click', () => {
-                setValue('adminSourceSheetName', sheetButton.dataset.selectSheet || '');
-                Swal.close();
+            document
+              .querySelectorAll('[data-select-sheet]')
+              .forEach((sheetButton) => {
+                sheetButton.addEventListener('click', () => {
+                  setValue(
+                    'adminSourceSheetName',
+                    sheetButton.dataset.selectSheet || ''
+                  );
+                  Swal.close();
+                });
               });
-            });
           }
         });
         return;
@@ -1547,23 +2076,17 @@
   function populateSheetOptions(sheets) {
     const datalist = byId('adminSourceSheetOptions');
     if (!datalist) return;
-    datalist.innerHTML = sheets
-      .map(
-        (sheet) =>
-          `<option value="${escapeHtml(sheet.name || '')}">${Number(sheet.rowCount || 0)} แถว</option>`
-      )
-      .join('');
+    datalist.innerHTML = sheets.map((sheet) => (
+      `<option value="${escapeHtml(sheet.name || '')}">${Number(sheet.rowCount || 0)} แถว</option>`
+    )).join('');
   }
 
   function populateColumnOptions(headers) {
     const datalist = byId('adminSourceColumnOptions');
     if (!datalist) return;
-    datalist.innerHTML = headers
-      .map(
-        (item) =>
-          `<option value="${escapeHtml(item.column || '')}">${escapeHtml(item.header || '(ไม่มีหัวคอลัมน์)')}</option>`
-      )
-      .join('');
+    datalist.innerHTML = headers.map((item) => (
+      `<option value="${escapeHtml(item.column || '')}">${escapeHtml(item.header || '(ไม่มีหัวคอลัมน์)')}</option>`
+    )).join('');
   }
 
   function addFilterRow(filter = {}) {
@@ -1609,18 +2132,7 @@
       <label class="admin-dynamic-row__wide"><span>คอลัมน์ต้นทาง (คั่นด้วย ,)</span><input data-field-columns list="adminSourceColumnOptions" value="${escapeHtml((field.sourceColumns || []).join(','))}"></label>
       <label><span>ประเภท</span><select data-field-type>${fieldTypeOptions(field.type || 'TEXT')}</select></label>
       <label><span>ตำแหน่ง</span><select data-field-position>${fieldPositionOptions(field.position || 'BODY')}</select></label>
-      <label class="admin-field-format-control">
-        <span data-field-separator-label>ตัวคั่น / รูปแบบการรวม</span>
-        <input
-          data-field-separator
-          maxlength="120"
-          placeholder="เช่น {1}{2} {3}"
-          value="${escapeHtml(field.separator ?? ' ')}"
-        >
-        <small data-field-format-help>
-          CONCAT: ใช้ตัวคั่นธรรมดา หรือรูปแบบตำแหน่ง เช่น {1}{2} {3}
-        </small>
-      </label>
+      <label><span>ตัวคั่น</span><input data-field-separator maxlength="20" value="${escapeHtml(field.separator ?? ' ')}"></label>
       <div class="admin-dynamic-checks">
         ${miniCheck('แสดงผล', 'data-field-visible', field.visible !== false)}
         ${miniCheck('เฉพาะ Admin', 'data-field-admin-only', Boolean(field.adminOnly))}
@@ -1630,115 +2142,100 @@
       <button class="admin-remove-row" type="button" data-remove-row>ลบ</button>
     `;
 
-    const primaryCheckbox = row.querySelector('[data-field-primary]');
+    const primaryCheckbox =
+      row.querySelector(
+        '[data-field-primary]'
+      );
 
-    const visibleCheckbox = row.querySelector('[data-field-visible]');
+    const visibleCheckbox =
+      row.querySelector(
+        '[data-field-visible]'
+      );
 
-    const positionSelect = row.querySelector('[data-field-position]');
+    const positionSelect =
+      row.querySelector(
+        '[data-field-position]'
+      );
 
-    const typeSelect = row.querySelector('[data-field-type]');
+    primaryCheckbox?.addEventListener(
+      'change',
+      (event) => {
+        if (!event.target.checked) {
+          return;
+        }
 
-    typeSelect?.addEventListener('change', () => {
-      syncFieldFormatControl(row);
-    });
+        document
+          .querySelectorAll(
+            '#adminFieldRows [data-field-primary]'
+          )
+          .forEach(
+            (checkbox) => {
+              if (
+                checkbox !==
+                event.target
+              ) {
+                checkbox.checked =
+                  false;
+              }
+            }
+          );
 
-    primaryCheckbox?.addEventListener('change', (event) => {
-      if (!event.target.checked) {
-        return;
+        if (visibleCheckbox) {
+          visibleCheckbox.checked =
+            true;
+        }
+
+        if (
+          positionSelect &&
+          positionSelect.value ===
+            'HIDDEN'
+        ) {
+          positionSelect.value =
+            'HEADER';
+        }
       }
+    );
 
-      document
-        .querySelectorAll('#adminFieldRows [data-field-primary]')
-        .forEach((checkbox) => {
-          if (checkbox !== event.target) {
-            checkbox.checked = false;
-          }
-        });
+    positionSelect?.addEventListener(
+      'change',
+      () => {
+        if (
+          positionSelect.value !==
+          'HIDDEN'
+        ) {
+          return;
+        }
 
-      if (visibleCheckbox) {
-        visibleCheckbox.checked = true;
+        if (visibleCheckbox) {
+          visibleCheckbox.checked =
+            false;
+        }
+
+        if (primaryCheckbox) {
+          primaryCheckbox.checked =
+            false;
+        }
       }
+    );
 
-      if (positionSelect && positionSelect.value === 'HIDDEN') {
-        positionSelect.value = 'HEADER';
-      }
-    });
+    visibleCheckbox?.addEventListener(
+      'change',
+      () => {
+        if (
+          visibleCheckbox.checked
+        ) {
+          return;
+        }
 
-    positionSelect?.addEventListener('change', () => {
-      if (positionSelect.value !== 'HIDDEN') {
-        return;
+        if (primaryCheckbox) {
+          primaryCheckbox.checked =
+            false;
+        }
       }
-
-      if (visibleCheckbox) {
-        visibleCheckbox.checked = false;
-      }
-
-      if (primaryCheckbox) {
-        primaryCheckbox.checked = false;
-      }
-    });
-
-    visibleCheckbox?.addEventListener('change', () => {
-      if (visibleCheckbox.checked) {
-        return;
-      }
-
-      if (primaryCheckbox) {
-        primaryCheckbox.checked = false;
-      }
-    });
+    );
 
     container.appendChild(row);
-
-    syncFieldFormatControl(row);
-
     updateDynamicCounts();
-  }
-
-  /**
-   * ปรับช่องตัวคั่น/รูปแบบให้สอดคล้องกับประเภทฟิลด์
-   *
-   * CONCAT รองรับ 2 รูปแบบ:
-   * 1. ตัวคั่นแบบเดิม เช่น เว้นวรรค, -, /
-   * 2. รูปแบบตำแหน่ง เช่น {1}{2} {3}
-   *
-   * @param {HTMLElement} row
-   */
-  function syncFieldFormatControl(row) {
-    if (!row) {
-      return;
-    }
-
-    const typeSelect = row.querySelector('[data-field-type]');
-
-    const separatorInput = row.querySelector('[data-field-separator]');
-
-    const separatorLabel = row.querySelector('[data-field-separator-label]');
-
-    const formatHelp = row.querySelector('[data-field-format-help]');
-
-    if (!separatorInput) {
-      return;
-    }
-
-    const isConcat =
-      String((typeSelect && typeSelect.value) || '').toUpperCase() === 'CONCAT';
-
-    separatorInput.disabled = !isConcat;
-
-    separatorInput.placeholder = isConcat ? 'เช่น {1}{2} {3}' : 'ใช้เฉพาะประเภท CONCAT';
-
-    if (separatorLabel) {
-      separatorLabel.textContent = isConcat
-        ? 'ตัวคั่น / รูปแบบการรวม'
-        : 'ตัวคั่น (ใช้กับ CONCAT)';
-    }
-
-    if (formatHelp) {
-      formatHelp.textContent = isConcat
-        ? 'ตัวคั่นธรรมดา: เว้นวรรค หรือ -  |  รูปแบบตำแหน่ง: {1}{2} {3}'
-        : 'ช่องนี้จะทำงานเมื่อเลือกประเภท “รวมหลายคอลัมน์”';
-    }
   }
 
   function handleDynamicRowClick(event) {
@@ -1749,24 +2246,19 @@
   }
 
   function updateDynamicCounts() {
-    document
-      .querySelectorAll('#adminFilterRows [data-filter-row]')
-      .forEach((row, index) => {
-        const number = row.querySelector('.admin-dynamic-row__number');
-        if (number) number.textContent = String(index + 1);
-      });
+    document.querySelectorAll('#adminFilterRows [data-filter-row]').forEach((row, index) => {
+      const number = row.querySelector('.admin-dynamic-row__number');
+      if (number) number.textContent = String(index + 1);
+    });
 
-    document
-      .querySelectorAll('#adminFieldRows [data-field-row]')
-      .forEach((row, index) => {
-        const number = row.querySelector('.admin-dynamic-row__number');
-        if (number) number.textContent = String(index + 1);
-      });
+    document.querySelectorAll('#adminFieldRows [data-field-row]').forEach((row, index) => {
+      const number = row.querySelector('.admin-dynamic-row__number');
+      if (number) number.textContent = String(index + 1);
+    });
 
     setText(
       'adminFilterCount',
-      document.querySelectorAll('#adminFilterRows [data-filter-row]').length +
-        ' เงื่อนไข'
+      document.querySelectorAll('#adminFilterRows [data-filter-row]').length + ' เงื่อนไข'
     );
     setText(
       'adminFieldCount',
@@ -1791,13 +2283,9 @@
       reverseButtons: true,
       focusConfirm: false,
       preConfirm: () => {
-        const newModuleId = String(byId('duplicateModuleId')?.value || '')
-          .trim()
-          .toLowerCase();
+        const newModuleId = String(byId('duplicateModuleId')?.value || '').trim().toLowerCase();
         const newModuleName = String(byId('duplicateModuleName')?.value || '').trim();
-        const description = String(
-          byId('duplicateModuleDescription')?.value || ''
-        ).trim();
+        const description = String(byId('duplicateModuleDescription')?.value || '').trim();
 
         if (!/^[a-z0-9][a-z0-9_-]{1,49}$/.test(newModuleId)) {
           Swal.showValidationMessage('รหัสโมดูลใหม่ไม่ถูกต้อง');
@@ -1893,23 +2381,16 @@
       preConfirm: () => {
         const payload = {
           userId: user?.userId || '',
-          username: String(byId('userUsername')?.value || '')
-            .trim()
-            .toLowerCase(),
+          username: String(byId('userUsername')?.value || '').trim().toLowerCase(),
           displayName: String(byId('userDisplayName')?.value || '').trim(),
           role: byId('userRole')?.value || 'USER',
           active: Boolean(byId('userActive')?.checked),
           mustChangePassword: Boolean(byId('userMustChange')?.checked)
         };
 
-        if (!isEdit)
-          payload.temporaryPassword = String(
-            byId('userTemporaryPassword')?.value || ''
-          );
+        if (!isEdit) payload.temporaryPassword = String(byId('userTemporaryPassword')?.value || '');
         if (!/^[a-z0-9][a-z0-9._-]{2,79}$/.test(payload.username)) {
-          Swal.showValidationMessage(
-            'ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัว และใช้ a-z, 0-9, ., _, -'
-          );
+          Swal.showValidationMessage('ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัว และใช้ a-z, 0-9, ., _, -');
           return false;
         }
         if (!payload.displayName) {
@@ -1917,9 +2398,7 @@
           return false;
         }
         if (!isEdit && !validatePassword(payload.temporaryPassword, payload.username)) {
-          Swal.showValidationMessage(
-            'รหัสผ่านต้องยาวอย่างน้อย 10 ตัว มีตัวอักษรและตัวเลข และไม่มีชื่อผู้ใช้'
-          );
+          Swal.showValidationMessage('รหัสผ่านต้องยาวอย่างน้อย 10 ตัว มีตัวอักษรและตัวเลข และไม่มีชื่อผู้ใช้');
           return false;
         }
         return payload;
@@ -1961,9 +2440,7 @@
       preConfirm: () => {
         const newPassword = String(byId('resetPasswordValue')?.value || '');
         if (!validatePassword(newPassword, user.username)) {
-          Swal.showValidationMessage(
-            'รหัสผ่านต้องยาวอย่างน้อย 10 ตัว มีตัวอักษรและตัวเลข และไม่มีชื่อผู้ใช้'
-          );
+          Swal.showValidationMessage('รหัสผ่านต้องยาวอย่างน้อย 10 ตัว มีตัวอักษรและตัวเลข และไม่มีชื่อผู้ใช้');
           return false;
         }
         return {
@@ -2031,36 +2508,46 @@
         input.dataset.settingSelectCustom === 'TRUE' &&
         String(input.value || '').toUpperCase() === 'CUSTOM'
       ) {
-        const customInput = document.querySelector(
-          `[data-setting-custom-for="${cssEscape(key)}"]`
-        );
+        const customInput =
+          document.querySelector(
+            `[data-setting-custom-for="${cssEscape(key)}"]`
+          );
 
-        settings[key] = Number(customInput?.value);
+        settings[key] =
+          Number(customInput?.value);
 
         return;
       }
 
       if (input.type === 'checkbox') {
         settings[key] = input.checked;
-      } else if (input.type === 'number' || input.dataset.settingNumber === 'TRUE') {
+      } else if (
+        input.type === 'number' ||
+        input.dataset.settingNumber === 'TRUE'
+      ) {
         settings[key] = Number(input.value);
       } else {
         settings[key] = String(input.value || '').trim();
       }
     });
 
-    const autoCloseHours = Number(settings.AUTO_CLOSE_HOURS);
+    const autoCloseHours =
+      Number(settings.AUTO_CLOSE_HOURS);
 
     if (
       !Number.isInteger(autoCloseHours) ||
       autoCloseHours < 1 ||
       autoCloseHours > 168
     ) {
-      const select = document.querySelector('[data-setting-key="AUTO_CLOSE_HOURS"]');
+      const select =
+        document.querySelector(
+          '[data-setting-key="AUTO_CLOSE_HOURS"]'
+        );
 
-      const customInput = document.querySelector(
-        '[data-setting-custom-for="AUTO_CLOSE_HOURS"]'
-      );
+      const customInput =
+        document.querySelector(
+          '[data-setting-custom-for="AUTO_CLOSE_HOURS"]'
+        );
 
       if (select) {
         select.value = 'CUSTOM';
@@ -2131,7 +2618,10 @@
       const response = await API.saveAdminSettings(settings);
       Swal.close();
 
-      await success(response.message || 'บันทึกการตั้งค่าแล้ว');
+      await success(
+        response.message ||
+        'บันทึกการตั้งค่าแล้ว'
+      );
 
       await refreshDashboard();
     } catch (error) {
@@ -2158,23 +2648,33 @@
       const list = await API.getAdminAudit(options || {});
       renderAudit(list, 'adminAuditList');
     } catch (error) {
-      if (container)
-        container.innerHTML = emptyHtml(
-          'โหลดประวัติไม่สำเร็จ',
-          buildErrorMessage(error)
-        );
+      if (container) container.innerHTML = emptyHtml('โหลดประวัติไม่สำเร็จ', buildErrorMessage(error));
       await showApiError(error, 'โหลดประวัติไม่สำเร็จ');
     }
   }
 
   async function validateSystem() {
-    const button = byId('adminValidateSystemButton');
+    const button =
+      byId(
+        'adminValidateSystemButton'
+      );
 
-    const quickButton = byId('adminValidateQuickButton');
+    const quickButton =
+      byId(
+        'adminValidateQuickButton'
+      );
 
-    setButtonLoading(button, true, 'กำลังตรวจสอบ...');
+    setButtonLoading(
+      button,
+      true,
+      'กำลังตรวจสอบ...'
+    );
 
-    setButtonLoading(quickButton, true, 'กำลังตรวจสอบ...');
+    setButtonLoading(
+      quickButton,
+      true,
+      'กำลังตรวจสอบ...'
+    );
 
     showLoading(
       'กำลังตรวจสอบระบบทั้งหมด',
@@ -2183,38 +2683,60 @@
 
     try {
       const client =
-        typeof API.getClientDiagnostics === 'function'
+        typeof API.getClientDiagnostics ===
+          'function'
           ? API.getClientDiagnostics()
           : null;
 
       const result =
-        typeof API.runProductionDiagnostics === 'function'
+        typeof API.runProductionDiagnostics ===
+          'function'
           ? await API.runProductionDiagnostics({
-              includeReadProbe: true
+              includeReadProbe:
+                true
             })
           : await API.validateAdminSystem();
 
       if (client) {
-        result.client = client;
+        result.client =
+          client;
 
         result.checks = [
-          buildClientDiagnosticCheck(client),
-          ...(Array.isArray(result.checks) ? result.checks : [])
+          buildClientDiagnosticCheck(
+            client
+          ),
+          ...(
+            Array.isArray(
+              result.checks
+            )
+              ? result.checks
+              : []
+          )
         ];
 
-        result.summary = summarizeDiagnostics(result.checks);
+        result.summary =
+          summarizeDiagnostics(
+            result.checks
+          );
 
-        result.success = result.summary.failed === 0;
+        result.success =
+          result.summary.failed ===
+          0;
       }
 
       Swal.close();
 
-      renderValidation(result);
+      renderValidation(
+        result
+      );
 
-      switchTab('system');
+      switchTab(
+        'system'
+      );
 
       const status =
-        result && result.summary
+        result &&
+        result.summary
           ? result.summary.status
           : result.success
             ? 'READY'
@@ -2224,14 +2746,16 @@
         icon:
           status === 'READY'
             ? 'success'
-            : status === 'READY_WITH_WARNINGS'
+            : status ===
+                'READY_WITH_WARNINGS'
               ? 'warning'
               : 'error',
 
         title:
           status === 'READY'
             ? 'ระบบพร้อมใช้งาน'
-            : status === 'READY_WITH_WARNINGS'
+            : status ===
+                'READY_WITH_WARNINGS'
               ? 'ระบบใช้งานได้ แต่มีคำเตือน'
               : 'พบรายการที่ต้องแก้ไข',
 
@@ -2240,53 +2764,97 @@
             ? 'ทุกชั้นของระบบผ่านการตรวจสอบ'
             : 'ดูรายละเอียดในแท็บตรวจระบบ',
 
-        confirmButtonText: 'ตกลง'
+        confirmButtonText:
+          'ตกลง'
       });
+
     } catch (error) {
       Swal.close();
 
-      await showApiError(error, 'ตรวจสอบระบบไม่สำเร็จ');
-    } finally {
-      setButtonLoading(button, false);
+      await showApiError(
+        error,
+        'ตรวจสอบระบบไม่สำเร็จ'
+      );
 
-      setButtonLoading(quickButton, false);
+    } finally {
+      setButtonLoading(
+        button,
+        false
+      );
+
+      setButtonLoading(
+        quickButton,
+        false
+      );
     }
   }
 
-  function buildClientDiagnosticCheck(client) {
+  function buildClientDiagnosticCheck(
+    client
+  ) {
     const valid =
-      client && client.online && client.storageAvailable && client.sessionTokenPresent;
+      client &&
+      client.online &&
+      client.storageAvailable &&
+      client.sessionTokenPresent;
 
     return {
-      id: 'frontend-client',
+      id:
+        'frontend-client',
 
-      group: 'Frontend',
+      group:
+        'Frontend',
 
-      label: 'ตรวจเว็บและ Session ในเบราว์เซอร์',
+      label:
+        'ตรวจเว็บและ Session ในเบราว์เซอร์',
 
-      status: valid ? 'PASS' : 'FAIL',
+      status:
+        valid
+          ? 'PASS'
+          : 'FAIL',
 
-      message: valid
-        ? 'Frontend เชื่อมต่ออินเทอร์เน็ตและพบ Session Token'
-        : 'Frontend หรือ Session ในเบราว์เซอร์ไม่พร้อมใช้งาน',
+      message:
+        valid
+          ? 'Frontend เชื่อมต่ออินเทอร์เน็ตและพบ Session Token'
+          : 'Frontend หรือ Session ในเบราว์เซอร์ไม่พร้อมใช้งาน',
 
-      durationMs: 0,
+      durationMs:
+        0,
 
-      details: client || {}
+      details:
+        client || {}
     };
   }
 
-  function summarizeDiagnostics(checks) {
-    const list = Array.isArray(checks) ? checks : [];
+  function summarizeDiagnostics(
+    checks
+  ) {
+    const list =
+      Array.isArray(checks)
+        ? checks
+        : [];
 
-    const passed = list.filter((item) => item.status === 'PASS').length;
+    const passed =
+      list.filter(
+        (item) =>
+          item.status === 'PASS'
+      ).length;
 
-    const warnings = list.filter((item) => item.status === 'WARN').length;
+    const warnings =
+      list.filter(
+        (item) =>
+          item.status === 'WARN'
+      ).length;
 
-    const failed = list.filter((item) => item.status === 'FAIL').length;
+    const failed =
+      list.filter(
+        (item) =>
+          item.status === 'FAIL'
+      ).length;
 
     return {
-      total: list.length,
+      total:
+        list.length,
 
       passed,
 
@@ -2294,59 +2862,109 @@
 
       failed,
 
-      status: failed > 0 ? 'NOT_READY' : warnings > 0 ? 'READY_WITH_WARNINGS' : 'READY'
+      status:
+        failed > 0
+          ? 'NOT_READY'
+          : warnings > 0
+            ? 'READY_WITH_WARNINGS'
+            : 'READY'
     };
   }
 
   function renderValidation(result) {
-    const container = byId('adminValidationResult');
+    const container =
+      byId(
+        'adminValidationResult'
+      );
 
     if (!container) {
       return;
     }
 
-    const checks = Array.isArray(result && result.checks) ? result.checks : [];
+    const checks =
+      Array.isArray(
+        result &&
+        result.checks
+      )
+        ? result.checks
+        : [];
 
     const summary =
-      result && result.summary ? result.summary : summarizeDiagnostics(checks);
+      result &&
+      result.summary
+        ? result.summary
+        : summarizeDiagnostics(
+            checks
+          );
 
     const statusLabel =
       summary.status === 'READY'
         ? 'พร้อมใช้งาน'
-        : summary.status === 'READY_WITH_WARNINGS'
+        : summary.status ===
+            'READY_WITH_WARNINGS'
           ? 'พร้อมใช้ มีคำเตือน'
           : 'ต้องแก้ไข';
 
-    setText('adminDiagnosticStatus', statusLabel);
+    setText(
+      'adminDiagnosticStatus',
+      statusLabel
+    );
 
-    setText('adminDiagnosticPassed', String(summary.passed || 0));
+    setText(
+      'adminDiagnosticPassed',
+      String(
+        summary.passed || 0
+      )
+    );
 
-    setText('adminDiagnosticWarnings', String(summary.warnings || 0));
+    setText(
+      'adminDiagnosticWarnings',
+      String(
+        summary.warnings || 0
+      )
+    );
 
-    setText('adminDiagnosticFailed', String(summary.failed || 0));
+    setText(
+      'adminDiagnosticFailed',
+      String(
+        summary.failed || 0
+      )
+    );
 
-    const groupedChecks = checks.reduce((groups, check) => {
-      const groupName = String(check.group || 'ระบบ');
+    const groupedChecks =
+      checks.reduce(
+        (groups, check) => {
+          const groupName =
+            String(
+              check.group ||
+              'ระบบ'
+            );
 
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
+          if (!groups[groupName]) {
+            groups[groupName] =
+              [];
+          }
 
-      groups[groupName].push(check);
+          groups[groupName].push(
+            check
+          );
 
-      return groups;
-    }, {});
+          return groups;
+        },
+        {}
+      );
 
-    const checksHtml = Object.entries(groupedChecks)
-      .map(
-        ([groupName, groupChecks]) => `
+    const checksHtml =
+      Object.entries(
+        groupedChecks
+      )
+        .map(
+          ([groupName, groupChecks]) => `
             <section class="admin-card admin-diagnostic-group">
               <h3>${escapeHtml(groupName)}</h3>
 
               <div class="admin-diagnostic-checks">
-                ${groupChecks
-                  .map(
-                    (check) => `
+                ${groupChecks.map((check) => `
                   <article
                     class="admin-diagnostic-check"
                     data-status="${escapeHtml(check.status || 'FAIL')}"
@@ -2358,64 +2976,78 @@
 
                     <p>${escapeHtml(check.message || '-')}</p>
 
-                    ${
-                      Number.isFinite(Number(check.durationMs))
-                        ? `<small>ใช้เวลา ${escapeHtml(String(check.durationMs))} ms</small>`
-                        : ''
-                    }
+                    ${Number.isFinite(Number(check.durationMs))
+                      ? `<small>ใช้เวลา ${escapeHtml(String(check.durationMs))} ms</small>`
+                      : ''}
                   </article>
-                `
-                  )
-                  .join('')}
+                `).join('')}
               </div>
             </section>
           `
-      )
-      .join('');
+        )
+        .join('');
 
     const validation =
-      result && result.validation
+      result &&
+      result.validation
         ? result.validation
-        : result && result.appsScript && result.appsScript.validation
-          ? result.appsScript.validation
-          : result;
+        : (
+            result &&
+            result.appsScript &&
+            result.appsScript.validation
+              ? result.appsScript.validation
+              : result
+          );
 
-    const structureSheets = Array.isArray(
-      validation && validation.structure && validation.structure.sheets
-    )
-      ? validation.structure.sheets
-      : [];
+    const structureSheets =
+      Array.isArray(
+        validation &&
+        validation.structure &&
+        validation.structure.sheets
+      )
+        ? validation.structure.sheets
+        : [];
 
-    const modules = Array.isArray(validation && validation.modules)
-      ? validation.modules
-      : [];
+    const modules =
+      Array.isArray(
+        validation &&
+        validation.modules
+      )
+        ? validation.modules
+        : [];
 
-    const structureHtml = structureSheets
-      .map((item) => {
-        const valid =
-          item.exists && (!item.missingHeaders || item.missingHeaders.length === 0);
+    const structureHtml =
+      structureSheets
+        .map((item) => {
+          const valid =
+            item.exists &&
+            (
+              !item.missingHeaders ||
+              item.missingHeaders.length ===
+              0
+            );
 
-        return `
+          return `
             <div
               class="admin-validation-item"
               data-valid="${valid ? 'TRUE' : 'FALSE'}"
             >
               <strong>${escapeHtml(item.sheetName || '-')}</strong>
-              <span>${
-                valid
-                  ? 'พร้อมใช้งาน'
-                  : !item.exists
-                    ? 'ไม่พบชีต'
-                    : 'ขาดหัวคอลัมน์: ' + item.missingHeaders.join(', ')
+              <span>${valid
+                ? 'พร้อมใช้งาน'
+                : !item.exists
+                  ? 'ไม่พบชีต'
+                  : 'ขาดหัวคอลัมน์: ' +
+                    item.missingHeaders.join(', ')
               }</span>
             </div>
           `;
-      })
-      .join('');
+        })
+        .join('');
 
-    const moduleHtml = modules
-      .map(
-        (item) => `
+    const moduleHtml =
+      modules
+        .map((item) => `
           <article
             class="admin-validation-module"
             data-valid="${item.valid ? 'TRUE' : 'FALSE'}"
@@ -2425,21 +3057,16 @@
               <span>${item.valid ? 'ผ่านการตรวจสอบ' : 'ต้องแก้ไข'}</span>
             </div>
 
-            ${
-              (item.errors || []).length
-                ? `<ul>${item.errors.map((errorText) => `<li>${escapeHtml(errorText)}</li>`).join('')}</ul>`
-                : ''
-            }
+            ${(item.errors || []).length
+              ? `<ul>${item.errors.map((errorText) => `<li>${escapeHtml(errorText)}</li>`).join('')}</ul>`
+              : ''}
 
-            ${
-              (item.warnings || []).length
-                ? `<ul class="admin-warning-list">${item.warnings.map((warningText) => `<li>${escapeHtml(warningText)}</li>`).join('')}</ul>`
-                : ''
-            }
+            ${(item.warnings || []).length
+              ? `<ul class="admin-warning-list">${item.warnings.map((warningText) => `<li>${escapeHtml(warningText)}</li>`).join('')}</ul>`
+              : ''}
           </article>
-        `
-      )
-      .join('');
+        `)
+        .join('');
 
     container.innerHTML = `
       <div
@@ -2471,7 +3098,9 @@
     `;
   }
 
-  function diagnosticStatusText(status) {
+  function diagnosticStatusText(
+    status
+  ) {
     if (status === 'PASS') {
       return 'ผ่าน';
     }
@@ -2505,10 +3134,10 @@
   }
 
   async function handleFatalError(error) {
-    const isAuth =
-      error &&
-      (error.status === 401 ||
-        ['AUTH_REQUIRED', 'SESSION_EXPIRED', 'INVALID_SESSION'].includes(error.code));
+    const isAuth = error && (
+      error.status === 401 ||
+      ['AUTH_REQUIRED', 'SESSION_EXPIRED', 'INVALID_SESSION'].includes(error.code)
+    );
 
     await Swal.fire({
       icon: 'error',
@@ -2520,8 +3149,8 @@
 
     window.location.replace(
       isAuth
-        ? CONFIG.LOGIN_URL || './login.html'
-        : CONFIG.DASHBOARD_URL || './index.html'
+        ? (CONFIG.LOGIN_URL || './login.html')
+        : (CONFIG.DASHBOARD_URL || './index.html')
     );
   }
 
@@ -2555,30 +3184,21 @@
   }
 
   function operatorOptions(selected) {
-    return Object.entries(LABELS.operators)
-      .map(
-        ([value, label]) =>
-          `<option value="${value}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
-      )
-      .join('');
+    return Object.entries(LABELS.operators).map(([value, label]) => (
+      `<option value="${value}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
+    )).join('');
   }
 
   function fieldTypeOptions(selected) {
-    return Object.entries(LABELS.fieldTypes)
-      .map(
-        ([value, label]) =>
-          `<option value="${value}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
-      )
-      .join('');
+    return Object.entries(LABELS.fieldTypes).map(([value, label]) => (
+      `<option value="${value}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
+    )).join('');
   }
 
   function fieldPositionOptions(selected) {
-    return Object.entries(LABELS.fieldPositions)
-      .map(
-        ([value, label]) =>
-          `<option value="${value}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
-      )
-      .join('');
+    return Object.entries(LABELS.fieldPositions).map(([value, label]) => (
+      `<option value="${value}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
+    )).join('');
   }
 
   function miniCheck(label, attribute, checkedValue) {
@@ -2586,21 +3206,28 @@
   }
 
   function flagHtml(label, enabled) {
-    return `<span data-enabled="${enabled ? 'TRUE' : 'FALSE'}">${escapeHtml(label)}</span>`;
+    const isReceiving =
+      String(label || '') ===
+      'Receiving';
+
+    return `
+      <span
+        data-enabled="${enabled ? 'TRUE' : 'FALSE'}"
+        ${isReceiving ? 'data-feature="RECEIVING"' : ''}
+      >
+        ${escapeHtml(label)}
+      </span>
+    `;
   }
 
   function createSheetListHtml(sheets) {
     if (!sheets.length) return '<div class="daily-empty">ไม่พบชีต</div>';
-    return `<div class="admin-sheet-list">${sheets
-      .map(
-        (sheet) => `
+    return `<div class="admin-sheet-list">${sheets.map((sheet) => `
       <button type="button" data-select-sheet="${escapeHtml(sheet.name || '')}">
         <strong>${escapeHtml(sheet.name || '-')}</strong>
         <span>${Number(sheet.rowCount || 0)} แถว • ${Number(sheet.columnCount || 0)} คอลัมน์</span>
       </button>
-    `
-      )
-      .join('')}</div>`;
+    `).join('')}</div>`;
   }
 
   function createSourceMetadataHtml(result) {
@@ -2618,21 +3245,7 @@
         <div class="admin-source-columns">
           ${headers.map((item) => `<span><strong>${escapeHtml(item.column)}</strong>${escapeHtml(item.header || '(ว่าง)')}</span>`).join('')}
         </div>
-        ${
-          samples.length
-            ? `<div class="admin-source-samples">${samples
-                .map(
-                  (sample) =>
-                    `<div><strong>แถว ${sample.rowNumber}</strong><span>${escapeHtml(
-                      Object.entries(sample.values || {})
-                        .slice(0, 8)
-                        .map(([column, text]) => `${column}: ${text}`)
-                        .join(' | ')
-                    )}</span></div>`
-                )
-                .join('')}</div>`
-            : ''
-        }
+        ${samples.length ? `<div class="admin-source-samples">${samples.map((sample) => `<div><strong>แถว ${sample.rowNumber}</strong><span>${escapeHtml(Object.entries(sample.values || {}).slice(0, 8).map(([column, text]) => `${column}: ${text}`).join(' | '))}</span></div>`).join('')}</div>` : ''}
       </div>
     `;
   }
@@ -2669,92 +3282,150 @@
 
   function warning(message) {
     return Swal.fire({
-      icon: 'warning',
+      icon:
+        'warning',
 
-      title: 'ข้อมูลยังไม่ครบ',
+      title:
+        'ข้อมูลยังไม่ครบ',
 
-      text: message,
+      text:
+        message,
 
-      confirmButtonText: 'ตกลง'
+      confirmButtonText:
+        'ตกลง'
     });
   }
 
-  function showValidationErrors(messages, title) {
-    const list = Array.isArray(messages)
-      ? messages.map((item) => String(item || '').trim()).filter(Boolean)
-      : [];
+  function showValidationErrors(
+    messages,
+    title
+  ) {
+    const list =
+      Array.isArray(messages)
+        ? messages
+            .map(
+              (item) =>
+                String(item || '').trim()
+            )
+            .filter(Boolean)
+        : [];
 
     return Swal.fire({
-      icon: 'warning',
+      icon:
+        'warning',
 
-      title: title || 'ข้อมูลยังไม่ครบ',
+      title:
+        title ||
+        'ข้อมูลยังไม่ครบ',
 
-      html: list.length
-        ? `
+      html:
+        list.length
+          ? `
             <div class="swal-error-content">
               <ul class="admin-error-list">
-                ${list.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+                ${list
+                  .map(
+                    (item) =>
+                      `<li>${escapeHtml(item)}</li>`
+                  )
+                  .join('')}
               </ul>
             </div>
           `
-        : '',
+          : '',
 
-      confirmButtonText: 'ตกลง',
+      confirmButtonText:
+        'ตกลง',
 
-      width: 680
+      width:
+        680
     });
   }
 
-  function showApiError(error, title) {
-    const messages = collectErrorMessages(error);
+  function showApiError(
+    error,
+    title
+  ) {
+    const messages =
+      collectErrorMessages(
+        error
+      );
 
-    const warnings = collectErrorWarnings(error);
+    const warnings =
+      collectErrorWarnings(
+        error
+      );
 
-    const requestId = String(
-      (error &&
-        (error.requestId ||
-          error.details?.upstreamRequestId ||
-          error.details?.requestId)) ||
+    const requestId =
+      String(
+        error &&
+        (
+          error.requestId ||
+          error.details
+            ?.upstreamRequestId ||
+          error.details
+            ?.requestId
+        ) ||
         ''
-    ).trim();
+      ).trim();
 
-    const detailsHtml = messages.length
-      ? `
+    const detailsHtml =
+      messages.length
+        ? `
           <ul class="admin-error-list">
-            ${messages.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+            ${messages
+              .map(
+                (item) =>
+                  `<li>${escapeHtml(item)}</li>`
+              )
+              .join('')}
           </ul>
         `
-      : '';
+        : '';
 
-    const warningsHtml = warnings.length
-      ? `
+    const warningsHtml =
+      warnings.length
+        ? `
           <div class="admin-source-warning">
             <strong>คำเตือน</strong>
             <ul class="admin-warning-list">
-              ${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+              ${warnings
+                .map(
+                  (item) =>
+                    `<li>${escapeHtml(item)}</li>`
+                )
+                .join('')}
             </ul>
           </div>
         `
-      : '';
+        : '';
 
-    const requestIdHtml = requestId
-      ? `
+    const requestIdHtml =
+      requestId
+        ? `
           <div class="request-id">
             รหัสอ้างอิง:
             ${escapeHtml(requestId)}
           </div>
         `
-      : '';
+        : '';
 
     return Swal.fire({
-      icon: 'error',
+      icon:
+        'error',
 
-      title: title || 'เกิดข้อผิดพลาด',
+      title:
+        title ||
+        'เกิดข้อผิดพลาด',
 
       html: `
         <div class="swal-error-content">
           <div>
-            ${escapeHtml(buildErrorMessage(error))}
+            ${escapeHtml(
+              buildErrorMessage(
+                error
+              )
+            )}
           </div>
           ${detailsHtml}
           ${warningsHtml}
@@ -2762,86 +3433,148 @@
         </div>
       `,
 
-      confirmButtonText: 'ตกลง',
+      confirmButtonText:
+        'ตกลง',
 
-      width: 720
+      width:
+        720
     });
   }
 
-  function collectErrorMessages(error) {
+  function collectErrorMessages(
+    error
+  ) {
     const candidates = [
-      error && error.details && error.details.errors,
+      error &&
+      error.details &&
+      error.details.errors,
 
       error &&
-        error.details &&
-        error.details.validation &&
-        error.details.validation.errors,
+      error.details &&
+      error.details.validation &&
+      error.details.validation.errors,
 
       error &&
-        error.details &&
-        error.details.upstreamDetails &&
-        error.details.upstreamDetails.errors,
+      error.details &&
+      error.details.upstreamDetails &&
+      error.details.upstreamDetails.errors,
 
-      error && error.details && error.details.details && error.details.details.errors,
+      error &&
+      error.details &&
+      error.details.details &&
+      error.details.details.errors,
 
-      error && error.errors
+      error &&
+      error.errors
     ];
 
     const result = [];
 
-    candidates.forEach((candidate) => {
-      if (!Array.isArray(candidate)) {
-        return;
-      }
-
-      candidate.forEach((item) => {
-        const text = String(item || '').trim();
-
-        if (text && !result.includes(text)) {
-          result.push(text);
+    candidates.forEach(
+      (candidate) => {
+        if (
+          !Array.isArray(
+            candidate
+          )
+        ) {
+          return;
         }
-      });
-    });
 
-    if (result.length === 0 && error && error.message) {
-      result.push(String(error.message));
+        candidate.forEach(
+          (item) => {
+            const text =
+              String(
+                item || ''
+              ).trim();
+
+            if (
+              text &&
+              !result.includes(
+                text
+              )
+            ) {
+              result.push(
+                text
+              );
+            }
+          }
+        );
+      }
+    );
+
+    if (
+      result.length ===
+        0 &&
+      error &&
+      error.message
+    ) {
+      result.push(
+        String(
+          error.message
+        )
+      );
     }
 
     return result;
   }
 
-  function collectErrorWarnings(error) {
+  function collectErrorWarnings(
+    error
+  ) {
     const candidates = [
-      error && error.details && error.details.warnings,
+      error &&
+      error.details &&
+      error.details.warnings,
 
       error &&
-        error.details &&
-        error.details.validation &&
-        error.details.validation.warnings,
+      error.details &&
+      error.details.validation &&
+      error.details.validation.warnings,
 
       error &&
-        error.details &&
-        error.details.upstreamDetails &&
-        error.details.upstreamDetails.warnings,
+      error.details &&
+      error.details.upstreamDetails &&
+      error.details.upstreamDetails.warnings,
 
-      error && error.details && error.details.details && error.details.details.warnings
+      error &&
+      error.details &&
+      error.details.details &&
+      error.details.details.warnings
     ];
 
     const result = [];
 
-    candidates.forEach((candidate) => {
-      if (!Array.isArray(candidate)) {
-        return;
-      }
-
-      candidate.forEach((item) => {
-        const text = String(item || '').trim();
-
-        if (text && !result.includes(text)) {
-          result.push(text);
+    candidates.forEach(
+      (candidate) => {
+        if (
+          !Array.isArray(
+            candidate
+          )
+        ) {
+          return;
         }
-      });
-    });
+
+        candidate.forEach(
+          (item) => {
+            const text =
+              String(
+                item || ''
+              ).trim();
+
+            if (
+              text &&
+              !result.includes(
+                text
+              )
+            ) {
+              result.push(
+                text
+              );
+            }
+          }
+        );
+      }
+    );
 
     return result;
   }
@@ -2851,8 +3584,7 @@
       ADMIN_REQUIRED: 'หน้านี้สำหรับผู้ดูแลระบบเท่านั้น',
       AUTH_REQUIRED: 'กรุณาเข้าสู่ระบบ',
       SESSION_EXPIRED: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่',
-      MODULE_CONCURRENT_UPDATE:
-        'ข้อมูลโมดูลถูกแก้ไขจากที่อื่น กรุณาปิดแบบฟอร์มแล้วเปิดใหม่',
+      MODULE_CONCURRENT_UPDATE: 'ข้อมูลโมดูลถูกแก้ไขจากที่อื่น กรุณาปิดแบบฟอร์มแล้วเปิดใหม่',
       MODULE_VALIDATION_FAILED: 'ข้อมูลโมดูลยังไม่สมบูรณ์',
       ADMIN_WRITE_BUSY: 'มีผู้ดูแลระบบคนอื่นกำลังบันทึกข้อมูล กรุณาลองใหม่',
       SOURCE_SPREADSHEET_UNAVAILABLE: 'ไม่สามารถเปิด Spreadsheet ต้นทางได้',
@@ -2887,68 +3619,113 @@
     );
   }
 
-  function focusValidationTarget(selector) {
+  function focusValidationTarget(
+    selector
+  ) {
     if (!selector) {
       return;
     }
 
-    const element = document.querySelector(selector);
+    const element =
+      document.querySelector(
+        selector
+      );
 
     if (!element) {
       return;
     }
 
-    window.setTimeout(() => {
-      try {
-        element.scrollIntoView({
-          behavior: 'smooth',
+    window.setTimeout(
+      () => {
+        try {
+          element.scrollIntoView({
+            behavior:
+              'smooth',
 
-          block: 'center',
+            block:
+              'center',
 
-          inline: 'nearest'
-        });
-
-        if (typeof element.focus === 'function') {
-          element.focus({
-            preventScroll: true
+            inline:
+              'nearest'
           });
+
+          if (
+            typeof element.focus ===
+            'function'
+          ) {
+            element.focus({
+              preventScroll:
+                true
+            });
+          }
+
+        } catch (error) {
+          console.warn(
+            'ไม่สามารถเลื่อนไปยังช่องที่ผิดได้',
+            error
+          );
         }
-      } catch (error) {
-        console.warn('ไม่สามารถเลื่อนไปยังช่องที่ผิดได้', error);
-      }
-    }, 120);
+      },
+      120
+    );
   }
 
-  function positiveInteger(input, fallback) {
-    const number = Number(input);
+  function positiveInteger(
+    input,
+    fallback
+  ) {
+    const number =
+      Number(input);
 
-    if (Number.isInteger(number) && number > 0) {
+    if (
+      Number.isInteger(number) &&
+      number > 0
+    ) {
       return number;
     }
 
     return fallback;
   }
 
-  function findDuplicateValues(values) {
-    const seen = new Set();
+  function findDuplicateValues(
+    values
+  ) {
+    const seen =
+      new Set();
 
-    const duplicates = new Set();
+    const duplicates =
+      new Set();
 
-    values.forEach((valueItem) => {
-      const cleanValue = String(valueItem || '').trim();
+    values.forEach(
+      (valueItem) => {
+        const cleanValue =
+          String(
+            valueItem || ''
+          ).trim();
 
-      if (!cleanValue) {
-        return;
+        if (!cleanValue) {
+          return;
+        }
+
+        if (
+          seen.has(
+            cleanValue
+          )
+        ) {
+          duplicates.add(
+            cleanValue
+          );
+        }
+
+        seen.add(
+          cleanValue
+        );
       }
+    );
 
-      if (seen.has(cleanValue)) {
-        duplicates.add(cleanValue);
-      }
-
-      seen.add(cleanValue);
-    });
-
-    return Array.from(duplicates);
+    return Array.from(
+      duplicates
+    );
   }
 
   function extractSpreadsheetId(input) {
@@ -2958,9 +3735,12 @@
   }
 
   function normalizeColumn(valueText) {
-    const text = String(valueText || '')
-      .trim()
-      .toUpperCase();
+    const text =
+      String(
+        valueText || ''
+      )
+        .trim()
+        .toUpperCase();
 
     if (!text) {
       return '';
@@ -2971,18 +3751,34 @@
      * และหมายเลขคอลัมน์ เช่น 15, 16
      */
     if (/^\d+$/.test(text)) {
-      return columnNumberToLetter(Number(text));
+      return columnNumberToLetter(
+        Number(text)
+      );
     }
 
-    const letters = text.replace(/[^A-Z]/g, '');
+    const letters =
+      text.replace(
+        /[^A-Z]/g,
+        ''
+      );
 
-    return /^[A-Z]{1,3}$/.test(letters) ? letters : '';
+    return /^[A-Z]{1,3}$/
+      .test(letters)
+        ? letters
+        : '';
   }
 
-  function columnNumberToLetter(input) {
-    let number = Number(input);
+  function columnNumberToLetter(
+    input
+  ) {
+    let number =
+      Number(input);
 
-    if (!Number.isInteger(number) || number < 1 || number > 18278) {
+    if (
+      !Number.isInteger(number) ||
+      number < 1 ||
+      number > 18278
+    ) {
       return '';
     }
 
@@ -2991,9 +3787,19 @@
     while (number > 0) {
       number -= 1;
 
-      result = String.fromCharCode(65 + (number % 26)) + result;
+      result =
+        String.fromCharCode(
+          65 +
+          (
+            number % 26
+          )
+        ) +
+        result;
 
-      number = Math.floor(number / 26);
+      number =
+        Math.floor(
+          number / 26
+        );
     }
 
     return result;
@@ -3024,8 +3830,7 @@
   function setButtonLoading(button, loading, text) {
     if (!button) return;
     if (loading) {
-      if (!button.dataset.originalText)
-        button.dataset.originalText = button.textContent;
+      if (!button.dataset.originalText) button.dataset.originalText = button.textContent;
       button.disabled = true;
       button.textContent = text || 'กำลังดำเนินการ...';
     } else {
@@ -3037,15 +3842,22 @@
   function cssEscape(value) {
     const text = String(value || '');
 
-    if (window.CSS && typeof window.CSS.escape === 'function') {
+    if (
+      window.CSS &&
+      typeof window.CSS.escape === 'function'
+    ) {
       return window.CSS.escape(text);
     }
 
     return text.replace(
       /[^a-zA-Z0-9_-]/g,
-      (character) => '\\' + character.charCodeAt(0).toString(16) + ' '
+      (character) =>
+        '\\' +
+        character.charCodeAt(0).toString(16) +
+        ' '
     );
   }
+
 
   function byId(id) {
     return document.getElementById(id);
@@ -3081,11 +3893,7 @@
 
   function toBoolean(input) {
     if (input === true || input === false) return input;
-    return ['TRUE', '1', 'YES', 'ON', 'เปิด', 'ใช้งาน'].includes(
-      String(input || '')
-        .trim()
-        .toUpperCase()
-    );
+    return ['TRUE', '1', 'YES', 'ON', 'เปิด', 'ใช้งาน'].includes(String(input || '').trim().toUpperCase());
   }
 
   function clone(valueObject) {
@@ -3106,4 +3914,5 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
 })(window, document);
