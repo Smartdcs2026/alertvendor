@@ -10,13 +10,13 @@
 
   <link rel="icon" type="image/png" href="../icons/favicon-64.png">
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./dashboard.css?v=20260702-r34-monitor-flow">
+  <link rel="stylesheet" href="./dashboard.css?v=20260702-r36-executive-reference">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="./dashboard-config.js?v=20260701-r30-control-room" defer></script>
   <script src="./dashboard-api.js?v=20260701-r30-control-room" defer></script>
-  <script src="./dashboard.js?v=20260702-r34-monitor-flow" defer></script>
+  <script src="./dashboard.js?v=20260702-r36-executive-reference" defer></script>
 </head>
 
 <body class="dashboard-page">
@@ -124,6 +124,14 @@
 
         <div class="status-command-grid">
           <button class="status-command-card" data-tone="ACTIVE" data-status-filter="ALL" type="button">
+            
+            <span class="status-command-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM6 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM18 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
+                  fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <span class="status-command-card__dot"></span>
             <span>อยู่ในพื้นที่</span>
             <strong id="kpiActive">0</strong>
@@ -131,6 +139,14 @@
           </button>
 
           <button class="status-command-card" data-tone="NORMAL" data-status-filter="NORMAL" type="button">
+            
+            <span class="status-command-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="m8 12 2.5 2.5L16 9" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <span class="status-command-card__dot"></span>
             <span>ปกติ</span>
             <strong id="kpiNormal">0</strong>
@@ -138,6 +154,14 @@
           </button>
 
           <button class="status-command-card" data-tone="WARNING" data-status-filter="WARNING" type="button">
+            
+            <span class="status-command-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <span class="status-command-card__dot"></span>
             <span>เฝ้าระวัง</span>
             <strong id="kpiWarning">0</strong>
@@ -145,6 +169,14 @@
           </button>
 
           <button class="status-command-card" data-tone="OVERDUE" data-status-filter="OVERDUE" type="button">
+            
+            <span class="status-command-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 6v6M12 16.5v.5" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round"/>
+              </svg>
+            </span>
             <span class="status-command-card__dot"></span>
             <span>เกินเวลา</span>
             <strong id="kpiOverdue">0</strong>
@@ -152,6 +184,15 @@
           </button>
 
           <button class="status-command-card" data-tone="INCOMPLETE" data-status-filter="INCOMPLETE" type="button">
+            
+            <span class="status-command-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M6 3h8l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linejoin="round"/>
+                <path d="M14 3v5h5M9 12h6M9 16h4" fill="none" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+              </svg>
+            </span>
             <span class="status-command-card__dot"></span>
             <span>ข้อมูลไม่สมบูรณ์</span>
             <strong id="kpiIncomplete">0</strong>
@@ -241,6 +282,20 @@
               <option value="WAITING_RECEIVING">รอรับสินค้าเสร็จ</option>
               <option value="WAITING_GATE_OUT">รับเสร็จ รอ Gate Out</option>
             </select>
+
+            <button
+              id="dashboardResetFilters"
+              class="records-filter-reset"
+              type="button"
+              aria-label="ล้างตัวกรอง"
+              title="ล้างตัวกรอง"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5h16l-6 7v5l-4 2v-7L4 5Z"
+                  fill="none" stroke="currentColor" stroke-width="1.9"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
         </header>
 
@@ -337,7 +392,7 @@
         <header class="chart-panel__header">
           <div>
             <small>HOURLY FLOW</small>
-            <h2>การเคลื่อนไหวรายชั่วโมง</h2>
+            <h2>การเคลื่อนไหวรายชั่วโมง <span>• เข้า–ออกตามช่วงเวลา</span></h2>
           </div>
 
           <span id="dashboardFlowPeriodLabel">ย้อนหลัง 24 ชั่วโมง</span>
@@ -353,7 +408,7 @@
         <header class="chart-panel__header">
           <div>
             <small>STATUS DISTRIBUTION</small>
-            <h2>สัดส่วนสถานะปัจจุบัน</h2>
+            <h2>สัดส่วนสถานะปัจจุบัน <span>• รายการ Active</span></h2>
           </div>
         </header>
 
@@ -366,7 +421,7 @@
         <header class="chart-panel__header">
           <div>
             <small>ACTIVE TREND</small>
-            <h2>แนวโน้มรายการคงค้าง</h2>
+            <h2>แนวโน้มรายการคงค้าง <span>• ตามช่วงเวลา</span></h2>
           </div>
         </header>
 
@@ -379,7 +434,7 @@
         <header class="chart-panel__header">
           <div>
             <small>LONGEST WAITING</small>
-            <h2>บริษัทหรือรายการที่รอนานที่สุด</h2>
+            <h2>บริษัทหรือรายการที่รอนานที่สุด <span>• นาที</span></h2>
           </div>
         </header>
 
@@ -392,7 +447,7 @@
         <header class="chart-panel__header">
           <div>
             <small>FLOW COMPLETION TODAY</small>
-            <h2>ความคืบหน้ากระบวนการวันนี้</h2>
+            <h2>ความคืบหน้ากระบวนการวันนี้ <span>• เทียบ Gate In</span></h2>
           </div>
         </header>
 
