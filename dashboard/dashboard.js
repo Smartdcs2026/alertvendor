@@ -1177,43 +1177,162 @@
                   weight: '700'
                 },
                 generateLabels(chart) {
-                  const generator =
-                    Chart.defaults.plugins
-                      .legend.labels.generateLabels;
+                  const safeLabels =
+                    Array.isArray(
+                      chart.data.labels
+                    )
+                      ? chart.data.labels
+                      : [];
 
-                  const labels = generator(chart);
+                  const dataset =
+                    chart.data.datasets &&
+                    chart.data.datasets[0]
+                      ? chart.data.datasets[0]
+                      : {};
+
+                  const values =
+                    Array.isArray(
+                      dataset.data
+                    )
+                      ? dataset.data
+                      : [];
+
+                  const backgroundColors =
+                    Array.isArray(
+                      dataset.backgroundColor
+                    )
+                      ? dataset.backgroundColor
+                      : [];
+
+                  const borderColors =
+                    Array.isArray(
+                      dataset.borderColor
+                    )
+                      ? dataset.borderColor
+                      : [];
+
+                  const fallbackLabels = [
+                    'ปกติ',
+                    'เฝ้าระวัง',
+                    'เกินเวลา',
+                    'ข้อมูลไม่สมบูรณ์'
+                  ];
 
                   const total =
-                    chart.data.datasets[0].data.reduce(
+                    values.reduce(
                       (sum, value) =>
-                        sum + Number(value),
+                        sum +
+                        (
+                          Number(value) ||
+                          0
+                        ),
                       0
                     );
 
-                  return labels.map(
-                    (item, index) => {
-                      const value = Number(
-                        chart.data.datasets[0].data[index]
-                      ) || 0;
+                  const itemCount =
+                    Math.max(
+                      safeLabels.length,
+                      values.length,
+                      fallbackLabels.length
+                    );
 
-                      const percent = total > 0
-                        ? (
-                            value / total * 100
-                          ).toFixed(1)
-                        : '0.0';
+                  return Array
+                    .from({
+                      length:
+                        itemCount
+                    })
+                    .map(
+                      (_, index) => {
+                        const rawLabel =
+                          safeLabels[index] ??
+                          fallbackLabels[index] ??
+                          'ไม่ทราบสถานะ';
 
-                      return {
-                        ...item,
-                        text:
-                          item.text +
-                          ' ' +
-                          value +
-                          ' (' +
-                          percent +
-                          '%)'
-                      };
-                    }
-                  );
+                        const label =
+                          String(
+                            rawLabel ===
+                              undefined ||
+                            rawLabel ===
+                              null ||
+                            rawLabel ===
+                              ''
+                              ? (
+                                  fallbackLabels[index] ||
+                                  'ไม่ทราบสถานะ'
+                                )
+                              : rawLabel
+                          );
+
+                        const value =
+                          Number(
+                            values[index]
+                          ) || 0;
+
+                        const percent =
+                          total > 0
+                            ? (
+                                value /
+                                total *
+                                100
+                              ).toFixed(
+                                1
+                              )
+                            : '0.0';
+
+                        const fillColor =
+                          backgroundColors[index] ||
+                          COLORS.slate;
+
+                        const strokeColor =
+                          borderColors[index] ||
+                          (
+                            typeof dataset.borderColor ===
+                              'string'
+                              ? dataset.borderColor
+                              : '#ffffff'
+                          );
+
+                        return {
+                          text:
+                            label +
+                            ' ' +
+                            value +
+                            ' (' +
+                            percent +
+                            '%)',
+
+                          fillStyle:
+                            fillColor,
+
+                          strokeStyle:
+                            strokeColor,
+
+                          lineWidth:
+                            Number(
+                              dataset.borderWidth
+                            ) || 0,
+
+                          hidden:
+                            typeof chart
+                              .getDataVisibility ===
+                              'function'
+                              ? !chart
+                                  .getDataVisibility(
+                                    index
+                                  )
+                              : false,
+
+                          index:
+                            index,
+
+                          datasetIndex:
+                            0,
+
+                          pointStyle:
+                            'circle'
+                        };
+                      }
+                    );
                 }
               }
             },
@@ -1236,8 +1355,24 @@
                       ).toFixed(1)
                     : '0.0';
 
+                  const fallbackLabels = [
+                    'ปกติ',
+                    'เฝ้าระวัง',
+                    'เกินเวลา',
+                    'ข้อมูลไม่สมบูรณ์'
+                  ];
+
+                  const safeLabel =
+                    String(
+                      context.label ||
+                      fallbackLabels[
+                        context.dataIndex
+                      ] ||
+                      'ไม่ทราบสถานะ'
+                    );
+
                   return (
-                    context.label +
+                    safeLabel +
                     ': ' +
                     value +
                     ' รายการ (' +
