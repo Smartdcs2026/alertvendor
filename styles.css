@@ -13166,3 +13166,395 @@ body.receiving-dialog-open {
 
 body.is-user-scrolling .module-page * { scroll-behavior:auto!important; }
 @media (prefers-reduced-motion:reduce) { .module-page .receiving-flow-metric,.module-page .vehicle-card--professional { transition:none!important; } }
+
+/************************************************************
+ * ROUND 45 — Overdue Command Alert + Audio
+ ************************************************************/
+
+.swal2-popup.overdue-command-popup {
+  width:
+    min(900px, calc(100vw - 18px)) !important;
+  max-height:
+    min(94vh, 900px);
+  overflow: hidden;
+  border-radius: 17px;
+  padding:
+    0 0 14px !important;
+  background: #f3f7f9;
+}
+
+.overdue-command-title {
+  margin: 16px 14px 8px !important;
+  color: #a61f1f !important;
+  font-size: 1.08rem !important;
+  font-weight: 950 !important;
+}
+
+.overdue-command-html {
+  max-height:
+    min(70vh, 690px);
+  margin: 0 !important;
+  overflow-y: auto;
+  padding:
+    0 12px 3px !important;
+}
+
+.overdue-command-dialog {
+  display: grid;
+  gap: 8px;
+  color: #17364b;
+  text-align: left;
+}
+
+.overdue-command-summary {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 10px;
+  border: 1px solid #efaaaa;
+  border-left:
+    6px solid #dc2626;
+  border-radius: 11px;
+  padding: 10px 11px;
+  background:
+    linear-gradient(
+      135deg,
+      #fff0f0,
+      #ffffff
+    );
+}
+
+.overdue-command-summary__main {
+  min-width: 0;
+}
+
+.overdue-command-summary__main small,
+.overdue-command-summary__main strong,
+.overdue-command-summary__main span {
+  display: block;
+}
+
+.overdue-command-summary__main small {
+  color: #b42323;
+  font-size: .58rem;
+  font-weight: 950;
+  letter-spacing: .07em;
+}
+
+.overdue-command-summary__main strong {
+  margin-top: 2px;
+  color: #8f1d1d;
+  font-size: .9rem;
+}
+
+.overdue-command-summary__main span {
+  margin-top: 2px;
+  color: #637884;
+  font-size: .59rem;
+}
+
+.overdue-command-sound {
+  flex: 0 0 auto;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d98a8a;
+  border-radius: 9px;
+  padding: 6px 10px;
+  color: #8f1d1d;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: .62rem;
+  font-weight: 900;
+}
+
+.overdue-command-sound:hover {
+  background: #fff5f5;
+}
+
+.overdue-command-columns {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, .9fr)
+    minmax(230px, 1.2fr)
+    minmax(210px, 1fr);
+  gap: 8px;
+  padding: 0 10px;
+  color: #69808d;
+  font-size: .55rem;
+  font-weight: 900;
+}
+
+.overdue-command-list {
+  display: grid;
+  gap: 7px;
+}
+
+.overdue-command-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns:
+    32px
+    minmax(150px, .9fr)
+    minmax(230px, 1.2fr)
+    minmax(210px, 1fr);
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid #e3b1b1;
+  border-left:
+    5px solid #dc2626;
+  border-radius: 11px;
+  padding: 8px;
+  color: inherit;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color .12s ease,
+    background .12s ease,
+    transform .12s ease;
+}
+
+.overdue-command-item:hover {
+  border-color: #dc7d7d;
+  background: #fff8f8;
+  transform: translateY(-1px);
+}
+
+.overdue-command-rank {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #9d2020;
+  font-size: .68rem;
+  font-weight: 950;
+}
+
+.overdue-command-company,
+.overdue-command-identity,
+.overdue-command-time {
+  min-width: 0;
+}
+
+.overdue-command-company {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.overdue-command-company small,
+.overdue-command-identity small,
+.overdue-command-time small {
+  color: #748793;
+  font-size: .51rem;
+  font-weight: 800;
+}
+
+.overdue-command-company strong {
+  overflow: hidden;
+  color: #17364b;
+  font-size: .76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overdue-command-company em {
+  overflow: hidden;
+  color: #5d7481;
+  font-size: .52rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overdue-command-identity {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.overdue-command-identity > span,
+.overdue-command-time > span {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border-radius: 8px;
+  padding: 6px 7px;
+  background: #f1f6f8;
+}
+
+.overdue-command-identity strong {
+  overflow-wrap: anywhere;
+  color: #0b5d75;
+  font-size: .72rem;
+  font-weight: 950;
+}
+
+.overdue-command-time {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.overdue-command-time strong {
+  color: #17364b;
+  font-size: .67rem;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.overdue-command-time
+.is-overdue {
+  border: 1px solid #f0b2b2;
+  background: #fff0f0;
+}
+
+.overdue-command-time
+.is-overdue strong {
+  color: #c32222;
+  font-size: .75rem;
+}
+
+.overdue-command-time em {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #8a5d0b;
+  background: #fff3d6;
+  font-size: .53rem;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overdue-command-more {
+  margin: 0;
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: #7a3434;
+  background: #fff0f0;
+  font-size: .58rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.overdue-command-note {
+  display: flex;
+  justify-content:
+    space-between;
+  gap: 8px;
+  border-top:
+    1px solid #dde7ec;
+  padding-top: 7px;
+  color: #667d89;
+  font-size: .55rem;
+}
+
+.overdue-command-confirm {
+  min-width: 120px;
+  min-height: 42px;
+  border-radius:
+    9px !important;
+  background:
+    linear-gradient(
+      135deg,
+      #b42323,
+      #851919
+    ) !important;
+  font-weight: 950 !important;
+}
+
+@media (max-width: 760px) {
+  .overdue-command-columns {
+    display: none;
+  }
+
+  .overdue-command-item {
+    grid-template-columns:
+      29px minmax(0, 1fr);
+    grid-template-areas:
+      "rank company"
+      "identity identity"
+      "time time";
+    gap: 6px;
+  }
+
+  .overdue-command-rank {
+    grid-area: rank;
+  }
+
+  .overdue-command-company {
+    grid-area: company;
+  }
+
+  .overdue-command-identity {
+    grid-area: identity;
+  }
+
+  .overdue-command-time {
+    grid-area: time;
+  }
+}
+
+@media (max-width: 520px) {
+  .overdue-command-title {
+    margin:
+      13px 10px 7px !important;
+    font-size:
+      .98rem !important;
+  }
+
+  .overdue-command-html {
+    padding:
+      0 8px 2px !important;
+  }
+
+  .overdue-command-summary {
+    align-items: stretch;
+    padding: 8px;
+  }
+
+  .overdue-command-sound {
+    min-width: 42px;
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 0;
+  }
+
+  .overdue-command-sound span {
+    font-size: 1rem;
+  }
+
+  .overdue-command-identity {
+    grid-template-columns: 1fr;
+  }
+
+  .overdue-command-time {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .overdue-command-time
+  > span:last-of-type {
+    grid-column: 1 / -1;
+  }
+
+  .overdue-command-note {
+    display: grid;
+    text-align: center;
+  }
+}
