@@ -389,6 +389,11 @@
         record
       );
 
+    const stageCode =
+      receiving &&
+      receiving.stageCode ||
+      'ACTIVE';
+
     const stageLabel =
       receiving &&
       receiving.stageLabel ||
@@ -554,10 +559,10 @@
         )
         .join('');
 
-    const driverRow =
+    const driverCard =
       dimensions.driver
         ? `
-            <div class="record-inspector-row">
+            <div class="record-inspector-info">
               <span>ชื่อผู้ขับ</span>
 
               <strong>
@@ -583,16 +588,7 @@
               )}
             </h2>
 
-            <div class="record-inspector-badges">
-              <span class="record-inspector-appointment">
-                เลขนัดหมาย
-                <strong>
-                  ${escapeHtml(
-                    dimensions.appointment
-                  )}
-                </strong>
-              </span>
-
+            <div class="record-inspector-statuses">
               <span
                 class="status-badge"
                 data-status="${escapeHtml(
@@ -610,9 +606,7 @@
               <span
                 class="stage-badge"
                 data-stage="${escapeHtml(
-                  receiving &&
-                  receiving.stageCode ||
-                  'ACTIVE'
+                  stageCode
                 )}"
               >
                 ${escapeHtml(
@@ -622,8 +616,18 @@
             </div>
           </header>
 
-          <section class="record-inspector-summary">
-            <div class="record-inspector-primary">
+          <section class="record-inspector-appointment-panel">
+            <span>เลขนัดหมาย</span>
+
+            <strong>
+              ${escapeHtml(
+                dimensions.appointment
+              )}
+            </strong>
+          </section>
+
+          <section class="record-inspector-info-grid">
+            <div class="record-inspector-info record-inspector-info--plate">
               <span>ทะเบียนรถ / หมายเลขตู้</span>
 
               <strong>
@@ -633,7 +637,7 @@
               </strong>
             </div>
 
-            <div>
+            <div class="record-inspector-info">
               <span>เวลาเข้า Gate In</span>
 
               <strong>
@@ -644,7 +648,7 @@
               </strong>
             </div>
 
-            <div>
+            <div class="record-inspector-info">
               <span>ระยะเวลาปัจจุบัน</span>
 
               <strong class="record-inspector-duration">
@@ -655,10 +659,11 @@
                 )}
               </strong>
             </div>
+
+            ${driverCard}
           </section>
 
           ${
-            driverRow ||
             extraDetails
               ? `
                   <section class="record-inspector-details">
@@ -666,7 +671,6 @@
                       ข้อมูลประกอบ
                     </header>
 
-                    ${driverRow}
                     ${extraDetails}
                   </section>
                 `
@@ -1891,34 +1895,181 @@
           </td>
 
           <td data-label="เวลาเข้า Gate In">
-            ${escapeHtml(record.timestampIn || '-')}
+            ${escapeHtml(
+              record.timestampIn ||
+              '-'
+            )}
           </td>
 
           <td data-label="ระยะเวลา">
             <strong
               class="record-duration"
-              data-live-record="${escapeHtml(record.recordId || '')}"
+              data-live-record="${escapeHtml(
+                record.recordId ||
+                ''
+              )}"
             >
-              ${escapeHtml(formatDuration(stageSeconds))}
+              ${escapeHtml(
+                formatDuration(
+                  stageSeconds
+                )
+              )}
             </strong>
           </td>
 
           <td data-label="สถานะ SLA">
             <span
               class="status-badge"
-              data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}"
+              data-status="${escapeHtml(
+                record.statusCode ||
+                'INCOMPLETE'
+              )}"
             >
-              ${escapeHtml(getStatusLabel(record.statusCode))}
+              ${escapeHtml(
+                getStatusLabel(
+                  record.statusCode
+                )
+              )}
             </span>
           </td>
 
           <td data-label="ขั้นตอน">
             <span
               class="stage-badge"
-              data-stage="${escapeHtml(stageCode)}"
+              data-stage="${escapeHtml(
+                stageCode
+              )}"
             >
-              ${escapeHtml(stageLabel)}
+              ${escapeHtml(
+                stageLabel
+              )}
             </span>
+          </td>
+
+          <td
+            class="mobile-record-card-cell"
+            colspan="7"
+          >
+            <article
+              class="mobile-record-card"
+              data-status="${escapeHtml(
+                record.statusCode ||
+                'INCOMPLETE'
+              )}"
+            >
+              <header class="mobile-record-card__header">
+                <div>
+                  <small>บริษัท / Vendor</small>
+
+                  <h3>
+                    ${escapeHtml(
+                      dimensions.company
+                    )}
+                  </h3>
+                </div>
+
+                <span class="mobile-record-card__rank">
+                  ${index + 1}
+                </span>
+              </header>
+
+              <section class="mobile-record-card__appointment">
+                <span>เลขนัดหมาย</span>
+
+                <strong>
+                  ${escapeHtml(
+                    dimensions.appointment
+                  )}
+                </strong>
+              </section>
+
+              <section class="mobile-record-card__information">
+                <div class="mobile-record-card__field mobile-record-card__field--plate">
+                  <span>ทะเบียนรถ / หมายเลขตู้</span>
+
+                  <strong>
+                    ${escapeHtml(
+                      dimensions.identifier
+                    )}
+                  </strong>
+                </div>
+
+                <div class="mobile-record-card__field mobile-record-card__field--gate-in">
+                  <span>เวลาเข้า Gate In</span>
+
+                  <strong>
+                    ${escapeHtml(
+                      record.timestampIn ||
+                      '-'
+                    )}
+                  </strong>
+                </div>
+
+                <div class="mobile-record-card__field mobile-record-card__field--duration">
+                  <span>ระยะเวลา</span>
+
+                  <strong
+                    data-live-record="${escapeHtml(
+                      record.recordId ||
+                      ''
+                    )}"
+                  >
+                    ${escapeHtml(
+                      formatDuration(
+                        stageSeconds
+                      )
+                    )}
+                  </strong>
+                </div>
+
+                ${
+                  dimensions.driver
+                    ? `
+                        <div class="mobile-record-card__field mobile-record-card__field--driver">
+                          <span>ชื่อผู้ขับ</span>
+
+                          <strong>
+                            ${escapeHtml(
+                              dimensions.driver
+                            )}
+                          </strong>
+                        </div>
+                      `
+                    : ''
+                }
+              </section>
+
+              <footer class="mobile-record-card__footer">
+                <span
+                  class="status-badge"
+                  data-status="${escapeHtml(
+                    record.statusCode ||
+                    'INCOMPLETE'
+                  )}"
+                >
+                  ${escapeHtml(
+                    getStatusLabel(
+                      record.statusCode
+                    )
+                  )}
+                </span>
+
+                <span
+                  class="stage-badge"
+                  data-stage="${escapeHtml(
+                    stageCode
+                  )}"
+                >
+                  ${escapeHtml(
+                    stageLabel
+                  )}
+                </span>
+
+                <span class="mobile-record-card__hint">
+                  แตะเพื่อดูข้อมูลเต็ม
+                </span>
+              </footer>
+            </article>
           </td>
         `;
 
