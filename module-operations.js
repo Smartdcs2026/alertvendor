@@ -1,6 +1,6 @@
 /**
  * module-operations.js
- * ROUND 45 — Overdue Operational Alert + Audio
+ * ROUND 47 — Compact Overdue Alert + Audio + Vibration
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -16,6 +16,12 @@
   const SOUND_COOLDOWN_MS =
     10 * 60 * 1000;
 
+  const VIBRATION_STORAGE_KEY =
+    'ALERT_VENDOR_OVERDUE_VIBRATION_V1';
+
+  const VIBRATION_COOLDOWN_MS =
+    10 * 60 * 1000;
+
   const state = {
     observer: null,
     swalTimer: null,
@@ -25,6 +31,8 @@
     activeAlertSignature: '',
     lastPlayedSignature: '',
     lastPlayedAt: 0,
+    lastVibratedSignature: '',
+    lastVibratedAt: 0,
     destroyed: false
   };
 
@@ -41,6 +49,7 @@
 
   function initialize() {
     restoreSoundState();
+    restoreVibrationState();
     annotateVehicleCards();
     observeVehicleList();
     bindAudioUnlock();
@@ -352,19 +361,19 @@
 
       customClass: {
         popup:
-          'av-overdue-popup-v46',
+          'av-overdue-popup-v47',
         title:
-          'av-overdue-hidden-title-v46',
+          'av-overdue-hidden-title-v47',
         icon:
-          'av-overdue-hidden-icon-v46',
+          'av-overdue-hidden-icon-v47',
         htmlContainer:
-          'av-overdue-html-v46',
+          'av-overdue-html-v47',
         actions:
-          'av-overdue-actions-v46',
+          'av-overdue-actions-v47',
         confirmButton:
-          'av-overdue-confirm-v46',
+          'av-overdue-confirm-v47',
         closeButton:
-          'av-overdue-close-v46'
+          'av-overdue-close-v47'
       },
 
       didOpen:
@@ -418,7 +427,7 @@
             popup
           );
 
-          requestAlarmSound(
+          requestAlarmFeedback(
             signature,
             false
           );
@@ -428,6 +437,8 @@
         (popup) => {
           state.pendingAudio =
             false;
+
+          stopAlarmVibration();
 
           if (
             typeof oldWillClose ===
@@ -480,6 +491,11 @@
       ?.addEventListener(
         'click',
         () => {
+          requestAlarmVibration(
+            state.activeAlertSignature,
+            true
+          );
+
           unlockAudio()
             .then(
               () =>
@@ -678,10 +694,6 @@
   function buildOverdueHtml(
     records
   ) {
-    /*
-     * จำกัดจำนวนที่วาดใน Alert เพื่อให้ทำงานลื่น
-     * รายการทั้งหมดดูต่อได้จากหน้าหลัก
-     */
     const maximumVisible =
       12;
 
@@ -700,9 +712,9 @@
       'ตามเกณฑ์โมดูล';
 
     return `
-      <div class="av-overdue-dialog-v46">
-        <header class="av-overdue-header-v46">
-          <div class="av-overdue-heading-v46">
+      <div class="av-overdue-dialog-v47">
+        <header class="av-overdue-header-v47">
+          <div class="av-overdue-heading-v47">
             <small>
               OPERATIONAL ALERT
             </small>
@@ -716,12 +728,12 @@
               ${escapeHtml(
                 thresholdText
               )}
-              · เรียงจากเวลาคงค้างสูงสุด
+              · เรียงตามเวลาคงค้างสูงสุด
             </p>
           </div>
 
-          <div class="av-overdue-header-actions-v46">
-            <div class="av-overdue-total-v46">
+          <div class="av-overdue-header-actions-v47">
+            <div class="av-overdue-total-v47">
               <strong>
                 ${records.length}
               </strong>
@@ -733,56 +745,53 @@
 
             <button
               type="button"
-              class="av-overdue-sound-v46"
+              class="av-overdue-feedback-v47"
               data-overdue-play-sound
-              aria-label="เล่นเสียงเตือนอีกครั้ง"
+              aria-label="เล่นเสียงและสั่นเตือนอีกครั้ง"
             >
               <span aria-hidden="true">
-                🔊
+                🔔
               </span>
 
               <b>
-                เล่นเสียง
+                เตือนซ้ำ
               </b>
             </button>
           </div>
         </header>
 
-        <div class="av-overdue-toolbar-v46">
+        <div class="av-overdue-toolbar-v47">
           <span>
-            แตะรายการเพื่อไปยังการ์ดรถ/ตู้ในหน้าหลัก
+            แตะรายการเพื่อไปยังการ์ดในหน้าหลัก
           </span>
 
           <strong>
-            แสดง
-            ${visible.length}
-            จาก
-            ${records.length}
+            ${visible.length}/${records.length}
           </strong>
         </div>
 
         <div
-          class="av-overdue-list-v46"
+          class="av-overdue-list-v47"
           role="list"
-          aria-label="รายการรถหรือตู้สินค้าที่เกินเวลา"
+          aria-label="รถหรือตู้สินค้าที่เกินเวลา"
         >
           ${visible
             .map(
               (record, index) => `
                 <button
                   type="button"
-                  class="av-overdue-card-v46"
+                  class="av-overdue-card-v47"
                   data-overdue-scroll-record="${escapeHtml(
                     record.recordId
                   )}"
                   role="listitem"
                 >
-                  <span class="av-overdue-card-top-v46">
-                    <span class="av-overdue-rank-v46">
+                  <span class="av-overdue-card-header-v47">
+                    <span class="av-overdue-rank-v47">
                       ${index + 1}
                     </span>
 
-                    <span class="av-overdue-company-v46">
+                    <span class="av-overdue-company-v47">
                       <small>
                         บริษัท / Vendor
                       </small>
@@ -806,22 +815,10 @@
                           : ''
                       }
                     </span>
-
-                    <span class="av-overdue-duration-v46">
-                      <small>
-                        เวลาอยู่ในพื้นที่
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.duration
-                        )}
-                      </strong>
-                    </span>
                   </span>
 
-                  <span class="av-overdue-identities-v46">
-                    <span>
+                  <span class="av-overdue-data-grid-v47">
+                    <span class="av-overdue-data-v47 is-primary">
                       <small>
                         เลขนัดหมาย
                       </small>
@@ -833,7 +830,7 @@
                       </strong>
                     </span>
 
-                    <span>
+                    <span class="av-overdue-data-v47 is-primary">
                       <small>
                         ทะเบียน / หมายเลขตู้
                       </small>
@@ -844,22 +841,32 @@
                         )}
                       </strong>
                     </span>
-                  </span>
 
-                  <span class="av-overdue-meta-v46">
-                    <span>
+                    <span class="av-overdue-data-v47">
+                      <small>
+                        เวลาอยู่ในพื้นที่
+                      </small>
+
+                      <strong>
+                        ${escapeHtml(
+                          record.duration
+                        )}
+                      </strong>
+                    </span>
+
+                    <span class="av-overdue-data-v47 is-danger">
                       <small>
                         เกิน SLA แล้ว
                       </small>
 
-                      <strong class="is-danger">
+                      <strong>
                         ${escapeHtml(
                           record.overdueDuration
                         )}
                       </strong>
                     </span>
 
-                    <span>
+                    <span class="av-overdue-data-v47">
                       <small>
                         เวลา Gate In
                       </small>
@@ -870,18 +877,18 @@
                         )}
                       </strong>
                     </span>
-                  </span>
 
-                  <span class="av-overdue-stage-v46">
-                    <small>
-                      ขั้นตอนปัจจุบัน
-                    </small>
+                    <span class="av-overdue-data-v47 is-stage">
+                      <small>
+                        ขั้นตอนปัจจุบัน
+                      </small>
 
-                    <strong>
-                      ${escapeHtml(
-                        record.stage
-                      )}
-                    </strong>
+                      <strong>
+                        ${escapeHtml(
+                          record.stage
+                        )}
+                      </strong>
+                    </span>
                   </span>
                 </button>
               `
@@ -893,13 +900,13 @@
           records.length >
             visible.length
             ? `
-                <div class="av-overdue-more-v46">
-                  แสดงเฉพาะ
+                <div class="av-overdue-more-v47">
+                  แสดง
                   ${visible.length}
                   รายการที่เกินเวลาสูงสุด
 
                   <strong>
-                    ยังเหลืออีก
+                    เหลืออีก
                     ${records.length -
                       visible.length}
                     รายการ
@@ -909,13 +916,13 @@
             : ''
         }
 
-        <footer class="av-overdue-footer-v46">
+        <footer class="av-overdue-footer-v47">
           <span>
-            รายการนี้ไม่ถูกลบและยังตรวจสอบต่อได้ในหน้าหลัก
+            เลื่อนรายการขึ้น–ลงภายในหน้าต่างนี้
           </span>
 
           <span>
-            เสียงแจ้งเตือนจะไม่ดังซ้ำทุกครั้งที่รีเฟรช
+            เสียงและการสั่นไม่ทำงานซ้ำจาก Silent Refresh
           </span>
         </footer>
       </div>
@@ -1010,6 +1017,106 @@
       'running';
 
     return state.audioUnlocked;
+  }
+
+
+  function requestAlarmFeedback(
+    signature,
+    force
+  ) {
+    requestAlarmVibration(
+      signature,
+      force
+    );
+
+    requestAlarmSound(
+      signature,
+      force
+    );
+  }
+
+
+  function requestAlarmVibration(
+    signature,
+    force
+  ) {
+    if (
+      !window.navigator ||
+      typeof window.navigator.vibrate !==
+        'function'
+    ) {
+      return false;
+    }
+
+    const now =
+      Date.now();
+
+    const duplicate =
+      !force &&
+      signature &&
+      signature ===
+        state.lastVibratedSignature &&
+      now -
+        state.lastVibratedAt <
+        VIBRATION_COOLDOWN_MS;
+
+    if (duplicate) {
+      return false;
+    }
+
+    try {
+      /*
+       * เตือน 3 จังหวะ:
+       * สั้น - สั้น - ยาว
+       */
+      const accepted =
+        window.navigator.vibrate(
+          [
+            180,
+            110,
+            180,
+            110,
+            360
+          ]
+        );
+
+      if (accepted !== false) {
+        state.lastVibratedSignature =
+          signature ||
+          state.activeAlertSignature ||
+          '';
+
+        state.lastVibratedAt =
+          now;
+
+        persistVibrationState();
+
+        return true;
+      }
+    } catch (error) {
+      return false;
+    }
+
+    return false;
+  }
+
+
+  function stopAlarmVibration() {
+    if (
+      !window.navigator ||
+      typeof window.navigator.vibrate !==
+        'function'
+    ) {
+      return;
+    }
+
+    try {
+      window.navigator.vibrate(
+        0
+      );
+    } catch (error) {
+      // Ignore unsupported vibration errors.
+    }
   }
 
 
@@ -1210,6 +1317,54 @@
 
       state.lastPlayedAt =
         0;
+    }
+  }
+
+
+  function restoreVibrationState() {
+    try {
+      const saved =
+        JSON.parse(
+          window.localStorage.getItem(
+            VIBRATION_STORAGE_KEY
+          ) ||
+          '{}'
+        );
+
+      state.lastVibratedSignature =
+        String(
+          saved.signature ||
+          ''
+        );
+
+      state.lastVibratedAt =
+        Number(
+          saved.timestamp
+        ) || 0;
+    } catch (error) {
+      state.lastVibratedSignature =
+        '';
+
+      state.lastVibratedAt =
+        0;
+    }
+  }
+
+
+  function persistVibrationState() {
+    try {
+      window.localStorage.setItem(
+        VIBRATION_STORAGE_KEY,
+        JSON.stringify({
+          signature:
+            state.lastVibratedSignature,
+
+          timestamp:
+            state.lastVibratedAt
+        })
+      );
+    } catch (error) {
+      // Storage may be disabled.
     }
   }
 
