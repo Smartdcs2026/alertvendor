@@ -4954,3 +4954,437 @@ body.dashboard-page {
       minmax(0, 1.2fr);
   }
 }
+
+/************************************************************
+ * ROUND 43 — Separated Desktop Table / Mobile Record Grid
+ ************************************************************/
+
+/* Mobile list does not participate in desktop/tablet layout. */
+.dashboard-page .mobile-active-grid,
+.dashboard-page .mobile-active-empty {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  /*
+   * Critical separation:
+   * mobile never renders through table/tr/td layout.
+   */
+  .dashboard-page .records-table-shell {
+    display: none !important;
+  }
+
+  .dashboard-page .mobile-active-grid {
+    display: grid !important;
+    gap: 7px;
+    margin: 0 7px 7px;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-grid {
+    grid-template-columns:
+      minmax(0, 1fr);
+  }
+
+  .dashboard-page .mobile-active-empty {
+    margin: 0 7px 8px;
+    border: 1px dashed #c8d7df;
+    border-radius: 10px;
+    padding: 18px 10px;
+    color: #6d828e;
+    background: #f8fbfc;
+    font-size: 9px;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .dashboard-page
+  .mobile-active-empty:not(.is-hidden) {
+    display: block !important;
+  }
+
+  .dashboard-page .mobile-active-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #ccdae2;
+    border-left: 6px solid #718896;
+    border-radius: 11px;
+    color: #17364a;
+    background: #ffffff;
+    box-shadow:
+      0 3px 10px
+      rgba(18, 54, 75, .06);
+    cursor: pointer;
+    -webkit-tap-highlight-color:
+      transparent;
+  }
+
+  .dashboard-page
+  .mobile-active-card:focus-visible {
+    outline: 3px solid
+      rgba(12, 111, 137, .26);
+    outline-offset: 2px;
+  }
+
+  .dashboard-page
+  .mobile-active-card[data-status="NORMAL"] {
+    border-left-color: var(--green);
+  }
+
+  .dashboard-page
+  .mobile-active-card[data-status="WARNING"] {
+    border-left-color: var(--amber);
+  }
+
+  .dashboard-page
+  .mobile-active-card[data-status="OVERDUE"] {
+    border-left-color: var(--red);
+  }
+
+  .dashboard-page
+  .mobile-active-card[data-status="INCOMPLETE"] {
+    border-left-color: var(--purple);
+  }
+
+  .dashboard-page
+  .mobile-active-card__header {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 5px;
+    padding: 9px 9px 6px;
+  }
+
+  .dashboard-page
+  .mobile-active-card__header small {
+    display: none;
+    color: #748995;
+    font-size: 6.5px;
+    font-weight: 850;
+  }
+
+  .dashboard-page
+  .mobile-active-card__header h3 {
+    margin: 0;
+    overflow: hidden;
+    color: #17364a;
+    font-size: 10.5px;
+    line-height: 1.28;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-page
+  .mobile-active-card__rank {
+    color: #91a2ab;
+    font-size: 6.5px;
+  }
+
+  .dashboard-page
+  .mobile-active-card__appointment {
+    display: grid;
+    align-content: center;
+    gap: 1px;
+    margin: 0 8px 7px;
+    border: 1px solid #95cbd6;
+    border-radius: 8px;
+    padding: 7px 8px;
+    color: #0a6179;
+    background:
+      linear-gradient(
+        135deg,
+        #dff4f7,
+        #f7fcfd
+      );
+  }
+
+  .dashboard-page
+  .mobile-active-card__appointment span {
+    font-size: 6.3px;
+    font-weight: 850;
+  }
+
+  .dashboard-page
+  .mobile-active-card__appointment strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 950;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-page
+  .mobile-active-card__information {
+    display: grid;
+    gap: 6px;
+    padding: 0 8px 7px;
+  }
+
+  .dashboard-page
+  .mobile-active-card__field {
+    min-width: 0;
+    display: grid;
+    align-content: center;
+    gap: 2px;
+    border-radius: 7px;
+    padding: 6px 7px;
+    background: #f0f5f7;
+  }
+
+  .dashboard-page
+  .mobile-active-card__field span {
+    color: #748893;
+    font-size: 6.2px;
+    font-weight: 800;
+  }
+
+  .dashboard-page
+  .mobile-active-card__field strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #17364b;
+    font-size: 8.2px;
+    line-height: 1.25;
+  }
+
+  .dashboard-page
+  .mobile-active-card__field--duration strong {
+    font-size: 13px;
+    font-variant-numeric:
+      tabular-nums;
+  }
+
+  .dashboard-page
+  .mobile-active-card__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px 8px;
+  }
+
+  .dashboard-page
+  .mobile-active-card__footer
+  .status-badge,
+  .dashboard-page
+  .mobile-active-card__footer
+  .stage-badge {
+    min-height: 21px;
+    max-width: 100%;
+    padding: 3px 6px;
+    font-size: 6.4px;
+  }
+
+  .dashboard-page
+  .mobile-active-card__hint {
+    display: none;
+    margin-left: auto;
+    color: #78909c;
+    font-size: 6.2px;
+    font-weight: 800;
+  }
+
+  /* Compact: 2 cards per row and only operational essentials. */
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card {
+    min-height: 166px;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card__information {
+    grid-template-columns:
+      minmax(0, 1fr);
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card__field--gate-in,
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card__field--driver {
+    display: none;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card__field--duration {
+    min-height: 27px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    background: transparent;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card__field--duration span {
+    display: none;
+  }
+
+  /* Detail: one complete record card per row. */
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card {
+    min-height: 0;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__header {
+    padding: 11px 12px 8px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__header small {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__header h3 {
+    font-size: 14px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__rank {
+    font-size: 8px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__appointment {
+    grid-template-columns:
+      auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    margin: 0 11px 8px;
+    padding: 9px 11px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__appointment span {
+    font-size: 8px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__appointment strong {
+    font-size: 19px;
+    text-align: right;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__information {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0 11px 9px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__field {
+    min-height: 55px;
+    padding: 8px 9px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__field--plate {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__field span {
+    font-size: 7px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__field strong {
+    font-size: 10px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__field--plate strong {
+    font-size: 13px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__field--duration strong {
+    font-size: 16px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__footer {
+    padding: 0 11px 10px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__footer
+  .status-badge,
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__footer
+  .stage-badge {
+    min-height: 25px;
+    padding: 4px 8px;
+    font-size: 7.5px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-card__hint {
+    display: inline;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-active-grid {
+    grid-template-columns:
+      1fr !important;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-active-card {
+    min-height: 160px;
+  }
+
+  .dashboard-page
+  .mobile-active-card__appointment strong {
+    font-size: 13.5px;
+  }
+}
