@@ -14674,3 +14674,206 @@ body.is-user-scrolling .module-page * { scroll-behavior:auto!important; }
     font-size: .62rem;
   }
 }
+
+/************************************************************
+ * ROUND 48 — Mobile SweetAlert: 2 Cards Per Row
+ ************************************************************/
+
+@media (max-width: 680px) {
+  .av-overdue-list-v47 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    padding: 6px !important;
+  }
+
+  .av-overdue-card-v47 {
+    min-width: 0 !important;
+    gap: 4px !important;
+    border-left-width: 4px !important;
+    border-radius: 9px !important;
+    padding: 6px !important;
+  }
+
+  .av-overdue-card-header-v47 {
+    grid-template-columns:
+      22px minmax(0, 1fr) !important;
+    gap: 5px !important;
+  }
+
+  .av-overdue-rank-v47 {
+    width: 21px !important;
+    height: 21px !important;
+    border-radius: 6px !important;
+    font-size: .52rem !important;
+  }
+
+  .av-overdue-company-v47 small {
+    font-size: .38rem !important;
+  }
+
+  .av-overdue-company-v47 strong {
+    max-width: 100% !important;
+    font-size: .59rem !important;
+    line-height: 1.18 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .av-overdue-company-v47 em {
+    max-width: 100% !important;
+    font-size: .37rem !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .av-overdue-data-grid-v47 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+
+  .av-overdue-data-v47 {
+    min-width: 0 !important;
+    min-height: 34px !important;
+    gap: 1px !important;
+    border-radius: 6px !important;
+    padding: 4px !important;
+  }
+
+  .av-overdue-data-v47 small {
+    overflow: hidden !important;
+    font-size: .35rem !important;
+    line-height: 1.12 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .av-overdue-data-v47 strong {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    font-size: .48rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .av-overdue-data-v47.is-primary strong,
+  .av-overdue-data-v47.is-danger strong {
+    font-size: .52rem !important;
+  }
+
+  .av-overdue-data-v47.is-stage strong {
+    display: -webkit-box !important;
+    overflow: hidden !important;
+    font-size: .45rem !important;
+    line-height: 1.12 !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .av-overdue-toolbar-v47 {
+    gap: 5px !important;
+    padding: 5px 7px !important;
+    font-size: .46rem !important;
+  }
+
+  .av-overdue-toolbar-v47 strong {
+    padding: 3px 6px !important;
+    font-size: .45rem !important;
+  }
+
+  .av-overdue-header-v47 {
+    padding: 9px 8px !important;
+  }
+
+  .av-overdue-heading-v47 h2 {
+    font-size: .86rem !important;
+  }
+
+  .av-overdue-heading-v47 p {
+    max-width: 190px !important;
+    font-size: .45rem !important;
+  }
+
+  .av-overdue-total-v47 {
+    min-width: 43px !important;
+    padding: 4px !important;
+  }
+
+  .av-overdue-total-v47 strong {
+    font-size: .82rem !important;
+  }
+
+  .av-overdue-total-v47 span {
+    font-size: .4rem !important;
+  }
+
+  .av-overdue-feedback-v47 {
+    width: 33px !important;
+    min-width: 33px !important;
+    min-height: 33px !important;
+    padding: 3px !important;
+  }
+
+  .av-overdue-actions-v47 {
+    min-height: 47px !important;
+    padding: 5px 8px !important;
+  }
+
+  .av-overdue-confirm-v47 {
+    min-width: 105px !important;
+    min-height: 35px !important;
+    font-size: .72rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .av-overdue-list-v47 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 5px !important;
+  }
+
+  .av-overdue-card-v47 {
+    padding: 5px !important;
+  }
+
+  .av-overdue-card-header-v47 {
+    grid-template-columns:
+      20px minmax(0, 1fr) !important;
+    gap: 4px !important;
+  }
+
+  .av-overdue-rank-v47 {
+    width: 19px !important;
+    height: 19px !important;
+    font-size: .46rem !important;
+  }
+
+  .av-overdue-company-v47 strong {
+    font-size: .54rem !important;
+  }
+
+  .av-overdue-data-v47 {
+    min-height: 32px !important;
+    padding: 3px !important;
+  }
+
+  .av-overdue-data-v47 small {
+    font-size: .31rem !important;
+  }
+
+  .av-overdue-data-v47 strong {
+    font-size: .43rem !important;
+  }
+
+  .av-overdue-data-v47.is-primary strong,
+  .av-overdue-data-v47.is-danger strong {
+    font-size: .47rem !important;
+  }
+
+  .av-overdue-data-v47.is-stage strong {
+    font-size: .4rem !important;
+  }
+}
