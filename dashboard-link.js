@@ -158,7 +158,7 @@
       </svg>
 
       <span>
-        Dashboard
+        เปิด Dashboard
       </span>
     `;
 
@@ -170,6 +170,37 @@
     syncLauncherHref(
       button
     );
+
+    button.style.setProperty(
+      'color',
+      '#ffffff',
+      'important'
+    );
+
+    button.style.setProperty(
+      'opacity',
+      '1',
+      'important'
+    );
+
+    const label =
+      button.querySelector(
+        'span'
+      );
+
+    if (label) {
+      label.style.setProperty(
+        'color',
+        '#ffffff',
+        'important'
+      );
+
+      label.style.setProperty(
+        'opacity',
+        '1',
+        'important'
+      );
+    }
 
     return button;
   }
