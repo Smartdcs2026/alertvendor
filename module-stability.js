@@ -16,6 +16,7 @@
     preRefreshScrollLeft: 0,
     preRefreshWindowY: 0,
     userIntentUntil: 0,
+    globalScrollTimer: null,
     initialSettled: false,
     restoring: false,
     timeline: null,
@@ -67,6 +68,10 @@
 
     const wrapped =
       async function (...args) {
+        if (methodName === 'getRecords') {
+          await waitForUserScrollIdle();
+        }
+
         beginRefreshWindow();
 
         try {
@@ -128,20 +133,11 @@
     state.refreshWindowUntil =
       Date.now() + 1400;
 
-    window.setTimeout(
-      restoreTimelinePosition,
-      0
-    );
-
-    window.setTimeout(
-      restoreTimelinePosition,
-      80
-    );
-
-    window.setTimeout(
-      restoreTimelinePosition,
-      260
-    );
+    if (Date.now() > state.userIntentUntil) {
+      window.setTimeout(restoreTimelinePosition, 0);
+      window.setTimeout(restoreTimelinePosition, 80);
+      window.setTimeout(restoreTimelinePosition, 260);
+    }
   }
 
 
@@ -424,10 +420,16 @@
     window.addEventListener(
       'scroll',
       rememberWindowScroll,
-      {
-        passive: true
-      }
+      { passive: true }
     );
+
+    ['wheel','touchstart','touchmove','pointerdown','keydown'].forEach((eventName) => {
+      window.addEventListener(
+        eventName,
+        markGlobalUserIntent,
+        { passive: eventName !== 'keydown' }
+      );
+    });
 
     /*
      * ป้องกัน scrollIntoView ที่เกิดจาก Silent Refresh
@@ -470,16 +472,43 @@
   }
 
 
-  function rememberWindowScroll() {
-    if (
-      !state.restoring &&
-      !isRefreshWindow()
+  function markGlobalUserIntent() {
+    state.userIntentUntil = Date.now() + 700;
+
+    if (!state.restoring) {
+      state.preRefreshWindowY = window.scrollY;
+    }
+
+    document.body.classList.add('is-user-scrolling');
+
+    if (state.globalScrollTimer) {
+      window.clearTimeout(state.globalScrollTimer);
+    }
+
+    state.globalScrollTimer = window.setTimeout(() => {
+      state.globalScrollTimer = null;
+      state.preRefreshWindowY = window.scrollY;
+      document.body.classList.remove('is-user-scrolling');
+    }, 180);
+  }
+
+
+  async function waitForUserScrollIdle() {
+    const startedAt = Date.now();
+
+    while (
+      Date.now() < state.userIntentUntil &&
+      Date.now() - startedAt < 1200
     ) {
-      state.preRefreshWindowY =
-        window.scrollY;
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
     }
   }
 
+
+  function rememberWindowScroll() {
+    if (state.restoring) return;
+    markGlobalUserIntent();
+  }
 
   function patchScrollIntoView() {
     const prototype =
@@ -560,9 +589,11 @@
       );
 
     if (state.restoreTimer) {
-      window.clearTimeout(
-        state.restoreTimer
-      );
+      window.clearTimeout(state.restoreTimer);
+    }
+
+    if (state.globalScrollTimer) {
+      window.clearTimeout(state.globalScrollTimer);
     }
 
     state.restoreTimer =
@@ -602,21 +633,14 @@
       );
 
     if (
-      !document.querySelector(
-        '.swal2-container'
-      ) &&
-      Math.abs(
-        window.scrollY -
-        state.preRefreshWindowY
-      ) > 2
+      !document.querySelector('.swal2-container') &&
+      Date.now() > state.userIntentUntil &&
+      Math.abs(window.scrollY - state.preRefreshWindowY) > 24
     ) {
       window.scrollTo({
-        top:
-          state.preRefreshWindowY,
-        left:
-          window.scrollX,
-        behavior:
-          'auto'
+        top: state.preRefreshWindowY,
+        left: window.scrollX,
+        behavior: 'auto'
       });
     }
 
