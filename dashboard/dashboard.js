@@ -533,6 +533,10 @@
       mobile
     );
 
+    document.body.dataset.mobileRecordView =
+      state.mobileRecordView ||
+      'COMPACT';
+
     if (mobile) {
       setMobileChartTab(
         state.mobileChart ||
@@ -1465,14 +1469,27 @@
         'mobileLoadMoreRecords'
       );
 
-    if (loadMore) {
-      const remaining =
-        Math.max(
-          0,
-          allRecords.length -
-          visibleRecords.length
-        );
+    const remaining =
+      Math.max(
+        0,
+        allRecords.length -
+        visibleRecords.length
+      );
 
+    const mobileCounter =
+      byId(
+        'mobileRecordCounter'
+      );
+
+    if (mobileCounter) {
+      mobileCounter.textContent =
+        'แสดง ' +
+        visibleRecords.length +
+        '/' +
+        allRecords.length;
+    }
+
+    if (loadMore) {
       loadMore.classList.toggle(
         'is-hidden',
         !isMobile ||
@@ -1481,13 +1498,12 @@
 
       loadMore.textContent =
         remaining > 0
-          ? 'แสดงเพิ่มอีก ' +
+          ? 'เพิ่มอีก ' +
             Math.min(
               12,
               remaining
-            ) +
-            ' รายการ'
-          : 'แสดงครบแล้ว';
+            )
+          : 'ครบแล้ว';
     }
 
     tbody.innerHTML = '';
@@ -1560,6 +1576,23 @@
           'role',
           isMobile ? 'button' : 'row'
         );
+
+        if (isMobile) {
+          row.addEventListener(
+            'keydown',
+            (event) => {
+              if (
+                event.key === 'Enter' ||
+                event.key === ' '
+              ) {
+                event.preventDefault();
+                showMobileRecordDetails(
+                  row.dataset.mobileRecordId
+                );
+              }
+            }
+          );
+        }
 
         row.innerHTML = `
           <td data-label="#">${index + 1}</td>
