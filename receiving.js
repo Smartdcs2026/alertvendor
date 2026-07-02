@@ -26,7 +26,7 @@
     flowSignature: '',
     enabled: false,
     records: new Map(),
-    stageFilter: 'ALL',
+    stageFilter: 'WAITING_RECEIVING',
     refreshDelayMs: DEFAULT_REFRESH_MS,
     refreshTimer: null,
     tickTimer: null,
@@ -39,6 +39,8 @@
     dialogOpen: false,
     savingRecordId: '',
     refreshPending: false,
+    scrollQuietUntil: 0,
+    scrollQuietTimer: null,
     destroyed: false
   };
 
@@ -54,6 +56,7 @@
     }
 
     bindPanelEvents();
+    bindReceivingScrollStability();
     observeVehicleCards();
     observeIncompleteSummary();
     correctMovementTerminology();
@@ -95,31 +98,66 @@
   }
 
   function handlePanelClick(event) {
-    const filterButton = event.target.closest('[data-receiving-filter]');
+    const filterButton =
+      event.target.closest(
+        '[data-receiving-filter]'
+      );
 
     if (filterButton) {
-      state.stageFilter = String(
-        filterButton.dataset.receivingFilter || 'ALL'
+      setReceivingStageFilter(
+        filterButton.dataset
+          .receivingFilter ||
+        'WAITING_RECEIVING'
+      );
+      return;
+    }
+
+    const priorityButton =
+      event.target.closest(
+        '[data-receiving-scroll-record]'
+      );
+
+    if (priorityButton) {
+      scrollToRecord(
+        priorityButton.dataset
+          .receivingScrollRecord
+      );
+      return;
+    }
+
+    const copyButton =
+      event.target.closest(
+        '[data-receiving-copy-record]'
+      );
+
+    if (copyButton) {
+      void copyRecordMessage(
+        copyButton.dataset
+          .receivingCopyRecord
+      );
+    }
+  }
+
+
+  function setReceivingStageFilter(filterValue) {
+    const normalized =
+      String(
+        filterValue ||
+        'WAITING_RECEIVING'
       ).toUpperCase();
 
-      document.querySelectorAll('[data-receiving-filter]').forEach((button) => {
-        button.classList.toggle('is-active', button === filterButton);
-      });
+    state.stageFilter =
+      [
+        'ALL',
+        'WAITING_RECEIVING',
+        'WAITING_GATE_OUT'
+      ].includes(normalized)
+        ? normalized
+        : 'WAITING_RECEIVING';
 
-      applyReceivingFilter();
-      return;
-    }
-
-    const priorityButton = event.target.closest('[data-receiving-scroll-record]');
-    if (priorityButton) {
-      scrollToRecord(priorityButton.dataset.receivingScrollRecord);
-      return;
-    }
-
-    const copyButton = event.target.closest('[data-receiving-copy-record]');
-    if (copyButton) {
-      void copyRecordMessage(copyButton.dataset.receivingCopyRecord);
-    }
+    syncReceivingFilterUi();
+    renderPriorityList();
+    applyReceivingFilter();
   }
 
   function handleReceivingCardClick(event) {
@@ -282,29 +320,26 @@
         }
       );
 
-      setText(
-        'receivingUpdatedAt',
-        normalizedResult.generatedAt
-          ? 'ข้อมูลล่าสุด ' +
-            normalizedResult.generatedAt
-          : 'ข้อมูลเป็นปัจจุบัน'
-      );
+      updateReceivingMetrics();
 
       if (
         changed ||
         config.initial === true
       ) {
-        renderReceivingPanel();
+        renderPriorityList();
         decorateVehicleCards();
-        applyReceivingFilter();
-
       } else {
         /*
-         * ข้อมูลไม่เปลี่ยน จึงไม่สร้าง DOM ใหม่
-         * ป้องกันหน้าจอกระพริบและรักษา Scroll
+         * โครงสร้างข้อมูลไม่เปลี่ยน:
+         * ไม่สร้าง Action Queue หรือการ์ดใหม่
+         * อัปเดตเฉพาะตัวเลขและ Timer เท่านั้น
          */
         decorateVehicleCardsIfMissing();
       }
+
+      syncReceivingFilterUi();
+      applyReceivingFilter();
+      updateVisibleStageTimers();
 
       correctMovementTerminology();
       syncControlTowerIncomplete();
@@ -766,30 +801,93 @@
   }
 
 
-  function buildReceivingFlowSignature(
-    result
-  ) {
+  function buildReceivingFlowSignature(result) {
     const source =
       result &&
       typeof result === 'object'
         ? result
         : {};
 
+    const summary =
+      source.summary &&
+      typeof source.summary === 'object'
+        ? source.summary
+        : {};
+
+    const records =
+      Array.isArray(source.records)
+        ? source.records
+        : [];
+
     return JSON.stringify({
       enabled:
         source.enabled === true,
 
-      summary:
-        source.summary || {},
-
-      priority:
-        source.priority || [],
+      summary: {
+        activeTotal:
+          Number(summary.activeTotal) || 0,
+        waitingReceiving:
+          Number(summary.waitingReceiving) || 0,
+        waitingGateOut:
+          Number(summary.waitingGateOut) || 0,
+        receivingCompletedToday:
+          Number(summary.receivingCompletedToday) || 0,
+        exitedWithoutReceivingToday:
+          Number(summary.exitedWithoutReceivingToday) || 0,
+        averageArrivalToReceiving:
+          summary.averageArrivalToReceiving &&
+          summary.averageArrivalToReceiving.display || '',
+        averageReceivingToGateOut:
+          summary.averageReceivingToGateOut &&
+          summary.averageReceivingToGateOut.display || ''
+      },
 
       records:
-        source.records || []
+        records
+          .map(
+            (record) => ({
+              recordId:
+                String(record.recordId || ''),
+              primaryValue:
+                String(record.primaryValue || ''),
+              stageCode:
+                String(record.stageCode || ''),
+              stageLabel:
+                String(record.stageLabel || ''),
+              timestampIn:
+                String(record.timestampIn || ''),
+              receivingCompleteAt:
+                String(record.receivingCompleteAt || ''),
+              canCompleteReceiving:
+                record.canCompleteReceiving === true,
+              fields:
+                (Array.isArray(record.fields) ? record.fields : [])
+                  .map(
+                    (field) => ({
+                      label:
+                        String(
+                          field &&
+                          (field.label || field.displayName || field.header || field.name || field.key) ||
+                          ''
+                        ),
+                      value:
+                        String(
+                          field &&
+                          (field.displayValue ?? field.value ?? field.text ?? '') ||
+                          ''
+                        ),
+                      primary:
+                        Boolean(field && field.primary)
+                    })
+                  )
+            })
+          )
+          .sort(
+            (left, right) =>
+              left.recordId.localeCompare(right.recordId)
+          )
     });
   }
-
 
   function enableReceivingUi() {
     state.enabled = true;
@@ -815,7 +913,7 @@
     state.enabled = false;
     state.flowSignature = '';
     state.records.clear();
-    state.stageFilter = 'ALL';
+    state.stageFilter = 'WAITING_RECEIVING';
 
     const panel =
       document.getElementById(
@@ -839,11 +937,19 @@
       )
       .forEach(
         (button) => {
-          button.classList.toggle(
-            'is-active',
+          const active =
             button.dataset
               .receivingFilter ===
-              'ALL'
+              'WAITING_RECEIVING';
+
+          button.classList.toggle(
+            'is-active',
+            active
+          );
+
+          button.setAttribute(
+            'aria-pressed',
+            String(active)
           );
         }
       );
@@ -915,13 +1021,15 @@
     }
   }
 
-  function renderReceivingPanel() {
+  function updateReceivingMetrics() {
     const flow = state.flow || {};
     const summary = flow.summary || {};
 
     setText(
       'receivingUpdatedAt',
-      flow.generatedAt ? 'ข้อมูลล่าสุด ' + flow.generatedAt : 'กำลังโหลดข้อมูล'
+      flow.generatedAt
+        ? 'ข้อมูลล่าสุด ' + flow.generatedAt
+        : 'ข้อมูลเป็นปัจจุบัน'
     );
     setText('receivingWaitingCount', formatNumber(summary.waitingReceiving));
     setText('receivingWaitingGateOutCount', formatNumber(summary.waitingGateOut));
@@ -940,10 +1048,7 @@
         : '--:--:--'
     );
 
-    renderPriorityList(Array.isArray(flow.priority) ? flow.priority : []);
-
     const panel = document.getElementById('receivingFlowPanel');
-
     if (panel) {
       panel.classList.remove('is-unavailable');
       panel.classList.remove('is-hidden');
@@ -951,62 +1056,188 @@
     }
   }
 
-  function renderPriorityList(items) {
+
+  function renderReceivingPanel() {
+    updateReceivingMetrics();
+    renderPriorityList();
+    syncReceivingFilterUi();
+    applyReceivingFilter();
+  }
+
+
+  function getReceivingPriorityItems() {
+    return Array.from(state.records.values())
+      .map(normalizeReceivingRecordState)
+      .filter((item) => item.isCurrentlyInArea === true)
+      .filter(
+        (item) =>
+          state.stageFilter === 'ALL' ||
+          item.stageCode === state.stageFilter
+      )
+      .sort(
+        (left, right) => {
+          const leftStage = left.stageCode === 'WAITING_GATE_OUT' ? 2 : 1;
+          const rightStage = right.stageCode === 'WAITING_GATE_OUT' ? 2 : 1;
+          return (
+            rightStage - leftStage ||
+            (Number(right.currentStageSeconds) || 0) -
+              (Number(left.currentStageSeconds) || 0)
+          );
+        }
+      )
+      .slice(0, 8);
+  }
+
+
+  function renderPriorityList() {
     const container = document.getElementById('receivingPriorityList');
     if (!container) return;
 
-    if (!Array.isArray(items) || items.length === 0) {
+    const items = getReceivingPriorityItems();
+
+    if (items.length === 0) {
       container.innerHTML = `
         <div class="receiving-priority-empty">
-          ไม่มีรายการที่ต้องติดตามในขณะนี้
+          ไม่มีรายการในขั้นตอนที่เลือก
         </div>
       `;
       return;
     }
 
-    container.innerHTML = items.slice(0, 5).map((sourceItem, index) => {
-      const item =
-        normalizeReceivingRecordState(
-          sourceItem
-        );
-
+    container.innerHTML = items.map((item, index) => {
+      const identity = getReceivingOperationalIdentity(item);
       return `
-      <article
-        class="receiving-priority-item"
-        data-stage="${escapeHtml(item.stageCode || '')}"
-      >
-        <div class="receiving-priority-rank">${index + 1}</div>
+        <article
+          class="receiving-priority-item"
+          data-stage="${escapeHtml(item.stageCode || '')}"
+        >
+          <div class="receiving-priority-rank">${index + 1}</div>
 
-        <div class="receiving-priority-main">
-          <strong>${escapeHtml(item.primaryValue || 'ไม่พบข้อมูลหลัก')}</strong>
-          <span>${escapeHtml(item.stageLabel || '-')}</span>
-        </div>
+          <div class="receiving-priority-main">
+            <strong>${escapeHtml(identity.company)}</strong>
+            <span class="receiving-priority-identity">
+              นัดหมาย <b>${escapeHtml(identity.appointment)}</b>
+              <i>•</i>
+              ทะเบียน <b>${escapeHtml(identity.registration)}</b>
+            </span>
+            <em>${escapeHtml(item.stageLabel || '-')}</em>
+          </div>
 
-        <div class="receiving-priority-time">
-          <span>เวลาช่วงปัจจุบัน</span>
-          <strong data-receiving-live-timer="${escapeHtml(item.recordId || '')}">
-            ${escapeHtml(formatDuration(item.currentStageSeconds))}
-          </strong>
-        </div>
+          <div class="receiving-priority-time">
+            <span>เวลาช่วงปัจจุบัน</span>
+            <strong data-receiving-live-timer="${escapeHtml(item.recordId || '')}">
+              ${escapeHtml(formatDuration(item.currentStageSeconds))}
+            </strong>
+          </div>
 
-        <div class="receiving-priority-actions">
-          <button
-            type="button"
-            data-receiving-scroll-record="${escapeHtml(item.recordId || '')}"
-          >
-            ดูรายการ
-          </button>
+          <div class="receiving-priority-actions">
+            <button
+              type="button"
+              data-receiving-scroll-record="${escapeHtml(item.recordId || '')}"
+            >ดูรายการ</button>
 
-          <button
-            type="button"
-            data-receiving-copy-record="${escapeHtml(item.recordId || '')}"
-          >
-            คัดลอก
-          </button>
-        </div>
-      </article>
-    `;
+            <button
+              type="button"
+              data-receiving-copy-record="${escapeHtml(item.recordId || '')}"
+            >คัดลอก</button>
+          </div>
+        </article>
+      `;
     }).join('');
+  }
+
+
+  function getReceivingOperationalIdentity(sourceItem) {
+    const item = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+    const fields = Array.isArray(item.fields) ? item.fields : [];
+
+    const findValue = (patterns) => {
+      for (const field of fields) {
+        const label = normalizeReceivingIdentityText(
+          field && (field.label || field.displayName || field.header || field.name || field.key)
+        );
+        const value = String(
+          field && (field.displayValue ?? field.value ?? field.text ?? '') || ''
+        ).trim();
+        if (value && patterns.some((pattern) => label.includes(pattern))) {
+          return value;
+        }
+      }
+      return '';
+    };
+
+    return {
+      company: String(item.primaryValue || item.expectedPrimaryValue || 'ไม่ระบุบริษัท').trim(),
+      appointment:
+        findValue(['เลขนัดหมาย','หมายเลขนัดหมาย','นัดหมาย','appointment','booking']) ||
+        inferReceivingNumericIdentity(fields) || '-',
+      registration:
+        findValue(['ทะเบียน','ทะเบียนรถ','registration','plate','หมายเลขรถ','เลขตู้','container']) || '-'
+    };
+  }
+
+
+  function inferReceivingNumericIdentity(fields) {
+    for (const field of fields) {
+      const value = String(
+        field && (field.displayValue ?? field.value ?? '') || ''
+      ).trim();
+      if (/^\d{5,12}$/.test(value)) return value;
+    }
+    return '';
+  }
+
+
+  function normalizeReceivingIdentityText(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_\-:]+/g, '');
+  }
+
+
+  function syncReceivingFilterUi() {
+    const summary = state.flow && state.flow.summary || {};
+    const total = Number(summary.activeTotal) || state.records.size;
+    const waiting = Number(summary.waitingReceiving) || 0;
+    const gateOut = Number(summary.waitingGateOut) || 0;
+
+    setText('receivingFilterAllCount', formatNumber(total));
+    setText('receivingFilterWaitingCount', formatNumber(waiting));
+    setText('receivingFilterGateOutCount', formatNumber(gateOut));
+
+    document.querySelectorAll('[data-receiving-filter]').forEach((button) => {
+      const active = String(button.dataset.receivingFilter || '').toUpperCase() === state.stageFilter;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+
+    document.querySelectorAll('.receiving-flow-metric[data-receiving-filter]').forEach((metric) => {
+      metric.classList.toggle(
+        'is-filter-active',
+        String(metric.dataset.receivingFilter || '').toUpperCase() === state.stageFilter
+      );
+    });
+
+    const context = document.getElementById('receivingFilterContext');
+    if (!context) return;
+
+    const labels = {
+      ALL: 'ทั้งหมด',
+      WAITING_RECEIVING: 'รอรับสินค้าเสร็จ',
+      WAITING_GATE_OUT: 'รับสินค้าเสร็จ รอ Gate Out'
+    };
+    const count = state.stageFilter === 'WAITING_RECEIVING'
+      ? waiting
+      : state.stageFilter === 'WAITING_GATE_OUT'
+        ? gateOut
+        : total;
+
+    context.dataset.filter = state.stageFilter;
+    const labelNode = context.querySelector('strong');
+    const countNode = context.querySelector('em');
+    if (labelNode) labelNode.textContent = labels[state.stageFilter] || labels.WAITING_RECEIVING;
+    if (countNode) countNode.textContent = formatNumber(count) + ' รายการ';
   }
 
   function observeIncompleteSummary() {
@@ -2130,7 +2361,37 @@
   }
 
 
+  function bindReceivingScrollStability() {
+    const markActivity = () => {
+      state.scrollQuietUntil = Date.now() + 220;
+
+      if (state.scrollQuietTimer) {
+        window.clearTimeout(state.scrollQuietTimer);
+      }
+
+      document.body.classList.add('is-user-scrolling');
+
+      state.scrollQuietTimer = window.setTimeout(() => {
+        state.scrollQuietTimer = null;
+        document.body.classList.remove('is-user-scrolling');
+        updateVisibleStageTimers();
+      }, 240);
+    };
+
+    window.addEventListener('scroll', markActivity, { passive: true });
+    window.addEventListener('wheel', markActivity, { passive: true });
+    window.addEventListener('touchmove', markActivity, { passive: true });
+  }
+
+
   function updateVisibleStageTimers() {
+    if (
+      !state.enabled ||
+      Date.now() < state.scrollQuietUntil
+    ) {
+      return;
+    }
+
     const nowMs = getReceivingNowMs();
 
     document.querySelectorAll('[data-receiving-live-timer]').forEach((element) => {
@@ -2186,39 +2447,49 @@
     if (!state.enabled) {
       document.querySelectorAll('.vehicle-card').forEach((card) => {
         card.classList.remove('is-receiving-filter-hidden');
+        card.removeAttribute('aria-hidden');
       });
       return;
     }
+
     document.querySelectorAll('.vehicle-card[data-record-id]').forEach((card) => {
       const sourceItem = state.records.get(String(card.dataset.recordId || ''));
-      const item = sourceItem
-        ? normalizeReceivingRecordState(
-            sourceItem
-          )
-        : null;
+      const item = sourceItem ? normalizeReceivingRecordState(sourceItem) : null;
       const visible = state.stageFilter === 'ALL' || (
         item && item.stageCode === state.stageFilter
       );
+
       card.classList.toggle('is-receiving-filter-hidden', !visible);
+      card.setAttribute('aria-hidden', String(!visible));
     });
   }
 
+
   function scrollToRecord(recordId) {
-    state.stageFilter = 'ALL';
+    const sourceItem = state.records.get(String(recordId || ''));
+    const item = sourceItem ? normalizeReceivingRecordState(sourceItem) : null;
 
-    document.querySelectorAll('[data-receiving-filter]').forEach((button) => {
-      button.classList.toggle('is-active', button.dataset.receivingFilter === 'ALL');
-    });
-
-    applyReceivingFilter();
+    if (
+      item &&
+      ['WAITING_RECEIVING','WAITING_GATE_OUT'].includes(item.stageCode)
+    ) {
+      setReceivingStageFilter(item.stageCode);
+    }
 
     const card = Array.from(
       document.querySelectorAll('.vehicle-card[data-record-id]')
-    ).find((element) => String(element.dataset.recordId || '') === String(recordId || ''));
+    ).find((element) =>
+      String(element.dataset.recordId || '') === String(recordId || '')
+    );
 
     if (!card) return;
 
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('is-receiving-filter-hidden');
+    card.removeAttribute('aria-hidden');
+    card.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center'
+    });
     card.classList.add('receiving-highlight');
     window.setTimeout(() => card.classList.remove('receiving-highlight'), 1800);
   }
