@@ -48,7 +48,9 @@
       longestWaiting: null
     },
     destroyed: false,
-    mobileChart: 'hourly'
+    mobileChart: 'hourly',
+    mobileRecordView: 'COMPACT',
+    mobileRecordLimit: 12
   };
 
   const doughnutCenterPlugin = {
@@ -242,6 +244,22 @@
         handleMobileChartTab
       );
 
+    document
+      .querySelector('.mobile-view-switch')
+      ?.addEventListener(
+        'click',
+        handleMobileRecordView
+      );
+
+    byId('mobileLoadMoreRecords')
+      ?.addEventListener(
+        'click',
+        () => {
+          state.mobileRecordLimit += 12;
+          renderRecordTable();
+        }
+      );
+
     document.addEventListener(
       'click',
       handleDashboardClick
@@ -278,6 +296,154 @@
     );
   }
 
+
+
+  function handleMobileRecordView(event) {
+    const button =
+      event.target.closest(
+        '[data-mobile-view]'
+      );
+
+    if (!button) {
+      return;
+    }
+
+    const mode =
+      String(
+        button.dataset.mobileView ||
+        'COMPACT'
+      ).toUpperCase();
+
+    state.mobileRecordView =
+      mode === 'DETAIL'
+        ? 'DETAIL'
+        : 'COMPACT';
+
+    state.mobileRecordLimit = 12;
+
+    document.body.dataset.mobileRecordView =
+      state.mobileRecordView;
+
+    document
+      .querySelectorAll(
+        '[data-mobile-view]'
+      )
+      .forEach(
+        (item) => item.classList.toggle(
+          'is-active',
+          item === button
+        )
+      );
+
+    renderRecordTable();
+  }
+
+
+  function showMobileRecordDetails(recordId) {
+    const record =
+      state.records.find(
+        (item) =>
+          String(item.recordId || '') ===
+          String(recordId || '')
+      );
+
+    if (!record) {
+      return;
+    }
+
+    const receiving =
+      state.receivingByRecordId.get(
+        String(record.recordId || '')
+      );
+
+    const dimensions =
+      extractRecordDimensions(record);
+
+    const fields =
+      Array.isArray(record.fields)
+        ? record.fields
+        : [];
+
+    const details = fields
+      .filter(
+        (field) =>
+          field &&
+          !field.primary &&
+          String(
+            field.value ??
+            field.displayValue ??
+            ''
+          ).trim()
+      )
+      .slice(0, 8)
+      .map(
+        (field) => `
+          <div class="mobile-record-detail-row">
+            <span>${escapeHtml(
+              field.label ||
+              field.header ||
+              field.name ||
+              field.key ||
+              'ข้อมูล'
+            )}</span>
+            <strong>${escapeHtml(
+              field.value ??
+              field.displayValue ??
+              '-'
+            )}</strong>
+          </div>
+        `
+      )
+      .join('');
+
+    const stageLabel =
+      receiving && receiving.stageLabel ||
+      'อยู่ในพื้นที่';
+
+    window.Swal?.fire({
+      title:
+        dimensions.title,
+      html: `
+        <div class="mobile-record-detail-dialog">
+          <div class="mobile-record-detail-grid">
+            <div>
+              <span>บริษัท / หน่วยงาน</span>
+              <strong>${escapeHtml(dimensions.company)}</strong>
+            </div>
+            <div>
+              <span>ทะเบียน / รหัส</span>
+              <strong>${escapeHtml(dimensions.identifier)}</strong>
+            </div>
+            <div>
+              <span>เวลา Gate In</span>
+              <strong>${escapeHtml(record.timestampIn || '-')}</strong>
+            </div>
+            <div>
+              <span>ระยะเวลา</span>
+              <strong>${escapeHtml(formatDuration(record.durationSeconds))}</strong>
+            </div>
+            <div>
+              <span>สถานะ SLA</span>
+              <strong>${escapeHtml(getStatusLabel(record.statusCode))}</strong>
+            </div>
+            <div>
+              <span>ขั้นตอนปัจจุบัน</span>
+              <strong>${escapeHtml(stageLabel)}</strong>
+            </div>
+          </div>
+
+          ${details
+            ? `<div class="mobile-record-detail-list">${details}</div>`
+            : ''
+          }
+        </div>
+      `,
+      confirmButtonText:
+        'ปิด',
+      width:
+        560
+    });
+  }
 
   function handleMobileChartTab(event) {
     const button =
@@ -376,6 +542,23 @@
   }
 
   function handleDashboardClick(event) {
+    const mobileRecord =
+      event.target.closest(
+        '[data-mobile-record-id]'
+      );
+
+    if (
+      mobileRecord &&
+      window.matchMedia(
+        '(max-width: 760px)'
+      ).matches
+    ) {
+      showMobileRecordDetails(
+        mobileRecord.dataset.mobileRecordId
+      );
+      return;
+    }
+
     const statusButton =
       event.target.closest('[data-status-filter]');
 
@@ -1244,33 +1427,82 @@
   }
 
   function renderRecordTable() {
-    const tbody = byId('dashboardRecordTableBody');
+    const tbody =
+      byId(
+        'dashboardRecordTableBody'
+      );
 
     if (!tbody) {
       return;
     }
 
-    const records = state.records
-      .filter(recordMatchesFilters)
-      .sort(compareRecords);
+    const allRecords =
+      state.records
+        .filter(recordMatchesFilters)
+        .sort(compareRecords);
+
+    const isMobile =
+      window.matchMedia(
+        '(max-width: 760px)'
+      ).matches;
+
+    const visibleRecords =
+      isMobile
+        ? allRecords.slice(
+            0,
+            state.mobileRecordLimit
+          )
+        : allRecords;
 
     setText(
       'dashboardRecordTotal',
-      records.length + ' รายการ'
+      allRecords.length +
+      ' รายการ'
     );
+
+    const loadMore =
+      byId(
+        'mobileLoadMoreRecords'
+      );
+
+    if (loadMore) {
+      const remaining =
+        Math.max(
+          0,
+          allRecords.length -
+          visibleRecords.length
+        );
+
+      loadMore.classList.toggle(
+        'is-hidden',
+        !isMobile ||
+        remaining <= 0
+      );
+
+      loadMore.textContent =
+        remaining > 0
+          ? 'แสดงเพิ่มอีก ' +
+            Math.min(
+              12,
+              remaining
+            ) +
+            ' รายการ'
+          : 'แสดงครบแล้ว';
+    }
 
     tbody.innerHTML = '';
 
-    byId('dashboardRecordEmpty')
-      ?.classList.toggle(
-        'is-hidden',
-        records.length > 0
-      );
+    byId(
+      'dashboardRecordEmpty'
+    )?.classList.toggle(
+      'is-hidden',
+      allRecords.length > 0
+    );
 
     const fragment =
       document.createDocumentFragment();
 
-    records.forEach(
+    visibleRecords.forEach(
       (record, index) => {
         const receiving =
           state.receivingByRecordId.get(
@@ -1281,26 +1513,53 @@
           extractRecordDimensions(record);
 
         const stageCode =
-          receiving && receiving.stageCode ||
+          receiving &&
+          receiving.stageCode ||
           'ACTIVE';
 
         const stageLabel =
-          receiving && receiving.stageLabel ||
+          receiving &&
+          receiving.stageLabel ||
           'อยู่ในพื้นที่';
 
         const stageSeconds =
           receiving &&
           (
-            receiving.stageCode === 'WAITING_RECEIVING' ||
-            receiving.stageCode === 'WAITING_GATE_OUT'
+            receiving.stageCode ===
+              'WAITING_RECEIVING' ||
+            receiving.stageCode ===
+              'WAITING_GATE_OUT'
           )
-            ? Number(receiving.currentStageSeconds) || 0
-            : Number(record.durationSeconds) || 0;
+            ? Number(
+                receiving.currentStageSeconds
+              ) || 0
+            : Number(
+                record.durationSeconds
+              ) || 0;
 
-        const row = document.createElement('tr');
+        const row =
+          document.createElement(
+            'tr'
+          );
 
         row.dataset.status =
-          record.statusCode || 'INCOMPLETE';
+          record.statusCode ||
+          'INCOMPLETE';
+
+        row.dataset.mobileRecordId =
+          String(
+            record.recordId || ''
+          );
+
+        row.setAttribute(
+          'tabindex',
+          isMobile ? '0' : '-1'
+        );
+
+        row.setAttribute(
+          'role',
+          isMobile ? 'button' : 'row'
+        );
 
         row.innerHTML = `
           <td data-label="#">${index + 1}</td>
@@ -1320,7 +1579,7 @@
             ${escapeHtml(record.timestampIn || '-')}
           </td>
 
-          <td data-label="เวลาปัจจุบัน / ระยะเวลา">
+          <td data-label="ระยะเวลา">
             <strong
               class="record-duration"
               data-live-record="${escapeHtml(record.recordId || '')}"
@@ -1338,7 +1597,7 @@
             </span>
           </td>
 
-          <td data-label="ขั้นตอนปัจจุบัน">
+          <td data-label="ขั้นตอน">
             <span
               class="stage-badge"
               data-stage="${escapeHtml(stageCode)}"
@@ -1348,11 +1607,15 @@
           </td>
         `;
 
-        fragment.appendChild(row);
+        fragment.appendChild(
+          row
+        );
       }
     );
 
-    tbody.appendChild(fragment);
+    tbody.appendChild(
+      fragment
+    );
   }
 
   function recordMatchesFilters(record) {
