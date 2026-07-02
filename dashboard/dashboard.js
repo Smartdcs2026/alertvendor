@@ -362,8 +362,14 @@
     const record =
       state.records.find(
         (item) =>
-          String(item.recordId || '') ===
-          String(recordId || '')
+          String(
+            item.recordId ||
+            ''
+          ) ===
+          String(
+            recordId ||
+            ''
+          )
       );
 
     if (!record) {
@@ -372,95 +378,318 @@
 
     const receiving =
       state.receivingByRecordId.get(
-        String(record.recordId || '')
+        String(
+          record.recordId ||
+          ''
+        )
       );
 
     const dimensions =
-      extractRecordDimensions(record);
-
-    const fields =
-      Array.isArray(record.fields)
-        ? record.fields
-        : [];
-
-    const details = fields
-      .filter(
-        (field) =>
-          field &&
-          !field.primary &&
-          String(
-            field.value ??
-            field.displayValue ??
-            ''
-          ).trim()
-      )
-      .slice(0, 8)
-      .map(
-        (field) => `
-          <div class="mobile-record-detail-row">
-            <span>${escapeHtml(
-              field.label ||
-              field.header ||
-              field.name ||
-              field.key ||
-              'ข้อมูล'
-            )}</span>
-            <strong>${escapeHtml(
-              field.value ??
-              field.displayValue ??
-              '-'
-            )}</strong>
-          </div>
-        `
-      )
-      .join('');
+      extractRecordDimensions(
+        record
+      );
 
     const stageLabel =
-      receiving && receiving.stageLabel ||
+      receiving &&
+      receiving.stageLabel ||
       'อยู่ในพื้นที่';
 
-    window.Swal?.fire({
-      title:
-        dimensions.title,
-      html: `
-        <div class="mobile-record-detail-dialog">
-          <div class="mobile-record-detail-grid">
-            <div>
-              <span>บริษัท / หน่วยงาน</span>
-              <strong>${escapeHtml(dimensions.company)}</strong>
-            </div>
-            <div>
-              <span>ทะเบียน / รหัส</span>
-              <strong>${escapeHtml(dimensions.identifier)}</strong>
-            </div>
-            <div>
-              <span>เวลา Gate In</span>
-              <strong>${escapeHtml(record.timestampIn || '-')}</strong>
-            </div>
-            <div>
-              <span>ระยะเวลา</span>
-              <strong>${escapeHtml(formatDuration(record.durationSeconds))}</strong>
-            </div>
-            <div>
-              <span>สถานะ SLA</span>
-              <strong>${escapeHtml(getStatusLabel(record.statusCode))}</strong>
-            </div>
-            <div>
-              <span>ขั้นตอนปัจจุบัน</span>
-              <strong>${escapeHtml(stageLabel)}</strong>
-            </div>
-          </div>
+    const canonicalValues =
+      new Set(
+        [
+          dimensions.company,
+          dimensions.appointment,
+          dimensions.identifier,
+          dimensions.driver,
+          record.timestampIn,
+          formatDuration(
+            record.durationSeconds
+          ),
+          getStatusLabel(
+            record.statusCode
+          ),
+          stageLabel
+        ]
+          .map(
+            (value) =>
+              normalizeText(
+                value
+              )
+          )
+          .filter(Boolean)
+      );
 
-          ${details
-            ? `<div class="mobile-record-detail-list">${details}</div>`
-            : ''
+    const ignoredLabels = [
+      'บริษัท',
+      'หน่วยงาน',
+      'vendor',
+      'company',
+      'เลขนัดหมาย',
+      'นัดหมาย',
+      'appointment',
+      'booking',
+      'ทะเบียน',
+      'ทะเบียนรถ',
+      'registration',
+      'plate',
+      'ชื่อคนขับ',
+      'ชื่อผู้ขับ',
+      'พนักงานขับรถ',
+      'driver'
+    ]
+      .map(
+        normalizeText
+      );
+
+    const seen =
+      new Set();
+
+    const extraDetails =
+      (
+        Array.isArray(
+          record.fields
+        )
+          ? record.fields
+          : []
+      )
+        .filter(
+          (field) => {
+            if (
+              !field ||
+              field.primary
+            ) {
+              return false;
+            }
+
+            const label =
+              normalizeText(
+                field.label ||
+                field.header ||
+                field.name ||
+                field.key ||
+                ''
+              );
+
+            const value =
+              String(
+                field.value ??
+                field.displayValue ??
+                ''
+              ).trim();
+
+            if (!value) {
+              return false;
+            }
+
+            if (
+              ignoredLabels.some(
+                (pattern) =>
+                  label.includes(
+                    pattern
+                  )
+              )
+            ) {
+              return false;
+            }
+
+            const normalizedValue =
+              normalizeText(
+                value
+              );
+
+            if (
+              canonicalValues.has(
+                normalizedValue
+              )
+            ) {
+              return false;
+            }
+
+            const signature =
+              label +
+              '\u0000' +
+              normalizedValue;
+
+            if (
+              seen.has(
+                signature
+              )
+            ) {
+              return false;
+            }
+
+            seen.add(
+              signature
+            );
+
+            return true;
+          }
+        )
+        .slice(
+          0,
+          6
+        )
+        .map(
+          (field) => `
+            <div class="record-inspector-extra">
+              <span>
+                ${escapeHtml(
+                  field.label ||
+                  field.header ||
+                  field.name ||
+                  field.key ||
+                  'ข้อมูลเพิ่มเติม'
+                )}
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  field.value ??
+                  field.displayValue ??
+                  '-'
+                )}
+              </strong>
+            </div>
+          `
+        )
+        .join('');
+
+    const driverRow =
+      dimensions.driver
+        ? `
+            <div class="record-inspector-row">
+              <span>ชื่อผู้ขับ</span>
+
+              <strong>
+                ${escapeHtml(
+                  dimensions.driver
+                )}
+              </strong>
+            </div>
+          `
+        : '';
+
+    window.Swal?.fire({
+      html: `
+        <div class="record-inspector">
+          <header class="record-inspector-hero">
+            <small>
+              ACTIVE VEHICLE RECORD
+            </small>
+
+            <h2>
+              ${escapeHtml(
+                dimensions.company
+              )}
+            </h2>
+
+            <div class="record-inspector-badges">
+              <span class="record-inspector-appointment">
+                เลขนัดหมาย
+                <strong>
+                  ${escapeHtml(
+                    dimensions.appointment
+                  )}
+                </strong>
+              </span>
+
+              <span
+                class="status-badge"
+                data-status="${escapeHtml(
+                  record.statusCode ||
+                  'INCOMPLETE'
+                )}"
+              >
+                ${escapeHtml(
+                  getStatusLabel(
+                    record.statusCode
+                  )
+                )}
+              </span>
+
+              <span
+                class="stage-badge"
+                data-stage="${escapeHtml(
+                  receiving &&
+                  receiving.stageCode ||
+                  'ACTIVE'
+                )}"
+              >
+                ${escapeHtml(
+                  stageLabel
+                )}
+              </span>
+            </div>
+          </header>
+
+          <section class="record-inspector-summary">
+            <div class="record-inspector-primary">
+              <span>ทะเบียนรถ / หมายเลขตู้</span>
+
+              <strong>
+                ${escapeHtml(
+                  dimensions.identifier
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>เวลาเข้า Gate In</span>
+
+              <strong>
+                ${escapeHtml(
+                  record.timestampIn ||
+                  '-'
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>ระยะเวลาปัจจุบัน</span>
+
+              <strong class="record-inspector-duration">
+                ${escapeHtml(
+                  formatDuration(
+                    record.durationSeconds
+                  )
+                )}
+              </strong>
+            </div>
+          </section>
+
+          ${
+            driverRow ||
+            extraDetails
+              ? `
+                  <section class="record-inspector-details">
+                    <header>
+                      ข้อมูลประกอบ
+                    </header>
+
+                    ${driverRow}
+                    ${extraDetails}
+                  </section>
+                `
+              : ''
           }
         </div>
       `,
+      showConfirmButton:
+        true,
       confirmButtonText:
         'ปิด',
       width:
-        560
+        620,
+      padding:
+        '0',
+      customClass: {
+        popup:
+          'record-inspector-popup',
+        htmlContainer:
+          'record-inspector-html',
+        confirmButton:
+          'record-inspector-close'
+      }
     });
   }
 
@@ -1636,15 +1865,29 @@
         row.innerHTML = `
           <td data-label="#">${index + 1}</td>
 
-          <td data-label="รายการ / บริษัท">
+          <td data-label="บริษัท / Vendor">
             <span class="record-main">
-              <strong>${escapeHtml(dimensions.title)}</strong>
-              <small>${escapeHtml(dimensions.company)}</small>
+              <strong>
+                ${escapeHtml(
+                  dimensions.company
+                )}
+              </strong>
+
+              <small class="record-appointment">
+                นัดหมาย
+                ${escapeHtml(
+                  dimensions.appointment
+                )}
+              </small>
             </span>
           </td>
 
-          <td data-label="ทะเบียน / รหัส">
-            <strong>${escapeHtml(dimensions.identifier)}</strong>
+          <td data-label="ทะเบียนรถ / หมายเลขตู้">
+            <strong>
+              ${escapeHtml(
+                dimensions.identifier
+              )}
+            </strong>
           </td>
 
           <td data-label="เวลาเข้า Gate In">
@@ -2545,51 +2788,158 @@
   }
 
   function extractRecordDimensions(record) {
-    const fields = Array.isArray(record.fields)
-      ? record.fields
-      : [];
+    const fields =
+      Array.isArray(record.fields)
+        ? record.fields
+        : [];
 
-    const primary = String(
-      record.primaryValue ||
-      record.recordId ||
-      'ไม่ระบุรายการ'
-    ).trim();
+    const primary =
+      String(
+        record.primaryValue ||
+        ''
+      ).trim();
 
     const company =
       findFieldValue(
         fields,
         [
           'บริษัท',
+          'ชื่อบริษัท',
           'vendor',
           'company',
           'ผู้รับบริการ',
           'ลูกค้า',
-          'ผู้ขนส่ง'
+          'ผู้ขนส่ง',
+          'หน่วยงาน'
         ]
       ) ||
-      firstSecondaryValue(fields) ||
-      primary;
+      primary ||
+      'ไม่ระบุบริษัท';
+
+    const appointment =
+      findFieldValue(
+        fields,
+        [
+          'เลขนัดหมาย',
+          'หมายเลขนัดหมาย',
+          'นัดหมาย',
+          'appointment',
+          'booking',
+          'เลข booking',
+          'booking no',
+          'เลขที่นัดหมาย'
+        ]
+      ) ||
+      inferAppointmentNumber(
+        fields,
+        record
+      );
 
     const identifier =
       findFieldValue(
         fields,
         [
           'ทะเบียน',
+          'ทะเบียนรถ',
           'registration',
           'plate',
           'หมายเลขรถ',
           'เลขตู้',
-          'container',
-          'รหัส'
+          'container'
         ]
       ) ||
-      sourceRowIdentifier(record.recordId);
+      '-';
+
+    const driver =
+      findFieldValue(
+        fields,
+        [
+          'ชื่อคนขับ',
+          'ชื่อผู้ขับ',
+          'พนักงานขับรถ',
+          'ผู้ขับ',
+          'driver',
+          'ชื่อ'
+        ]
+      );
 
     return {
-      title: primary,
-      company: company,
-      identifier: identifier || '-'
+      title:
+        company,
+
+      company:
+        company,
+
+      appointment:
+        appointment || '-',
+
+      identifier:
+        identifier || '-',
+
+      driver:
+        driver || ''
     };
+  }
+
+
+  function inferAppointmentNumber(
+    fields,
+    record
+  ) {
+    const candidates =
+      fields
+        .filter(
+          (field) =>
+            field &&
+            !field.primary
+        )
+        .map(
+          (field) => ({
+            label:
+              normalizeText(
+                field.label ||
+                field.header ||
+                field.name ||
+                field.key ||
+                ''
+              ),
+
+            value:
+              String(
+                field.value ??
+                field.displayValue ??
+                ''
+              ).trim()
+          })
+        )
+        .filter(
+          (item) =>
+            item.value &&
+            /^\d{5,12}$/.test(
+              item.value
+            ) &&
+            !item.label.includes(
+              'โทร'
+            ) &&
+            !item.label.includes(
+              'เบอร์'
+            )
+        );
+
+    if (candidates.length > 0) {
+      return candidates[0].value;
+    }
+
+    const sourceId =
+      sourceRowIdentifier(
+        record.recordId
+      );
+
+    return /^\d{5,12}$/.test(
+      sourceId
+    )
+      ? sourceId
+      : '';
   }
 
   function findFieldValue(fields, patterns) {
