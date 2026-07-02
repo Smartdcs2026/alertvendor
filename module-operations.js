@@ -311,38 +311,100 @@
 
     return {
       ...source,
+
+      /*
+       * รอบ 46 วางหัวเรื่องทั้งหมดไว้ใน HTML ของเราเอง
+       * เพื่อไม่ให้ title/icon เดิมของ SweetAlert สร้างพื้นที่ว่าง
+       */
       icon:
         undefined,
+      iconHtml:
+        '',
       title:
-        'รถ/ตู้เกินเวลา — ต้องติดตาม',
+        '',
+      text:
+        '',
       html:
         buildOverdueHtml(
           records
         ),
+
       confirmButtonText:
         'รับทราบ',
-      width:
-        900,
-      padding:
-        '0',
+      showConfirmButton:
+        true,
+      showCloseButton:
+        true,
       allowOutsideClick:
         false,
+      allowEscapeKey:
+        true,
+      returnFocus:
+        false,
+      heightAuto:
+        false,
+      scrollbarPadding:
+        false,
+      width:
+        'min(780px, calc(100vw - 18px))',
+      padding:
+        '0',
+
       customClass: {
-        ...(
-          source.customClass ||
-          {}
-        ),
         popup:
-          'overdue-command-popup',
+          'av-overdue-popup-v46',
         title:
-          'overdue-command-title',
+          'av-overdue-hidden-title-v46',
+        icon:
+          'av-overdue-hidden-icon-v46',
         htmlContainer:
-          'overdue-command-html',
+          'av-overdue-html-v46',
+        actions:
+          'av-overdue-actions-v46',
         confirmButton:
-          'overdue-command-confirm'
+          'av-overdue-confirm-v46',
+        closeButton:
+          'av-overdue-close-v46'
       },
+
       didOpen:
         (popup) => {
+          /*
+           * ล้างพื้นที่จาก title/icon/inline style รุ่นเดิม
+           * ป้องกันกล่องขาวว่างด้านบนและความสูงผิดปกติ
+           */
+          const titleNode =
+            popup.querySelector(
+              '.swal2-title'
+            );
+
+          const iconNode =
+            popup.querySelector(
+              '.swal2-icon'
+            );
+
+          if (titleNode) {
+            titleNode.style.display =
+              'none';
+          }
+
+          if (iconNode) {
+            iconNode.style.display =
+              'none';
+          }
+
+          popup.style.height =
+            'auto';
+
+          popup.style.minHeight =
+            '0';
+
+          popup.style.maxWidth =
+            'calc(100vw - 18px)';
+
+          popup.style.overflow =
+            'hidden';
+
           if (
             typeof oldDidOpen ===
               'function'
@@ -361,6 +423,7 @@
             false
           );
         },
+
       willClose:
         (popup) => {
           state.pendingAudio =
@@ -615,10 +678,17 @@
   function buildOverdueHtml(
     records
   ) {
+    /*
+     * จำกัดจำนวนที่วาดใน Alert เพื่อให้ทำงานลื่น
+     * รายการทั้งหมดดูต่อได้จากหน้าหลัก
+     */
+    const maximumVisible =
+      12;
+
     const visible =
       records.slice(
         0,
-        8
+        maximumVisible
       );
 
     const thresholdText =
@@ -630,84 +700,131 @@
       'ตามเกณฑ์โมดูล';
 
     return `
-      <div class="overdue-command-dialog">
-        <header class="overdue-command-summary">
-          <div class="overdue-command-summary__main">
-            <small>EXECUTIVE ALERT</small>
+      <div class="av-overdue-dialog-v46">
+        <header class="av-overdue-header-v46">
+          <div class="av-overdue-heading-v46">
+            <small>
+              OPERATIONAL ALERT
+            </small>
 
-            <strong>
-              ${records.length}
-              รายการเกิน SLA
-            </strong>
+            <h2>
+              รถ/ตู้สินค้าเกินเวลา
+            </h2>
 
-            <span>
-              เกณฑ์เกินเวลา
+            <p>
+              เกณฑ์ควบคุม
               ${escapeHtml(
                 thresholdText
               )}
-            </span>
+              · เรียงจากเวลาคงค้างสูงสุด
+            </p>
           </div>
 
-          <button
-            type="button"
-            class="overdue-command-sound"
-            data-overdue-play-sound
-            aria-label="เล่นเสียงเตือน"
-          >
-            <span aria-hidden="true">
-              🔊
-            </span>
-            เล่นเสียงเตือน
-          </button>
+          <div class="av-overdue-header-actions-v46">
+            <div class="av-overdue-total-v46">
+              <strong>
+                ${records.length}
+              </strong>
+
+              <span>
+                รายการ
+              </span>
+            </div>
+
+            <button
+              type="button"
+              class="av-overdue-sound-v46"
+              data-overdue-play-sound
+              aria-label="เล่นเสียงเตือนอีกครั้ง"
+            >
+              <span aria-hidden="true">
+                🔊
+              </span>
+
+              <b>
+                เล่นเสียง
+              </b>
+            </button>
+          </div>
         </header>
 
-        <div class="overdue-command-columns">
-          <span>รายการ</span>
-          <span>ข้อมูลระบุตัวรถ/ตู้</span>
-          <span>เวลาและขั้นตอน</span>
+        <div class="av-overdue-toolbar-v46">
+          <span>
+            แตะรายการเพื่อไปยังการ์ดรถ/ตู้ในหน้าหลัก
+          </span>
+
+          <strong>
+            แสดง
+            ${visible.length}
+            จาก
+            ${records.length}
+          </strong>
         </div>
 
-        <div class="overdue-command-list">
+        <div
+          class="av-overdue-list-v46"
+          role="list"
+          aria-label="รายการรถหรือตู้สินค้าที่เกินเวลา"
+        >
           ${visible
             .map(
               (record, index) => `
                 <button
                   type="button"
-                  class="overdue-command-item"
+                  class="av-overdue-card-v46"
                   data-overdue-scroll-record="${escapeHtml(
                     record.recordId
                   )}"
+                  role="listitem"
                 >
-                  <span class="overdue-command-rank">
-                    ${index + 1}
+                  <span class="av-overdue-card-top-v46">
+                    <span class="av-overdue-rank-v46">
+                      ${index + 1}
+                    </span>
+
+                    <span class="av-overdue-company-v46">
+                      <small>
+                        บริษัท / Vendor
+                      </small>
+
+                      <strong>
+                        ${escapeHtml(
+                          record.company
+                        )}
+                      </strong>
+
+                      ${
+                        record.driver
+                          ? `
+                              <em>
+                                ผู้ขับ:
+                                ${escapeHtml(
+                                  record.driver
+                                )}
+                              </em>
+                            `
+                          : ''
+                      }
+                    </span>
+
+                    <span class="av-overdue-duration-v46">
+                      <small>
+                        เวลาอยู่ในพื้นที่
+                      </small>
+
+                      <strong>
+                        ${escapeHtml(
+                          record.duration
+                        )}
+                      </strong>
+                    </span>
                   </span>
 
-                  <span class="overdue-command-company">
-                    <small>บริษัท / Vendor</small>
-
-                    <strong>
-                      ${escapeHtml(
-                        record.company
-                      )}
-                    </strong>
-
-                    ${
-                      record.driver
-                        ? `
-                            <em>
-                              ผู้ขับ:
-                              ${escapeHtml(
-                                record.driver
-                              )}
-                            </em>
-                          `
-                        : ''
-                    }
-                  </span>
-
-                  <span class="overdue-command-identity">
+                  <span class="av-overdue-identities-v46">
                     <span>
-                      <small>เลขนัดหมาย</small>
+                      <small>
+                        เลขนัดหมาย
+                      </small>
 
                       <strong>
                         ${escapeHtml(
@@ -717,7 +834,9 @@
                     </span>
 
                     <span>
-                      <small>ทะเบียน / หมายเลขตู้</small>
+                      <small>
+                        ทะเบียน / หมายเลขตู้
+                      </small>
 
                       <strong>
                         ${escapeHtml(
@@ -727,21 +846,13 @@
                     </span>
                   </span>
 
-                  <span class="overdue-command-time">
+                  <span class="av-overdue-meta-v46">
                     <span>
-                      <small>เวลาอยู่ในพื้นที่</small>
+                      <small>
+                        เกิน SLA แล้ว
+                      </small>
 
-                      <strong>
-                        ${escapeHtml(
-                          record.duration
-                        )}
-                      </strong>
-                    </span>
-
-                    <span class="is-overdue">
-                      <small>เกิน SLA แล้ว</small>
-
-                      <strong>
+                      <strong class="is-danger">
                         ${escapeHtml(
                           record.overdueDuration
                         )}
@@ -749,7 +860,9 @@
                     </span>
 
                     <span>
-                      <small>Gate In</small>
+                      <small>
+                        เวลา Gate In
+                      </small>
 
                       <strong>
                         ${escapeHtml(
@@ -757,12 +870,18 @@
                         )}
                       </strong>
                     </span>
+                  </span>
 
-                    <em>
+                  <span class="av-overdue-stage-v46">
+                    <small>
+                      ขั้นตอนปัจจุบัน
+                    </small>
+
+                    <strong>
                       ${escapeHtml(
                         record.stage
                       )}
-                    </em>
+                    </strong>
                   </span>
                 </button>
               `
@@ -774,29 +893,34 @@
           records.length >
             visible.length
             ? `
-                <p class="overdue-command-more">
-                  ยังมีอีก
-                  ${records.length -
-                    visible.length}
-                  รายการ — ดูต่อในหน้าหลัก
-                </p>
+                <div class="av-overdue-more-v46">
+                  แสดงเฉพาะ
+                  ${visible.length}
+                  รายการที่เกินเวลาสูงสุด
+
+                  <strong>
+                    ยังเหลืออีก
+                    ${records.length -
+                      visible.length}
+                    รายการ
+                  </strong>
+                </div>
               `
             : ''
         }
 
-        <footer class="overdue-command-note">
+        <footer class="av-overdue-footer-v46">
           <span>
-            แตะรายการเพื่อเลื่อนไปยังการ์ดรถ/ตู้
+            รายการนี้ไม่ถูกลบและยังตรวจสอบต่อได้ในหน้าหลัก
           </span>
 
           <span>
-            เสียงจะดังหนึ่งครั้งเมื่อพบชุดรายการใหม่
+            เสียงแจ้งเตือนจะไม่ดังซ้ำทุกครั้งที่รีเฟรช
           </span>
         </footer>
       </div>
     `;
   }
-
 
   function buildAlertSignature(
     records
