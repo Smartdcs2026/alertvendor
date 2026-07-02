@@ -50,7 +50,8 @@
     destroyed: false,
     mobileChart: 'hourly',
     mobileRecordView: 'COMPACT',
-    mobileRecordLimit: 12
+    mobileRecordLimit: 12,
+    responsiveMobile: null
   };
 
   const doughnutCenterPlugin = {
@@ -780,6 +781,13 @@
         '(max-width: 760px)'
       ).matches;
 
+    const breakpointChanged =
+      state.responsiveMobile !==
+      mobile;
+
+    state.responsiveMobile =
+      mobile;
+
     document.body.classList.toggle(
       'is-mobile-dashboard',
       mobile
@@ -814,6 +822,13 @@
         state.mobileChart ||
         'hourly'
       );
+    }
+
+    if (
+      breakpointChanged &&
+      state.records.length > 0
+    ) {
+      renderRecordTable();
     }
   }
 
@@ -1708,27 +1723,37 @@
         'dashboardRecordTableBody'
       );
 
-    if (!tbody) {
+    const mobileGrid =
+      byId(
+        'mobileRecordGrid'
+      );
+
+    if (
+      !tbody ||
+      !mobileGrid
+    ) {
       return;
     }
 
     const allRecords =
       state.records
-        .filter(recordMatchesFilters)
-        .sort(compareRecords);
+        .filter(
+          recordMatchesFilters
+        )
+        .sort(
+          compareRecords
+        );
+
+    const mobileRecords =
+      allRecords.slice(
+        0,
+        state.mobileRecordLimit
+      );
 
     const isMobile =
       window.matchMedia(
         '(max-width: 760px)'
       ).matches;
-
-    const visibleRecords =
-      isMobile
-        ? allRecords.slice(
-            0,
-            state.mobileRecordLimit
-          )
-        : allRecords;
 
     setText(
       'dashboardRecordTotal',
@@ -1736,49 +1761,11 @@
       ' รายการ'
     );
 
-    const loadMore =
-      byId(
-        'mobileLoadMoreRecords'
-      );
-
-    const remaining =
-      Math.max(
-        0,
-        allRecords.length -
-        visibleRecords.length
-      );
-
-    const mobileCounter =
-      byId(
-        'mobileRecordCounter'
-      );
-
-    if (mobileCounter) {
-      mobileCounter.textContent =
-        'แสดง ' +
-        visibleRecords.length +
-        '/' +
-        allRecords.length;
-    }
-
-    if (loadMore) {
-      loadMore.classList.toggle(
-        'is-hidden',
-        !isMobile ||
-        remaining <= 0
-      );
-
-      loadMore.textContent =
-        remaining > 0
-          ? 'เพิ่มอีก ' +
-            Math.min(
-              12,
-              remaining
-            )
-          : 'ครบแล้ว';
-    }
-
-    tbody.innerHTML = '';
+    updateMobileRecordControls(
+      allRecords.length,
+      mobileRecords.length,
+      isMobile
+    );
 
     byId(
       'dashboardRecordEmpty'
@@ -1787,43 +1774,144 @@
       allRecords.length > 0
     );
 
+    byId(
+      'mobileRecordEmpty'
+    )?.classList.toggle(
+      'is-hidden',
+      allRecords.length > 0
+    );
+
+    renderDesktopRecordTable(
+      tbody,
+      allRecords
+    );
+
+    renderMobileRecordCards(
+      mobileGrid,
+      mobileRecords
+    );
+  }
+
+
+  function updateMobileRecordControls(
+    total,
+    visible,
+    isMobile
+  ) {
+    const remaining =
+      Math.max(
+        0,
+        total - visible
+      );
+
+    const counter =
+      byId(
+        'mobileRecordCounter'
+      );
+
+    if (counter) {
+      counter.textContent =
+        'แสดง ' +
+        visible +
+        '/' +
+        total;
+    }
+
+    const loadMore =
+      byId(
+        'mobileLoadMoreRecords'
+      );
+
+    if (!loadMore) {
+      return;
+    }
+
+    loadMore.classList.toggle(
+      'is-hidden',
+      !isMobile ||
+      remaining <= 0
+    );
+
+    loadMore.textContent =
+      remaining > 0
+        ? 'เพิ่มอีก ' +
+          Math.min(
+            12,
+            remaining
+          )
+        : 'ครบแล้ว';
+  }
+
+
+  function getRecordPresentation(
+    record
+  ) {
+    const recordId =
+      String(
+        record.recordId ||
+        ''
+      );
+
+    const receiving =
+      state.receivingByRecordId.get(
+        recordId
+      );
+
+    const dimensions =
+      extractRecordDimensions(
+        record
+      );
+
+    const stageCode =
+      receiving &&
+      receiving.stageCode ||
+      'ACTIVE';
+
+    const stageLabel =
+      receiving &&
+      receiving.stageLabel ||
+      'อยู่ในพื้นที่';
+
+    const stageSeconds =
+      receiving &&
+      (
+        receiving.stageCode ===
+          'WAITING_RECEIVING' ||
+        receiving.stageCode ===
+          'WAITING_GATE_OUT'
+      )
+        ? Number(
+            receiving.currentStageSeconds
+          ) || 0
+        : Number(
+            record.durationSeconds
+          ) || 0;
+
+    return {
+      recordId,
+      dimensions,
+      stageCode,
+      stageLabel,
+      stageSeconds
+    };
+  }
+
+
+  function renderDesktopRecordTable(
+    tbody,
+    records
+  ) {
+    tbody.innerHTML = '';
+
     const fragment =
       document.createDocumentFragment();
 
-    visibleRecords.forEach(
+    records.forEach(
       (record, index) => {
-        const receiving =
-          state.receivingByRecordId.get(
-            String(record.recordId || '')
+        const view =
+          getRecordPresentation(
+            record
           );
-
-        const dimensions =
-          extractRecordDimensions(record);
-
-        const stageCode =
-          receiving &&
-          receiving.stageCode ||
-          'ACTIVE';
-
-        const stageLabel =
-          receiving &&
-          receiving.stageLabel ||
-          'อยู่ในพื้นที่';
-
-        const stageSeconds =
-          receiving &&
-          (
-            receiving.stageCode ===
-              'WAITING_RECEIVING' ||
-            receiving.stageCode ===
-              'WAITING_GATE_OUT'
-          )
-            ? Number(
-                receiving.currentStageSeconds
-              ) || 0
-            : Number(
-                record.durationSeconds
-              ) || 0;
 
         const row =
           document.createElement(
@@ -1834,90 +1922,57 @@
           record.statusCode ||
           'INCOMPLETE';
 
-        row.dataset.mobileRecordId =
-          String(
-            record.recordId || ''
-          );
-
-        row.setAttribute(
-          'tabindex',
-          isMobile ? '0' : '-1'
-        );
-
-        row.setAttribute(
-          'role',
-          isMobile ? 'button' : 'row'
-        );
-
-        if (isMobile) {
-          row.addEventListener(
-            'keydown',
-            (event) => {
-              if (
-                event.key === 'Enter' ||
-                event.key === ' '
-              ) {
-                event.preventDefault();
-                showMobileRecordDetails(
-                  row.dataset.mobileRecordId
-                );
-              }
-            }
-          );
-        }
-
         row.innerHTML = `
-          <td data-label="#">${index + 1}</td>
+          <td>${index + 1}</td>
 
-          <td data-label="บริษัท / Vendor">
+          <td>
             <span class="record-main">
               <strong>
                 ${escapeHtml(
-                  dimensions.company
+                  view.dimensions.company
                 )}
               </strong>
 
               <small class="record-appointment">
                 นัดหมาย
                 ${escapeHtml(
-                  dimensions.appointment
+                  view.dimensions.appointment
                 )}
               </small>
             </span>
           </td>
 
-          <td data-label="ทะเบียนรถ / หมายเลขตู้">
+          <td>
             <strong>
               ${escapeHtml(
-                dimensions.identifier
+                view.dimensions.identifier
               )}
             </strong>
           </td>
 
-          <td data-label="เวลาเข้า Gate In">
+          <td>
             ${escapeHtml(
               record.timestampIn ||
               '-'
             )}
           </td>
 
-          <td data-label="ระยะเวลา">
+          <td>
             <strong
               class="record-duration"
               data-live-record="${escapeHtml(
-                record.recordId ||
-                ''
+                view.recordId
               )}"
             >
               ${escapeHtml(
                 formatDuration(
-                  stageSeconds
+                  view.stageSeconds
                 )
               )}
             </strong>
           </td>
 
-          <td data-label="สถานะ SLA">
+          <td>
             <span
               class="status-badge"
               data-status="${escapeHtml(
@@ -1933,143 +1988,17 @@
             </span>
           </td>
 
-          <td data-label="ขั้นตอน">
+          <td>
             <span
               class="stage-badge"
               data-stage="${escapeHtml(
-                stageCode
+                view.stageCode
               )}"
             >
               ${escapeHtml(
-                stageLabel
+                view.stageLabel
               )}
             </span>
-          </td>
-
-          <td
-            class="mobile-record-card-cell"
-            colspan="7"
-          >
-            <article
-              class="mobile-record-card"
-              data-status="${escapeHtml(
-                record.statusCode ||
-                'INCOMPLETE'
-              )}"
-            >
-              <header class="mobile-record-card__header">
-                <div>
-                  <small>บริษัท / Vendor</small>
-
-                  <h3>
-                    ${escapeHtml(
-                      dimensions.company
-                    )}
-                  </h3>
-                </div>
-
-                <span class="mobile-record-card__rank">
-                  ${index + 1}
-                </span>
-              </header>
-
-              <section class="mobile-record-card__appointment">
-                <span>เลขนัดหมาย</span>
-
-                <strong>
-                  ${escapeHtml(
-                    dimensions.appointment
-                  )}
-                </strong>
-              </section>
-
-              <section class="mobile-record-card__information">
-                <div class="mobile-record-card__field mobile-record-card__field--plate">
-                  <span>ทะเบียนรถ / หมายเลขตู้</span>
-
-                  <strong>
-                    ${escapeHtml(
-                      dimensions.identifier
-                    )}
-                  </strong>
-                </div>
-
-                <div class="mobile-record-card__field mobile-record-card__field--gate-in">
-                  <span>เวลาเข้า Gate In</span>
-
-                  <strong>
-                    ${escapeHtml(
-                      record.timestampIn ||
-                      '-'
-                    )}
-                  </strong>
-                </div>
-
-                <div class="mobile-record-card__field mobile-record-card__field--duration">
-                  <span>ระยะเวลา</span>
-
-                  <strong
-                    data-live-record="${escapeHtml(
-                      record.recordId ||
-                      ''
-                    )}"
-                  >
-                    ${escapeHtml(
-                      formatDuration(
-                        stageSeconds
-                      )
-                    )}
-                  </strong>
-                </div>
-
-                ${
-                  dimensions.driver
-                    ? `
-                        <div class="mobile-record-card__field mobile-record-card__field--driver">
-                          <span>ชื่อผู้ขับ</span>
-
-                          <strong>
-                            ${escapeHtml(
-                              dimensions.driver
-                            )}
-                          </strong>
-                        </div>
-                      `
-                    : ''
-                }
-              </section>
-
-              <footer class="mobile-record-card__footer">
-                <span
-                  class="status-badge"
-                  data-status="${escapeHtml(
-                    record.statusCode ||
-                    'INCOMPLETE'
-                  )}"
-                >
-                  ${escapeHtml(
-                    getStatusLabel(
-                      record.statusCode
-                    )
-                  )}
-                </span>
-
-                <span
-                  class="stage-badge"
-                  data-stage="${escapeHtml(
-                    stageCode
-                  )}"
-                >
-                  ${escapeHtml(
-                    stageLabel
-                  )}
-                </span>
-
-                <span class="mobile-record-card__hint">
-                  แตะเพื่อดูข้อมูลเต็ม
-                </span>
-              </footer>
-            </article>
           </td>
         `;
 
@@ -2080,6 +2009,197 @@
     );
 
     tbody.appendChild(
+      fragment
+    );
+  }
+
+
+  function renderMobileRecordCards(
+    mobileGrid,
+    records
+  ) {
+    mobileGrid.innerHTML = '';
+
+    const fragment =
+      document.createDocumentFragment();
+
+    records.forEach(
+      (record, index) => {
+        const view =
+          getRecordPresentation(
+            record
+          );
+
+        const card =
+          document.createElement(
+            'article'
+          );
+
+        card.className =
+          'mobile-active-card';
+
+        card.dataset.mobileRecordId =
+          view.recordId;
+
+        card.dataset.status =
+          record.statusCode ||
+          'INCOMPLETE';
+
+        card.setAttribute(
+          'role',
+          'button'
+        );
+
+        card.setAttribute(
+          'tabindex',
+          '0'
+        );
+
+        card.setAttribute(
+          'aria-label',
+          'ดูรายละเอียด ' +
+          view.dimensions.company +
+          ' เลขนัดหมาย ' +
+          view.dimensions.appointment
+        );
+
+        card.innerHTML = `
+          <header class="mobile-active-card__header">
+            <div>
+              <small>บริษัท / Vendor</small>
+
+              <h3>
+                ${escapeHtml(
+                  view.dimensions.company
+                )}
+              </h3>
+            </div>
+
+            <span class="mobile-active-card__rank">
+              ${index + 1}
+            </span>
+          </header>
+
+          <section class="mobile-active-card__appointment">
+            <span>เลขนัดหมาย</span>
+
+            <strong>
+              ${escapeHtml(
+                view.dimensions.appointment
+              )}
+            </strong>
+          </section>
+
+          <section class="mobile-active-card__information">
+            <div class="mobile-active-card__field mobile-active-card__field--plate">
+              <span>ทะเบียนรถ / หมายเลขตู้</span>
+
+              <strong>
+                ${escapeHtml(
+                  view.dimensions.identifier
+                )}
+              </strong>
+            </div>
+
+            <div class="mobile-active-card__field mobile-active-card__field--gate-in">
+              <span>เวลาเข้า Gate In</span>
+
+              <strong>
+                ${escapeHtml(
+                  record.timestampIn ||
+                  '-'
+                )}
+              </strong>
+            </div>
+
+            <div class="mobile-active-card__field mobile-active-card__field--duration">
+              <span>ระยะเวลา</span>
+
+              <strong
+                data-live-record="${escapeHtml(
+                  view.recordId
+                )}"
+              >
+                ${escapeHtml(
+                  formatDuration(
+                    view.stageSeconds
+                  )
+                )}
+              </strong>
+            </div>
+
+            ${
+              view.dimensions.driver
+                ? `
+                    <div class="mobile-active-card__field mobile-active-card__field--driver">
+                      <span>ชื่อผู้ขับ</span>
+
+                      <strong>
+                        ${escapeHtml(
+                          view.dimensions.driver
+                        )}
+                      </strong>
+                    </div>
+                  `
+                : ''
+            }
+          </section>
+
+          <footer class="mobile-active-card__footer">
+            <span
+              class="status-badge"
+              data-status="${escapeHtml(
+                record.statusCode ||
+                'INCOMPLETE'
+              )}"
+            >
+              ${escapeHtml(
+                getStatusLabel(
+                  record.statusCode
+                )
+              )}
+            </span>
+
+            <span
+              class="stage-badge"
+              data-stage="${escapeHtml(
+                view.stageCode
+              )}"
+            >
+              ${escapeHtml(
+                view.stageLabel
+              )}
+            </span>
+
+            <span class="mobile-active-card__hint">
+              แตะเพื่อดูข้อมูลเต็ม
+            </span>
+          </footer>
+        `;
+
+        card.addEventListener(
+          'keydown',
+          (event) => {
+            if (
+              event.key === 'Enter' ||
+              event.key === ' '
+            ) {
+              event.preventDefault();
+
+              showMobileRecordDetails(
+                view.recordId
+              );
+            }
+          }
+        );
+
+        fragment.appendChild(
+          card
+        );
+      }
+    );
+
+    mobileGrid.appendChild(
       fragment
     );
   }
