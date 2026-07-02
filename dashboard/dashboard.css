@@ -4293,3 +4293,664 @@ body.dashboard-page {
       minmax(0, 1.2fr);
   }
 }
+
+/************************************************************
+ * ROUND 42 — Dedicated Mobile Record Cards
+ ************************************************************/
+
+/* Mobile-only table cell is always hidden outside mobile. */
+.dashboard-page .mobile-record-card-cell {
+  display: none;
+}
+
+/* ---------- Redesigned detail popup ---------- */
+
+.swal2-popup.record-inspector-popup {
+  width:
+    min(620px, calc(100vw - 16px)) !important;
+  overflow: hidden;
+  border-radius: 17px;
+  padding: 0 0 13px !important;
+  background: #f2f6f8;
+}
+
+.record-inspector-html {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.record-inspector {
+  color: #153448;
+  text-align: left;
+}
+
+.record-inspector-hero {
+  padding: 18px 20px 16px;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      120deg,
+      #042943,
+      #086f87
+    );
+}
+
+.record-inspector-hero small {
+  display: block;
+  color: #83eadf;
+  font-size: .64rem;
+  font-weight: 950;
+  letter-spacing: .09em;
+}
+
+.record-inspector-hero h2 {
+  margin: 5px 0 10px;
+  overflow-wrap: anywhere;
+  color: #ffffff;
+  font-size: 1.55rem;
+  line-height: 1.18;
+}
+
+.record-inspector-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.record-inspector-statuses
+.status-badge,
+.record-inspector-statuses
+.stage-badge {
+  min-height: 28px;
+  border: 1px solid
+    rgba(255, 255, 255, .28);
+  padding: 4px 9px;
+  font-size: .68rem;
+}
+
+.record-inspector-appointment-panel {
+  display: grid;
+  grid-template-columns:
+    auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 11px 12px 0;
+  border: 1px solid #91c9d5;
+  border-left: 6px solid #08778f;
+  border-radius: 11px;
+  padding: 11px 13px;
+  background:
+    linear-gradient(
+      135deg,
+      #dff5f7,
+      #ffffff
+    );
+}
+
+.record-inspector-appointment-panel span {
+  color: #387184;
+  font-size: .72rem;
+  font-weight: 850;
+}
+
+.record-inspector-appointment-panel strong {
+  overflow-wrap: anywhere;
+  color: #064b67;
+  font-size: 1.45rem;
+  font-weight: 950;
+  text-align: right;
+}
+
+.record-inspector-info-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 9px 12px;
+}
+
+.record-inspector-info {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  border: 1px solid #d4e1e7;
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: #ffffff;
+}
+
+.record-inspector-info--plate {
+  grid-column: 1 / -1;
+}
+
+.record-inspector-info span,
+.record-inspector-extra span {
+  color: #6b808d;
+  font-size: .66rem;
+  font-weight: 800;
+}
+
+.record-inspector-info strong,
+.record-inspector-extra strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #16384d;
+  font-size: .8rem;
+}
+
+.record-inspector-info--plate strong {
+  font-size: 1.03rem;
+}
+
+.record-inspector-duration {
+  color: #ca2f2f !important;
+  font-size: 1.08rem !important;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.record-inspector-details {
+  overflow: hidden;
+  margin: 0 12px 3px;
+  border: 1px solid #d4e1e7;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.record-inspector-details > header {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e2eaee;
+  color: #175e76;
+  background: #edf5f8;
+  font-size: .7rem;
+  font-weight: 950;
+}
+
+.record-inspector-extra {
+  display: grid;
+  grid-template-columns:
+    minmax(105px, .8fr)
+    minmax(0, 1.2fr);
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e8eef1;
+}
+
+.record-inspector-extra:last-child {
+  border-bottom: 0;
+}
+
+.record-inspector-extra strong {
+  text-align: right;
+}
+
+.record-inspector-close {
+  min-width: 104px;
+  min-height: 39px;
+  border-radius: 9px !important;
+  background:
+    linear-gradient(
+      135deg,
+      #0c6e88,
+      #07516d
+    ) !important;
+  font-weight: 900 !important;
+}
+
+/* ---------- Dedicated cards on mobile ---------- */
+
+@media (max-width: 760px) {
+  /*
+   * Stop trying to reshape desktop table cells.
+   * Only the dedicated mobile card cell is displayed.
+   */
+  .dashboard-page
+  .records-table tr {
+    display: block !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .dashboard-page
+  .records-table tr
+  > td:not(.mobile-record-card-cell) {
+    display: none !important;
+  }
+
+  .dashboard-page
+  .records-table
+  .mobile-record-card-cell {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .records-table tbody {
+    display: grid !important;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .records-table tbody {
+    display: grid !important;
+    grid-template-columns:
+      1fr !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-page .mobile-record-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #cfdee5;
+    border-left: 6px solid #718896;
+    border-radius: 11px;
+    background: #ffffff;
+    box-shadow:
+      0 3px 10px
+      rgba(18, 54, 75, .055);
+  }
+
+  .dashboard-page
+  .mobile-record-card[data-status="NORMAL"] {
+    border-left-color: var(--green);
+  }
+
+  .dashboard-page
+  .mobile-record-card[data-status="WARNING"] {
+    border-left-color: var(--amber);
+  }
+
+  .dashboard-page
+  .mobile-record-card[data-status="OVERDUE"] {
+    border-left-color: var(--red);
+  }
+
+  .dashboard-page
+  .mobile-record-card[data-status="INCOMPLETE"] {
+    border-left-color: var(--purple);
+  }
+
+  .dashboard-page .mobile-record-card__header {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px;
+    padding: 9px 9px 6px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__header small {
+    display: none;
+    color: #758994;
+    font-size: 6.5px;
+    font-weight: 850;
+  }
+
+  .dashboard-page
+  .mobile-record-card__header h3 {
+    margin: 0;
+    overflow: hidden;
+    color: #17364a;
+    font-size: 10.5px;
+    line-height: 1.28;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-page .mobile-record-card__rank {
+    color: #91a2ab;
+    font-size: 6.5px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__appointment {
+    display: grid;
+    align-content: center;
+    gap: 1px;
+    margin: 0 8px 7px;
+    border: 1px solid #9ecfd8;
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: #0b647c;
+    background:
+      linear-gradient(
+        135deg,
+        #dff4f7,
+        #f5fcfd
+      );
+  }
+
+  .dashboard-page
+  .mobile-record-card__appointment span {
+    font-size: 6.3px;
+    font-weight: 850;
+  }
+
+  .dashboard-page
+  .mobile-record-card__appointment strong {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-page
+  .mobile-record-card__information {
+    display: grid;
+    gap: 6px;
+    padding: 0 8px 7px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__field {
+    min-width: 0;
+    display: grid;
+    align-content: center;
+    gap: 2px;
+    border-radius: 7px;
+    padding: 6px 7px;
+    background: #f1f6f8;
+  }
+
+  .dashboard-page
+  .mobile-record-card__field span {
+    color: #738793;
+    font-size: 6.2px;
+    font-weight: 800;
+  }
+
+  .dashboard-page
+  .mobile-record-card__field strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #17364b;
+    font-size: 8px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__field--duration strong {
+    font-size: 13px;
+    font-variant-numeric:
+      tabular-nums;
+  }
+
+  .dashboard-page .mobile-record-card__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px 8px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__footer
+  .status-badge,
+  .dashboard-page
+  .mobile-record-card__footer
+  .stage-badge {
+    min-height: 21px;
+    padding: 3px 6px;
+    font-size: 6.4px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__hint {
+    display: none;
+    margin-left: auto;
+    color: #76909e;
+    font-size: 6.2px;
+    font-weight: 800;
+  }
+
+  /* COMPACT: appointment is the strongest identification. */
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card {
+    min-height: 170px;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card__information {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card__field--gate-in,
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card__field--driver {
+    display: none;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card__field--duration {
+    padding-top: 3px;
+    padding-bottom: 3px;
+    background: transparent;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card__field--duration span {
+    display: none;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card__footer {
+    align-content: flex-start;
+  }
+
+  /* DETAIL: full-width card with a true information grid. */
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card {
+    min-height: 0;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__header {
+    padding: 11px 12px 8px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__header small {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__header h3 {
+    font-size: 14px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__rank {
+    font-size: 8px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__appointment {
+    grid-template-columns:
+      auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    margin: 0 11px 8px;
+    padding: 9px 11px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__appointment span {
+    font-size: 8px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__appointment strong {
+    font-size: 19px;
+    text-align: right;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__information {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0 11px 9px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__field {
+    min-height: 56px;
+    padding: 8px 9px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__field--plate {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__field span {
+    font-size: 7px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__field strong {
+    font-size: 10px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__field--plate strong {
+    font-size: 13px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__field--duration strong {
+    font-size: 16px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__footer {
+    padding: 0 11px 10px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__footer
+  .status-badge,
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__footer
+  .stage-badge {
+    min-height: 25px;
+    padding: 4px 8px;
+    font-size: 7.5px;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .mobile-record-card__hint {
+    display: inline;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-page
+  .records-panel.is-compact-view
+  .records-table tbody {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-page
+  .records-panel.is-detail-view
+  .records-table tbody {
+    grid-template-columns:
+      1fr !important;
+  }
+
+  .dashboard-page
+  .records-panel.is-compact-view
+  .mobile-record-card {
+    min-height: 164px;
+  }
+
+  .dashboard-page
+  .mobile-record-card__appointment strong {
+    font-size: 13px;
+  }
+
+  .record-inspector-hero {
+    padding: 15px 14px 13px;
+  }
+
+  .record-inspector-hero h2 {
+    font-size: 1.25rem;
+  }
+
+  .record-inspector-appointment-panel {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    margin: 9px 9px 0;
+    padding: 9px 10px;
+  }
+
+  .record-inspector-appointment-panel strong {
+    font-size: 1.3rem;
+    text-align: left;
+  }
+
+  .record-inspector-info-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 8px 9px;
+  }
+
+  .record-inspector-info--plate {
+    grid-column: 1;
+  }
+
+  .record-inspector-details {
+    margin: 0 9px 3px;
+  }
+
+  .record-inspector-extra {
+    grid-template-columns:
+      minmax(90px, .8fr)
+      minmax(0, 1.2fr);
+  }
+}
