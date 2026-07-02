@@ -13558,3 +13558,568 @@ body.is-user-scrolling .module-page * { scroll-behavior:auto!important; }
     text-align: center;
   }
 }
+
+/************************************************************
+ * ROUND 46 — Responsive Overdue Alert Redesign
+ *
+ * ใช้ชื่อ class ใหม่ทั้งหมดเพื่อไม่ชนกับ CSS รอบ 44/45
+ ************************************************************/
+
+.swal2-popup.av-overdue-popup-v46,
+.swal2-popup.av-overdue-popup-v46 * {
+  box-sizing: border-box;
+}
+
+.swal2-popup.av-overdue-popup-v46 {
+  width:
+    min(780px, calc(100vw - 18px)) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width:
+    calc(100vw - 18px) !important;
+  max-height:
+    min(92dvh, 860px) !important;
+  display: grid !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    auto !important;
+  overflow: hidden !important;
+  border: 1px solid #d8e3e9;
+  border-radius: 17px !important;
+  padding: 0 !important;
+  background: #f2f6f8 !important;
+  box-shadow:
+    0 24px 70px
+    rgba(4, 32, 50, .3) !important;
+}
+
+.av-overdue-hidden-title-v46,
+.av-overdue-hidden-icon-v46 {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.av-overdue-html-v46 {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  display: block !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #17364a !important;
+  text-align: left !important;
+}
+
+.av-overdue-dialog-v46 {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height:
+    calc(min(92dvh, 860px) - 70px);
+  display: grid;
+  grid-template-rows:
+    auto
+    auto
+    minmax(0, 1fr)
+    auto
+    auto;
+  overflow: hidden;
+}
+
+.av-overdue-header-v46 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      125deg,
+      #761c1c,
+      #b92b2b
+    );
+}
+
+.av-overdue-heading-v46 {
+  min-width: 0;
+}
+
+.av-overdue-heading-v46 small {
+  display: block;
+  color: #ffd6d6;
+  font-size: .62rem;
+  font-weight: 950;
+  letter-spacing: .09em;
+}
+
+.av-overdue-heading-v46 h2 {
+  margin: 3px 0 2px;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 1.22rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.av-overdue-heading-v46 p {
+  margin: 0;
+  color: #ffe4e4;
+  font-size: .64rem;
+  line-height: 1.35;
+}
+
+.av-overdue-header-actions-v46 {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+}
+
+.av-overdue-total-v46 {
+  min-width: 68px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 1px solid
+    rgba(255, 255, 255, .32);
+  border-radius: 10px;
+  padding: 5px 9px;
+  background:
+    rgba(255, 255, 255, .11);
+}
+
+.av-overdue-total-v46 strong {
+  color: #ffffff;
+  font-size: 1.18rem;
+  line-height: 1;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.av-overdue-total-v46 span {
+  margin-top: 2px;
+  color: #ffe3e3;
+  font-size: .55rem;
+  font-weight: 800;
+}
+
+.av-overdue-sound-v46 {
+  min-width: 92px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid
+    rgba(255, 255, 255, .45);
+  border-radius: 10px;
+  padding: 7px 9px;
+  color: #7f1b1b;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.av-overdue-sound-v46 b {
+  font-size: .62rem;
+  font-weight: 950;
+}
+
+.av-overdue-toolbar-v46 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom:
+    1px solid #dce6eb;
+  padding: 8px 13px;
+  color: #667d89;
+  background: #ffffff;
+  font-size: .59rem;
+}
+
+.av-overdue-toolbar-v46 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.av-overdue-toolbar-v46 strong {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #8f2020;
+  background: #ffe9e9;
+  font-size: .57rem;
+}
+
+.av-overdue-list-v46 {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 10px 11px;
+}
+
+.av-overdue-card-v46 {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid #e3b0b0;
+  border-left:
+    5px solid #d72828;
+  border-radius: 11px;
+  padding: 9px;
+  color: #17364a;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  box-shadow:
+    0 3px 9px
+    rgba(39, 52, 62, .055);
+}
+
+.av-overdue-card-v46:hover,
+.av-overdue-card-v46:focus-visible {
+  border-color: #d87979;
+  background: #fffafa;
+  outline: none;
+  box-shadow:
+    0 0 0 3px
+    rgba(215, 40, 40, .11);
+}
+
+.av-overdue-card-top-v46 {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    28px
+    minmax(0, 1fr)
+    auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.av-overdue-rank-v46 {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #9e2020;
+  font-size: .66rem;
+  font-weight: 950;
+}
+
+.av-overdue-company-v46,
+.av-overdue-duration-v46 {
+  min-width: 0;
+}
+
+.av-overdue-company-v46 {
+  display: grid;
+  gap: 1px;
+}
+
+.av-overdue-company-v46 small,
+.av-overdue-duration-v46 small,
+.av-overdue-identities-v46 small,
+.av-overdue-meta-v46 small,
+.av-overdue-stage-v46 small {
+  color: #748893;
+  font-size: .5rem;
+  font-weight: 800;
+}
+
+.av-overdue-company-v46 strong {
+  overflow: hidden;
+  color: #17364a;
+  font-size: .76rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.av-overdue-company-v46 em {
+  overflow: hidden;
+  color: #647b87;
+  font-size: .5rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.av-overdue-duration-v46 {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+}
+
+.av-overdue-duration-v46 strong {
+  color: #bd2424;
+  font-size: .82rem;
+  font-weight: 950;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.av-overdue-identities-v46,
+.av-overdue-meta-v46 {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.av-overdue-identities-v46 > span,
+.av-overdue-meta-v46 > span {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border-radius: 8px;
+  padding: 6px 7px;
+  background: #f0f5f7;
+}
+
+.av-overdue-identities-v46 strong,
+.av-overdue-meta-v46 strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #164359;
+  font-size: .67rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.av-overdue-identities-v46 strong {
+  color: #075d76;
+}
+
+.av-overdue-meta-v46 strong.is-danger {
+  color: #c72424;
+  font-size: .72rem;
+}
+
+.av-overdue-stage-v46 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #80580d;
+  background: #fff2d5;
+}
+
+.av-overdue-stage-v46 small {
+  flex: 0 0 auto;
+  color: #8c691f;
+}
+
+.av-overdue-stage-v46 strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #80580d;
+  font-size: .58rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.av-overdue-more-v46 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-top:
+    1px solid #e2e9ed;
+  padding: 8px 11px;
+  color: #6b7f8a;
+  background: #ffffff;
+  font-size: .58rem;
+  text-align: center;
+}
+
+.av-overdue-more-v46 strong {
+  color: #a22121;
+}
+
+.av-overdue-footer-v46 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-top:
+    1px solid #dce6eb;
+  padding: 7px 12px;
+  color: #667c88;
+  background: #edf3f6;
+  font-size: .53rem;
+}
+
+.av-overdue-actions-v46 {
+  width: 100% !important;
+  min-height: 58px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-top:
+    1px solid #d7e2e8;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  background: #ffffff;
+}
+
+.av-overdue-confirm-v46 {
+  min-width: 124px;
+  min-height: 40px;
+  border: 0 !important;
+  border-radius: 9px !important;
+  color: #ffffff !important;
+  background:
+    linear-gradient(
+      135deg,
+      #b72424,
+      #831919
+    ) !important;
+  font-weight: 950 !important;
+}
+
+.av-overdue-close-v46 {
+  top: 7px !important;
+  right: 7px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 9px !important;
+  color: #ffffff !important;
+  background:
+    rgba(0, 0, 0, .16) !important;
+  font-size: 1.35rem !important;
+}
+
+@media (max-width: 680px) {
+  .swal2-popup.av-overdue-popup-v46 {
+    width:
+      calc(100vw - 12px) !important;
+    max-width:
+      calc(100vw - 12px) !important;
+    max-height:
+      94dvh !important;
+    border-radius: 14px !important;
+  }
+
+  .av-overdue-dialog-v46 {
+    max-height:
+      calc(94dvh - 60px);
+  }
+
+  .av-overdue-header-v46 {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 11px;
+  }
+
+  .av-overdue-heading-v46 h2 {
+    font-size: 1rem;
+  }
+
+  .av-overdue-heading-v46 p {
+    max-width: 240px;
+    font-size: .56rem;
+  }
+
+  .av-overdue-total-v46 {
+    min-width: 52px;
+    padding: 5px 6px;
+  }
+
+  .av-overdue-total-v46 strong {
+    font-size: 1rem;
+  }
+
+  .av-overdue-sound-v46 {
+    min-width: 38px;
+    width: 38px;
+    padding: 5px;
+  }
+
+  .av-overdue-sound-v46 b {
+    display: none;
+  }
+
+  .av-overdue-toolbar-v46 {
+    padding: 7px 9px;
+  }
+
+  .av-overdue-list-v46 {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .av-overdue-card-v46 {
+    padding: 8px;
+  }
+
+  .av-overdue-footer-v46 {
+    display: grid;
+    gap: 2px;
+    padding: 6px 9px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 390px) {
+  .av-overdue-heading-v46 p {
+    max-width: 190px;
+  }
+
+  .av-overdue-card-top-v46 {
+    grid-template-columns:
+      25px
+      minmax(0, 1fr);
+  }
+
+  .av-overdue-duration-v46 {
+    grid-column: 2;
+    justify-items: start;
+    margin-top: 2px;
+  }
+
+  .av-overdue-identities-v46,
+  .av-overdue-meta-v46 {
+    grid-template-columns: 1fr;
+  }
+
+  .av-overdue-stage-v46 {
+    align-items: flex-start;
+    border-radius: 8px;
+  }
+
+  .av-overdue-stage-v46 strong {
+    white-space: normal;
+  }
+}
