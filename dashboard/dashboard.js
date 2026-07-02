@@ -324,6 +324,25 @@
     document.body.dataset.mobileRecordView =
       state.mobileRecordView;
 
+    const recordsPanel =
+      document.querySelector(
+        '.records-panel'
+      );
+
+    if (recordsPanel) {
+      recordsPanel.classList.toggle(
+        'is-compact-view',
+        state.mobileRecordView ===
+          'COMPACT'
+      );
+
+      recordsPanel.classList.toggle(
+        'is-detail-view',
+        state.mobileRecordView ===
+          'DETAIL'
+      );
+    }
+
     document
       .querySelectorAll(
         '[data-mobile-view]'
@@ -533,9 +552,29 @@
       mobile
     );
 
-    document.body.dataset.mobileRecordView =
+    const recordView =
       state.mobileRecordView ||
       'COMPACT';
+
+    document.body.dataset.mobileRecordView =
+      recordView;
+
+    const recordsPanel =
+      document.querySelector(
+        '.records-panel'
+      );
+
+    if (recordsPanel) {
+      recordsPanel.classList.toggle(
+        'is-compact-view',
+        recordView === 'COMPACT'
+      );
+
+      recordsPanel.classList.toggle(
+        'is-detail-view',
+        recordView === 'DETAIL'
+      );
+    }
 
     if (mobile) {
       setMobileChartTab(
