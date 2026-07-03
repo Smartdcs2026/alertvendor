@@ -24,7 +24,7 @@
 
   <link
     rel="stylesheet"
-    href="./admin-shift-panel.css?v=20260703-r58-admin-shift"
+    href="./admin-shift-panel.css?v=20260703-r59-module-loading-fix"
   >
 
   <script
@@ -38,7 +38,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260703-r58-admin-shift"
+    src="./api.js?v=20260703-r59-module-loading-fix"
     defer
   ></script>
 
@@ -48,7 +48,7 @@
   ></script>
 
   <script
-    src="./admin-shift-panel.js?v=20260703-r58-admin-shift"
+    src="./admin-shift-panel.js?v=20260703-r59-module-loading-fix"
     defer
   ></script>
 </head>
@@ -480,7 +480,18 @@
         id="adminShiftMessage"
         class="admin-shift-message"
         hidden
-      ></div>
+      >
+        <span id="adminShiftMessageText"></span>
+
+        <button
+          id="adminShiftMessageRetry"
+          class="button button--secondary button--compact"
+          type="button"
+          hidden
+        >
+          ลองโหลดใหม่
+        </button>
+      </div>
 
       <article class="admin-card admin-shift-config-card">
         <div class="admin-shift-toolbar">
