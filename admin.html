@@ -22,6 +22,11 @@
     href="./styles.css?v=20260630-r27-module-feature"
   >
 
+  <link
+    rel="stylesheet"
+    href="./admin-shift-panel.css?v=20260703-r58-admin-shift"
+  >
+
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
@@ -33,12 +38,17 @@
   ></script>
 
   <script
-    src="./api.js?v=20260625-r10"
+    src="./api.js?v=20260703-r58-admin-shift"
     defer
   ></script>
 
   <script
     src="./admin.js?v=20260630-r27-module-feature"
+    defer
+  ></script>
+
+  <script
+    src="./admin-shift-panel.js?v=20260703-r58-admin-shift"
     defer
   ></script>
 </head>
@@ -168,6 +178,14 @@
         data-admin-tab="settings"
       >
         ตั้งค่า
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="shifts"
+      >
+        กะทำงาน
       </button>
 
       <button
@@ -416,6 +434,384 @@
           </button>
         </div>
       </form>
+    </section>
+
+    <section
+      id="adminPanelShifts"
+      class="admin-panel is-hidden"
+      data-admin-panel="shifts"
+    >
+      <div class="admin-section-heading admin-shift-heading">
+        <div>
+          <p class="eyebrow">
+            SHIFT MANAGEMENT
+          </p>
+
+          <h2>
+            กะทำงานและการบันทึกสถิติ
+          </h2>
+
+          <p>
+            เปิดหรือปิดระบบกะ กำหนดเวลาแยกแต่ละ Module และตรวจสอบ Snapshot จากหน้า Admin โดยตรง
+          </p>
+        </div>
+
+        <div class="admin-shift-heading__actions">
+          <button
+            id="adminShiftSetupButton"
+            class="button button--secondary"
+            type="button"
+          >
+            เตรียมชีทระบบกะ
+          </button>
+
+          <a
+            class="button button--secondary"
+            href="./shift-admin.html"
+            target="_blank"
+            rel="noopener"
+          >
+            เปิดหน้าเต็ม
+          </a>
+        </div>
+      </div>
+
+      <div
+        id="adminShiftMessage"
+        class="admin-shift-message"
+        hidden
+      ></div>
+
+      <article class="admin-card admin-shift-config-card">
+        <div class="admin-shift-toolbar">
+          <label class="admin-field admin-shift-module-field">
+            <span>
+              เลือก Module
+            </span>
+
+            <select id="adminShiftModuleSelect">
+              <option value="">
+                กำลังโหลด Module...
+              </option>
+            </select>
+          </label>
+
+          <div class="admin-shift-current-status">
+            <span>
+              สถานะระบบกะ
+            </span>
+
+            <strong
+              id="adminShiftStatusBadge"
+              data-status="LOADING"
+            >
+              กำลังโหลด
+            </strong>
+          </div>
+
+          <div class="admin-shift-current-status">
+            <span>
+              เวอร์ชันที่ใช้งาน
+            </span>
+
+            <strong id="adminShiftVersion">
+              -
+            </strong>
+          </div>
+
+          <button
+            id="adminShiftReloadButton"
+            class="button button--secondary"
+            type="button"
+          >
+            โหลดใหม่
+          </button>
+        </div>
+
+        <div class="admin-shift-config-header">
+          <div>
+            <p class="eyebrow">
+              MODULE SHIFT CONFIGURATION
+            </p>
+
+            <h3>
+              การคำนวณข้อมูลตามกะ
+            </h3>
+
+            <p>
+              การเปิดใช้งานมีผลเฉพาะ Module ที่เลือก ไม่กระทบ Module อื่น
+            </p>
+          </div>
+
+          <label class="admin-shift-enable">
+            <input
+              id="adminShiftEnabled"
+              type="checkbox"
+            >
+
+            <span>
+              เปิดใช้งานระบบกะ
+            </span>
+          </label>
+        </div>
+
+        <div class="admin-shift-general-grid">
+          <label class="admin-field">
+            <span>
+              เขตเวลา
+            </span>
+
+            <input
+              id="adminShiftTimezone"
+              type="text"
+              value="Asia/Bangkok"
+            >
+          </label>
+
+          <label class="admin-field">
+            <span>
+              เวลาเริ่มวันปฏิบัติงาน
+            </span>
+
+            <input
+              id="adminShiftBusinessStart"
+              type="time"
+              value="06:00"
+            >
+
+            <small>
+              ใช้แบ่งสถิติรายวัน เช่น 06:00–06:00 ของวันถัดไป
+            </small>
+          </label>
+
+          <label class="admin-field">
+            <span>
+              วันที่เริ่มใช้
+            </span>
+
+            <input
+              id="adminShiftEffectiveDate"
+              type="date"
+            >
+
+            <small>
+              ระบบเก็บเวอร์ชันเดิมไว้สำหรับข้อมูลย้อนหลัง
+            </small>
+          </label>
+        </div>
+
+        <div class="admin-shift-list-heading">
+          <div>
+            <strong>
+              ตารางกะทำงาน
+            </strong>
+
+            <span>
+              กำหนดได้ 2–4 กะ และรองรับกะข้ามวัน
+            </span>
+          </div>
+
+          <button
+            id="adminShiftAddButton"
+            class="button button--secondary button--compact"
+            type="button"
+          >
+            + เพิ่มกะ
+          </button>
+        </div>
+
+        <div
+          id="adminShiftRows"
+          class="admin-shift-rows"
+        >
+          <div class="admin-shift-loading">
+            กำลังโหลดการตั้งค่ากะ
+          </div>
+        </div>
+
+        <div class="admin-shift-validation">
+          <div>
+            <span>
+              ความครอบคลุมของเวลา
+            </span>
+
+            <strong id="adminShiftCoverage">
+              -
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              การตรวจสอบช่วงเวลา
+            </span>
+
+            <strong
+              id="adminShiftValidationStatus"
+              data-status="IDLE"
+            >
+              รอตรวจสอบ
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              แก้ไขล่าสุด
+            </span>
+
+            <strong id="adminShiftUpdatedAt">
+              -
+            </strong>
+          </div>
+        </div>
+
+        <div class="admin-form-actions admin-shift-save-actions">
+          <span id="adminShiftSaveHint">
+            บันทึกแล้วระบบจะสร้างเวอร์ชันกะใหม่
+          </span>
+
+          <button
+            id="adminShiftSaveButton"
+            class="button button--primary"
+            type="button"
+          >
+            บันทึกการตั้งค่ากะ
+          </button>
+        </div>
+      </article>
+
+      <article class="admin-card admin-shift-statistics-card">
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">
+              SHIFT SNAPSHOT
+            </p>
+
+            <h3>
+              สถิติที่ระบบบันทึกไว้
+            </h3>
+
+            <p>
+              สรุปประจำกะจะถูก Upsert ด้วย Key จึงไม่สร้างรายการกะเดิมซ้ำ
+            </p>
+          </div>
+
+          <div class="admin-shift-stat-actions">
+            <button
+              id="adminShiftSnapshotButton"
+              class="button button--primary button--compact"
+              type="button"
+            >
+              บันทึก Snapshot ตอนนี้
+            </button>
+
+            <button
+              id="adminShiftStatsRefreshButton"
+              class="button button--secondary button--compact"
+              type="button"
+            >
+              รีเฟรชสถิติ
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-shift-summary-grid">
+          <div>
+            <span>
+              Snapshot ทั้งหมด
+            </span>
+
+            <strong id="adminShiftSnapshotCount">
+              0
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              ปิดกะสมบูรณ์
+            </span>
+
+            <strong id="adminShiftFinalCount">
+              0
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              วันที่ล่าสุด
+            </span>
+
+            <strong id="adminShiftLatestDate">
+              -
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              กะล่าสุด
+            </span>
+
+            <strong id="adminShiftLatestCode">
+              -
+            </strong>
+          </div>
+        </div>
+
+        <div class="admin-shift-table-wrap">
+          <table class="admin-shift-table">
+            <thead>
+              <tr>
+                <th>
+                  วันปฏิบัติงาน
+                </th>
+
+                <th>
+                  กะ
+                </th>
+
+                <th>
+                  สถานะ
+                </th>
+
+                <th>
+                  Gate In
+                </th>
+
+                <th>
+                  Gate Out
+                </th>
+
+                <th>
+                  Auto Close
+                </th>
+
+                <th>
+                  คงค้าง
+                </th>
+
+                <th>
+                  เกิน SLA
+                </th>
+
+                <th>
+                  SLA ผ่าน
+                </th>
+
+                <th>
+                  เวลาเฉลี่ย
+                </th>
+              </tr>
+            </thead>
+
+            <tbody id="adminShiftStatsBody">
+              <tr>
+                <td colspan="10">
+                  เลือก Module เพื่อดูสถิติ
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
 
     <section
