@@ -1,6 +1,6 @@
 /**
  * module-operations.js
- * ROUND 51 — Separate SweetAlert Row Detail
+ * ROUND 52 — Minimal Separate SweetAlert Detail
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -710,21 +710,21 @@
 
       customClass: {
         popup:
-          'av-record-detail-popup-v51',
+          'av-record-detail-popup-v52',
         title:
-          'av-record-detail-hidden-v51',
+          'av-record-detail-hidden-v52',
         icon:
-          'av-record-detail-hidden-v51',
+          'av-record-detail-hidden-v52',
         htmlContainer:
-          'av-record-detail-html-v51',
+          'av-record-detail-html-v52',
         actions:
-          'av-record-detail-actions-v51',
+          'av-record-detail-actions-v52',
         confirmButton:
-          'av-record-detail-back-v51',
+          'av-record-detail-back-v52',
         denyButton:
-          'av-record-detail-main-v51',
+          'av-record-detail-main-v52',
         closeButton:
-          'av-record-detail-close-v51'
+          'av-record-detail-close-v52'
       },
 
       didOpen:
@@ -765,197 +765,113 @@
   function buildSeparateOverdueDetailHtml(
     record
   ) {
-    const detailFields =
-      Array.isArray(
-        record.details
-      )
-        ? record.details
-        : [];
+    const driverHtml =
+      record.driver
+        ? `
+            <div class="av-minimal-detail-item-v52">
+              <span>
+                ชื่อผู้ขับ
+              </span>
 
-    const detailRows =
-      detailFields.length > 0
-        ? detailFields
-            .map(
-              (field) => `
-                <div class="av-record-detail-field-v51">
-                  <span>
-                    ${escapeHtml(
-                      field.label ||
-                      'ข้อมูล'
-                    )}
-                  </span>
-
-                  <strong>
-                    ${escapeHtml(
-                      field.value ||
-                      '-'
-                    )}
-                  </strong>
-                </div>
-              `
-            )
-            .join('')
-        : `
-            <div class="av-record-detail-empty-v51">
-              ไม่พบฟิลด์ข้อมูลเพิ่มเติมจากแถวต้นทาง
+              <strong>
+                ${escapeHtml(
+                  record.driver
+                )}
+              </strong>
             </div>
-          `;
+          `
+        : '';
 
     return `
-      <article class="av-record-detail-v51">
-        <header class="av-record-detail-header-v51">
-          <div>
-            <small>
-              FULL RECORD DETAIL
-            </small>
+      <article class="av-minimal-detail-v52">
+        <header class="av-minimal-detail-header-v52">
+          <small>
+            รายละเอียดรายการ
+          </small>
 
-            <h2>
-              รายละเอียดรถ/ตู้สินค้า
-            </h2>
-
-            <p>
-              ข้อมูลครบของรายการที่เลือก
-            </p>
-          </div>
-
-          <span>
-            เกิน SLA
-          </span>
+          <h2>
+            เลขนัดหมาย
+            ${escapeHtml(
+              record.appointment
+            )}
+          </h2>
         </header>
 
-        <section class="av-record-detail-identity-v51">
-          <div class="av-record-detail-company-v51">
-            <small>
+        <section class="av-minimal-detail-main-v52">
+          <div class="av-minimal-detail-company-v52">
+            <span>
               บริษัท / Vendor
-            </small>
+            </span>
 
             <strong>
               ${escapeHtml(
                 record.company
               )}
             </strong>
-
-            ${
-              record.driver
-                ? `
-                    <p>
-                      ผู้ขับ:
-                      ${escapeHtml(
-                        record.driver
-                      )}
-                    </p>
-                  `
-                : ''
-            }
           </div>
 
-          <div class="av-record-detail-appointment-v51">
-            <small>
-              เลขนัดหมาย
-            </small>
-
-            <strong>
-              ${escapeHtml(
-                record.appointment
-              )}
-            </strong>
-          </div>
-        </section>
-
-        <section class="av-record-detail-primary-grid-v51">
-          <div>
-            <span>
-              ทะเบียน / หมายเลขตู้
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                record.registration
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              เวลา Gate In
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                record.gateIn
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              เวลาอยู่ในพื้นที่
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                record.duration
-              )}
-            </strong>
-          </div>
-
-          <div class="is-danger">
-            <span>
-              เกิน SLA แล้ว
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                record.overdueDuration
-              )}
-            </strong>
-          </div>
-
-          <div class="is-stage">
-            <span>
-              ขั้นตอนปัจจุบัน
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                record.stage
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              รหัสรายการ
-            </span>
-
-            <strong>
-              ${escapeHtml(
-                record.recordId
-              )}
-            </strong>
-          </div>
-        </section>
-
-        <section class="av-record-detail-all-v51">
-          <header>
-            <div>
-              <small>
-                SOURCE ROW DATA
-              </small>
+          <div class="av-minimal-detail-grid-v52">
+            <div class="av-minimal-detail-item-v52">
+              <span>
+                ทะเบียนรถ / หมายเลขตู้
+              </span>
 
               <strong>
-                ข้อมูลทั้งหมดจากแถวนี้
+                ${escapeHtml(
+                  record.registration
+                )}
               </strong>
             </div>
 
-            <span>
-              ${detailFields.length}
-              ฟิลด์
-            </span>
-          </header>
+            ${driverHtml}
 
-          <div class="av-record-detail-fields-v51">
-            ${detailRows}
+            <div class="av-minimal-detail-item-v52">
+              <span>
+                เวลา Gate In
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  record.gateIn
+                )}
+              </strong>
+            </div>
+
+            <div class="av-minimal-detail-item-v52">
+              <span>
+                เวลาอยู่ในพื้นที่
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  record.duration
+                )}
+              </strong>
+            </div>
+
+            <div class="av-minimal-detail-item-v52 is-overdue">
+              <span>
+                เกิน SLA แล้ว
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  record.overdueDuration
+                )}
+              </strong>
+            </div>
+
+            <div class="av-minimal-detail-item-v52">
+              <span>
+                ขั้นตอนปัจจุบัน
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  record.stage
+                )}
+              </strong>
+            </div>
           </div>
         </section>
       </article>
