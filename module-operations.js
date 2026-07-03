@@ -1,6 +1,6 @@
 /**
  * module-operations.js
- * ROUND 49 — Split Overdue Alert + New Round Tracking
+ * ROUND 50 — Split Alert + Full Row Detail
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -42,6 +42,8 @@
     lastVibratedAt: 0,
     acknowledgedOverdueKeys:
       new Set(),
+    currentOverdueRecords:
+      new Map(),
     destroyed: false
   };
 
@@ -341,6 +343,19 @@
     state.activeAlertSignature =
       manualSignature;
 
+    state.currentOverdueRecords =
+      new Map(
+        records.map(
+          (record) => [
+            String(
+              record.recordId ||
+              ''
+            ),
+            record
+          ]
+        )
+      );
+
     return {
       ...source,
 
@@ -381,19 +396,19 @@
 
       customClass: {
         popup:
-          'av-overdue-popup-v49',
+          'av-overdue-popup-v50',
         title:
-          'av-overdue-hidden-title-v49',
+          'av-overdue-hidden-title-v50',
         icon:
-          'av-overdue-hidden-icon-v49',
+          'av-overdue-hidden-icon-v50',
         htmlContainer:
-          'av-overdue-html-v49',
+          'av-overdue-html-v50',
         actions:
-          'av-overdue-actions-v49',
+          'av-overdue-actions-v50',
         confirmButton:
-          'av-overdue-confirm-v49',
+          'av-overdue-confirm-v50',
         closeButton:
-          'av-overdue-close-v49'
+          'av-overdue-close-v50'
       },
 
       preConfirm:
@@ -504,28 +519,84 @@
   ) {
     popup
       .querySelectorAll(
-        '[data-overdue-scroll-record]'
+        '[data-overdue-detail-record]'
       )
       .forEach(
         (button) => {
           button.addEventListener(
             'click',
             () => {
-              const id =
+              openOverdueRecordDetail(
+                popup,
                 button.dataset
-                  .overdueScrollRecord;
-
-              window.Swal.close();
-
-              window.setTimeout(
-                () => {
-                  scrollToRecord(
-                    id
-                  );
-                },
-                80
+                  .overdueDetailRecord
               );
             }
+          );
+        }
+      );
+
+    popup
+      .querySelectorAll(
+        '[data-overdue-detail-back]'
+      )
+      .forEach(
+        (button) => {
+          button.addEventListener(
+            'click',
+            () => {
+              closeOverdueRecordDetail(
+                popup
+              );
+            }
+          );
+        }
+      );
+
+    popup
+      .querySelector(
+        '[data-overdue-detail-close]'
+      )
+      ?.addEventListener(
+        'click',
+        () => {
+          closeOverdueRecordDetail(
+            popup
+          );
+        }
+      );
+
+    popup
+      .querySelector(
+        '[data-overdue-go-record]'
+      )
+      ?.addEventListener(
+        'click',
+        () => {
+          const detailPanel =
+            popup.querySelector(
+              '[data-overdue-detail-panel]'
+            );
+
+          const recordId =
+            detailPanel &&
+            detailPanel.dataset
+              .activeRecordId ||
+            '';
+
+          if (!recordId) {
+            return;
+          }
+
+          window.Swal.close();
+
+          window.setTimeout(
+            () => {
+              scrollToRecord(
+                recordId
+              );
+            },
+            80
           );
         }
       );
@@ -556,6 +627,271 @@
       );
   }
 
+
+  function openOverdueRecordDetail(
+    popup,
+    recordId
+  ) {
+    const id =
+      String(
+        recordId ||
+        ''
+      );
+
+    const record =
+      state.currentOverdueRecords.get(
+        id
+      );
+
+    const panel =
+      popup.querySelector(
+        '[data-overdue-detail-panel]'
+      );
+
+    const content =
+      popup.querySelector(
+        '[data-overdue-detail-content]'
+      );
+
+    if (
+      !record ||
+      !panel ||
+      !content
+    ) {
+      return;
+    }
+
+    content.innerHTML =
+      buildOverdueRecordDetailHtml(
+        record
+      );
+
+    panel.dataset.activeRecordId =
+      id;
+
+    panel.hidden =
+      false;
+
+    panel.scrollTop =
+      0;
+
+    popup.classList.add(
+      'is-showing-record-detail'
+    );
+
+    window.requestAnimationFrame(
+      () => {
+        panel
+          .querySelector(
+            '[data-overdue-detail-back]'
+          )
+          ?.focus();
+      }
+    );
+  }
+
+
+  function closeOverdueRecordDetail(
+    popup
+  ) {
+    const panel =
+      popup.querySelector(
+        '[data-overdue-detail-panel]'
+      );
+
+    if (!panel) {
+      return;
+    }
+
+    panel.hidden =
+      true;
+
+    panel.dataset.activeRecordId =
+      '';
+
+    popup.classList.remove(
+      'is-showing-record-detail'
+    );
+  }
+
+
+  function buildOverdueRecordDetailHtml(
+    record
+  ) {
+    const detailFields =
+      Array.isArray(
+        record.details
+      )
+        ? record.details
+        : [];
+
+    const detailRows =
+      detailFields.length > 0
+        ? detailFields
+            .map(
+              (field) => `
+                <div class="av-overdue-detail-field-v50">
+                  <span>
+                    ${escapeHtml(
+                      field.label ||
+                      'ข้อมูล'
+                    )}
+                  </span>
+
+                  <strong>
+                    ${escapeHtml(
+                      field.value ||
+                      '-'
+                    )}
+                  </strong>
+                </div>
+              `
+            )
+            .join('')
+        : `
+            <div class="av-overdue-detail-empty-v50">
+              ไม่พบฟิลด์ข้อมูลเพิ่มเติมจากการ์ดต้นทาง
+            </div>
+          `;
+
+    return `
+      <section class="av-overdue-detail-summary-v50">
+        <div class="av-overdue-detail-company-v50">
+          <small>
+            บริษัท / Vendor
+          </small>
+
+          <h3>
+            ${escapeHtml(
+              record.company
+            )}
+          </h3>
+
+          ${
+            record.driver
+              ? `
+                  <p>
+                    ผู้ขับ:
+                    ${escapeHtml(
+                      record.driver
+                    )}
+                  </p>
+                `
+              : ''
+          }
+        </div>
+
+        <div class="av-overdue-detail-appointment-v50">
+          <small>
+            เลขนัดหมาย
+          </small>
+
+          <strong>
+            ${escapeHtml(
+              record.appointment
+            )}
+          </strong>
+        </div>
+      </section>
+
+      <section class="av-overdue-detail-key-grid-v50">
+        <div>
+          <span>
+            ทะเบียน / หมายเลขตู้
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              record.registration
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            เวลา Gate In
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              record.gateIn
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            เวลาอยู่ในพื้นที่
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              record.duration
+            )}
+          </strong>
+        </div>
+
+        <div class="is-danger">
+          <span>
+            เกิน SLA แล้ว
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              record.overdueDuration
+            )}
+          </strong>
+        </div>
+
+        <div class="is-stage">
+          <span>
+            ขั้นตอนปัจจุบัน
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              record.stage
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            รหัสรายการ
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              record.recordId
+            )}
+          </strong>
+        </div>
+      </section>
+
+      <section class="av-overdue-detail-all-v50">
+        <header>
+          <div>
+            <small>
+              RECORD DETAILS
+            </small>
+
+            <strong>
+              ข้อมูลทั้งหมดของรายการ
+            </strong>
+          </div>
+
+          <span>
+            ${detailFields.length}
+            ฟิลด์
+          </span>
+        </header>
+
+        <div class="av-overdue-detail-grid-v50">
+          ${detailRows}
+        </div>
+      </section>
+    `;
+  }
 
   function collectOverdueRecords() {
     const thresholdSeconds =
@@ -685,7 +1021,12 @@
                   '.receiving-stage-badge'
                 )
               ) ||
-              'อยู่ในพื้นที่'
+              'อยู่ในพื้นที่',
+
+            details:
+              extractVehicleFieldDetails(
+                fields
+              )
           };
         }
       )
@@ -694,6 +1035,69 @@
           right.durationSeconds -
           left.durationSeconds
       );
+  }
+
+
+  function extractVehicleFieldDetails(
+    fields
+  ) {
+    const result =
+      [];
+
+    const usedLabels =
+      new Set();
+
+    (
+      Array.isArray(
+        fields
+      )
+        ? fields
+        : []
+    ).forEach(
+      (field) => {
+        const label =
+          text(
+            field.querySelector(
+              'span'
+            )
+          ) ||
+          'ข้อมูล';
+
+        const value =
+          text(
+            field.querySelector(
+              'strong, a'
+            )
+          ) ||
+          '';
+
+        const normalizedLabel =
+          normalize(
+            label
+          );
+
+        if (
+          !value ||
+          value === '-' ||
+          usedLabels.has(
+            normalizedLabel
+          )
+        ) {
+          return;
+        }
+
+        usedLabels.add(
+          normalizedLabel
+        );
+
+        result.push({
+          label,
+          value
+        });
+      }
+    );
+
+    return result;
   }
 
 
@@ -860,9 +1264,68 @@
           </span>
 
           <span>
-            กดรับทราบเพื่อใช้ชุดปัจจุบันเป็นฐานรอบถัดไป
+            แตะแถวเพื่อดูรายละเอียดข้อมูลทั้งหมด
           </span>
         </footer>
+
+        <section
+          class="av-overdue-detail-panel-v50"
+          data-overdue-detail-panel
+          data-active-record-id=""
+          hidden
+        >
+          <header class="av-overdue-detail-header-v50">
+            <button
+              type="button"
+              class="av-overdue-detail-back-v50"
+              data-overdue-detail-back
+            >
+              ← ย้อนกลับ
+            </button>
+
+            <div>
+              <small>
+                FULL RECORD DETAIL
+              </small>
+
+              <strong>
+                รายละเอียดข้อมูลรถ/ตู้สินค้า
+              </strong>
+            </div>
+
+            <button
+              type="button"
+              class="av-overdue-detail-x-v50"
+              data-overdue-detail-close
+              aria-label="ปิดรายละเอียด"
+            >
+              ×
+            </button>
+          </header>
+
+          <div
+            class="av-overdue-detail-body-v50"
+            data-overdue-detail-content
+          ></div>
+
+          <footer class="av-overdue-detail-actions-v50">
+            <button
+              type="button"
+              class="av-overdue-detail-main-v50"
+              data-overdue-go-record
+            >
+              ไปยังการ์ดในหน้าหลัก
+            </button>
+
+            <button
+              type="button"
+              class="av-overdue-detail-secondary-v50"
+              data-overdue-detail-back
+            >
+              กลับไปดูรายการ
+            </button>
+          </footer>
+        </section>
       </div>
     `;
   }
@@ -958,7 +1421,7 @@
             ? 'is-new'
             : ''
         }"
-        data-overdue-scroll-record="${escapeHtml(
+        data-overdue-detail-record="${escapeHtml(
           record.recordId
         )}"
         role="listitem"
