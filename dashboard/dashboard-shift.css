@@ -1326,3 +1326,292 @@ button:last-child {
   .shift-chart-wrap { height: 180px; }
   .daily-history-chart-wrap { height: 220px; }
 }
+
+
+/* ROUND 61 — Dashboard สัดส่วนใหม่ อ่านง่าย */
+.dashboard-page .control-main {
+  gap: 8px;
+  padding: 8px 10px 10px;
+}
+
+.dashboard-view-toolbar {
+  min-height: 54px;
+  padding: 6px 8px;
+}
+
+.dashboard-view-tabs button {
+  min-width: 136px;
+  min-height: 40px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.dashboard-view-tabs button span {
+  font-size: 10px;
+}
+
+.dashboard-shift-date-controls label span {
+  font-size: 11px;
+}
+
+.dashboard-shift-date-controls input,
+.dashboard-shift-date-controls button {
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.shift-executive-header {
+  min-height: 58px;
+  padding: 8px 12px;
+}
+
+.shift-executive-header small { font-size: 10px; }
+.shift-executive-header h2 { font-size: 19px; }
+.shift-executive-header p { font-size: 12px; }
+.shift-executive-badges span { font-size: 11px; }
+
+.dashboard-page[data-dashboard-view="SHIFT"] .dashboard-shift-workspace {
+  grid-template-rows:
+    auto auto
+    minmax(190px, 1.1fr)
+    minmax(210px, 1.15fr)
+    minmax(150px, .8fr)
+    auto;
+}
+
+.dashboard-page[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+  grid-template-rows:
+    auto auto
+    minmax(0, 1fr)
+    auto;
+}
+
+.shift-executive-kpis > div {
+  min-height: 66px;
+  padding: 7px;
+}
+
+.shift-executive-kpis span { font-size: 11px; }
+.shift-executive-kpis strong { font-size: 22px; }
+.shift-executive-kpis small { font-size: 10px; }
+
+.shift-comparison-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shift-performance-card {
+  grid-template-rows: auto auto auto auto 36px;
+}
+
+.shift-performance-card > header { padding: 8px 10px; }
+.shift-code-block > strong { width: 38px; height: 38px; font-size: 16px; }
+.shift-code-block span { font-size: 14px; }
+.shift-code-block small { font-size: 11px; }
+.shift-status-badge { font-size: 10px; padding: 5px 8px; }
+
+.shift-card-flow,
+.shift-card-performance {
+  gap: 5px;
+  padding: 7px 8px;
+}
+
+.shift-card-flow > div,
+.shift-card-performance > div {
+  gap: 4px;
+  padding: 7px;
+}
+
+.shift-card-flow span,
+.shift-card-performance span { font-size: 11px; }
+
+.shift-card-flow strong,
+.shift-card-performance strong { font-size: 16px; }
+
+.shift-card-comparison { padding: 7px 9px; }
+.shift-card-comparison > span,
+.shift-card-comparison small,
+.shift-card-comparison > div span { font-size: 10px; }
+.shift-card-detail-button { min-height: 36px; font-size: 12px; }
+
+.shift-dashboard-analysis {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.shift-dashboard-lower {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.shift-analysis-panel > header {
+  min-height: 48px;
+  padding: 8px 10px;
+}
+
+.shift-analysis-panel > header small { font-size: 10px; }
+.shift-analysis-panel > header h3 { font-size: 14px; }
+
+.shift-chart-wrap,
+.daily-history-chart-wrap {
+  padding: 8px 10px 10px;
+}
+
+.shift-handover-item { padding: 8px 10px; }
+.shift-handover-item span,
+.shift-handover-item small,
+.shift-handover-item em { font-size: 10px; }
+.shift-handover-item strong { font-size: 15px; }
+
+.shift-panel-count { font-size: 10px; }
+
+.shift-exception-item {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  padding: 7px 8px;
+}
+
+.shift-exception-item > b {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.shift-exception-item strong { font-size: 12px; }
+.shift-exception-item span,
+.shift-exception-item small { font-size: 10px; }
+.shift-exception-item em { font-size: 11px; }
+
+.daily-summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.daily-summary-grid > div {
+  min-height: 62px;
+  padding: 7px;
+}
+
+.daily-summary-grid span { font-size: 11px; }
+.daily-summary-grid strong { font-size: 17px; }
+
+.daily-dashboard-analysis {
+  grid-template-columns: minmax(0, 13fr) minmax(0, 7fr);
+  gap: 8px;
+}
+
+.daily-history-table th,
+.daily-history-table td {
+  padding: 7px 8px;
+  font-size: 11px;
+}
+
+.daily-insight-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 7px;
+  border: 1px solid #d7e2e8;
+  border-radius: 10px;
+  padding: 9px;
+  background: #fff;
+}
+
+.daily-insight-panel > header {
+  grid-column: 1 / -1;
+}
+
+.daily-insight-panel small {
+  color: #16809b;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.daily-insight-panel h3 {
+  margin: 2px 0 0;
+  color: #214557;
+  font-size: 14px;
+}
+
+.daily-insight-panel > div {
+  display: grid;
+  gap: 3px;
+  border-radius: 8px;
+  padding: 8px;
+  background: #f4f8fa;
+}
+
+.daily-insight-panel span {
+  color: #71838d;
+  font-size: 10px;
+}
+
+.daily-insight-panel strong {
+  color: #153d52;
+  font-size: 15px;
+}
+
+.shift-dashboard-footer {
+  min-height: 30px;
+  padding: 6px 9px;
+  font-size: 10px;
+}
+
+@media (max-height: 850px) and (min-width: 1201px) {
+  .dashboard-page { overflow: auto; }
+
+  .dashboard-page .control-main {
+    height: auto;
+    min-height: calc(100vh - 74px);
+    overflow: visible;
+  }
+
+  .dashboard-shift-workspace { overflow: visible; }
+
+  .dashboard-page[data-dashboard-view="SHIFT"] .dashboard-shift-workspace,
+  .dashboard-page[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+    grid-template-rows: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .shift-executive-kpis,
+  .daily-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shift-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shift-dashboard-analysis,
+  .shift-dashboard-lower,
+  .daily-dashboard-analysis {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-view-tabs button {
+    min-width: 100px;
+    font-size: 11px;
+  }
+
+  .shift-executive-kpis,
+  .daily-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shift-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shift-code-block > strong {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .shift-code-block span { font-size: 12px; }
+  .shift-card-flow strong,
+  .shift-card-performance strong { font-size: 13px; }
+  .shift-card-flow span,
+  .shift-card-performance span { font-size: 9px; }
+}
