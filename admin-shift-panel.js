@@ -40,6 +40,7 @@
 
   function initialize() {
     bindStaticEvents();
+    observeShiftPanelVisibility();
 
     const requestedTab =
       new URLSearchParams(
@@ -159,6 +160,21 @@
       'click',
       handleShiftRowsClick
     );
+
+    byId(
+      'adminShiftMessageRetry'
+    )?.addEventListener(
+      'click',
+      function () {
+        state.initialized =
+          false;
+
+        state.initializing =
+          false;
+
+        ensureInitialized();
+      }
+    );
   }
 
 
@@ -174,11 +190,14 @@
       true;
 
     showPanelMessage(
-      'กำลังโหลด Module และการตั้งค่ากะ',
-      'LOADING'
+      'กำลังเตรียมข้อมูล Module จากหน้า Admin',
+      'LOADING',
+      false
     );
 
     try {
+      await waitForAdminReady();
+
       assertApi();
 
       await loadModules();
@@ -193,7 +212,12 @@
         errorMessage(
           error
         ),
-        'ERROR'
+        'ERROR',
+        true
+      );
+
+      renderModuleLoadFailure(
+        error
       );
 
       await showError(
@@ -204,16 +228,27 @@
     } finally {
       state.initializing =
         false;
+
+      setButtonLoading(
+        byId(
+          'adminShiftReloadButton'
+        ),
+        false
+      );
     }
   }
-
 
   function assertApi() {
     const API =
       window.VehicleAPI;
 
-    const required = [
-      'getModules',
+    if (!API) {
+      throw new Error(
+        'ไม่พบ VehicleAPI กรุณาตรวจสอบไฟล์ api.js'
+      );
+    }
+
+    const shiftMethods = [
       'getAdminShiftConfig',
       'saveAdminShiftConfig',
       'setupAdminShiftSystem',
@@ -221,14 +256,8 @@
       'getAdminShiftStatistics'
     ];
 
-    if (!API) {
-      throw new Error(
-        'ไม่พบ VehicleAPI กรุณาตรวจสอบไฟล์ api.js รอบล่าสุด'
-      );
-    }
-
     const missing =
-      required.filter(
+      shiftMethods.filter(
         function (method) {
           return (
             typeof API[method] !==
@@ -239,28 +268,248 @@
 
     if (missing.length) {
       throw new Error(
-        'api.js ยังไม่ใช่เวอร์ชันระบบกะ: ' +
+        'api.js ยังขาดฟังก์ชันระบบกะ: ' +
         missing.join(', ')
+      );
+    }
+
+    if (
+      typeof API.getAdminDashboard !==
+        'function' &&
+      typeof API.getModules !==
+        'function'
+    ) {
+      throw new Error(
+        'ไม่พบฟังก์ชันสำหรับอ่านรายการ Module'
+      );
+    }
+  }
+
+  async function loadModules() {
+    const reloadButton =
+      byId(
+        'adminShiftReloadButton'
+      );
+
+    setButtonLoading(
+      reloadButton,
+      true,
+      'กำลังโหลด'
+    );
+
+    const select =
+      byId(
+        'adminShiftModuleSelect'
+      );
+
+    try {
+      if (select) {
+        select.innerHTML = `
+          <option value="">
+            กำลังอ่าน Module จากหน้า Admin...
+          </option>
+        `;
+      }
+
+      let modules =
+        readModulesFromAdminPage();
+
+      if (!modules.length) {
+        modules =
+          await loadModulesFromAdminApi();
+      }
+
+      if (!modules.length) {
+        modules =
+          await loadModulesFromPublicApi();
+      }
+
+      state.modules =
+        normalizeModules(
+          modules
+        );
+
+      if (!select) {
+        return;
+      }
+
+      if (!state.modules.length) {
+        select.innerHTML = `
+          <option value="">
+            ไม่พบ Module
+          </option>
+        `;
+
+        throw new Error(
+          'หน้า Admin ไม่พบรายการ Module ที่สามารถตั้งค่ากะได้'
+        );
+      }
+
+      select.innerHTML =
+        state.modules
+          .map(
+            function (module) {
+              return `
+                <option
+                  value="${escapeHtml(
+                    module.moduleId
+                  )}"
+                >
+                  ${escapeHtml(
+                    module.name
+                  )}
+                  (${escapeHtml(
+                    module.moduleId
+                  )})
+                </option>
+              `;
+            }
+          )
+          .join('');
+
+      state.moduleId =
+        state.moduleId &&
+        state.modules.some(
+          function (module) {
+            return (
+              module.moduleId ===
+              state.moduleId
+            );
+          }
+        )
+          ? state.moduleId
+          : state.modules[0]
+              .moduleId;
+
+      select.value =
+        state.moduleId;
+
+      showPanelMessage(
+        'พบ ' +
+        state.modules.length +
+        ' Module กำลังโหลดการตั้งค่ากะ',
+        'LOADING',
+        false
+      );
+
+      await withTimeout(
+        loadModuleData(),
+        30000,
+        'โหลดการตั้งค่ากะใช้เวลานานเกินกำหนด'
+      );
+
+    } finally {
+      setButtonLoading(
+        reloadButton,
+        false
       );
     }
   }
 
 
-  async function loadModules() {
-    setButtonLoading(
-      byId(
-        'adminShiftReloadButton'
-      ),
-      true,
-      'กำลังโหลด'
-    );
+  function readModulesFromAdminPage() {
+    const cards =
+      Array.from(
+        document.querySelectorAll(
+          '#adminModuleList .admin-module-card[data-module-id]'
+        )
+      );
 
-    const data =
-      await window.VehicleAPI
-        .getModules();
+    return cards
+      .map(
+        function (card) {
+          const moduleId =
+            String(
+              card.dataset
+                .moduleId ||
+              ''
+            ).trim();
 
-    const modules =
-      Array.isArray(data)
+          const name =
+            String(
+              card.querySelector(
+                'h3'
+              )?.textContent ||
+              moduleId
+            ).trim();
+
+          return {
+            moduleId:
+              moduleId,
+
+            name:
+              name
+          };
+        }
+      )
+      .filter(
+        function (module) {
+          return module.moduleId;
+        }
+      );
+  }
+
+
+  async function loadModulesFromAdminApi() {
+    const API =
+      window.VehicleAPI;
+
+    if (
+      typeof API.getAdminDashboard !==
+      'function'
+    ) {
+      return [];
+    }
+
+    try {
+      const dashboard =
+        await withTimeout(
+          API.getAdminDashboard({
+            auditLimit:
+              1
+          }),
+          20000,
+          'Admin Dashboard ไม่ตอบกลับ'
+        );
+
+      return Array.isArray(
+        dashboard &&
+        dashboard.modules
+      )
+        ? dashboard.modules
+        : [];
+
+    } catch (error) {
+      console.warn(
+        '[Shift Admin] getAdminDashboard failed',
+        error
+      );
+
+      return [];
+    }
+  }
+
+
+  async function loadModulesFromPublicApi() {
+    const API =
+      window.VehicleAPI;
+
+    if (
+      typeof API.getModules !==
+      'function'
+    ) {
+      return [];
+    }
+
+    try {
+      const data =
+        await withTimeout(
+          API.getModules(),
+          15000,
+          'รายการ Module ไม่ตอบกลับ'
+        );
+
+      return Array.isArray(data)
         ? data
         : Array.isArray(
             data &&
@@ -269,113 +518,71 @@
           ? data.modules
           : [];
 
-    state.modules =
-      modules.filter(
-        function (module) {
-          return (
-            module &&
-            (
-              module.moduleId ||
-              module.id
-            )
-          );
-        }
+    } catch (error) {
+      console.warn(
+        '[Shift Admin] getModules failed',
+        error
       );
 
-    const select =
-      byId(
-        'adminShiftModuleSelect'
-      );
-
-    if (!select) {
-      return;
+      return [];
     }
-
-    if (!state.modules.length) {
-      select.innerHTML = `
-        <option value="">
-          ไม่พบ Module
-        </option>
-      `;
-
-      showPanelMessage(
-        'ไม่พบ Module ที่สามารถตั้งค่ากะได้',
-        'WARNING'
-      );
-
-      return;
-    }
-
-    select.innerHTML =
-      state.modules
-        .map(
-          function (module) {
-            const moduleId =
-              String(
-                module.moduleId ||
-                module.id ||
-                ''
-              );
-
-            const name =
-              String(
-                module.name ||
-                module.moduleName ||
-                moduleId
-              );
-
-            return `
-              <option
-                value="${escapeHtml(
-                  moduleId
-                )}"
-              >
-                ${escapeHtml(
-                  name
-                )}
-                (${escapeHtml(
-                  moduleId
-                )})
-              </option>
-            `;
-          }
-        )
-        .join('');
-
-    state.moduleId =
-      state.moduleId &&
-      state.modules.some(
-        function (module) {
-          return (
-            String(
-              module.moduleId ||
-              module.id
-            ) ===
-            state.moduleId
-          );
-        }
-      )
-        ? state.moduleId
-        : String(
-            state.modules[0]
-              .moduleId ||
-            state.modules[0]
-              .id
-          );
-
-    select.value =
-      state.moduleId;
-
-    await loadModuleData();
-
-    setButtonLoading(
-      byId(
-        'adminShiftReloadButton'
-      ),
-      false
-    );
   }
 
+
+  function normalizeModules(
+    modules
+  ) {
+    const map =
+      new Map();
+
+    (
+      Array.isArray(modules)
+        ? modules
+        : []
+    ).forEach(
+      function (module) {
+        if (!module) {
+          return;
+        }
+
+        const moduleId =
+          String(
+            module.moduleId ||
+            module.id ||
+            ''
+          ).trim();
+
+        if (!moduleId) {
+          return;
+        }
+
+        if (
+          !map.has(
+            moduleId
+          )
+        ) {
+          map.set(
+            moduleId,
+            {
+              moduleId:
+                moduleId,
+
+              name:
+                String(
+                  module.name ||
+                  module.moduleName ||
+                  moduleId
+                ).trim()
+            }
+          );
+        }
+      }
+    );
+
+    return Array.from(
+      map.values()
+    );
+  }
 
   async function loadModuleData() {
     if (!state.moduleId) {
@@ -392,19 +599,27 @@
     try {
       const results =
         await Promise.all([
-          window.VehicleAPI
-            .getAdminShiftConfig(
-              state.moduleId
-            ),
+          withTimeout(
+            window.VehicleAPI
+              .getAdminShiftConfig(
+                state.moduleId
+              ),
+            25000,
+            'โหลดการตั้งค่ากะไม่สำเร็จภายในเวลาที่กำหนด'
+          ),
 
-          window.VehicleAPI
-            .getAdminShiftStatistics({
-              moduleId:
-                state.moduleId,
+          withTimeout(
+            window.VehicleAPI
+              .getAdminShiftStatistics({
+                moduleId:
+                  state.moduleId,
 
-              limit:
-                50
-            })
+                limit:
+                  50
+              }),
+            25000,
+            'โหลดสถิติกะไม่สำเร็จภายในเวลาที่กำหนด'
+          )
         ]);
 
       if (
@@ -1781,11 +1996,22 @@
 
   function showPanelMessage(
     message,
-    status
+    status,
+    retryVisible
   ) {
     const element =
       byId(
         'adminShiftMessage'
+      );
+
+    const text =
+      byId(
+        'adminShiftMessageText'
+      );
+
+    const retry =
+      byId(
+        'adminShiftMessageRetry'
       );
 
     if (!element) {
@@ -1795,12 +2021,23 @@
     element.hidden =
       false;
 
-    element.textContent =
-      message;
+    if (text) {
+      text.textContent =
+        message;
+    } else {
+      element.textContent =
+        message;
+    }
 
     element.dataset.status =
       status ||
       'INFO';
+
+    if (retry) {
+      retry.hidden =
+        retryVisible !==
+        true;
+    }
   }
 
 
@@ -1810,12 +2047,237 @@
         'adminShiftMessage'
       );
 
+    const retry =
+      byId(
+        'adminShiftMessageRetry'
+      );
+
     if (element) {
       element.hidden =
         true;
     }
+
+    if (retry) {
+      retry.hidden =
+        true;
+    }
   }
 
+
+  function renderModuleLoadFailure(
+    error
+  ) {
+    const select =
+      byId(
+        'adminShiftModuleSelect'
+      );
+
+    if (select) {
+      select.innerHTML = `
+        <option value="">
+          โหลด Module ไม่สำเร็จ
+        </option>
+      `;
+    }
+
+    const rows =
+      byId(
+        'adminShiftRows'
+      );
+
+    if (rows) {
+      rows.innerHTML = `
+        <div class="admin-shift-loading admin-shift-load-error">
+          <strong>
+            ไม่สามารถโหลดการตั้งค่ากะได้
+          </strong>
+
+          <span>
+            ${escapeHtml(
+              errorMessage(
+                error
+              )
+            )}
+          </span>
+        </div>
+      `;
+    }
+  }
+
+
+  function observeShiftPanelVisibility() {
+    const panel =
+      byId(
+        'adminPanelShifts'
+      );
+
+    if (!panel) {
+      return;
+    }
+
+    const check =
+      function () {
+        if (
+          isElementVisible(
+            panel
+          )
+        ) {
+          ensureInitialized();
+        }
+      };
+
+    const observer =
+      new MutationObserver(
+        check
+      );
+
+    observer.observe(
+      panel,
+      {
+        attributes:
+          true,
+
+        attributeFilter: [
+          'class',
+          'hidden',
+          'style'
+        ]
+      }
+    );
+
+    window.setTimeout(
+      check,
+      500
+    );
+  }
+
+
+  async function waitForAdminReady() {
+    const startedAt =
+      Date.now();
+
+    while (
+      Date.now() -
+      startedAt <
+      20000
+    ) {
+      const loading =
+        byId(
+          'adminPageLoading'
+        );
+
+      const userText =
+        String(
+          byId(
+            'adminCurrentUser'
+          )?.textContent ||
+          ''
+        ).trim();
+
+      const loadingHidden =
+        !loading ||
+        !isElementVisible(
+          loading
+        );
+
+      const userReady =
+        userText &&
+        userText !==
+          'กำลังโหลด...';
+
+      if (
+        loadingHidden &&
+        userReady
+      ) {
+        return;
+      }
+
+      await delay(
+        150
+      );
+    }
+
+    throw new Error(
+      'หน้า Admin ยังโหลดสิทธิ์ผู้ดูแลระบบไม่เสร็จ'
+    );
+  }
+
+
+  function isElementVisible(
+    element
+  ) {
+    if (!element) {
+      return false;
+    }
+
+    if (
+      element.hidden ||
+      element.classList
+        .contains(
+          'is-hidden'
+        )
+    ) {
+      return false;
+    }
+
+    const style =
+      window.getComputedStyle(
+        element
+      );
+
+    return (
+      style.display !==
+        'none' &&
+      style.visibility !==
+        'hidden'
+    );
+  }
+
+
+  function withTimeout(
+    promise,
+    timeoutMs,
+    message
+  ) {
+    return Promise.race([
+      Promise.resolve(
+        promise
+      ),
+
+      new Promise(
+        function (
+          _resolve,
+          reject
+        ) {
+          window.setTimeout(
+            function () {
+              reject(
+                new Error(
+                  message ||
+                  'การเชื่อมต่อใช้เวลานานเกินกำหนด'
+                )
+              );
+            },
+            timeoutMs
+          );
+        }
+      )
+    ]);
+  }
+
+
+  function delay(
+    milliseconds
+  ) {
+    return new Promise(
+      function (resolve) {
+        window.setTimeout(
+          resolve,
+          milliseconds
+        );
+      }
+    );
+  }
 
   function updateLocation() {
     try {
