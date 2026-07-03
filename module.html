@@ -36,7 +36,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260703-r52-minimal-detail-swal"
+    href="./styles.css?v=20260703-r53-card-first-workspace"
   >
 
   <link
@@ -88,11 +88,16 @@
     src="./dashboard-link.js?v=20260702-r45-dashboard-contrast"
     defer
   ></script>
+
+  <script
+    src="./module-focus.js?v=20260703-r53-card-first-workspace"
+    defer
+  ></script>
 </head>
 
 <body
   data-page="module"
-  class="module-page"
+  class="module-page module-card-focus"
 >
   <!-- แสดงเฉพาะตอนเปิดหน้าเป็นครั้งแรก -->
   <div
@@ -260,6 +265,225 @@
         </div>
       </div>
     </section>
+
+
+
+    <section
+      id="moduleFocusToolbar"
+      class="module-focus-toolbar"
+      aria-label="เครื่องมือปฏิบัติงาน"
+    >
+      <div
+        class="module-focus-statuses"
+        role="toolbar"
+        aria-label="ตัวกรองรายการรถ"
+      >
+        <button
+          type="button"
+          class="is-active"
+          data-focus-status="ALL"
+        >
+          <span>ทั้งหมด</span>
+          <strong id="focusCountAll">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-focus-status="NORMAL"
+        >
+          <span>ปกติ</span>
+          <strong id="focusCountNormal">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-focus-status="WARNING"
+        >
+          <span>ใกล้เกินเวลา</span>
+          <strong id="focusCountWarning">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-focus-status="OVERDUE"
+        >
+          <span>เกินเวลา</span>
+          <strong id="focusCountOverdue">0</strong>
+        </button>
+
+        <button
+          type="button"
+          class="module-focus-receiving-filter"
+          data-focus-receiving="WAITING_RECEIVING"
+        >
+          <span>รอรับสินค้าเสร็จ</span>
+          <strong id="focusCountWaitingReceiving">0</strong>
+        </button>
+
+        <button
+          type="button"
+          class="module-focus-receiving-filter"
+          data-focus-receiving="WAITING_GATE_OUT"
+        >
+          <span>รับเสร็จรอ Gate Out</span>
+          <strong id="focusCountWaitingGateOut">0</strong>
+        </button>
+      </div>
+
+      <nav
+        class="module-focus-insights"
+        aria-label="ข้อมูลเพิ่มเติมของโมดูล"
+      >
+        <button
+          type="button"
+          data-focus-insight="OVERVIEW"
+        >
+          <span aria-hidden="true">▦</span>
+          ภาพรวม
+        </button>
+
+        <button
+          type="button"
+          data-focus-insight="URGENT"
+        >
+          <span aria-hidden="true">!</span>
+          งานเร่งด่วน
+        </button>
+
+        <button
+          type="button"
+          id="focusReceivingInsightButton"
+          data-focus-insight="RECEIVING"
+        >
+          <span aria-hidden="true">⇄</span>
+          Receiving Flow
+        </button>
+
+        <button
+          type="button"
+          data-focus-insight="ROUND"
+        >
+          <span aria-hidden="true">◷</span>
+          รอบ 4 ชั่วโมง
+        </button>
+
+        <button
+          type="button"
+          data-focus-insight="STATS"
+        >
+          <span aria-hidden="true">▥</span>
+          สถิติ
+        </button>
+      </nav>
+    </section>
+
+    <section class="vehicle-tools">
+      <label class="vehicle-search">
+        <span class="sr-only">
+          ค้นหาข้อมูลรถ
+        </span>
+
+        <input
+          id="searchInput"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="ค้นหาทะเบียน บริษัท คนขับ หรือเลขนัดหมาย"
+        >
+      </label>
+
+      <label class="vehicle-filter">
+        <span class="sr-only">
+          กรองตามสถานะ
+        </span>
+
+        <select id="statusFilter">
+          <option value="ALL">
+            ทุกสถานะ
+          </option>
+
+          <option value="NORMAL">
+            ปกติ
+          </option>
+
+          <option value="WARNING">
+            ใกล้เกินเวลา
+          </option>
+
+          <option value="OVERDUE">
+            เกินเวลา
+          </option>
+
+          <option value="INCOMPLETE">
+            ข้อมูลไม่สมบูรณ์
+          </option>
+        </select>
+      </label>
+
+      <label class="vehicle-sort module-focus-sort">
+        <span class="sr-only">
+          เรียงลำดับการ์ด
+        </span>
+
+        <select id="focusSortSelect">
+          <option value="LONGEST">
+            อยู่นานมากที่สุด
+          </option>
+
+          <option value="NEWEST">
+            เข้าพื้นที่ล่าสุด
+          </option>
+
+          <option value="APPOINTMENT">
+            เลขนัดหมาย
+          </option>
+
+          <option value="COMPANY">
+            ชื่อบริษัท
+          </option>
+        </select>
+      </label>
+
+      <button
+        id="calendarButton"
+        class="button button--secondary vehicle-tool-button"
+        type="button"
+      >
+        ปฏิทิน
+      </button>
+    </section>
+
+    <section class="vehicle-result-header">
+      <div>
+        <strong id="resultCount">
+          0 รายการ
+        </strong>
+
+        <span id="lastUpdated">
+          กำลังเตรียมข้อมูล
+        </span>
+      </div>
+    </section>
+
+    <div
+      id="vehicleEmpty"
+      class="empty-state is-hidden"
+    >
+      <strong>
+        ไม่พบข้อมูลตามเงื่อนไข
+      </strong>
+
+      <span>
+        ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ
+      </span>
+    </div>
+
+    <section
+      id="vehicleList"
+      class="vehicle-grid"
+      aria-live="polite"
+      aria-busy="false"
+    ></section>
 
 
     <section
@@ -770,89 +994,6 @@
       </button>
     </section>
 
-    <section class="vehicle-tools">
-      <label class="vehicle-search">
-        <span class="sr-only">
-          ค้นหาข้อมูลรถ
-        </span>
-
-        <input
-          id="searchInput"
-          type="search"
-          inputmode="search"
-          autocomplete="off"
-          placeholder="ค้นหาทะเบียน บริษัท คนขับ หรือเลขนัดหมาย"
-        >
-      </label>
-
-      <label class="vehicle-filter">
-        <span class="sr-only">
-          กรองตามสถานะ
-        </span>
-
-        <select id="statusFilter">
-          <option value="ALL">
-            ทุกสถานะ
-          </option>
-
-          <option value="NORMAL">
-            ปกติ
-          </option>
-
-          <option value="WARNING">
-            ใกล้เกินเวลา
-          </option>
-
-          <option value="OVERDUE">
-            เกินเวลา
-          </option>
-
-          <option value="INCOMPLETE">
-            ข้อมูลไม่สมบูรณ์
-          </option>
-        </select>
-      </label>
-
-      <button
-        id="calendarButton"
-        class="button button--secondary vehicle-tool-button"
-        type="button"
-      >
-        ปฏิทิน
-      </button>
-    </section>
-
-    <section class="vehicle-result-header">
-      <div>
-        <strong id="resultCount">
-          0 รายการ
-        </strong>
-
-        <span id="lastUpdated">
-          กำลังเตรียมข้อมูล
-        </span>
-      </div>
-    </section>
-
-    <div
-      id="vehicleEmpty"
-      class="empty-state is-hidden"
-    >
-      <strong>
-        ไม่พบข้อมูลตามเงื่อนไข
-      </strong>
-
-      <span>
-        ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ
-      </span>
-    </div>
-
-    <section
-      id="vehicleList"
-      class="vehicle-grid"
-      aria-live="polite"
-      aria-busy="false"
-    ></section>
   </main>
 
   <footer class="app-footer">
