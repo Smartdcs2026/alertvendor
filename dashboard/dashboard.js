@@ -119,7 +119,7 @@
       state.moduleId = getModuleIdFromUrl();
 
       if (!state.moduleId) {
-        throw new Error('ไม่พบรหัส Module');
+        throw new Error('ไม่พบรหัสโมดูล');
       }
 
       state.session = await API.me();
@@ -639,7 +639,7 @@
             </div>
 
             <div class="record-inspector-info">
-              <span>เวลาเข้า Gate In</span>
+              <span>เวลาเข้า</span>
 
               <strong>
                 ${escapeHtml(
@@ -1007,7 +1007,7 @@
         generatedAt
       );
 
-      setConnectionState('ONLINE', 'ออนไลน์');
+      setConnectionState('ONLINE', 'สด');
     } catch (error) {
       if (isAuthenticationError(error)) {
         redirectToLogin();
@@ -1181,7 +1181,7 @@
             : 'WAITING_RECEIVING',
         stageLabel:
           hasReceiving
-            ? 'รับสินค้าเสร็จ รอ Gate Out'
+            ? 'รับสินค้าเสร็จ รอออก'
             : 'รอรับสินค้าเสร็จ',
         isExited:
           false,
@@ -1192,7 +1192,7 @@
         gateOutSource:
           'PENDING',
         gateOutSourceLabel:
-          'ยังไม่มีการสแกน Gate Out',
+          'ยังไม่พบเวลาออกจากพื้นที่',
         currentStageSeconds:
           currentStageSeconds
       };
@@ -1217,7 +1217,7 @@
             : 'AUTO_CLOSED_WITHOUT_RECEIVING',
         stageLabel:
           hasReceiving
-            ? 'รับสินค้าเสร็จแล้ว แต่ไม่พบ Gate Out จริง — ระบบเคลียร์ข้อมูล'
+            ? 'รับสินค้าเสร็จแล้ว แต่ไม่พบรถออกจริง — ระบบปิดรายการอัตโนมัติ'
             : 'ระบบเคลียร์ข้อมูล โดยไม่มีข้อมูลรับสินค้าเสร็จ'
       };
     }
@@ -1231,8 +1231,8 @@
             : 'EXITED_WITHOUT_RECEIVING',
         stageLabel:
           hasReceiving
-            ? 'Gate Out จริงแล้ว — กระบวนการสมบูรณ์'
-            : 'Gate Out จริงแล้ว โดยไม่มีข้อมูลรับสินค้าเสร็จ'
+            ? 'รถออกจริงแล้ว — กระบวนการสมบูรณ์'
+            : 'รถออกจริงแล้ว โดยไม่มีข้อมูลรับสินค้าเสร็จ'
       };
     }
 
@@ -1241,7 +1241,7 @@
       stageCode:
         'INACTIVE_WITHOUT_GATE_OUT_TIME',
       stageLabel:
-        'รายการไม่ Active แต่ไม่พบเวลา Gate Out ที่ยืนยันได้'
+        'รายการไม่คงค้าง แต่ไม่พบเวลาออกที่ยืนยันได้'
     };
   }
 
@@ -1364,7 +1364,7 @@
     ) {
       code = 'ACTION';
       count = Number(receivingSummary.waitingGateOut);
-      label = 'ติดตาม Gate Out';
+      label = 'ติดตามรถออก';
       message = count + ' รายการรับสินค้าเสร็จแล้ว';
     } else if (counts.WARNING > 0) {
       code = 'WATCH';
@@ -1627,7 +1627,7 @@
         priority: 0,
         code: 'OVERDUE',
         title: dimensions.title,
-        action: 'เกิน SLA ต้องเร่งติดตาม',
+        action: 'เกินเวลา ต้องเร่งติดตาม',
         seconds: Number(record.durationSeconds) || 0
       };
     }
@@ -1640,7 +1640,7 @@
         priority: 1,
         code: 'WAITING_GATE_OUT',
         title: dimensions.title,
-        action: 'รับสินค้าเสร็จแล้ว รอ Gate Out',
+        action: 'รับสินค้าเสร็จแล้ว รอรถออก',
         seconds: Number(receiving.currentStageSeconds) || 0
       };
     }
@@ -2102,7 +2102,7 @@
             </div>
 
             <div class="mobile-active-card__field mobile-active-card__field--gate-in">
-              <span>เวลาเข้า Gate In</span>
+              <span>เวลาเข้า</span>
 
               <strong>
                 ${escapeHtml(
@@ -2275,7 +2275,7 @@
       labels: hours.map(getHourLabel),
       datasets: [
         {
-          label: 'เข้า',
+          label: 'รถเข้า',
           data: hours.map(
             (hour) => Number(hour.in) || 0
           ),
@@ -2285,7 +2285,7 @@
           categoryPercentage: .78
         },
         {
-          label: 'ออกจริง',
+          label: 'รถออกจริง',
           data: hours.map(
             (hour) => Number(hour.outReal) || 0
           ),
@@ -2295,7 +2295,7 @@
           categoryPercentage: .78
         },
         {
-          label: 'ระบบเคลียร์อัตโนมัติ',
+          label: 'ปิดอัตโนมัติ',
           data: hours.map(
             (hour) => Number(hour.outAuto) || 0
           ),
@@ -2613,7 +2613,7 @@
       labels: hours.map(getHourLabel),
       datasets: [
         {
-          label: 'รายการ Active',
+          label: 'รายการคงค้าง',
           data: deriveActiveTrend(
             hours,
             state.records.length
