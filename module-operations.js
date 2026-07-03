@@ -1,6 +1,6 @@
 /**
  * module-operations.js
- * ROUND 54 — Round 52 Alert Restored with Full Record Bridge
+ * ROUND 55 — Dedicated Styled Record Detail SweetAlert
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -709,101 +709,176 @@
       scrollbarPadding:
         false,
       width:
-        'min(720px, calc(100vw - 14px))',
+        'min(620px, calc(100vw - 12px))',
       padding:
         '0',
 
       customClass: {
         popup:
-          'av-record-detail-popup-v52',
+          'av-record-detail-popup-v55',
         title:
-          'av-record-detail-hidden-v52',
+          'av-record-detail-hidden-v55',
         icon:
-          'av-record-detail-hidden-v52',
+          'av-record-detail-hidden-v55',
         htmlContainer:
-          'av-record-detail-html-v52',
+          'av-record-detail-html-v55',
         actions:
-          'av-record-detail-actions-v52',
+          'av-record-detail-actions-v55',
         confirmButton:
-          'av-record-detail-back-v52',
+          'av-record-detail-back-v55',
         denyButton:
-          'av-record-detail-main-v52',
+          'av-record-detail-main-v55',
         closeButton:
-          'av-record-detail-close-v52'
+          'av-record-detail-close-v55'
       },
+
+      didRender:
+        (popup) => {
+          applyRecordDetailPopupClasses(
+            popup
+          );
+        },
 
       didOpen:
         (popup) => {
-          const titleNode =
-            popup.querySelector(
-              '.swal2-title'
-            );
-
-          const iconNode =
-            popup.querySelector(
-              '.swal2-icon'
-            );
-
-          if (titleNode) {
-            titleNode.style.display =
-              'none';
-          }
-
-          if (iconNode) {
-            iconNode.style.display =
-              'none';
-          }
-
-          popup.style.height =
-            'auto';
-
-          popup.style.minHeight =
-            '0';
-
-          popup.style.overflow =
-            'hidden';
+          applyRecordDetailPopupClasses(
+            popup
+          );
         }
     };
+  }
+
+
+  function applyRecordDetailPopupClasses(
+    popup
+  ) {
+    if (!popup) {
+      return;
+    }
+
+    popup.classList.add(
+      'av-record-detail-popup-v55'
+    );
+
+    popup.style.width =
+      'min(620px, calc(100vw - 12px))';
+
+    popup.style.maxWidth =
+      'calc(100vw - 12px)';
+
+    popup.style.height =
+      'auto';
+
+    popup.style.minHeight =
+      '0';
+
+    popup.style.padding =
+      '0';
+
+    popup.style.overflow =
+      'hidden';
+
+    const titleNode =
+      popup.querySelector(
+        '.swal2-title'
+      );
+
+    const iconNode =
+      popup.querySelector(
+        '.swal2-icon'
+      );
+
+    const htmlNode =
+      popup.querySelector(
+        '.swal2-html-container'
+      );
+
+    const actionsNode =
+      popup.querySelector(
+        '.swal2-actions'
+      );
+
+    const confirmButton =
+      popup.querySelector(
+        '.swal2-confirm'
+      );
+
+    const denyButton =
+      popup.querySelector(
+        '.swal2-deny'
+      );
+
+    const closeButton =
+      popup.querySelector(
+        '.swal2-close'
+      );
+
+    if (titleNode) {
+      titleNode.classList.add(
+        'av-record-detail-hidden-v55'
+      );
+
+      titleNode.style.display =
+        'none';
+    }
+
+    if (iconNode) {
+      iconNode.classList.add(
+        'av-record-detail-hidden-v55'
+      );
+
+      iconNode.style.display =
+        'none';
+    }
+
+    htmlNode?.classList.add(
+      'av-record-detail-html-v55'
+    );
+
+    actionsNode?.classList.add(
+      'av-record-detail-actions-v55'
+    );
+
+    confirmButton?.classList.add(
+      'av-record-detail-back-v55'
+    );
+
+    denyButton?.classList.add(
+      'av-record-detail-main-v55'
+    );
+
+    closeButton?.classList.add(
+      'av-record-detail-close-v55'
+    );
   }
 
 
   function buildSeparateOverdueDetailHtml(
     record
   ) {
-    const driverHtml =
-      record.driver
-        ? `
-            <div class="av-minimal-detail-item-v52">
-              <span>
-                ชื่อผู้ขับ
-              </span>
-
-              <strong>
-                ${escapeHtml(
-                  record.driver
-                )}
-              </strong>
-            </div>
-          `
-        : '';
+    const driver =
+      String(
+        record.driver ||
+        ''
+      ).trim();
 
     return `
-      <article class="av-minimal-detail-v52">
-        <header class="av-minimal-detail-header-v52">
-          <small>
+      <article class="av-record-detail-layout-v55">
+        <header class="av-record-detail-header-v55">
+          <span>
             รายละเอียดรายการ
-          </small>
+          </span>
 
-          <h2>
+          <strong>
             เลขนัดหมาย
             ${escapeHtml(
               record.appointment
             )}
-          </h2>
+          </strong>
         </header>
 
-        <section class="av-minimal-detail-main-v52">
-          <div class="av-minimal-detail-company-v52">
+        <div class="av-record-detail-body-v55">
+          <section class="av-record-detail-company-v55">
             <span>
               บริษัท / Vendor
             </span>
@@ -813,10 +888,10 @@
                 record.company
               )}
             </strong>
-          </div>
+          </section>
 
-          <div class="av-minimal-detail-grid-v52">
-            <div class="av-minimal-detail-item-v52">
+          <section class="av-record-detail-grid-v55">
+            <div class="av-record-detail-item-v55">
               <span>
                 ทะเบียนรถ / หมายเลขตู้
               </span>
@@ -828,9 +903,25 @@
               </strong>
             </div>
 
-            ${driverHtml}
+            ${
+              driver
+                ? `
+                    <div class="av-record-detail-item-v55">
+                      <span>
+                        ชื่อผู้ขับ
+                      </span>
 
-            <div class="av-minimal-detail-item-v52">
+                      <strong>
+                        ${escapeHtml(
+                          driver
+                        )}
+                      </strong>
+                    </div>
+                  `
+                : ''
+            }
+
+            <div class="av-record-detail-item-v55">
               <span>
                 เวลา Gate In
               </span>
@@ -842,7 +933,7 @@
               </strong>
             </div>
 
-            <div class="av-minimal-detail-item-v52">
+            <div class="av-record-detail-item-v55">
               <span>
                 เวลาอยู่ในพื้นที่
               </span>
@@ -854,7 +945,7 @@
               </strong>
             </div>
 
-            <div class="av-minimal-detail-item-v52 is-overdue">
+            <div class="av-record-detail-item-v55 is-overdue">
               <span>
                 เกิน SLA แล้ว
               </span>
@@ -866,7 +957,7 @@
               </strong>
             </div>
 
-            <div class="av-minimal-detail-item-v52">
+            <div class="av-record-detail-item-v55">
               <span>
                 ขั้นตอนปัจจุบัน
               </span>
@@ -877,8 +968,8 @@
                 )}
               </strong>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </article>
     `;
   }
