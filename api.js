@@ -995,6 +995,15 @@
 
               date:
                 config.date ||
+                '',
+
+              scope:
+                config.scope ||
+                '',
+
+              shift:
+                config.shift ||
+                config.shiftCode ||
                 ''
             }
           }
@@ -1003,6 +1012,205 @@
       return response.data;
     },
 
+
+
+    async getShiftConfig(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/shift-config',
+          {
+            query: {
+              date:
+                config.date ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getMovementScope(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/movement-scope',
+          {
+            query: {
+              scope:
+                config.scope ||
+                'ROLLING_4H',
+
+              date:
+                config.date ||
+                '',
+
+              shift:
+                config.shift ||
+                config.shiftCode ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getAdminShiftConfig(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/shift-config',
+          {
+            query: {
+              date:
+                config.date ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async saveAdminShiftConfig(
+      moduleId,
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/shift-config',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async setupAdminShiftSystem() {
+      const response =
+        await request(
+          '/api/admin/shifts/setup',
+          {
+            method:
+              'POST',
+
+            body: {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async runAdminShiftSnapshots(
+      options
+    ) {
+      const response =
+        await request(
+          '/api/admin/shifts/run-snapshots',
+          {
+            method:
+              'POST',
+
+            body:
+              options || {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getAdminShiftStatistics(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/shifts/statistics',
+          {
+            query: {
+              moduleId:
+                config.moduleId ||
+                '',
+
+              startDate:
+                config.startDate ||
+                '',
+
+              endDate:
+                config.endDate ||
+                '',
+
+              shift:
+                config.shift ||
+                '',
+
+              limit:
+                config.limit ||
+                100
+            }
+          }
+        );
+
+      return response.data;
+    },
 
 
     async getReceivingFlow(
