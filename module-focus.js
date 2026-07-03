@@ -1,6 +1,6 @@
 /************************************************************
  * module-focus.js
- * ROUND 53 — Card-first Operational Workspace
+ * ROUND 54 — Card-first Workspace with Full Record Bridge
  *
  * เป้าหมาย:
  * - เปิดหน้าแล้วเห็นการ์ดรถ/ตู้ทันที
@@ -83,6 +83,14 @@
     window.setTimeout(
       syncWorkspace,
       1300
+    );
+
+    document.addEventListener(
+      'alertvendor:records-updated',
+      () => {
+        syncWorkspace();
+        applyCardSort();
+      }
     );
   }
 
@@ -1409,6 +1417,245 @@
 
 
   function getCardRecords() {
+    const bridgeRecords =
+      getBridgeCardRecords();
+
+    if (
+      bridgeRecords.length > 0
+    ) {
+      return bridgeRecords;
+    }
+
+    return getDomCardRecords();
+  }
+
+
+  function getBridgeCardRecords() {
+    const bridge =
+      window
+        .AlertVendorRecordBridge;
+
+    if (
+      !bridge ||
+      typeof bridge.getRecords !==
+        'function'
+    ) {
+      return [];
+    }
+
+    const records =
+      bridge.getRecords();
+
+    if (
+      !Array.isArray(
+        records
+      ) ||
+      records.length === 0
+    ) {
+      return [];
+    }
+
+    const nowMs =
+      typeof bridge.getNowMs ===
+        'function'
+        ? bridge.getNowMs()
+        : Date.now();
+
+    const warningSeconds =
+      getThresholdSeconds(
+        'thresholdWarningText',
+        45 * 60
+      );
+
+    const overdueSeconds =
+      getThresholdSeconds(
+        'thresholdOverdueText',
+        60 * 60
+      );
+
+    const visibleCards =
+      new Map(
+        Array.from(
+          document.querySelectorAll(
+            '.vehicle-card[data-record-id]'
+          )
+        ).map(
+          (card) => [
+            String(
+              card.dataset
+                .recordId ||
+              ''
+            ),
+            card
+          ]
+        )
+      );
+
+    return records
+      .filter(
+        (record) =>
+          record &&
+          record.isCurrentlyInArea !==
+            false
+      )
+      .map(
+        (record) => {
+          const timestampMs =
+            getBridgeTimestampMs(
+              record
+            );
+
+          const durationSeconds =
+            Number.isFinite(
+              timestampMs
+            )
+              ? Math.max(
+                  0,
+                  Math.floor(
+                    (
+                      nowMs -
+                      timestampMs
+                    ) /
+                    1000
+                  )
+                )
+              : 0;
+
+          const status =
+            durationSeconds >=
+              overdueSeconds
+              ? 'OVERDUE'
+              : durationSeconds >=
+                  warningSeconds
+                ? 'WARNING'
+                : Number.isFinite(
+                    timestampMs
+                  )
+                  ? 'NORMAL'
+                  : 'INCOMPLETE';
+
+          const fields =
+            Array.isArray(
+              record.fields
+            )
+              ? record.fields
+              : [];
+
+          const recordId =
+            String(
+              record.recordId ||
+              record.id ||
+              ''
+            );
+
+          const card =
+            visibleCards.get(
+              recordId
+            );
+
+          const stage =
+            card
+              ?.querySelector(
+                '.receiving-card-stage__head strong'
+              )
+              ?.textContent
+              ?.trim() ||
+            card
+              ?.querySelector(
+                '.receiving-stage-badge'
+              )
+              ?.textContent
+              ?.trim() ||
+            String(
+              record.receivingStage ||
+              record.stage ||
+              ''
+            );
+
+          return {
+            recordId,
+
+            status,
+
+            receivingStage:
+              String(
+                card?.dataset
+                  .receivingStage ||
+                record.receivingStage ||
+                ''
+              ).toUpperCase(),
+
+            stage,
+
+            company:
+              String(
+                record.primaryValue ||
+                getRawField(
+                  fields,
+                  [
+                    'บริษัท',
+                    'vendor',
+                    'company'
+                  ]
+                ) ||
+                '-'
+              ),
+
+            appointment:
+              getRawField(
+                fields,
+                [
+                  'เลขนัดหมาย',
+                  'หมายเลขนัดหมาย',
+                  'นัดหมาย',
+                  'appointment',
+                  'booking'
+                ]
+              ) ||
+              inferRawAppointment(
+                fields
+              ) ||
+              '-',
+
+            registration:
+              getRawField(
+                fields,
+                [
+                  'ทะเบียน',
+                  'หมายเลขตู้',
+                  'เลขตู้',
+                  'registration',
+                  'container'
+                ]
+              ) ||
+              '-',
+
+            driver:
+              getRawField(
+                fields,
+                [
+                  'ชื่อผู้ขับ',
+                  'ชื่อคนขับ',
+                  'ผู้ขับ',
+                  'driver',
+                  'ชื่อ'
+                ]
+              ) ||
+              '-',
+
+            duration:
+              formatFocusDuration(
+                durationSeconds
+              ),
+
+            durationSeconds
+          };
+        }
+      );
+  }
+
+
+  function getDomCardRecords() {
     return Array.from(
       document.querySelectorAll(
         '.vehicle-card[data-record-id]'
@@ -1493,6 +1740,255 @@
     );
   }
 
+
+  function getBridgeTimestampMs(
+    record
+  ) {
+    const epoch =
+      Number(
+        record &&
+        record.timestampInEpochMs
+      );
+
+    if (
+      Number.isFinite(
+        epoch
+      ) &&
+      epoch > 0
+    ) {
+      return epoch;
+    }
+
+    const value =
+      String(
+        record &&
+        (
+          record.timestampIn ||
+          record.gateIn
+        ) ||
+        ''
+      ).trim();
+
+    const match =
+      value.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/
+      );
+
+    if (match) {
+      return new Date(
+        Number(match[3]),
+        Number(match[2]) - 1,
+        Number(match[1]),
+        Number(match[4]),
+        Number(match[5]),
+        Number(match[6])
+      ).getTime();
+    }
+
+    const parsed =
+      Date.parse(
+        value
+      );
+
+    return Number.isFinite(
+      parsed
+    )
+      ? parsed
+      : NaN;
+  }
+
+
+  function getThresholdSeconds(
+    elementId,
+    fallback
+  ) {
+    const value =
+      document.getElementById(
+        elementId
+      )?.textContent ||
+      '';
+
+    const numberMatch =
+      String(value)
+        .replace(/,/g, '')
+        .match(
+          /(\d+(?:\.\d+)?)/
+        );
+
+    const number =
+      numberMatch
+        ? Number(
+            numberMatch[1]
+          )
+        : NaN;
+
+    if (
+      !Number.isFinite(
+        number
+      )
+    ) {
+      return fallback;
+    }
+
+    if (
+      /ชั่วโมง|hour/i.test(
+        value
+      )
+    ) {
+      return Math.round(
+        number *
+        3600
+      );
+    }
+
+    return Math.round(
+      number *
+      60
+    );
+  }
+
+
+  function getRawField(
+    fields,
+    keywords
+  ) {
+    const targets =
+      keywords.map(
+        normalize
+      );
+
+    for (
+      const field
+      of (
+        Array.isArray(
+          fields
+        )
+          ? fields
+          : []
+      )
+    ) {
+      const label =
+        normalize(
+          field &&
+          (
+            field.label ||
+            field.name ||
+            field.id
+          )
+        );
+
+      if (
+        targets.some(
+          (target) =>
+            label.includes(
+              target
+            )
+        )
+      ) {
+        const value =
+          String(
+            field &&
+            (
+              field.value ??
+              field.displayValue ??
+              ''
+            )
+          ).trim();
+
+        if (value) {
+          return value;
+        }
+      }
+    }
+
+    return '';
+  }
+
+
+  function inferRawAppointment(
+    fields
+  ) {
+    for (
+      const field
+      of (
+        Array.isArray(
+          fields
+        )
+          ? fields
+          : []
+      )
+    ) {
+      const value =
+        String(
+          field &&
+          (
+            field.value ??
+            field.displayValue ??
+            ''
+          )
+        ).trim();
+
+      if (
+        /^\d{6,10}$/.test(
+          value
+        )
+      ) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+
+  function formatFocusDuration(
+    totalSeconds
+  ) {
+    const value =
+      Math.max(
+        0,
+        Number(
+          totalSeconds
+        ) ||
+        0
+      );
+
+    const hours =
+      Math.floor(
+        value /
+        3600
+      );
+
+    const minutes =
+      Math.floor(
+        (
+          value %
+          3600
+        ) /
+        60
+      );
+
+    const seconds =
+      Math.floor(
+        value %
+        60
+      );
+
+    return [
+      hours,
+      minutes,
+      seconds
+    ]
+      .map(
+        (part) =>
+          String(part)
+            .padStart(
+              2,
+              '0'
+            )
+      )
+      .join(':');
+  }
 
   function buildRecordRow(
     record,
