@@ -819,7 +819,7 @@
         )}
 
         ${dailyMetricHtml(
-          'P90',
+          'เวลาส่วนใหญ่',
           formatMinutes(
             metric
               .p90DwellMinutes
@@ -888,8 +888,38 @@
 
           <div class="daily-history-table-wrap">
             ${dailyHistoryTable(
-              history
+              history.slice(
+                0,
+                7
+              )
             )}
+          </div>
+        </article>
+
+        <article class="daily-insight-panel">
+          <header>
+            <small>สรุปผู้บริหาร</small>
+            <h3>ภาพรวมวันนี้</h3>
+          </header>
+
+          <div>
+            <span>กะผลงานดีที่สุด</span>
+            <strong>${escapeHtml(daily.bestShiftCode || '-')}</strong>
+          </div>
+
+          <div>
+            <span>กะที่ต้องติดตาม</span>
+            <strong>${escapeHtml(daily.attentionShiftCode || '-')}</strong>
+          </div>
+
+          <div>
+            <span>ความครบถ้วนข้อมูล</span>
+            <strong>${formatPercent(metric.dataCompletenessPercent)}</strong>
+          </div>
+
+          <div>
+            <span>สถานะสรุป</span>
+            <strong>${escapeHtml(daily.statusLabel || '-')}</strong>
           </div>
         </article>
       </section>
@@ -1054,7 +1084,7 @@
           </div>
 
           <div>
-            <span>P90</span>
+            <span>เวลาส่วนใหญ่</span>
             <strong>
               ${formatMinutes(
                 metric
@@ -1252,6 +1282,10 @@
     }
 
     return items
+      .slice(
+        0,
+        5
+      )
       .map(
         (item, index) => `
           <button
@@ -1649,7 +1683,7 @@
             )}
 
             ${detailItem(
-              'P90',
+              'เวลาส่วนใหญ่',
               formatMinutes(
                 metric
                   .p90DwellMinutes
@@ -1841,11 +1875,11 @@
         ]
       },
       sla: {
-        title: 'SLA และ P90 คืออะไร',
+        title: 'SLA และ เวลาส่วนใหญ่ คืออะไร',
         items: [
           ['SLA', 'เกณฑ์เวลาที่กำหนดว่ารถหรือตู้ควรอยู่ในพื้นที่ไม่เกินกี่นาที'],
           ['ผ่านเกณฑ์', 'ร้อยละของรายการที่ใช้เวลาไม่เกิน SLA'],
-          ['P90', 'เวลาที่ครอบคลุมรายการประมาณ 90% ใช้ดูว่ารายการส่วนใหญ่ใช้เวลานานเท่าใด'],
+          ['เวลาส่วนใหญ่', 'เวลาที่ครอบคลุมรายการประมาณ 90% ใช้ดูว่ารายการส่วนใหญ่ใช้เวลานานเท่าใด'],
           ['เกินเกณฑ์', 'จำนวนรายการที่ใช้เวลาตั้งแต่เกณฑ์สีแดงขึ้นไป']
         ]
       },
