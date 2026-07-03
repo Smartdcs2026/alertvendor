@@ -1565,7 +1565,7 @@
       );
     const stageOneLabel = hasReceiving
       ? 'เข้า → รับสินค้าเสร็จ'
-      : 'เข้า → รอรับสินค้าเสร็จ';
+      : 'เข้า → รอรับสินค้า';
     const stageTwoLabel = hasReceiving
       ? 'รับเสร็จ → Gate Out'
       : 'เริ่มหลังรับสินค้าเสร็จ';
@@ -1824,9 +1824,7 @@
         </label>
 
         <p class="receiving-review-note">
-          ระบบจะใช้วันและเวลาจริงจาก Server
-          ตอนกดยืนยันบันทึก ในรูปแบบ
-          dd/MM/yyyy HH:mm:ss
+          S&LP SKDC06
         </p>
       </div>
     `;
