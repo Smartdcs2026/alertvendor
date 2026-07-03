@@ -16660,3 +16660,298 @@ button {
       repeat(2, minmax(0, 1fr));
   }
 }
+
+/************************************************************
+ * ROUND 52 — Minimal Detail SweetAlert
+ * เน้นข้อมูลจำเป็น ไม่มีข้อมูลซ้ำ และลดการใช้สี
+ ************************************************************/
+
+.swal2-popup.av-record-detail-popup-v52,
+.swal2-popup.av-record-detail-popup-v52 * {
+  box-sizing: border-box;
+}
+
+.swal2-popup.av-record-detail-popup-v52 {
+  width:
+    min(600px, calc(100vw - 16px)) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width:
+    calc(100vw - 16px) !important;
+  max-height:
+    min(90dvh, 720px) !important;
+  display: grid !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    auto !important;
+  overflow: hidden !important;
+  border: 1px solid #d9e0e5;
+  border-radius: 14px !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 20px 55px
+    rgba(21, 39, 52, .24) !important;
+}
+
+.av-record-detail-hidden-v52 {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.av-record-detail-html-v52 {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height:
+    calc(min(90dvh, 720px) - 64px) !important;
+  display: block !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #243746 !important;
+  text-align: left !important;
+}
+
+.av-minimal-detail-v52 {
+  min-width: 0;
+  background: #ffffff;
+}
+
+.av-minimal-detail-header-v52 {
+  min-width: 0;
+  border-bottom: 1px solid #dce3e8;
+  padding: 15px 17px;
+  background: #f5f7f8;
+}
+
+.av-minimal-detail-header-v52 small {
+  display: block;
+  color: #73828c;
+  font-size: .58rem;
+  font-weight: 800;
+}
+
+.av-minimal-detail-header-v52 h2 {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: #17384b;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.av-minimal-detail-main-v52 {
+  min-width: 0;
+  display: grid;
+  gap: 0;
+  padding: 0 16px 14px;
+}
+
+.av-minimal-detail-company-v52 {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  border-bottom: 1px solid #dce3e8;
+  padding: 13px 2px;
+}
+
+.av-minimal-detail-company-v52 span,
+.av-minimal-detail-item-v52 span {
+  color: #74838d;
+  font-size: .55rem;
+  font-weight: 800;
+}
+
+.av-minimal-detail-company-v52 strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #1f3544;
+  font-size: .88rem;
+  font-weight: 900;
+}
+
+.av-minimal-detail-grid-v52 {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+}
+
+.av-minimal-detail-item-v52 {
+  min-width: 0;
+  min-height: 66px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  border-bottom: 1px solid #dce3e8;
+  padding: 10px 8px 10px 2px;
+}
+
+.av-minimal-detail-item-v52:nth-child(odd) {
+  border-right: 1px solid #dce3e8;
+  padding-right: 12px;
+}
+
+.av-minimal-detail-item-v52:nth-child(even) {
+  padding-left: 12px;
+}
+
+.av-minimal-detail-item-v52 strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #243746;
+  font-size: .72rem;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.av-minimal-detail-item-v52.is-overdue strong {
+  color: #b42323;
+  font-size: .8rem;
+  font-weight: 950;
+}
+
+.av-record-detail-actions-v52 {
+  width: 100% !important;
+  min-height: 58px;
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-top: 1px solid #d9e0e5;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  background: #ffffff;
+}
+
+.av-record-detail-actions-v52 button {
+  min-height: 39px;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  font-weight: 900 !important;
+}
+
+.av-record-detail-back-v52 {
+  min-width: 126px;
+  border: 1px solid #b8c5cd !important;
+  color: #2d4858 !important;
+  background: #ffffff !important;
+}
+
+.av-record-detail-main-v52 {
+  min-width: 148px;
+  border: 1px solid #264f63 !important;
+  color: #ffffff !important;
+  background: #264f63 !important;
+}
+
+.av-record-detail-close-v52 {
+  top: 7px !important;
+  right: 7px !important;
+  width: 31px !important;
+  height: 31px !important;
+  border-radius: 7px !important;
+  color: #475b68 !important;
+  background: #edf1f3 !important;
+  font-size: 1.18rem !important;
+}
+
+@media (max-width: 680px) {
+  .swal2-popup.av-record-detail-popup-v52 {
+    width:
+      calc(100vw - 10px) !important;
+    max-width:
+      calc(100vw - 10px) !important;
+    max-height:
+      92dvh !important;
+    border-radius: 12px !important;
+  }
+
+  .av-record-detail-html-v52 {
+    max-height:
+      calc(92dvh - 58px) !important;
+  }
+
+  .av-minimal-detail-header-v52 {
+    padding: 12px 13px;
+  }
+
+  .av-minimal-detail-header-v52 small {
+    font-size: .48rem;
+  }
+
+  .av-minimal-detail-header-v52 h2 {
+    font-size: .93rem;
+  }
+
+  .av-minimal-detail-main-v52 {
+    padding: 0 11px 10px;
+  }
+
+  .av-minimal-detail-company-v52 {
+    padding: 10px 1px;
+  }
+
+  .av-minimal-detail-company-v52 span,
+  .av-minimal-detail-item-v52 span {
+    font-size: .43rem;
+  }
+
+  .av-minimal-detail-company-v52 strong {
+    font-size: .7rem;
+  }
+
+  .av-minimal-detail-grid-v52 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .av-minimal-detail-item-v52 {
+    min-height: 54px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .av-minimal-detail-item-v52 strong {
+    font-size: .56rem;
+  }
+
+  .av-minimal-detail-item-v52.is-overdue strong {
+    font-size: .63rem;
+  }
+
+  .av-record-detail-actions-v52 {
+    min-height: 52px;
+    gap: 5px;
+    padding: 6px !important;
+  }
+
+  .av-record-detail-actions-v52 button {
+    min-width: 0;
+    min-height: 35px;
+    flex: 1 1 0;
+    padding: 5px 7px !important;
+    font-size: .5rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .av-minimal-detail-grid-v52 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .av-minimal-detail-item-v52 strong {
+    font-size: .52rem;
+  }
+
+  .av-minimal-detail-item-v52.is-overdue strong {
+    font-size: .59rem;
+  }
+}
