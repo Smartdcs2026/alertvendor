@@ -1,0 +1,477 @@
+/**
+ * module-shift.css
+ * ROUND 56 — Movement + Shift SweetAlert
+ */
+
+.shift-movement-popup,
+.shift-movement-popup * {
+  box-sizing: border-box;
+}
+
+.swal2-popup.shift-movement-popup {
+  max-height: 94dvh !important;
+  display: grid !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    auto !important;
+  overflow: hidden !important;
+  border: 1px solid #d4dfe5 !important;
+  border-radius: 14px !important;
+  padding: 0 !important;
+  background: #f4f7f8 !important;
+  box-shadow:
+    0 24px 68px
+    rgba(9, 31, 44, .28) !important;
+}
+
+.shift-movement-hidden {
+  display: none !important;
+}
+
+.shift-movement-html {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height:
+    calc(94dvh - 58px) !important;
+  display: block !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #203847 !important;
+  text-align: left !important;
+}
+
+.shift-movement__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #d7e1e6;
+  padding: 13px 15px;
+  background: #ffffff;
+}
+
+.shift-movement__header small {
+  color: #17809a;
+  font-size: .5rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.shift-movement__header h2 {
+  margin: 2px 0;
+  color: #173d53;
+  font-size: 1rem;
+}
+
+.shift-movement__header p {
+  margin: 0;
+  color: #71828c;
+  font-size: .52rem;
+}
+
+.shift-movement__header > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #325265;
+  background: #eef3f5;
+  font-size: .49rem;
+  font-weight: 900;
+}
+
+.shift-movement__tabs {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  border-bottom: 1px solid #d7e1e6;
+  padding: 8px 10px;
+  background: #ffffff;
+}
+
+.shift-movement__tabs button {
+  min-height: 38px;
+  border: 1px solid #d6e0e5;
+  border-radius: 8px;
+  color: #526a77;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: .55rem;
+  font-weight: 900;
+}
+
+.shift-movement__tabs button.is-active {
+  border-color: #17809a;
+  color: #075d76;
+  background: #e9f7f9;
+}
+
+.shift-movement__tabs button:disabled {
+  display: none;
+}
+
+.shift-movement__selector {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    auto;
+  gap: 7px;
+  border-bottom: 1px solid #d7e1e6;
+  padding: 8px 10px;
+  background: #f8fafb;
+}
+
+.shift-movement__selector[hidden] {
+  display: none !important;
+}
+
+.shift-movement__selector label {
+  display: grid;
+  gap: 3px;
+}
+
+.shift-movement__selector label span {
+  color: #657a86;
+  font-size: .46rem;
+  font-weight: 800;
+}
+
+.shift-movement__selector input,
+.shift-movement__selector select,
+.shift-movement__selector button {
+  min-height: 36px;
+  border: 1px solid #ccd9df;
+  border-radius: 7px;
+  padding: 6px 8px;
+  color: #203e50;
+  background: #ffffff;
+  font: inherit;
+  font-size: .55rem;
+}
+
+.shift-movement__selector button {
+  align-self: end;
+  border-color: #1a6f86;
+  color: #ffffff;
+  background: #1a6f86;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.shift-movement__content {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+}
+
+.shift-movement__scope-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #d6e1e7;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #ffffff;
+}
+
+.shift-movement__scope-head small,
+.shift-movement__scope-head strong {
+  display: block;
+}
+
+.shift-movement__scope-head small {
+  color: #17809a;
+  font-size: .5rem;
+  font-weight: 950;
+}
+
+.shift-movement__scope-head strong {
+  margin-top: 2px;
+  color: #294858;
+  font-size: .61rem;
+}
+
+.shift-movement__scope-head > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: .45rem;
+  font-weight: 900;
+}
+
+.shift-movement__scope-head > span.is-live {
+  color: #086a48;
+  background: #e1f7eb;
+}
+
+.shift-movement__scope-head > span.is-complete {
+  color: #536875;
+  background: #edf1f3;
+}
+
+.shift-movement__metrics,
+.shift-movement__performance {
+  display: grid;
+  grid-template-columns:
+    repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.shift-movement__metrics > div,
+.shift-movement__performance > div {
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid #d5e0e6;
+  border-radius: 9px;
+  padding: 7px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.shift-movement__metrics span,
+.shift-movement__performance span {
+  color: #71828c;
+  font-size: .43rem;
+  font-weight: 800;
+}
+
+.shift-movement__metrics strong,
+.shift-movement__performance strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #173d53;
+  font-size: .78rem;
+  font-weight: 950;
+}
+
+.shift-movement__metrics .is-danger {
+  border-color: #efb9b9;
+  background: #fff2f2;
+}
+
+.shift-movement__metrics .is-danger strong {
+  color: #c32727;
+}
+
+.shift-movement__chart {
+  overflow: hidden;
+  border: 1px solid #d5e0e6;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.shift-movement__chart > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #e0e7eb;
+  padding: 8px 10px;
+  background: #f5f8f9;
+}
+
+.shift-movement__chart > header strong {
+  color: #28495b;
+  font-size: .58rem;
+}
+
+.shift-movement__chart > header span {
+  color: #71828c;
+  font-size: .45rem;
+}
+
+.shift-movement__chart-body {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+.shift-hour-row {
+  display: grid;
+  grid-template-columns:
+    46px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 7px;
+  border-bottom: 1px solid #edf1f3;
+  padding: 5px 2px;
+}
+
+.shift-hour-row:last-child {
+  border-bottom: 0;
+}
+
+.shift-hour-row > strong {
+  color: #315266;
+  font-size: .48rem;
+}
+
+.shift-hour-row > em {
+  color: #667b87;
+  font-size: .42rem;
+  font-style: normal;
+  text-align: right;
+}
+
+.shift-hour-bars {
+  display: grid;
+  gap: 3px;
+}
+
+.shift-hour-bars > span {
+  min-height: 15px;
+  display: grid;
+  grid-template-columns:
+    28px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 4px;
+}
+
+.shift-hour-bars small,
+.shift-hour-bars b {
+  color: #6a7d88;
+  font-size: .36rem;
+}
+
+.shift-hour-bars i {
+  min-width: 2px;
+  height: 7px;
+  display: block;
+  border-radius: 99px;
+  background: #18a66e;
+}
+
+.shift-hour-bars > span:nth-child(2) i {
+  background: #4e7ff0;
+}
+
+.shift-hour-bars b {
+  text-align: right;
+}
+
+.shift-movement__loading,
+.shift-movement__error,
+.shift-movement__empty {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px dashed #c9d6dc;
+  border-radius: 9px;
+  padding: 20px;
+  color: #6c7f89;
+  background: #ffffff;
+  text-align: center;
+}
+
+.shift-movement__loading span {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #dce8ec;
+  border-top-color: #17809a;
+  border-radius: 50%;
+  animation: shiftSpin .8s linear infinite;
+}
+
+.shift-movement__error strong {
+  color: #a42727;
+}
+
+.shift-movement__error span,
+.shift-movement__loading strong {
+  font-size: .55rem;
+}
+
+@keyframes shiftSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shift-movement-actions {
+  width: 100% !important;
+  min-height: 52px;
+  border-top: 1px solid #d6e1e7;
+  margin: 0 !important;
+  padding: 6px 9px !important;
+  background: #ffffff;
+}
+
+.shift-movement-confirm {
+  min-width: 100px;
+  min-height: 35px;
+  border: 0 !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  background: #264f63 !important;
+  font-weight: 900 !important;
+}
+
+.shift-movement-close {
+  top: 7px !important;
+  right: 7px !important;
+  width: 31px !important;
+  height: 31px !important;
+  border-radius: 7px !important;
+  color: #4a5f6b !important;
+  background: #edf1f3 !important;
+}
+
+@media (max-width: 760px) {
+  .shift-movement__tabs,
+  .shift-movement__metrics,
+  .shift-movement__performance {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .shift-movement__selector {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .shift-movement__selector button {
+    grid-column: 1 / -1;
+  }
+
+  .shift-hour-row {
+    grid-template-columns:
+      40px minmax(0, 1fr) 58px;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 390px) {
+  .shift-movement__header {
+    padding: 10px;
+  }
+
+  .shift-movement__header h2 {
+    font-size: .82rem;
+  }
+
+  .shift-movement__header > span {
+    display: none;
+  }
+
+  .shift-movement__tabs {
+    padding: 6px;
+  }
+
+  .shift-movement__tabs button {
+    min-height: 34px;
+    font-size: .46rem;
+  }
+
+  .shift-movement__content {
+    padding: 7px;
+  }
+}
