@@ -1007,7 +1007,7 @@
         generatedAt
       );
 
-      setConnectionState('ONLINE', 'LIVE');
+      setConnectionState('ONLINE', 'ออนไลน์');
     } catch (error) {
       if (isAuthenticationError(error)) {
         redirectToLogin();
@@ -2275,7 +2275,7 @@
       labels: hours.map(getHourLabel),
       datasets: [
         {
-          label: 'Gate In',
+          label: 'เข้า',
           data: hours.map(
             (hour) => Number(hour.in) || 0
           ),
@@ -2285,7 +2285,7 @@
           categoryPercentage: .78
         },
         {
-          label: 'Gate Out จริง',
+          label: 'ออกจริง',
           data: hours.map(
             (hour) => Number(hour.outReal) || 0
           ),
