@@ -637,3 +637,55 @@
     font-size: .96rem;
   }
 }
+
+
+/* ROUND 59 — Module loading recovery */
+.admin-shift-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-shift-message[hidden] {
+  display: none !important;
+}
+
+.admin-shift-message > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-shift-message > button {
+  flex: 0 0 auto;
+}
+
+.admin-shift-load-error {
+  min-height: 150px;
+  flex-direction: column;
+  color: #9f2828;
+  text-align: center;
+}
+
+.admin-shift-load-error strong,
+.admin-shift-load-error span {
+  display: block;
+}
+
+.admin-shift-load-error span {
+  max-width: 680px;
+  color: #735454;
+  font-size: .78rem;
+  font-weight: 650;
+}
+
+@media (max-width: 600px) {
+  .admin-shift-message {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-shift-message > button {
+    width: 100%;
+  }
+}
