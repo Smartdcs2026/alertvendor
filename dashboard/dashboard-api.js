@@ -343,6 +343,34 @@
             }
           }
         );
+      },
+
+
+      getShiftDashboard(
+        moduleId,
+        options
+      ) {
+        const config =
+          options &&
+          typeof options ===
+            'object'
+            ? options
+            : {};
+
+        return request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/shift-dashboard',
+          {
+            query: {
+              date:
+                config.date ||
+                ''
+            }
+          }
+        );
       }
     });
 
