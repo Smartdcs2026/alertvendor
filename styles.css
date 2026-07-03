@@ -16111,3 +16111,552 @@ button {
     flex: 1 1 0;
   }
 }
+
+/************************************************************
+ * ROUND 51 — Separate SweetAlert for Full Row Detail
+ ************************************************************/
+
+.swal2-popup.av-record-detail-popup-v51,
+.swal2-popup.av-record-detail-popup-v51 * {
+  box-sizing: border-box;
+}
+
+.swal2-popup.av-record-detail-popup-v51 {
+  width:
+    min(720px, calc(100vw - 14px)) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width:
+    calc(100vw - 14px) !important;
+  max-height:
+    min(94dvh, 860px) !important;
+  display: grid !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    auto !important;
+  overflow: hidden !important;
+  border: 1px solid #d5e1e7;
+  border-radius: 16px !important;
+  padding: 0 !important;
+  background: #eef3f6 !important;
+  box-shadow:
+    0 24px 70px
+    rgba(4, 30, 47, .32) !important;
+}
+
+.av-record-detail-hidden-v51 {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.av-record-detail-html-v51 {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height:
+    calc(min(94dvh, 860px) - 64px) !important;
+  display: block !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #17364a !important;
+  text-align: left !important;
+}
+
+.av-record-detail-v51 {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding-bottom: 10px;
+}
+
+.av-record-detail-header-v51 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 10px;
+  padding: 13px 15px;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      125deg,
+      #073b57,
+      #0a7189
+    );
+}
+
+.av-record-detail-header-v51
+> div {
+  min-width: 0;
+}
+
+.av-record-detail-header-v51 small,
+.av-record-detail-header-v51 h2,
+.av-record-detail-header-v51 p {
+  display: block;
+}
+
+.av-record-detail-header-v51 small {
+  color: #aee9ef;
+  font-size: .55rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.av-record-detail-header-v51 h2 {
+  margin: 2px 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.av-record-detail-header-v51 p {
+  margin: 0;
+  color: #d7f3f6;
+  font-size: .55rem;
+}
+
+.av-record-detail-header-v51
+> span {
+  flex: 0 0 auto;
+  border: 1px solid
+    rgba(255, 255, 255, .36);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #ffffff;
+  background:
+    rgba(184, 36, 36, .8);
+  font-size: .56rem;
+  font-weight: 950;
+}
+
+.av-record-detail-identity-v51 {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(150px, .62fr);
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.av-record-detail-company-v51,
+.av-record-detail-appointment-v51 {
+  min-width: 0;
+  border: 1px solid #cadce4;
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #ffffff;
+}
+
+.av-record-detail-company-v51 small,
+.av-record-detail-appointment-v51 small {
+  display: block;
+  color: #708590;
+  font-size: .5rem;
+  font-weight: 850;
+}
+
+.av-record-detail-company-v51
+> strong {
+  display: block;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  color: #173e54;
+  font-size: .9rem;
+  font-weight: 950;
+}
+
+.av-record-detail-company-v51 p {
+  margin: 3px 0 0;
+  color: #607681;
+  font-size: .53rem;
+}
+
+.av-record-detail-appointment-v51 {
+  display: grid;
+  align-content: center;
+  border-color: #8bc8d4;
+  background:
+    linear-gradient(
+      135deg,
+      #dcf4f7,
+      #ffffff
+    );
+}
+
+.av-record-detail-appointment-v51
+> strong {
+  display: block;
+  margin-top: 2px;
+  color: #075d76;
+  font-size: 1.18rem;
+  font-weight: 950;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.av-record-detail-primary-grid-v51 {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 0 10px;
+}
+
+.av-record-detail-primary-grid-v51
+> div {
+  min-width: 0;
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  border: 1px solid #d4e0e6;
+  border-radius: 9px;
+  padding: 7px 8px;
+  background: #ffffff;
+}
+
+.av-record-detail-primary-grid-v51 span {
+  color: #718590;
+  font-size: .48rem;
+  font-weight: 850;
+}
+
+.av-record-detail-primary-grid-v51 strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #173e54;
+  font-size: .67rem;
+}
+
+.av-record-detail-primary-grid-v51
+> div.is-danger {
+  border-color: #edb6b6;
+  background: #fff0f0;
+}
+
+.av-record-detail-primary-grid-v51
+> div.is-danger strong {
+  color: #c32323;
+  font-size: .75rem;
+}
+
+.av-record-detail-primary-grid-v51
+> div.is-stage {
+  border-color: #efd7a0;
+  background: #fff4d9;
+}
+
+.av-record-detail-primary-grid-v51
+> div.is-stage strong {
+  color: #805b0d;
+}
+
+.av-record-detail-all-v51 {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #cad9e1;
+  border-radius: 10px;
+  margin: 0 10px;
+  background: #ffffff;
+}
+
+.av-record-detail-all-v51
+> header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 8px;
+  border-bottom:
+    1px solid #dce6eb;
+  padding: 8px 10px;
+  background: #f2f7f9;
+}
+
+.av-record-detail-all-v51
+> header small,
+.av-record-detail-all-v51
+> header strong {
+  display: block;
+}
+
+.av-record-detail-all-v51
+> header small {
+  color: #167086;
+  font-size: .46rem;
+  font-weight: 950;
+  letter-spacing: .06em;
+}
+
+.av-record-detail-all-v51
+> header strong {
+  color: #173e54;
+  font-size: .66rem;
+}
+
+.av-record-detail-all-v51
+> header > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #0a6077;
+  background: #dff1f4;
+  font-size: .47rem;
+  font-weight: 900;
+}
+
+.av-record-detail-fields-v51 {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+}
+
+.av-record-detail-field-v51 {
+  min-width: 0;
+  min-height: 53px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  border-right:
+    1px solid #e1e9ed;
+  border-bottom:
+    1px solid #e1e9ed;
+  padding: 7px 9px;
+}
+
+.av-record-detail-field-v51:nth-child(2n) {
+  border-right: 0;
+}
+
+.av-record-detail-field-v51 span {
+  color: #728690;
+  font-size: .48rem;
+  font-weight: 800;
+}
+
+.av-record-detail-field-v51 strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #173e54;
+  font-size: .63rem;
+  line-height: 1.25;
+}
+
+.av-record-detail-empty-v51 {
+  grid-column: 1 / -1;
+  padding: 22px 10px;
+  color: #6f838e;
+  font-size: .57rem;
+  text-align: center;
+}
+
+.av-record-detail-actions-v51 {
+  width: 100% !important;
+  min-height: 58px;
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-top:
+    1px solid #d6e1e7;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  background: #ffffff;
+}
+
+.av-record-detail-actions-v51
+button {
+  min-height: 39px;
+  border-radius: 9px !important;
+  padding: 6px 11px !important;
+  font-weight: 950 !important;
+}
+
+.av-record-detail-back-v51 {
+  min-width: 125px;
+  border: 1px solid #b8cbd4 !important;
+  color: #25485b !important;
+  background: #ffffff !important;
+}
+
+.av-record-detail-main-v51 {
+  min-width: 145px;
+  border: 1px solid #075d76 !important;
+  color: #ffffff !important;
+  background:
+    linear-gradient(
+      135deg,
+      #087c96,
+      #07566f
+    ) !important;
+}
+
+.av-record-detail-close-v51 {
+  top: 7px !important;
+  right: 7px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  background:
+    rgba(0, 0, 0, .16) !important;
+  font-size: 1.25rem !important;
+}
+
+@media (max-width: 680px) {
+  .swal2-popup.av-record-detail-popup-v51 {
+    width:
+      calc(100vw - 8px) !important;
+    max-width:
+      calc(100vw - 8px) !important;
+    max-height:
+      96dvh !important;
+    border-radius: 13px !important;
+  }
+
+  .av-record-detail-html-v51 {
+    max-height:
+      calc(96dvh - 58px) !important;
+  }
+
+  .av-record-detail-header-v51 {
+    padding: 10px 9px;
+  }
+
+  .av-record-detail-header-v51 h2 {
+    font-size: .88rem;
+  }
+
+  .av-record-detail-header-v51 p {
+    font-size: .44rem;
+  }
+
+  .av-record-detail-identity-v51 {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(105px, .62fr);
+    gap: 6px;
+    padding: 0 7px;
+  }
+
+  .av-record-detail-company-v51,
+  .av-record-detail-appointment-v51 {
+    border-radius: 8px;
+    padding: 7px;
+  }
+
+  .av-record-detail-company-v51
+  > strong {
+    font-size: .7rem;
+  }
+
+  .av-record-detail-company-v51 p {
+    font-size: .42rem;
+  }
+
+  .av-record-detail-appointment-v51
+  > strong {
+    font-size: .88rem;
+  }
+
+  .av-record-detail-primary-grid-v51 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    padding: 0 7px;
+  }
+
+  .av-record-detail-primary-grid-v51
+  > div {
+    min-height: 48px;
+    border-radius: 7px;
+    padding: 6px;
+  }
+
+  .av-record-detail-primary-grid-v51 span {
+    font-size: .39rem;
+  }
+
+  .av-record-detail-primary-grid-v51 strong {
+    font-size: .53rem;
+  }
+
+  .av-record-detail-all-v51 {
+    margin: 0 7px;
+  }
+
+  .av-record-detail-fields-v51 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .av-record-detail-field-v51 {
+    min-height: 47px;
+    padding: 6px;
+  }
+
+  .av-record-detail-field-v51 span {
+    font-size: .38rem;
+  }
+
+  .av-record-detail-field-v51 strong {
+    font-size: .49rem;
+  }
+
+  .av-record-detail-actions-v51 {
+    min-height: 52px;
+    gap: 5px;
+    padding: 6px !important;
+  }
+
+  .av-record-detail-actions-v51
+  button {
+    min-width: 0;
+    min-height: 35px;
+    flex: 1 1 0;
+    padding: 5px 7px !important;
+    font-size: .5rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .av-record-detail-identity-v51 {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(92px, .58fr);
+  }
+
+  .av-record-detail-company-v51
+  > strong {
+    font-size: .65rem;
+  }
+
+  .av-record-detail-appointment-v51
+  > strong {
+    font-size: .8rem;
+  }
+
+  .av-record-detail-primary-grid-v51,
+  .av-record-detail-fields-v51 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
