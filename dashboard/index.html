@@ -6,19 +6,19 @@
   <meta name="theme-color" content="#062c4b">
   <meta name="color-scheme" content="light">
 
-  <title>Vehicle Control Tower Dashboard</title>
+  <title>ศูนย์ควบคุมรถและตู้</title>
 
   <link rel="icon" type="image/png" href="../icons/favicon-64.png">
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <link rel="stylesheet" href="./dashboard.css?v=20260703-r57-shift-dashboard">
-  <link rel="stylesheet" href="./dashboard-shift.css?v=20260703-r57-shift-dashboard">
+  <link rel="stylesheet" href="./dashboard-shift.css?v=20260703-r60-onepage-thai-info">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="./dashboard-config.js?v=20260701-r30-control-room" defer></script>
   <script src="./dashboard-api.js?v=20260703-r57-shift-dashboard" defer></script>
-  <script src="./dashboard.js?v=20260703-r57-live-retained" defer></script>
-  <script src="./dashboard-shift.js?v=20260703-r57-shift-dashboard" defer></script>
+  <script src="./dashboard.js?v=20260703-r60-live-thai-labels" defer></script>
+  <script src="./dashboard-shift.js?v=20260703-r60-onepage-thai-info" defer></script>
 </head>
 
 <body class="dashboard-page">
@@ -45,15 +45,15 @@
         </div>
 
         <div class="control-brand__text">
-          <small>VEHICLE CONTROL TOWER</small>
+          <small>ศูนย์ควบคุมรถและตู้</small>
           <h1 id="dashboardModuleTitle">กำลังโหลด Module</h1>
-          <p id="dashboardModuleDescription">Executive operations dashboard</p>
+          <p id="dashboardModuleDescription">แดชบอร์ดควบคุมการปฏิบัติงาน</p>
         </div>
       </div>
 
       <div class="control-header__actions">
         <div class="live-block">
-          <span id="dashboardConnection" class="live-status" data-state="LOADING">LIVE</span>
+          <span id="dashboardConnection" class="live-status" data-state="LOADING">ออนไลน์</span>
           <strong id="dashboardCurrentDateTime">--/--/---- --:--:--</strong>
           <small id="dashboardLastUpdated">ยังไม่ได้โหลดข้อมูล</small>
         </div>
@@ -102,7 +102,7 @@
           class="is-active"
           data-dashboard-view="LIVE"
         >
-          <span>LIVE</span>
+          <span>สด</span>
           สถานการณ์สด
         </button>
 
@@ -110,7 +110,7 @@
           type="button"
           data-dashboard-view="SHIFT"
         >
-          <span>SHIFT</span>
+          <span>กะ</span>
           ผลงานตามกะ
         </button>
 
@@ -118,10 +118,20 @@
           type="button"
           data-dashboard-view="DAILY"
         >
-          <span>DAILY</span>
+          <span>วัน</span>
           สรุปรายวัน
         </button>
       </div>
+
+      <button
+        id="dashboardGlossaryButton"
+        class="dashboard-glossary-button"
+        type="button"
+        data-dashboard-info="ALL"
+      >
+        <span aria-hidden="true">i</span>
+        คำอธิบายข้อมูล
+      </button>
 
       <div
         id="dashboardShiftDateControls"
@@ -137,7 +147,17 @@
         </button>
 
         <label>
-          <span>วันที่ปฏิบัติงาน</span>
+          <span class="dashboard-label-with-info">
+            วันปฏิบัติงาน
+            <button
+              type="button"
+              class="dashboard-info-button"
+              data-dashboard-info="BUSINESS_DATE"
+              aria-label="คำอธิบายวันปฏิบัติงาน"
+            >
+              i
+            </button>
+          </span>
 
           <input
             id="dashboardShiftDate"
@@ -177,7 +197,7 @@
       <article id="dashboardSituation" class="panel situation-panel" data-state="NORMAL">
         <header class="panel-heading panel-heading--compact">
           <div>
-            <small>EXECUTIVE SITUATION</small>
+            <small>ภาพรวมเร่งด่วน</small>
             <h2>สถานการณ์ที่ต้องสั่งการ</h2>
           </div>
         </header>
@@ -201,7 +221,7 @@
       <article class="panel status-command-panel">
         <header class="panel-heading panel-heading--compact">
           <div>
-            <small>CURRENT STATUS</small>
+            <small>สถานะปัจจุบัน</small>
             <h2>สถานะปัจจุบันที่ใช้สั่งการ</h2>
           </div>
         </header>
@@ -219,7 +239,7 @@
             <span class="status-command-card__dot"></span>
             <span>อยู่ในพื้นที่</span>
             <strong id="kpiActive">0</strong>
-            <small>รายการ Active</small>
+            <small>รายการที่ยังอยู่</small>
           </button>
 
           <button class="status-command-card" data-tone="NORMAL" data-status-filter="NORMAL" type="button">
@@ -288,7 +308,7 @@
       <article class="panel threshold-panel">
         <header class="panel-heading panel-heading--compact threshold-heading">
           <div>
-            <small>SLA THRESHOLDS</small>
+            <small class="dashboard-label-with-info">เกณฑ์เวลา <button type="button" class="dashboard-info-button" data-dashboard-info="SLA" aria-label="คำอธิบายเกณฑ์ SLA">i</button></small>
             <h2>เกณฑ์ควบคุม</h2>
           </div>
 
@@ -312,7 +332,7 @@
           </div>
 
           <div data-tone="AUTO">
-            <span>Auto Close</span>
+            <span class="dashboard-label-with-info">ปิดอัตโนมัติ <button type="button" class="dashboard-info-button" data-dashboard-info="AUTO_CLOSE" aria-label="คำอธิบายการปิดอัตโนมัติ">i</button></span>
             <strong id="dashboardAutoCloseThreshold">--</strong>
             <small>ชั่วโมง</small>
           </div>
@@ -324,7 +344,7 @@
       <article class="panel overdue-panel">
         <header class="panel-heading">
           <div>
-            <small>TOP OVERDUE ITEMS</small>
+            <small>เกินเวลาสูงสุด</small>
             <h2>รายการเกินเวลาสูงสุด</h2>
           </div>
 
@@ -344,7 +364,7 @@
       <article class="panel records-panel">
         <header class="panel-heading records-panel__heading">
           <div>
-            <small>ACTIVE RECORDS</small>
+            <small>รายการในพื้นที่</small>
             <h2>รายการรถและตู้ที่ยังอยู่ในพื้นที่</h2>
           </div>
 
@@ -364,7 +384,7 @@
             <select id="dashboardStageFilter" class="is-hidden" aria-label="กรองขั้นตอน">
               <option value="ALL">ทุกขั้นตอน</option>
               <option value="WAITING_RECEIVING">รอรับสินค้าเสร็จ</option>
-              <option value="WAITING_GATE_OUT">รับเสร็จ รอ Gate Out</option>
+              <option value="WAITING_GATE_OUT">รับเสร็จ รอออก</option>
             </select>
 
             <button
@@ -413,9 +433,9 @@
                 <th>#</th>
                 <th>รายการ / บริษัท</th>
                 <th>ทะเบียน / รหัส</th>
-                <th>เวลาเข้า Gate In</th>
+                <th>เวลาเข้า</th>
                 <th>เวลาปัจจุบัน / ระยะเวลา</th>
-                <th>สถานะ SLA</th>
+                <th><span class="dashboard-label-with-info">สถานะเวลา <button type="button" class="dashboard-info-button" data-dashboard-info="SLA" aria-label="คำอธิบายสถานะเวลา">i</button></span></th>
                 <th>ขั้นตอนปัจจุบัน</th>
               </tr>
             </thead>
@@ -447,7 +467,7 @@
         <article id="dashboardReceivingSection" class="panel receiving-panel is-hidden" aria-hidden="true">
           <header class="panel-heading">
             <div>
-              <small>RECEIVING PROCESS</small>
+              <small>ขั้นตอนรับสินค้า</small>
               <h2>ขั้นตอนรับสินค้า</h2>
             </div>
           </header>
@@ -460,7 +480,7 @@
             </button>
 
             <button type="button" data-tone="GATE_OUT" data-stage-filter="WAITING_GATE_OUT">
-              <span>รับเสร็จ รอ Gate Out</span>
+              <span>รับเสร็จ รอออก</span>
               <strong id="kpiWaitingGateOut">0</strong>
               <small>อยู่ในช่วงที่ 2</small>
             </button>
@@ -486,7 +506,7 @@
             <div class="receiving-grid__duration" data-tone="STAGE_TWO">
               <span>เฉลี่ย รับเสร็จ → ออก</span>
               <strong id="kpiAverageStageTwo">--:--:--</strong>
-              <small>เฉพาะ Gate Out จริง</small>
+              <small>เฉพาะเวลาออกจริง</small>
             </div>
           </div>
         </article>
@@ -494,7 +514,7 @@
         <article class="panel action-panel">
           <header class="panel-heading">
             <div>
-              <small>ACTION QUEUE</small>
+              <small>งานที่ควรทำก่อน</small>
               <h2>รายการที่ควรสั่งการก่อน</h2>
             </div>
 
@@ -538,7 +558,7 @@
       <article class="panel chart-panel chart-panel--flow is-mobile-active" data-chart-panel="hourly">
         <header class="chart-panel__header">
           <div>
-            <small>HOURLY FLOW</small>
+            <small>การเคลื่อนไหวรายชั่วโมง</small>
             <h2>การเคลื่อนไหวรายชั่วโมง <span>• เข้า–ออกตามช่วงเวลา</span></h2>
           </div>
 
@@ -554,7 +574,7 @@
       <article class="panel chart-panel" data-chart-panel="status">
         <header class="chart-panel__header">
           <div>
-            <small>STATUS DISTRIBUTION</small>
+            <small>สัดส่วนสถานะ</small>
             <h2>สัดส่วนสถานะปัจจุบัน <span>• รายการ Active</span></h2>
           </div>
         </header>
@@ -567,7 +587,7 @@
       <article class="panel chart-panel" data-chart-panel="trend">
         <header class="chart-panel__header">
           <div>
-            <small>ACTIVE TREND</small>
+            <small>แนวโน้มคงค้าง</small>
             <h2>แนวโน้มรายการคงค้าง <span>• ตามช่วงเวลา</span></h2>
           </div>
         </header>
@@ -580,7 +600,7 @@
       <article class="panel chart-panel" data-chart-panel="waiting">
         <header class="chart-panel__header">
           <div>
-            <small>LONGEST WAITING</small>
+            <small>รอนานที่สุด</small>
             <h2>บริษัทหรือรายการที่รอนานที่สุด <span>• นาที</span></h2>
           </div>
         </header>
@@ -593,8 +613,8 @@
       <article class="panel chart-panel process-panel" data-chart-panel="flow">
         <header class="chart-panel__header">
           <div>
-            <small>FLOW COMPLETION TODAY</small>
-            <h2>ความคืบหน้ากระบวนการวันนี้ <span>• เทียบ Gate In</span></h2>
+            <small>ความคืบหน้าวันนี้</small>
+            <h2>ความคืบหน้ากระบวนการวันนี้ <span>• เทียบจำนวนเข้า</span></h2>
           </div>
         </header>
 
@@ -606,7 +626,7 @@
             class="process-funnel__stage"
             data-stage="IN"
           >
-            <span>Gate In วันนี้</span>
+            <span>เข้าวันนี้</span>
             <strong id="funnelGateIn">0</strong>
             <small id="funnelGateInPercent">100%</small>
           </div>
@@ -624,7 +644,7 @@
             class="process-funnel__stage"
             data-stage="OUT"
           >
-            <span>Gate Out จริง</span>
+            <span>ออกจริง</span>
             <strong id="funnelGateOut">0</strong>
             <small id="funnelGateOutPercent">0%</small>
           </div>
@@ -642,44 +662,44 @@
             class="process-funnel__stage"
             data-stage="AUTO"
           >
-            <span>Auto Close</span>
+            <span class="dashboard-label-with-info">ปิดอัตโนมัติ <button type="button" class="dashboard-info-button" data-dashboard-info="AUTO_CLOSE" aria-label="คำอธิบายการปิดอัตโนมัติ">i</button></span>
             <strong id="funnelAutoClose">0</strong>
             <small id="funnelAutoPercent">0%</small>
           </div>
         </div>
 
         <div class="process-rate">
-          <span>อัตรา Gate Out จริงต่อ Gate In</span>
+          <span>อัตราออกจริงต่อเข้า</span>
           <strong id="funnelCompletionRate">0%</strong>
         </div>
       </article>
     </section>
 
     <div class="mobile-section-title mobile-system-title">
-      <small>SYSTEM SUMMARY</small>
+      <small>สรุประบบ</small>
       <strong>ภาพรวมข้อมูลล่าสุด</strong>
     </div>
 
     <footer class="system-summary">
       <div class="system-summary__title">
-        <small>SYSTEM SUMMARY</small>
+        <small>สรุประบบ</small>
         <strong>ภาพรวมระบบ</strong>
       </div>
 
       <div class="system-summary__item">
-        <span>Module</span>
+        <span>โมดูล</span>
         <strong id="summaryModuleCount">1</strong>
         <small>โมดูลปัจจุบัน</small>
       </div>
 
       <div class="system-summary__item">
-        <span>Gate In</span>
+        <span>เข้า</span>
         <strong id="summaryGateIn">0</strong>
         <small>ช่วงที่เลือก</small>
       </div>
 
       <div class="system-summary__item">
-        <span>Gate Out จริง</span>
+        <span>ออกจริง</span>
         <strong id="summaryGateOut">0</strong>
         <small>ช่วงที่เลือก</small>
       </div>
@@ -687,17 +707,17 @@
       <div class="system-summary__item">
         <span>รถในพื้นที่</span>
         <strong id="summaryActive">0</strong>
-        <small>รายการ Active</small>
+        <small>รายการที่ยังอยู่</small>
       </div>
 
       <div class="system-summary__item system-summary__item--wide">
-        <span>LAST DATA UPDATE</span>
+        <span>อัปเดตล่าสุด</span>
         <strong id="summaryLastUpdate">--/--/---- --:--:--</strong>
         <small>เวลาจากระบบ</small>
       </div>
 
       <div class="system-summary__item">
-        <span>DATA QUALITY</span>
+        <span class="dashboard-label-with-info">คุณภาพข้อมูล <button type="button" class="dashboard-info-button" data-dashboard-info="DATA_QUALITY" aria-label="คำอธิบายคุณภาพข้อมูล">i</button></span>
         <strong id="summaryDataQuality">0%</strong>
         <small>ข้อมูลสมบูรณ์</small>
       </div>
