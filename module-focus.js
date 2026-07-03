@@ -1,6 +1,6 @@
 /************************************************************
  * module-focus.js
- * ROUND 54 — Card-first Workspace with Full Record Bridge
+ * ROUND 56 — Card-first Workspace + Shift Movement
  *
  * เป้าหมาย:
  * - เปิดหน้าแล้วเห็นการ์ดรถ/ตู้ทันที
@@ -1047,6 +1047,15 @@
 
 
   function openRoundInsight() {
+    if (
+      window.ModuleShiftUI &&
+      typeof window.ModuleShiftUI.open ===
+        'function'
+    ) {
+      window.ModuleShiftUI.open();
+      return;
+    }
+
     const chart =
       document.getElementById(
         'movementMiniChart'
