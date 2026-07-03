@@ -1,6 +1,6 @@
 /**
  * module-operations.js
- * ROUND 52 — Minimal Separate SweetAlert Detail
+ * ROUND 54 — Round 52 Alert Restored with Full Record Bridge
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -68,6 +68,11 @@
     observeVehicleList();
     bindAudioUnlock();
     patchSweetAlertWhenReady();
+
+    document.addEventListener(
+      'alertvendor:records-updated',
+      annotateVehicleCards
+    );
   }
 
 
@@ -882,6 +887,277 @@
     const thresholdSeconds =
       getOverdueThresholdSeconds();
 
+    const bridgeRecords =
+      collectBridgeOverdueRecords(
+        thresholdSeconds
+      );
+
+    /*
+     * ใช้ข้อมูลจาก API ทั้งหมดเป็นแหล่งหลัก
+     * จึงไม่กระทบเมื่อหน้าเลือก “ปกติ” หรือค้นหาอยู่
+     */
+    if (
+      bridgeRecords.length > 0
+    ) {
+      return bridgeRecords;
+    }
+
+    /*
+     * Fallback สำหรับกรณี Bridge ยังไม่พร้อม
+     * เช่น เปิดไฟล์เก่าโดยไม่เพิ่ม module-data-bridge.js
+     */
+    return collectDomOverdueRecords(
+      thresholdSeconds
+    );
+  }
+
+
+  function collectBridgeOverdueRecords(
+    thresholdSeconds
+  ) {
+    const bridge =
+      window
+        .AlertVendorRecordBridge;
+
+    if (
+      !bridge ||
+      typeof bridge.getRecords !==
+        'function'
+    ) {
+      return [];
+    }
+
+    const records =
+      bridge.getRecords();
+
+    if (
+      !Array.isArray(
+        records
+      ) ||
+      records.length === 0
+    ) {
+      return [];
+    }
+
+    const nowMs =
+      typeof bridge.getNowMs ===
+        'function'
+        ? bridge.getNowMs()
+        : Date.now();
+
+    return records
+      .filter(
+        (record) => {
+          if (
+            !record ||
+            record.isCurrentlyInArea ===
+              false
+          ) {
+            return false;
+          }
+
+          const timestampMs =
+            getRecordTimestampMs(
+              record
+            );
+
+          if (
+            !Number.isFinite(
+              timestampMs
+            )
+          ) {
+            return false;
+          }
+
+          const durationValue =
+            Math.max(
+              0,
+              Math.floor(
+                (
+                  nowMs -
+                  timestampMs
+                ) /
+                1000
+              )
+            );
+
+          return (
+            durationValue >=
+            thresholdSeconds
+          );
+        }
+      )
+      .map(
+        (record) =>
+          mapBridgeRecord(
+            record,
+            thresholdSeconds,
+            nowMs
+          )
+      )
+      .sort(
+        (left, right) =>
+          right.durationSeconds -
+          left.durationSeconds
+      );
+  }
+
+
+  function mapBridgeRecord(
+    record,
+    thresholdSeconds,
+    nowMs
+  ) {
+    const fields =
+      Array.isArray(
+        record.fields
+      )
+        ? record.fields
+        : [];
+
+    const recordId =
+      String(
+        record.recordId ||
+        record.id ||
+        ''
+      );
+
+    const timestampMs =
+      getRecordTimestampMs(
+        record
+      );
+
+    const durationValue =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            nowMs -
+            timestampMs
+          ) /
+          1000
+        )
+      );
+
+    const card =
+      findVehicleCardByRecordId(
+        recordId
+      );
+
+    const company =
+      String(
+        record.primaryValue ||
+        findRawField(
+          fields,
+          [
+            'บริษัท',
+            'vendor',
+            'company'
+          ]
+        ) ||
+        'ไม่ระบุบริษัท'
+      ).trim();
+
+    const appointment =
+      findRawField(
+        fields,
+        [
+          'เลขนัดหมาย',
+          'หมายเลขนัดหมาย',
+          'นัดหมาย',
+          'appointment',
+          'booking'
+        ]
+      ) ||
+      inferRawNumericField(
+        fields
+      ) ||
+      '-';
+
+    const registration =
+      findRawField(
+        fields,
+        [
+          'ทะเบียน',
+          'ทะเบียนรถ',
+          'registration',
+          'plate',
+          'เลขตู้',
+          'หมายเลขตู้',
+          'container'
+        ]
+      ) ||
+      '-';
+
+    const driver =
+      findRawField(
+        fields,
+        [
+          'ชื่อผู้ขับ',
+          'ชื่อคนขับ',
+          'พนักงานขับรถ',
+          'driver',
+          'ชื่อ'
+        ]
+      ) ||
+      '';
+
+    return {
+      recordId,
+
+      company,
+
+      appointment,
+
+      registration,
+
+      driver,
+
+      gateIn:
+        String(
+          record.timestampIn ||
+          record.gateIn ||
+          '-'
+        ),
+
+      duration:
+        formatDuration(
+          durationValue
+        ),
+
+      durationSeconds:
+        durationValue,
+
+      overdueDuration:
+        formatDuration(
+          Math.max(
+            0,
+            durationValue -
+            thresholdSeconds
+          )
+        ),
+
+      stage:
+        getReceivingStageFromCard(
+          card
+        ) ||
+        String(
+          record.receivingStage ||
+          record.stage ||
+          'อยู่ในพื้นที่'
+        ),
+
+      details:
+        extractRawFieldDetails(
+          fields
+        )
+    };
+  }
+
+
+  function collectDomOverdueRecords(
+    thresholdSeconds
+  ) {
     return Array.from(
       document.querySelectorAll(
         '.vehicle-card[data-status="OVERDUE"][data-record-id]'
@@ -980,8 +1256,7 @@
               ) ||
               '-',
 
-            duration:
-              duration,
+            duration,
 
             durationSeconds:
               durationValue,
@@ -996,15 +1271,8 @@
               ),
 
             stage:
-              text(
-                card.querySelector(
-                  '.receiving-card-stage__head strong'
-                )
-              ) ||
-              text(
-                card.querySelector(
-                  '.receiving-stage-badge'
-                )
+              getReceivingStageFromCard(
+                card
               ) ||
               'อยู่ในพื้นที่',
 
@@ -1022,6 +1290,286 @@
       );
   }
 
+
+  function getRecordTimestampMs(
+    record
+  ) {
+    const epoch =
+      Number(
+        record &&
+        record.timestampInEpochMs
+      );
+
+    if (
+      Number.isFinite(
+        epoch
+      ) &&
+      epoch > 0
+    ) {
+      return epoch;
+    }
+
+    const value =
+      String(
+        record &&
+        (
+          record.timestampIn ||
+          record.gateIn
+        ) ||
+        ''
+      ).trim();
+
+    const thaiMatch =
+      value.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/
+      );
+
+    if (thaiMatch) {
+      return new Date(
+        Number(
+          thaiMatch[3]
+        ),
+        Number(
+          thaiMatch[2]
+        ) - 1,
+        Number(
+          thaiMatch[1]
+        ),
+        Number(
+          thaiMatch[4]
+        ),
+        Number(
+          thaiMatch[5]
+        ),
+        Number(
+          thaiMatch[6]
+        )
+      ).getTime();
+    }
+
+    const parsed =
+      Date.parse(
+        value
+      );
+
+    return Number.isFinite(
+      parsed
+    )
+      ? parsed
+      : NaN;
+  }
+
+
+  function findRawField(
+    fields,
+    labels
+  ) {
+    const targets =
+      (
+        Array.isArray(
+          labels
+        )
+          ? labels
+          : []
+      ).map(
+        normalize
+      );
+
+    for (
+      const field
+      of (
+        Array.isArray(
+          fields
+        )
+          ? fields
+          : []
+      )
+    ) {
+      const label =
+        normalize(
+          field &&
+          (
+            field.label ||
+            field.name ||
+            field.id
+          )
+        );
+
+      if (
+        targets.some(
+          (target) =>
+            label.includes(
+              target
+            )
+        )
+      ) {
+        const value =
+          String(
+            field &&
+            (
+              field.value ??
+              field.displayValue ??
+              ''
+            )
+          ).trim();
+
+        if (value) {
+          return value;
+        }
+      }
+    }
+
+    return '';
+  }
+
+
+  function inferRawNumericField(
+    fields
+  ) {
+    for (
+      const field
+      of (
+        Array.isArray(
+          fields
+        )
+          ? fields
+          : []
+      )
+    ) {
+      const value =
+        String(
+          field &&
+          (
+            field.value ??
+            field.displayValue ??
+            ''
+          )
+        ).trim();
+
+      if (
+        /^\d{6,10}$/.test(
+          value
+        )
+      ) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+
+  function extractRawFieldDetails(
+    fields
+  ) {
+    const result =
+      [];
+
+    const used =
+      new Set();
+
+    (
+      Array.isArray(
+        fields
+      )
+        ? fields
+        : []
+    ).forEach(
+      (field) => {
+        const label =
+          String(
+            field &&
+            (
+              field.label ||
+              field.name ||
+              field.id ||
+              'ข้อมูล'
+            )
+          ).trim();
+
+        const value =
+          String(
+            field &&
+            (
+              field.value ??
+              field.displayValue ??
+              ''
+            )
+          ).trim();
+
+        const key =
+          normalize(
+            label
+          );
+
+        if (
+          !value ||
+          value === '-' ||
+          used.has(
+            key
+          )
+        ) {
+          return;
+        }
+
+        used.add(
+          key
+        );
+
+        result.push({
+          label,
+          value
+        });
+      }
+    );
+
+    return result;
+  }
+
+
+  function findVehicleCardByRecordId(
+    recordId
+  ) {
+    return Array.from(
+      document.querySelectorAll(
+        '.vehicle-card[data-record-id]'
+      )
+    ).find(
+      (card) =>
+        String(
+          card.dataset.recordId ||
+          ''
+        ) ===
+        String(
+          recordId ||
+          ''
+        )
+    ) ||
+    null;
+  }
+
+
+  function getReceivingStageFromCard(
+    card
+  ) {
+    if (!card) {
+      return '';
+    }
+
+    return (
+      text(
+        card.querySelector(
+          '.receiving-card-stage__head strong'
+        )
+      ) ||
+      text(
+        card.querySelector(
+          '.receiving-stage-badge'
+        )
+      ) ||
+      ''
+    );
+  }
 
   function extractVehicleFieldDetails(
     fields
