@@ -156,6 +156,16 @@
       }
     );
 
+    document.addEventListener(
+      'click',
+      (event) => {
+        const button = event.target.closest('[data-dashboard-info]');
+        if (button) {
+          openDashboardInfo(button.dataset.dashboardInfo);
+        }
+      }
+    );
+
     window.addEventListener(
       'beforeunload',
       destroy
@@ -399,13 +409,16 @@
       <header class="shift-executive-header">
         <div>
           <small>
-            ผลงานตามกะ
+            ผลงานแต่ละกะ
           </small>
 
-          <h2 class="dashboard-heading-with-info">
-            ผลงานตามกะ
-            ${infoButton('shift-performance')}
-          </h2>
+          <div class="shift-title-line">
+            <h2>
+              ผลงานตามกะ
+            </h2>
+            <button type="button" class="dashboard-info-button"
+              data-dashboard-info="shift" aria-label="อธิบายข้อมูลตามกะ">i</button>
+          </div>
 
           <p>
             วันที่ปฏิบัติงาน
@@ -445,7 +458,7 @@
             executive.bestShiftCode
               ? `
                   <span class="is-best">
-                    ผลงานเด่น
+                    ผลงานดีที่สุด
                     ${escapeHtml(
                       executive
                         .bestShiftCode
@@ -473,27 +486,27 @@
 
       <section class="shift-executive-kpis">
         ${executiveKpi(
-          'รถเข้าทั้งวัน',
+          'เข้าพื้นที่',
           dailyMetric.gateIn,
           'รายการ'
         )}
 
         ${executiveKpi(
-          'รถออกจริง',
+          'ออกจริง',
           dailyMetric
             .gateOutActual,
           'รายการ'
         )}
 
         ${executiveKpi(
-          'คงค้างล่าสุด',
+          'ยังอยู่',
           dailyMetric
             .closingBalance,
           'รายการ'
         )}
 
         ${executiveKpi(
-          'เกินเวลา',
+          'เกิน SLA',
           dailyMetric
             .overdueAtEnd,
           'รายการ',
@@ -506,7 +519,7 @@
         )}
 
         ${executiveKpi(
-          'ผ่านเกณฑ์เวลา',
+          'ผ่านเกณฑ์',
           formatPercent(
             dailyMetric
               .slaCompliancePercent
@@ -551,13 +564,14 @@
           <header>
             <div>
               <small>
-                การเข้า–ออกตามกะ
+                ปริมาณงาน
               </small>
 
-              <h3 class="dashboard-heading-with-info">
-                รถเข้าเทียบรถออก
-                ${infoButton('shift-flow')}
-              </h3>
+              <div class="shift-panel-title-line">
+                <h3>เข้า–ออกแยกตามกะ</h3>
+                <button type="button" class="dashboard-info-button is-small"
+                  data-dashboard-info="flow" aria-label="อธิบายข้อมูลเข้าออก">i</button>
+              </div>
             </div>
           </header>
 
@@ -572,12 +586,11 @@
           <header>
             <div>
               <small>
-                ประสิทธิภาพเวลา
+                ผลตามเกณฑ์
               </small>
 
-              <h3 class="dashboard-heading-with-info">
-                ผ่านเกณฑ์เวลาตามกะ
-                ${infoButton('sla')}
+              <h3>
+                ผ่านเกณฑ์ตามกะ
               </h3>
             </div>
           </header>
@@ -595,12 +608,11 @@
           <header>
             <div>
               <small>
-                งานส่งต่อ
+                ส่งต่องาน
               </small>
 
-              <h3 class="dashboard-heading-with-info">
+              <h3>
                 การส่งต่องานระหว่างกะ
-                ${infoButton('handover')}
               </h3>
             </div>
           </header>
@@ -616,12 +628,11 @@
           <header>
             <div>
               <small>
-                รายการผิดปกติ
+                รายการต้องติดตาม
               </small>
 
-              <h3 class="dashboard-heading-with-info">
-                รายการผิดปกติ
-                ${infoButton('exceptions')}
+              <h3>
+                รายการผิดปกติที่ต้องติดตาม
               </h3>
             </div>
 
@@ -689,13 +700,16 @@
       <header class="shift-executive-header">
         <div>
           <small>
-            สรุปการปฏิบัติงาน
+            สรุปการทำงานรายวัน
           </small>
 
-          <h2 class="dashboard-heading-with-info">
-            สรุปรายวัน
-            ${infoButton('daily-summary')}
-          </h2>
+          <div class="shift-title-line">
+            <h2>
+              สรุปรายวัน
+            </h2>
+            <button type="button" class="dashboard-info-button"
+              data-dashboard-info="daily" aria-label="อธิบายข้อมูลรายวัน">i</button>
+          </div>
 
           <p>
             วันปฏิบัติงาน
@@ -731,7 +745,7 @@
             daily.attentionShiftCode
               ? `
                   <span class="is-attention">
-                    กะต้องติดตาม
+                    กะที่ต้องติดตาม
                     ${escapeHtml(
                       daily
                         .attentionShiftCode
@@ -750,17 +764,17 @@
         )}
 
         ${dailyMetricHtml(
-          'รถเข้า',
+          'Gate In',
           metric.gateIn
         )}
 
         ${dailyMetricHtml(
-          'รถออกจริง',
+          'ออกจริง',
           metric.gateOutActual
         )}
 
         ${dailyMetricHtml(
-          'ปิดอัตโนมัติ',
+          'Auto Close',
           metric.autoClose
         )}
 
@@ -770,12 +784,12 @@
         )}
 
         ${dailyMetricHtml(
-          'คงค้างสูงสุด',
+          'สูงสุดในพื้นที่',
           metric.peakActive
         )}
 
         ${dailyMetricHtml(
-          'เกินเวลาปลายวัน',
+          'เกินเกณฑ์ปลายวัน',
           metric.overdueAtEnd,
           Number(
             metric.overdueAtEnd
@@ -785,7 +799,7 @@
         )}
 
         ${dailyMetricHtml(
-          'ผ่านเกณฑ์เวลา',
+          'ผ่านเกณฑ์',
           formatPercent(
             metric
               .slaCompliancePercent
@@ -809,9 +823,7 @@
           formatMinutes(
             metric
               .p90DwellMinutes
-          ),
-          '',
-          'p90'
+          )
         )}
 
         ${dailyMetricHtml(
@@ -819,13 +831,11 @@
           formatPercent(
             metric
               .dataCompletenessPercent
-          ),
-          '',
-          'data-quality'
+          )
         )}
 
         ${dailyMetricHtml(
-          'ช่วงวันปฏิบัติงาน',
+          'ช่วงเวลาปฏิบัติงาน',
           `${shortDateTime(
             daily.businessDayStart
           )} – ${shortDateTime(
@@ -843,10 +853,11 @@
                 แนวโน้มรายวัน
               </small>
 
-              <h3 class="dashboard-heading-with-info">
-                แนวโน้มรถเข้า–ออกและคงค้าง
-                ${infoButton('daily-trend')}
-              </h3>
+              <div class="shift-panel-title-line">
+                <h3>แนวโน้มเข้า ออก และคงค้าง</h3>
+                <button type="button" class="dashboard-info-button is-small"
+                  data-dashboard-info="dailyTrend" aria-label="อธิบายแนวโน้มรายวัน">i</button>
+              </div>
             </div>
           </header>
 
@@ -864,9 +875,8 @@
                 ข้อมูลย้อนหลัง
               </small>
 
-              <h3 class="dashboard-heading-with-info">
+              <h3>
                 สถิติย้อนหลัง
-                ${infoButton('daily-history')}
               </h3>
             </div>
 
@@ -894,7 +904,7 @@
         </span>
 
         <span>
-          สถิติ FINAL มาจาก ข้อมูลสรุปหลังจบวัน
+          สถิติ FINAL มาจาก Snapshot หลังจบวัน
         </span>
       </footer>
     `;
@@ -990,7 +1000,7 @@
           </div>
 
           <div>
-            <span>รถเข้า</span>
+            <span>Gate In</span>
             <strong>
               ${formatNumber(
                 metric.gateIn
@@ -999,7 +1009,7 @@
           </div>
 
           <div>
-            <span>รถออก</span>
+            <span>Gate Out</span>
             <strong>
               ${formatNumber(
                 metric.gateOutActual
@@ -1019,7 +1029,7 @@
 
         <div class="shift-card-performance">
           <div>
-            <span>ผ่านเกณฑ์</span>
+            <span>SLA</span>
             <strong class="${
               slaTone(
                 metric
@@ -1044,7 +1054,7 @@
           </div>
 
           <div>
-            <span class="metric-label-with-info">P90 ${infoButton('p90')}</span>
+            <span>P90</span>
             <strong>
               ${formatMinutes(
                 metric
@@ -1054,7 +1064,7 @@
           </div>
 
           <div>
-            <span>เกินเวลา</span>
+            <span>เกิน SLA</span>
             <strong class="${
               Number(
                 metric.overdueAtEnd
@@ -1088,7 +1098,7 @@
               ? `
                   <div>
                     ${deltaBadge(
-                      'รถเข้า',
+                      'Gate In',
                       comparison
                         .delta
                         .gateIn,
@@ -1180,7 +1190,7 @@
               </strong>
 
               <small>
-                คงค้างปลายกะ
+                ปลายกะ
               </small>
             </div>
 
@@ -1210,12 +1220,12 @@
             <em>
               ${
                 item.overdueAtEnd > 0
-                  ? `เกินเวลาส่งต่อ ${
+                  ? `เกิน SLA ส่งต่อ ${
                       formatNumber(
                         item.overdueAtEnd
                       )
                     }`
-                  : 'ไม่มีรายการเกินเวลาส่งต่อ'
+                  : 'ไม่มีรายการเกิน SLA ส่งต่อ'
               }
             </em>
           </div>
@@ -1395,7 +1405,7 @@
   ) {
     if (!history.length) {
       return emptyPanel(
-        'ยังไม่มี ข้อมูลสรุปรายวัน'
+        'ยังไม่มี Daily Snapshot'
       );
     }
 
@@ -1473,9 +1483,8 @@
 
                   <td>
                     ${escapeHtml(
-                      shiftStatusLabel(
-                        row.status
-                      )
+                      row.status ||
+                      '-'
                     )}
                   </td>
                 </tr>
@@ -1584,47 +1593,47 @@
 
           <div>
             ${detailItem(
-              'คงค้างต้นกะ',
+              'ต้นกะ',
               metric.openingBalance
             )}
 
             ${detailItem(
-              'รถเข้า',
+              'Gate In',
               metric.gateIn
             )}
 
             ${detailItem(
-              'รถออกจริง',
+              'ออกจริง',
               metric.gateOutActual
             )}
 
             ${detailItem(
-              'ปิดอัตโนมัติ',
+              'Auto Close',
               metric.autoClose
             )}
 
             ${detailItem(
-              'คงค้างปลายกะ',
+              'ปลายกะ',
               metric.closingBalance
             )}
 
             ${detailItem(
-              'คงค้างสูงสุด',
+              'สูงสุดในพื้นที่',
               metric.peakActive
             )}
 
             ${detailItem(
-              'เกินเวลาสูงสุด',
+              'เกินเกณฑ์สูงสุด',
               metric.peakOverdue
             )}
 
             ${detailItem(
-              'เกินเวลาปลายกะ',
+              'เกินเกณฑ์ปลายกะ',
               metric.overdueAtEnd
             )}
 
             ${detailItem(
-              'ผ่านเกณฑ์เวลา',
+              'ผ่านเกณฑ์',
               formatPercent(
                 metric
                   .slaCompliancePercent
@@ -1648,7 +1657,7 @@
             )}
 
             ${detailItem(
-              'เวลานานที่สุด',
+              'นานที่สุด',
               formatMinutes(
                 metric
                   .maxDwellMinutes
@@ -1767,7 +1776,7 @@
           )}
 
           ${detailItem(
-            'เกินเวลา',
+            'เกิน SLA',
             formatMinutes(
               item.overdueMinutes
             )
@@ -1785,6 +1794,88 @@
         popup:
           'shift-detail-popup'
       }
+    });
+  }
+
+
+  function openDashboardInfo(key) {
+    if (!window.Swal || typeof window.Swal.fire !== 'function') {
+      return;
+    }
+
+    const definitions = {
+      overview: {
+        title: 'ความหมายของข้อมูล Dashboard',
+        items: [
+          ['สถานการณ์', 'ข้อมูลรถหรือตู้ที่ยังอยู่ในพื้นที่ ณ เวลาปัจจุบัน'],
+          ['ผลงานตามกะ', 'สรุปเข้า ออก คงค้าง เวลา และการผ่านเกณฑ์ แยกตามกะทำงาน'],
+          ['สรุปรายวัน', 'รวมผลตั้งแต่เวลาเริ่มวันปฏิบัติงานจนถึงเวลาเดียวกันของวันถัดไป']
+        ]
+      },
+      shift: {
+        title: 'การคำนวณข้อมูลตามกะ',
+        items: [
+          ['ต้นกะ', 'จำนวนรถหรือตู้ที่ค้างมาจากกะก่อน'],
+          ['เข้าพื้นที่', 'จำนวนรายการ Gate In ที่เกิดภายในกะ'],
+          ['ออกจริง', 'จำนวน Gate Out จริง ไม่รวม Auto Close'],
+          ['ปลายกะ', 'จำนวนที่ยังอยู่ในพื้นที่เมื่อกะสิ้นสุดหรือ ณ เวลาปัจจุบัน'],
+          ['เปรียบเทียบ', 'กะปัจจุบันเทียบกับช่วงเวลาที่ผ่านไปเท่ากันของวันก่อน']
+        ]
+      },
+      daily: {
+        title: 'การคำนวณข้อมูลรายวัน',
+        items: [
+          ['วันปฏิบัติงาน', 'ช่วง 24 ชั่วโมงที่เริ่มตามเวลาที่ Admin กำหนด เช่น 06:00–06:00'],
+          ['คงค้างต้นวัน', 'รายการที่เข้าก่อนวันปฏิบัติงานและยังไม่ออก'],
+          ['คงค้างปลายวัน', 'รายการที่ยังไม่ออกเมื่อสิ้นสุดวันปฏิบัติงาน'],
+          ['ข้อมูลย้อนหลัง', 'อ่านจาก Snapshot ที่บันทึกในชีทสรุปรายวัน']
+        ]
+      },
+      flow: {
+        title: 'ข้อมูลเข้า–ออก',
+        items: [
+          ['เข้าพื้นที่', 'จำนวน Gate In ภายในช่วงที่เลือก'],
+          ['ออกจริง', 'จำนวน Gate Out จากข้อมูลจริง'],
+          ['Auto Close', 'รายการที่ระบบปิดอัตโนมัติเมื่อเกินเวลาที่กำหนด'],
+          ['คงค้าง', 'จำนวนที่ยังอยู่ในพื้นที่เมื่อจบช่วง']
+        ]
+      },
+      sla: {
+        title: 'SLA และ P90 คืออะไร',
+        items: [
+          ['SLA', 'เกณฑ์เวลาที่กำหนดว่ารถหรือตู้ควรอยู่ในพื้นที่ไม่เกินกี่นาที'],
+          ['ผ่านเกณฑ์', 'ร้อยละของรายการที่ใช้เวลาไม่เกิน SLA'],
+          ['P90', 'เวลาที่ครอบคลุมรายการประมาณ 90% ใช้ดูว่ารายการส่วนใหญ่ใช้เวลานานเท่าใด'],
+          ['เกินเกณฑ์', 'จำนวนรายการที่ใช้เวลาตั้งแต่เกณฑ์สีแดงขึ้นไป']
+        ]
+      },
+      dailyTrend: {
+        title: 'แนวโน้มรายวัน',
+        items: [
+          ['เข้าพื้นที่', 'จำนวน Gate In ของแต่ละวันปฏิบัติงาน'],
+          ['ออกจริง', 'จำนวน Gate Out จริงของแต่ละวัน'],
+          ['คงค้าง', 'จำนวนรายการที่ยังอยู่เมื่อสิ้นสุดวันปฏิบัติงาน']
+        ]
+      }
+    };
+
+    const info = definitions[key] || definitions.overview;
+
+    window.Swal.fire({
+      title: info.title,
+      html: `
+        <div class="dashboard-info-content">
+          ${info.items.map(([label, description]) => `
+            <div>
+              <strong>${escapeHtml(label)}</strong>
+              <span>${escapeHtml(description)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `,
+      confirmButtonText: 'เข้าใจแล้ว',
+      width: 'min(620px, calc(100vw - 18px))',
+      customClass: { popup: 'dashboard-info-popup' }
     });
   }
 
@@ -1828,7 +1919,7 @@
             datasets: [
               {
                 label:
-                  'รถเข้า',
+                  'Gate In',
 
                 data:
                   cards.map(
@@ -1846,7 +1937,7 @@
 
               {
                 label:
-                  'รถออกจริง',
+                  'ออกจริง',
 
                 data:
                   cards.map(
@@ -1864,7 +1955,7 @@
 
               {
                 label:
-                  'คงค้างปลายกะ',
+                  'ปลายกะ',
 
                 data:
                   cards.map(
@@ -1930,7 +2021,7 @@
             datasets: [
               {
                 label:
-                  'ผ่านเกณฑ์เวลา %',
+                  'ผ่านเกณฑ์ %',
 
                 data:
                   cards.map(
@@ -2045,7 +2136,7 @@
             datasets: [
               {
                 label:
-                  'รถเข้า',
+                  'Gate In',
 
                 data:
                   history.map(
@@ -2068,7 +2159,7 @@
 
               {
                 label:
-                  'รถออกจริง',
+                  'ออกจริง',
 
                 data:
                   history.map(
@@ -2314,40 +2405,6 @@
   }
 
 
-  function infoButton(
-    key
-  ) {
-    if (
-      window.DashboardInfo &&
-      typeof window.DashboardInfo.button ===
-        'function'
-    ) {
-      return window.DashboardInfo.button(key);
-    }
-
-    return '';
-  }
-
-
-  function shiftStatusLabel(
-    value
-  ) {
-    const key =
-      String(value || '').toUpperCase();
-
-    const labels = {
-      LIVE: 'กำลังดำเนินการ',
-      FINAL: 'ปิดข้อมูลแล้ว',
-      PROVISIONAL: 'สรุปเบื้องต้น',
-      CALCULATED: 'คำนวณแล้ว',
-      RECALCULATED: 'คำนวณใหม่',
-      UPCOMING: 'ยังไม่เริ่ม'
-    };
-
-    return labels[key] || value || '-';
-  }
-
-
   function executiveKpi(
     label,
     value,
@@ -2390,14 +2447,14 @@
   function dailyMetricHtml(
     label,
     value,
-    className,
-    infoKey
+    className
   ) {
     return `
       <div class="${className || ''}">
-        <span class="${infoKey ? 'metric-label-with-info' : ''}">
-          ${escapeHtml(label)}
-          ${infoKey ? infoButton(infoKey) : ''}
+        <span>
+          ${escapeHtml(
+            label
+          )}
         </span>
 
         <strong>
@@ -2478,7 +2535,7 @@
   ) {
     const map = {
       OVERDUE:
-        'เกินเวลา',
+        'เกิน SLA',
       AUTO_CLOSE:
         'ระบบ Auto Close',
       MISSING_RECEIVING:
@@ -2486,7 +2543,7 @@
       INCOMPLETE_DATA:
         'ข้อมูลไม่สมบูรณ์',
       CARRY_OVER_OVERDUE:
-        'เกินเวลาและส่งต่อกะ'
+        'เกิน SLA และส่งต่อกะ'
     };
 
     return (
