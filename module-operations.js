@@ -1,6 +1,6 @@
 /**
  * module-operations.js
- * ROUND 47 — Compact Overdue Alert + Audio + Vibration
+ * ROUND 49 — Split Overdue Alert + New Round Tracking
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -22,6 +22,13 @@
   const VIBRATION_COOLDOWN_MS =
     10 * 60 * 1000;
 
+  /*
+   * เก็บ Snapshot ที่ผู้ใช้กด “รับทราบ” ล่าสุด
+   * เพื่อแยก “รายการทั้งหมด” กับ “รายการใหม่ในรอบนี้”
+   */
+  const OVERDUE_ACK_STORAGE_KEY =
+    'ALERT_VENDOR_OVERDUE_ACK_SNAPSHOT_V1';
+
   const state = {
     observer: null,
     swalTimer: null,
@@ -33,6 +40,8 @@
     lastPlayedAt: 0,
     lastVibratedSignature: '',
     lastVibratedAt: 0,
+    acknowledgedOverdueKeys:
+      new Set(),
     destroyed: false
   };
 
@@ -50,6 +59,7 @@
   function initialize() {
     restoreSoundState();
     restoreVibrationState();
+    restoreOverdueAcknowledgement();
     annotateVehicleCards();
     observeVehicleList();
     bindAudioUnlock();
@@ -310,21 +320,30 @@
     const oldWillClose =
       source.willClose;
 
-    const signature =
+    const oldPreConfirm =
+      source.preConfirm;
+
+    const alertModel =
+      createOverdueAlertModel(
+        records
+      );
+
+    const automaticSignature =
+      buildAlertSignature(
+        alertModel.newRecords
+      );
+
+    const manualSignature =
       buildAlertSignature(
         records
       );
 
     state.activeAlertSignature =
-      signature;
+      manualSignature;
 
     return {
       ...source,
 
-      /*
-       * รอบ 46 วางหัวเรื่องทั้งหมดไว้ใน HTML ของเราเอง
-       * เพื่อไม่ให้ title/icon เดิมของ SweetAlert สร้างพื้นที่ว่าง
-       */
       icon:
         undefined,
       iconHtml:
@@ -333,9 +352,10 @@
         '',
       text:
         '',
+
       html:
         buildOverdueHtml(
-          records
+          alertModel
         ),
 
       confirmButtonText:
@@ -355,33 +375,55 @@
       scrollbarPadding:
         false,
       width:
-        'min(780px, calc(100vw - 18px))',
+        'min(820px, calc(100vw - 14px))',
       padding:
         '0',
 
       customClass: {
         popup:
-          'av-overdue-popup-v47',
+          'av-overdue-popup-v49',
         title:
-          'av-overdue-hidden-title-v47',
+          'av-overdue-hidden-title-v49',
         icon:
-          'av-overdue-hidden-icon-v47',
+          'av-overdue-hidden-icon-v49',
         htmlContainer:
-          'av-overdue-html-v47',
+          'av-overdue-html-v49',
         actions:
-          'av-overdue-actions-v47',
+          'av-overdue-actions-v49',
         confirmButton:
-          'av-overdue-confirm-v47',
+          'av-overdue-confirm-v49',
         closeButton:
-          'av-overdue-close-v47'
+          'av-overdue-close-v49'
       },
+
+      preConfirm:
+        async (...args) => {
+          if (
+            typeof oldPreConfirm ===
+              'function'
+          ) {
+            const previousResult =
+              await oldPreConfirm(
+                ...args
+              );
+
+            if (
+              previousResult ===
+                false
+            ) {
+              return false;
+            }
+          }
+
+          acknowledgeOverdueRecords(
+            records
+          );
+
+          return true;
+        },
 
       didOpen:
         (popup) => {
-          /*
-           * ล้างพื้นที่จาก title/icon/inline style รุ่นเดิม
-           * ป้องกันกล่องขาวว่างด้านบนและความสูงผิดปกติ
-           */
           const titleNode =
             popup.querySelector(
               '.swal2-title'
@@ -409,7 +451,7 @@
             '0';
 
           popup.style.maxWidth =
-            'calc(100vw - 18px)';
+            'calc(100vw - 14px)';
 
           popup.style.overflow =
             'hidden';
@@ -427,10 +469,15 @@
             popup
           );
 
-          requestAlarmFeedback(
-            signature,
-            false
-          );
+          if (
+            alertModel.newRecords
+              .length > 0
+          ) {
+            requestAlarmFeedback(
+              automaticSignature,
+              false
+            );
+          }
         },
 
       willClose:
@@ -451,7 +498,6 @@
         }
     };
   }
-
 
   function bindOverdueAlertActions(
     popup
@@ -691,17 +737,45 @@
   }
 
 
-  function buildOverdueHtml(
+  function createOverdueAlertModel(
     records
   ) {
-    const maximumVisible =
-      12;
+    const allRecords =
+      Array.isArray(
+        records
+      )
+        ? records
+        : [];
 
-    const visible =
-      records.slice(
-        0,
-        maximumVisible
+    const newRecords =
+      allRecords.filter(
+        (record) =>
+          !state
+            .acknowledgedOverdueKeys
+            .has(
+              getOverdueRecordKey(
+                record
+              )
+            )
       );
+
+    return {
+      allRecords,
+      newRecords
+    };
+  }
+
+
+  function buildOverdueHtml(
+    alertModel
+  ) {
+    const allRecords =
+      alertModel.allRecords ||
+      [];
+
+    const newRecords =
+      alertModel.newRecords ||
+      [];
 
     const thresholdText =
       text(
@@ -712,9 +786,9 @@
       'ตามเกณฑ์โมดูล';
 
     return `
-      <div class="av-overdue-dialog-v47">
-        <header class="av-overdue-header-v47">
-          <div class="av-overdue-heading-v47">
+      <div class="av-overdue-dialog-v49">
+        <header class="av-overdue-header-v49">
+          <div class="av-overdue-heading-v49">
             <small>
               OPERATIONAL ALERT
             </small>
@@ -728,24 +802,28 @@
               ${escapeHtml(
                 thresholdText
               )}
-              · เรียงตามเวลาคงค้างสูงสุด
+              · เทียบรายการใหม่จากรอบที่กดรับทราบล่าสุด
             </p>
           </div>
 
-          <div class="av-overdue-header-actions-v47">
-            <div class="av-overdue-total-v47">
+          <div class="av-overdue-header-summary-v49">
+            <span>
+              <small>ทั้งหมด</small>
               <strong>
-                ${records.length}
+                ${allRecords.length}
               </strong>
+            </span>
 
-              <span>
-                รายการ
-              </span>
-            </div>
+            <span class="is-new">
+              <small>ใหม่รอบนี้</small>
+              <strong>
+                ${newRecords.length}
+              </strong>
+            </span>
 
             <button
               type="button"
-              class="av-overdue-feedback-v47"
+              class="av-overdue-feedback-v49"
               data-overdue-play-sound
               aria-label="เล่นเสียงและสั่นเตือนอีกครั้ง"
             >
@@ -760,173 +838,243 @@
           </div>
         </header>
 
-        <div class="av-overdue-toolbar-v47">
-          <span>
-            แตะรายการเพื่อไปยังการ์ดในหน้าหลัก
-          </span>
+        <div class="av-overdue-split-v49">
+          ${buildOverduePanelHtml(
+            'ทั้งหมดที่เกินเวลา',
+            allRecords,
+            'ALL'
+          )}
 
-          <strong>
-            ${visible.length}/${records.length}
-          </strong>
+          ${buildOverduePanelHtml(
+            'เข้ามาใหม่ในรอบนี้',
+            newRecords,
+            'NEW'
+          )}
         </div>
 
-        <div
-          class="av-overdue-list-v47"
-          role="list"
-          aria-label="รถหรือตู้สินค้าที่เกินเวลา"
-        >
-          ${visible
-            .map(
-              (record, index) => `
-                <button
-                  type="button"
-                  class="av-overdue-card-v47"
-                  data-overdue-scroll-record="${escapeHtml(
-                    record.recordId
-                  )}"
-                  role="listitem"
-                >
-                  <span class="av-overdue-card-header-v47">
-                    <span class="av-overdue-rank-v47">
-                      ${index + 1}
-                    </span>
-
-                    <span class="av-overdue-company-v47">
-                      <small>
-                        บริษัท / Vendor
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.company
-                        )}
-                      </strong>
-
-                      ${
-                        record.driver
-                          ? `
-                              <em>
-                                ผู้ขับ:
-                                ${escapeHtml(
-                                  record.driver
-                                )}
-                              </em>
-                            `
-                          : ''
-                      }
-                    </span>
-                  </span>
-
-                  <span class="av-overdue-data-grid-v47">
-                    <span class="av-overdue-data-v47 is-primary">
-                      <small>
-                        เลขนัดหมาย
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.appointment
-                        )}
-                      </strong>
-                    </span>
-
-                    <span class="av-overdue-data-v47 is-primary">
-                      <small>
-                        ทะเบียน / หมายเลขตู้
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.registration
-                        )}
-                      </strong>
-                    </span>
-
-                    <span class="av-overdue-data-v47">
-                      <small>
-                        เวลาอยู่ในพื้นที่
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.duration
-                        )}
-                      </strong>
-                    </span>
-
-                    <span class="av-overdue-data-v47 is-danger">
-                      <small>
-                        เกิน SLA แล้ว
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.overdueDuration
-                        )}
-                      </strong>
-                    </span>
-
-                    <span class="av-overdue-data-v47">
-                      <small>
-                        เวลา Gate In
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.gateIn
-                        )}
-                      </strong>
-                    </span>
-
-                    <span class="av-overdue-data-v47 is-stage">
-                      <small>
-                        ขั้นตอนปัจจุบัน
-                      </small>
-
-                      <strong>
-                        ${escapeHtml(
-                          record.stage
-                        )}
-                      </strong>
-                    </span>
-                  </span>
-                </button>
-              `
-            )
-            .join('')}
-        </div>
-
-        ${
-          records.length >
-            visible.length
-            ? `
-                <div class="av-overdue-more-v47">
-                  แสดง
-                  ${visible.length}
-                  รายการที่เกินเวลาสูงสุด
-
-                  <strong>
-                    เหลืออีก
-                    ${records.length -
-                      visible.length}
-                    รายการ
-                  </strong>
-                </div>
-              `
-            : ''
-        }
-
-        <footer class="av-overdue-footer-v47">
+        <footer class="av-overdue-footer-v49">
           <span>
-            เลื่อนรายการขึ้น–ลงภายในหน้าต่างนี้
+            1 รายการใช้ 2 แถว:
+            เลขนัดหมาย /
+            บริษัท · ทะเบียน · เวลาอยู่ในพื้นที่
           </span>
 
           <span>
-            เสียงและการสั่นไม่ทำงานซ้ำจาก Silent Refresh
+            กดรับทราบเพื่อใช้ชุดปัจจุบันเป็นฐานรอบถัดไป
           </span>
         </footer>
       </div>
     `;
+  }
+
+
+  function buildOverduePanelHtml(
+    title,
+    records,
+    panelType
+  ) {
+    const isNewPanel =
+      panelType ===
+      'NEW';
+
+    return `
+      <section
+        class="av-overdue-panel-v49 ${
+          isNewPanel
+            ? 'is-new-panel'
+            : 'is-all-panel'
+        }"
+      >
+        <header class="av-overdue-panel-header-v49">
+          <strong>
+            ${escapeHtml(
+              title
+            )}
+          </strong>
+
+          <span>
+            ${records.length}
+            รายการ
+          </span>
+        </header>
+
+        <div
+          class="av-overdue-rows-v49"
+          role="list"
+          aria-label="${escapeHtml(
+            title
+          )}"
+        >
+          ${
+            records.length > 0
+              ? records
+                  .map(
+                    (record) =>
+                      buildOverdueRowHtml(
+                        record,
+                        isNewPanel
+                      )
+                  )
+                  .join('')
+              : `
+                  <div class="av-overdue-empty-v49">
+                    <strong>
+                      ไม่มีรายการใหม่
+                    </strong>
+
+                    <span>
+                      รายการเดิมยังอยู่ฝั่งซ้ายและติดตามต่อได้
+                    </span>
+                  </div>
+                `
+          }
+        </div>
+      </section>
+    `;
+  }
+
+
+  function buildOverdueRowHtml(
+    record,
+    isNew
+  ) {
+    const accessibleText =
+      [
+        'เลขนัดหมาย ' +
+          record.appointment,
+        'บริษัท ' +
+          record.company,
+        'ทะเบียน ' +
+          record.registration,
+        'เวลาอยู่ในพื้นที่ ' +
+          record.duration
+      ].join(', ');
+
+    return `
+      <button
+        type="button"
+        class="av-overdue-row-v49 ${
+          isNew
+            ? 'is-new'
+            : ''
+        }"
+        data-overdue-scroll-record="${escapeHtml(
+          record.recordId
+        )}"
+        role="listitem"
+        aria-label="${escapeHtml(
+          accessibleText
+        )}"
+      >
+        <span class="av-overdue-row-top-v49">
+          <small>
+            นัดหมาย
+          </small>
+
+          <strong>
+            ${escapeHtml(
+              record.appointment
+            )}
+          </strong>
+
+          ${
+            isNew
+              ? `
+                  <em>
+                    ใหม่
+                  </em>
+                `
+              : ''
+          }
+        </span>
+
+        <span class="av-overdue-row-bottom-v49">
+          <span
+            class="is-company"
+            title="${escapeHtml(
+              record.company
+            )}"
+          >
+            ${escapeHtml(
+              record.company
+            )}
+          </span>
+
+          <span
+            class="is-registration"
+            title="${escapeHtml(
+              record.registration
+            )}"
+          >
+            ${escapeHtml(
+              record.registration
+            )}
+          </span>
+
+          <strong class="is-duration">
+            ${escapeHtml(
+              record.duration
+            )}
+          </strong>
+        </span>
+      </button>
+    `;
+  }
+
+
+  function getOverdueRecordKey(
+    record
+  ) {
+    const source =
+      record &&
+      typeof record ===
+        'object'
+        ? record
+        : {};
+
+    return [
+      source.recordId ||
+        '',
+      source.appointment ||
+        '',
+      source.registration ||
+        '',
+      source.gateIn ||
+        ''
+    ]
+      .map(
+        (value) =>
+          String(
+            value ||
+            ''
+          ).trim()
+      )
+      .join('|');
+  }
+
+
+  function acknowledgeOverdueRecords(
+    records
+  ) {
+    const keys =
+      (
+        Array.isArray(
+          records
+        )
+          ? records
+          : []
+      )
+        .map(
+          getOverdueRecordKey
+        )
+        .filter(Boolean);
+
+    state.acknowledgedOverdueKeys =
+      new Set(
+        keys
+      );
+
+    persistOverdueAcknowledgement();
   }
 
   function buildAlertSignature(
@@ -1362,6 +1510,54 @@
           timestamp:
             state.lastVibratedAt
         })
+      );
+    } catch (error) {
+      // Storage may be disabled.
+    }
+  }
+
+
+  function restoreOverdueAcknowledgement() {
+    try {
+      const saved =
+        JSON.parse(
+          window.localStorage.getItem(
+            OVERDUE_ACK_STORAGE_KEY
+          ) ||
+          '[]'
+        );
+
+      state.acknowledgedOverdueKeys =
+        new Set(
+          Array.isArray(saved)
+            ? saved
+                .map(
+                  (value) =>
+                    String(
+                      value ||
+                      ''
+                    )
+                )
+                .filter(Boolean)
+            : []
+        );
+    } catch (error) {
+      state.acknowledgedOverdueKeys =
+        new Set();
+    }
+  }
+
+
+  function persistOverdueAcknowledgement() {
+    try {
+      window.localStorage.setItem(
+        OVERDUE_ACK_STORAGE_KEY,
+        JSON.stringify(
+          Array.from(
+            state
+              .acknowledgedOverdueKeys
+          )
+        )
       );
     } catch (error) {
       // Storage may be disabled.
