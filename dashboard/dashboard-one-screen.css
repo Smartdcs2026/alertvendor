@@ -1,0 +1,675 @@
+/* =========================================================
+   ROUND 64 — Unified One-screen Dashboard Override
+   โหลดท้ายสุดเพื่อจัดพื้นที่ 3 โหมดไม่ให้ทับซ้อน
+   ========================================================= */
+
+:root {
+  --r64-header-h: 76px;
+  --r64-toolbar-h: 58px;
+  --r64-gap: 8px;
+  --r64-page-pad: 8px;
+  --r64-stage-h:
+    calc(
+      100dvh -
+      var(--r64-header-h) -
+      var(--r64-toolbar-h) -
+      20px
+    );
+}
+
+html,
+body.dashboard-page {
+  height: 100%;
+}
+
+body.dashboard-page {
+  overflow: hidden !important;
+}
+
+body.dashboard-page .control-header {
+  min-height: var(--r64-header-h);
+}
+
+body.dashboard-page .control-header__inner {
+  min-height: var(--r64-header-h);
+}
+
+body.dashboard-page .control-main {
+  height:
+    calc(
+      100dvh -
+      var(--r64-header-h)
+    ) !important;
+
+  width: min(1920px, 100%);
+  margin: 0 auto;
+  display: grid !important;
+  grid-template-rows:
+    var(--r64-toolbar-h)
+    minmax(0, 1fr) !important;
+  gap: var(--r64-gap);
+  padding: var(--r64-page-pad) !important;
+  overflow: hidden !important;
+  align-content: stretch !important;
+}
+
+body.dashboard-page .dashboard-view-toolbar {
+  min-height: 0 !important;
+  height: var(--r64-toolbar-h) !important;
+  margin: 0 !important;
+  padding: 7px 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page .dashboard-view-tabs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+body.dashboard-page .dashboard-view-tabs button {
+  min-height: 38px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+body.dashboard-page .dashboard-shift-date-controls {
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* -------------------- LIVE ONE SCREEN -------------------- */
+
+body.dashboard-page[data-dashboard-view="LIVE"] .dashboard-shift-workspace {
+  display: none !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .command-row,
+body.dashboard-page[data-dashboard-view="LIVE"] .operations-row,
+body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+body.dashboard-page[data-dashboard-view="LIVE"] .system-summary {
+  min-height: 0 !important;
+  margin: 0 !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .command-row,
+body.dashboard-page[data-dashboard-view="LIVE"] .operations-row,
+body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+body.dashboard-page[data-dashboard-view="LIVE"] .system-summary {
+  display: grid !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+  grid-template-rows:
+    var(--r64-toolbar-h)
+    minmax(96px, .7fr)
+    minmax(260px, 2fr)
+    minmax(120px, .75fr)
+    54px !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .command-row {
+  grid-template-columns:
+    minmax(210px, 19%)
+    minmax(0, 1fr)
+    minmax(260px, 22%);
+  gap: var(--r64-gap);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .operations-row {
+  grid-template-columns:
+    minmax(250px, 20%)
+    minmax(0, 1fr)
+    minmax(260px, 22%);
+  gap: var(--r64-gap);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row {
+  grid-template-columns:
+    minmax(0, 1.15fr)
+    minmax(0, .75fr)
+    minmax(0, .95fr)
+    minmax(260px, .8fr);
+  gap: var(--r64-gap);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .panel,
+body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel,
+body.dashboard-page[data-dashboard-view="LIVE"] .records-panel,
+body.dashboard-page[data-dashboard-view="LIVE"] .overdue-panel,
+body.dashboard-page[data-dashboard-view="LIVE"] .operations-side,
+body.dashboard-page[data-dashboard-view="LIVE"] .receiving-panel,
+body.dashboard-page[data-dashboard-view="LIVE"] .action-queue-panel {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .status-command-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 8px !important;
+  align-content: center !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card strong {
+  font-size: clamp(19px, 1.7vw, 26px);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .threshold-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .threshold-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .threshold-grid > div {
+  min-height: 0 !important;
+  height: 100%;
+  justify-content: center;
+  padding: 7px !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-panel {
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(0, 1fr) !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-panel__heading {
+  min-height: 0 !important;
+  padding: 8px 10px !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-toolbar {
+  gap: 5px !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-table-shell {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: auto !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-table {
+  table-layout: fixed;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-table th,
+body.dashboard-page[data-dashboard-view="LIVE"] .records-table td {
+  padding: 7px 8px !important;
+  line-height: 1.25;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .records-table tbody tr:nth-child(n+9) {
+  display: none;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .overdue-panel {
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(0, 1fr)
+    36px;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .overdue-list,
+body.dashboard-page[data-dashboard-view="LIVE"] .action-queue-list {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .overdue-list > *:nth-child(n+7),
+body.dashboard-page[data-dashboard-view="LIVE"] .action-queue-list > *:nth-child(n+7) {
+  display: none;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .operations-side {
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(0, 1fr);
+  gap: var(--r64-gap);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel {
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(0, 1fr);
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .chart-shell,
+body.dashboard-page[data-dashboard-view="LIVE"] .chart-shell--doughnut {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 6px !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel canvas {
+  max-height: 100% !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .system-summary {
+  height: 54px !important;
+  grid-template-columns:
+    1.2fr repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 0;
+  padding: 7px 12px !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__item,
+body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__title {
+  min-height: 0 !important;
+}
+
+body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__item strong {
+  font-size: 15px !important;
+}
+
+/* -------------------- SHIFT / DAILY ONE SCREEN -------------------- */
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .command-row,
+body.dashboard-page[data-dashboard-view="SHIFT"] .operations-row,
+body.dashboard-page[data-dashboard-view="SHIFT"] .analytics-row,
+body.dashboard-page[data-dashboard-view="SHIFT"] .system-summary,
+body.dashboard-page[data-dashboard-view="DAILY"] .command-row,
+body.dashboard-page[data-dashboard-view="DAILY"] .operations-row,
+body.dashboard-page[data-dashboard-view="DAILY"] .analytics-row,
+body.dashboard-page[data-dashboard-view="DAILY"] .system-summary {
+  display: none !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .dashboard-shift-workspace,
+body.dashboard-page[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+  height:
+    calc(
+      100dvh -
+      var(--r64-header-h) -
+      var(--r64-toolbar-h) -
+      24px
+    ) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: grid !important;
+  gap: var(--r64-gap) !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .dashboard-shift-workspace {
+  grid-template-rows:
+    auto
+    76px
+    minmax(190px, 1.15fr)
+    minmax(190px, .95fr)
+    minmax(142px, .72fr)
+    24px !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+  grid-template-rows:
+    auto
+    136px
+    minmax(0, 1fr)
+    24px !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-header,
+body.dashboard-page[data-dashboard-view="DAILY"] .shift-executive-header {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-methodology-note,
+body.dashboard-page[data-dashboard-view="DAILY"] .shift-methodology-note {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  gap: var(--r64-gap) !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  grid-auto-rows: minmax(58px, 1fr);
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis > div,
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid > div {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 7px 8px !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis strong,
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid strong {
+  font-size: clamp(16px, 1.45vw, 22px) !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-comparison-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: var(--r64-gap) !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-performance-card {
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(44px, .9fr)
+    minmax(44px, .9fr)
+    minmax(58px, 1fr)
+    auto
+    34px !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-card-comparison {
+  max-height: 36px;
+  overflow: hidden;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-analysis,
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-lower {
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  gap: var(--r64-gap) !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-analysis {
+  grid-template-columns: 1.25fr .75fr !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-lower {
+  grid-template-columns: .9fr 1.1fr !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-analysis-panel,
+body.dashboard-page[data-dashboard-view="DAILY"] .shift-analysis-panel,
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-insight-panel {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(0, 1fr);
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-chart-wrap,
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-chart-wrap {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 5px !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-exception-list,
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-handover-flow {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-exception-list > *:nth-child(n+6) {
+  display: none;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1.35fr)
+    minmax(360px, .65fr) !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    minmax(155px, .45fr) !important;
+  grid-template-areas:
+    "trend history"
+    "trend insight" !important;
+  gap: var(--r64-gap) !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-trend-panel {
+  grid-area: trend !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-panel {
+  grid-area: history !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-insight-panel {
+  grid-area: insight !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-table-wrap {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: auto !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-table {
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: fixed;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-table th,
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-table td {
+  padding: 6px 7px !important;
+  font-size: 10px !important;
+  white-space: nowrap;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-insight-panel > div {
+  min-height: 0 !important;
+  overflow: auto !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+
+body.dashboard-page[data-dashboard-view="DAILY"] .daily-insight-panel > div > div {
+  min-height: 0 !important;
+  padding: 6px !important;
+}
+
+body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-footer,
+body.dashboard-page[data-dashboard-view="DAILY"] .shift-dashboard-footer {
+  height: 24px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+/* -------------------- SWEETALERT / TIMESTAMP -------------------- */
+
+body.dashboard-page .swal2-popup {
+  max-height: calc(100dvh - 18px) !important;
+}
+
+body.dashboard-page .swal2-html-container {
+  max-height: calc(100dvh - 150px) !important;
+  overflow: auto !important;
+}
+
+body.dashboard-page .shift-exception-detail,
+body.dashboard-page .record-inspector,
+body.dashboard-page .shift-detail-modal {
+  text-align: left;
+}
+
+/* -------------------- RESPONSIVE -------------------- */
+
+@media (max-width: 1360px) {
+  :root {
+    --r64-toolbar-h: 56px;
+    --r64-gap: 7px;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    grid-template-rows:
+      var(--r64-toolbar-h)
+      minmax(88px, .62fr)
+      minmax(250px, 2fr)
+      minmax(116px, .7fr)
+      48px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row {
+    grid-template-columns:
+      1.1fr .75fr .9fr .8fr;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .dashboard-shift-workspace {
+    grid-template-rows:
+      auto
+      70px
+      minmax(180px, 1fr)
+      minmax(174px, .86fr)
+      minmax(122px, .6fr)
+      22px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  body.dashboard-page {
+    overflow: auto !important;
+  }
+
+  body.dashboard-page .control-main {
+    height: auto !important;
+    min-height: calc(100dvh - var(--r64-header-h)) !important;
+    overflow: visible !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .control-main,
+  body.dashboard-page[data-dashboard-view="DAILY"] .control-main {
+    grid-template-rows: auto auto !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .operations-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .dashboard-shift-workspace,
+  body.dashboard-page[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .operations-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-comparison-grid,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-analysis,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-dashboard-lower,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: none !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-grid,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .records-table tbody tr:nth-child(n+9),
+  body.dashboard-page[data-dashboard-view="LIVE"] .overdue-list > *:nth-child(n+7),
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-queue-list > *:nth-child(n+7),
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-exception-list > *:nth-child(n+6) {
+    display: revert;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --r64-header-h: 68px;
+    --r64-toolbar-h: auto;
+  }
+
+  body.dashboard-page .control-main {
+    padding: 6px !important;
+  }
+
+  body.dashboard-page .dashboard-view-toolbar {
+    height: auto !important;
+    flex-wrap: wrap;
+  }
+
+  body.dashboard-page .dashboard-view-tabs {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.dashboard-page .dashboard-view-tabs button {
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-grid,
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-history-table {
+    min-width: 680px !important;
+  }
+}
