@@ -406,3 +406,299 @@ body.r66-executive-readability .swal2-html-container {
     text-align: left !important;
   }
 }
+/************************************************************
+ * ROUND 67 — Dashboard Visual Fix
+ * แก้จากภาพล่าสุด:
+ * - CURRENT STATUS การ์ดชิดขอบบน
+ * - EXECUTIVE SITUATION ข้อความขาด
+ * - ขั้นตอนรับสินค้า ข้อความในการ์ดแน่น/ขาด
+ * - DAILY รายละเอียดรายวัน วันที่ต้องแสดง dd/MM/yyyy HH:mm:ss
+ ************************************************************/
+
+
+/* =========================================================
+   LIVE: EXECUTIVE SITUATION
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation {
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading {
+  min-height: 34px !important;
+  padding: 8px 10px 5px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading small {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading h2 {
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content {
+  height: auto !important;
+  min-height: 92px !important;
+  padding: 10px 12px 12px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 52px !important;
+  align-items: start !important;
+  gap: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content > div:first-child {
+  min-width: 0 !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 4px !important;
+  padding-top: 1px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content strong {
+  font-size: 31px !important;
+  line-height: 1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content span {
+  margin-top: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content small {
+  margin-top: 0 !important;
+  font-size: 9px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-symbol {
+  width: 52px !important;
+  height: 52px !important;
+  align-self: center !important;
+}
+
+
+/* =========================================================
+   LIVE: CURRENT STATUS
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel {
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel .panel-heading {
+  min-height: 34px !important;
+  padding: 8px 10px 5px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel .panel-heading small {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel .panel-heading h2 {
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 10px 8px 10px !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card {
+  min-height: 78px !important;
+  height: auto !important;
+  display: grid !important;
+  grid-template-columns: 31px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  column-gap: 8px !important;
+  row-gap: 4px !important;
+  align-content: start !important;
+  padding: 10px 8px 9px 12px !important;
+  border-radius: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card__icon {
+  grid-column: 1 !important;
+  grid-row: 1 / 4 !important;
+  width: 30px !important;
+  height: 30px !important;
+  align-self: start !important;
+  margin-top: 1px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card__icon svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card > span:not(.status-command-card__icon) {
+  grid-column: 2 !important;
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card strong {
+  grid-column: 2 !important;
+  font-size: 26px !important;
+  line-height: 1.05 !important;
+  margin-top: 0 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card small {
+  grid-column: 2 !important;
+  font-size: 7.5px !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+
+/* =========================================================
+   LIVE: ขั้นตอนรับสินค้า
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection {
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .panel-heading {
+  min-height: 34px !important;
+  padding: 8px 10px 5px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .panel-heading h2 {
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 8px !important;
+  gap: 7px !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid > * {
+  min-height: 68px !important;
+  height: auto !important;
+  padding: 8px 8px 8px 10px !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 4px !important;
+  border-radius: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid span {
+  font-size: 9.5px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid strong {
+  font-size: 20px !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid small {
+  display: block !important;
+  font-size: 7px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+
+/* =========================================================
+   DAILY: รายละเอียดรายวัน
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table th,
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table td {
+  font-size: 11px !important;
+  padding: 7px 6px !important;
+  line-height: 1.25 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table th:first-child,
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table td:first-child {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table-wrap {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
