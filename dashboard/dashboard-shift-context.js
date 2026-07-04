@@ -839,8 +839,9 @@
         <span>
           อัปเดต
           ${escapeHtml(
-            data.generatedAt ||
-            '-'
+            dashboardDisplayDateTime(
+              data.generatedAt
+            )
           )}
         </span>
 
@@ -909,13 +910,15 @@
 
           <p>
             ${escapeHtml(
-              daily.businessDayStart ||
-              '-'
+              dashboardDisplayDateTime(
+                daily.businessDayStart
+              )
             )}
             –
             ${escapeHtml(
-              daily.businessDayEnd ||
-              '-'
+              dashboardDisplayDateTime(
+                daily.businessDayEnd
+              )
             )}
 
             ·
@@ -1262,8 +1265,9 @@
         <span>
           อัปเดต
           ${escapeHtml(
-            data.generatedAt ||
-            '-'
+            dashboardDisplayDateTime(
+              data.generatedAt
+            )
           )}
         </span>
 
@@ -1996,7 +2000,9 @@
                   <tr>
                     <td>
                       ${escapeHtml(
+                        dashboardDisplayDateTime(
                         row.businessDate
+                      )
                       )}
                     </td>
 
@@ -2162,11 +2168,15 @@
         <div class="shift-detail-modal">
           <p>
             ${escapeHtml(
-              card.rangeStart
+              dashboardDisplayDateTime(
+                card.rangeStart
+              )
             )}
             –
             ${escapeHtml(
-              card.rangeEnd
+              dashboardDisplayDateTime(
+                card.rangeEnd
+              )
             )}
           </p>
 
@@ -2463,7 +2473,9 @@
 
           ${detailItem(
             'เวลา Gate In',
-            item.gateIn
+            dashboardDisplayDateTime(
+              item.gateIn
+            )
           )}
 
           ${detailItem(
@@ -4507,6 +4519,133 @@
 
     return formatNumber(
       numeric
+    );
+  }
+
+
+  function dashboardDisplayDateTime(
+    value
+  ) {
+    const text =
+      String(value || '')
+        .trim();
+
+    if (!text) {
+      return '-';
+    }
+
+    if (
+      /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(text)
+    ) {
+      return text;
+    }
+
+    const nativeDate =
+      new Date(text);
+
+    if (
+      !Number.isNaN(
+        nativeDate.getTime()
+      )
+    ) {
+      return formatBangkokDateTimeFromDate(
+        nativeDate
+      );
+    }
+
+    const isoMatch =
+      text.match(
+        /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/
+      );
+
+    if (isoMatch) {
+      const date =
+        new Date(
+          isoMatch[1] + '-' +
+          isoMatch[2] + '-' +
+          isoMatch[3] + 'T' +
+          isoMatch[4] + ':' +
+          isoMatch[5] + ':' +
+          isoMatch[6] + '+07:00'
+        );
+
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return formatBangkokDateTimeFromDate(
+          date
+        );
+      }
+    }
+
+    const dmyMatch =
+      text.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
+      );
+
+    if (dmyMatch) {
+      return (
+        dmyMatch[1] + '/' +
+        dmyMatch[2] + '/' +
+        dmyMatch[3] + ' ' +
+        String(dmyMatch[4] || '00')
+          .padStart(2, '0') + ':' +
+        String(dmyMatch[5] || '00')
+          .padStart(2, '0') + ':' +
+        String(dmyMatch[6] || '00')
+          .padStart(2, '0')
+      );
+    }
+
+    return text;
+  }
+
+
+  function formatBangkokDateTimeFromDate(
+    date
+  ) {
+    const parts =
+      new Intl.DateTimeFormat(
+        'en-GB',
+        {
+          timeZone:
+            'Asia/Bangkok',
+          day:
+            '2-digit',
+          month:
+            '2-digit',
+          year:
+            'numeric',
+          hour:
+            '2-digit',
+          minute:
+            '2-digit',
+          second:
+            '2-digit',
+          hour12:
+            false
+        }
+      )
+        .formatToParts(date)
+        .reduce(
+          (result, part) => {
+            result[part.type] =
+              part.value;
+
+            return result;
+          },
+          {}
+        );
+
+    return (
+      parts.day + '/' +
+      parts.month + '/' +
+      parts.year + ' ' +
+      parts.hour + ':' +
+      parts.minute + ':' +
+      parts.second
     );
   }
 
