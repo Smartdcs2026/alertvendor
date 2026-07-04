@@ -4523,84 +4523,92 @@
   }
 
 
-  function dashboardDisplayDateTime(
-    value
+ function dashboardDisplayDateTime(
+  value
+) {
+  const text =
+    String(value || '')
+      .trim();
+
+  if (!text) {
+    return '-';
+  }
+
+  if (
+    /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(text)
   ) {
-    const text =
-      String(value || '')
-        .trim();
+    return text;
+  }
 
-    if (!text) {
-      return '-';
-    }
+  /*
+   * ต้องตรวจ dd/MM/yyyy ก่อน new Date()
+   * เพื่อป้องกัน Browser ตีความ 04/07/2026 เป็น MM/DD/YYYY
+   */
+  const dmyMatch =
+    text.match(
+      /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
+    );
 
-    if (
-      /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(text)
-    ) {
-      return text;
-    }
+  if (dmyMatch) {
+    return (
+      dmyMatch[1] + '/' +
+      dmyMatch[2] + '/' +
+      dmyMatch[3] + ' ' +
+      String(dmyMatch[4] || '00')
+        .padStart(2, '0') + ':' +
+      String(dmyMatch[5] || '00')
+        .padStart(2, '0') + ':' +
+      String(dmyMatch[6] || '00')
+        .padStart(2, '0')
+    );
+  }
 
-    const nativeDate =
-      new Date(text);
+  const isoMatch =
+    text.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2}):(\d{2}))?$/
+    );
+
+  if (isoMatch) {
+    const date =
+      new Date(
+        isoMatch[1] + '-' +
+        isoMatch[2] + '-' +
+        isoMatch[3] + 'T' +
+        String(isoMatch[4] || '00')
+          .padStart(2, '0') + ':' +
+        String(isoMatch[5] || '00')
+          .padStart(2, '0') + ':' +
+        String(isoMatch[6] || '00')
+          .padStart(2, '0') +
+        '+07:00'
+      );
 
     if (
       !Number.isNaN(
-        nativeDate.getTime()
+        date.getTime()
       )
     ) {
       return formatBangkokDateTimeFromDate(
-        nativeDate
+        date
       );
     }
-
-    const isoMatch =
-      text.match(
-        /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/
-      );
-
-    if (isoMatch) {
-      const date =
-        new Date(
-          isoMatch[1] + '-' +
-          isoMatch[2] + '-' +
-          isoMatch[3] + 'T' +
-          isoMatch[4] + ':' +
-          isoMatch[5] + ':' +
-          isoMatch[6] + '+07:00'
-        );
-
-      if (
-        !Number.isNaN(
-          date.getTime()
-        )
-      ) {
-        return formatBangkokDateTimeFromDate(
-          date
-        );
-      }
-    }
-
-    const dmyMatch =
-      text.match(
-        /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
-      );
-
-    if (dmyMatch) {
-      return (
-        dmyMatch[1] + '/' +
-        dmyMatch[2] + '/' +
-        dmyMatch[3] + ' ' +
-        String(dmyMatch[4] || '00')
-          .padStart(2, '0') + ':' +
-        String(dmyMatch[5] || '00')
-          .padStart(2, '0') + ':' +
-        String(dmyMatch[6] || '00')
-          .padStart(2, '0')
-      );
-    }
-
-    return text;
   }
+
+  const nativeDate =
+    new Date(text);
+
+  if (
+    !Number.isNaN(
+      nativeDate.getTime()
+    )
+  ) {
+    return formatBangkokDateTimeFromDate(
+      nativeDate
+    );
+  }
+
+  return text;
+}
 
 
   function formatBangkokDateTimeFromDate(
