@@ -119,7 +119,7 @@
       state.moduleId = getModuleIdFromUrl();
 
       if (!state.moduleId) {
-        throw new Error('ไม่พบรหัสโมดูล');
+        throw new Error('ไม่พบรหัส Module');
       }
 
       state.session = await API.me();
@@ -550,9 +550,11 @@
 
               <strong>
                 ${escapeHtml(
-                  field.value ??
-                  field.displayValue ??
-                  '-'
+                  formatDashboardDisplayDateTime(
+                    field.value ??
+                    field.displayValue ??
+                    '-'
+                  )
                 )}
               </strong>
             </div>
@@ -639,7 +641,7 @@
             </div>
 
             <div class="record-inspector-info">
-              <span>เวลาเข้า</span>
+              <span>เวลาเข้า Gate In</span>
 
               <strong>
                 ${escapeHtml(
@@ -1007,7 +1009,7 @@
         generatedAt
       );
 
-      setConnectionState('ONLINE', 'สด');
+      setConnectionState('ONLINE', 'LIVE');
     } catch (error) {
       if (isAuthenticationError(error)) {
         redirectToLogin();
@@ -1181,7 +1183,7 @@
             : 'WAITING_RECEIVING',
         stageLabel:
           hasReceiving
-            ? 'รับสินค้าเสร็จ รอออก'
+            ? 'รับสินค้าเสร็จ รอ Gate Out'
             : 'รอรับสินค้าเสร็จ',
         isExited:
           false,
@@ -1192,7 +1194,7 @@
         gateOutSource:
           'PENDING',
         gateOutSourceLabel:
-          'ยังไม่พบเวลาออกจากพื้นที่',
+          'ยังไม่มีการสแกน Gate Out',
         currentStageSeconds:
           currentStageSeconds
       };
@@ -1217,7 +1219,7 @@
             : 'AUTO_CLOSED_WITHOUT_RECEIVING',
         stageLabel:
           hasReceiving
-            ? 'รับสินค้าเสร็จแล้ว แต่ไม่พบรถออกจริง — ระบบปิดรายการอัตโนมัติ'
+            ? 'รับสินค้าเสร็จแล้ว แต่ไม่พบ Gate Out จริง — ระบบเคลียร์ข้อมูล'
             : 'ระบบเคลียร์ข้อมูล โดยไม่มีข้อมูลรับสินค้าเสร็จ'
       };
     }
@@ -1231,8 +1233,8 @@
             : 'EXITED_WITHOUT_RECEIVING',
         stageLabel:
           hasReceiving
-            ? 'รถออกจริงแล้ว — กระบวนการสมบูรณ์'
-            : 'รถออกจริงแล้ว โดยไม่มีข้อมูลรับสินค้าเสร็จ'
+            ? 'Gate Out จริงแล้ว — กระบวนการสมบูรณ์'
+            : 'Gate Out จริงแล้ว โดยไม่มีข้อมูลรับสินค้าเสร็จ'
       };
     }
 
@@ -1241,7 +1243,7 @@
       stageCode:
         'INACTIVE_WITHOUT_GATE_OUT_TIME',
       stageLabel:
-        'รายการไม่คงค้าง แต่ไม่พบเวลาออกที่ยืนยันได้'
+        'รายการไม่ Active แต่ไม่พบเวลา Gate Out ที่ยืนยันได้'
     };
   }
 
@@ -1364,7 +1366,7 @@
     ) {
       code = 'ACTION';
       count = Number(receivingSummary.waitingGateOut);
-      label = 'ติดตามรถออก';
+      label = 'ติดตาม Gate Out';
       message = count + ' รายการรับสินค้าเสร็จแล้ว';
     } else if (counts.WARNING > 0) {
       code = 'WATCH';
@@ -1627,7 +1629,7 @@
         priority: 0,
         code: 'OVERDUE',
         title: dimensions.title,
-        action: 'เกินเวลา ต้องเร่งติดตาม',
+        action: 'เกิน SLA ต้องเร่งติดตาม',
         seconds: Number(record.durationSeconds) || 0
       };
     }
@@ -1640,7 +1642,7 @@
         priority: 1,
         code: 'WAITING_GATE_OUT',
         title: dimensions.title,
-        action: 'รับสินค้าเสร็จแล้ว รอรถออก',
+        action: 'รับสินค้าเสร็จแล้ว รอ Gate Out',
         seconds: Number(receiving.currentStageSeconds) || 0
       };
     }
@@ -1952,8 +1954,9 @@
 
           <td>
             ${escapeHtml(
-              record.timestampIn ||
-              '-'
+              formatDashboardDisplayDateTime(
+                record.timestampIn
+              )
             )}
           </td>
 
@@ -2102,7 +2105,7 @@
             </div>
 
             <div class="mobile-active-card__field mobile-active-card__field--gate-in">
-              <span>เวลาเข้า</span>
+              <span>เวลาเข้า Gate In</span>
 
               <strong>
                 ${escapeHtml(
@@ -2275,7 +2278,7 @@
       labels: hours.map(getHourLabel),
       datasets: [
         {
-          label: 'รถเข้า',
+          label: 'Gate In',
           data: hours.map(
             (hour) => Number(hour.in) || 0
           ),
@@ -2285,7 +2288,7 @@
           categoryPercentage: .78
         },
         {
-          label: 'รถออกจริง',
+          label: 'Gate Out จริง',
           data: hours.map(
             (hour) => Number(hour.outReal) || 0
           ),
@@ -2295,7 +2298,7 @@
           categoryPercentage: .78
         },
         {
-          label: 'ปิดอัตโนมัติ',
+          label: 'ระบบเคลียร์อัตโนมัติ',
           data: hours.map(
             (hour) => Number(hour.outAuto) || 0
           ),
@@ -2613,7 +2616,7 @@
       labels: hours.map(getHourLabel),
       datasets: [
         {
-          label: 'รายการคงค้าง',
+          label: 'รายการ Active',
           data: deriveActiveTrend(
             hours,
             state.records.length
@@ -3638,6 +3641,78 @@
         Date.now();
     }
   }
+
+  function formatDashboardDisplayDateTime(
+    value
+  ) {
+    const text =
+      String(value || '')
+        .trim();
+
+    if (!text) {
+      return '-';
+    }
+
+    if (
+      /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(text)
+    ) {
+      return text;
+    }
+
+    const parsedBySystem =
+      parseSystemDateTime(
+        text
+      );
+
+    if (parsedBySystem) {
+      return formatBangkokDateTime(
+        parsedBySystem
+      );
+    }
+
+    const nativeDate =
+      new Date(text);
+
+    if (
+      !Number.isNaN(
+        nativeDate.getTime()
+      )
+    ) {
+      return formatBangkokDateTime(
+        nativeDate
+      );
+    }
+
+    const isoMatch =
+      text.match(
+        /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/
+      );
+
+    if (isoMatch) {
+      const date =
+        new Date(
+          isoMatch[1] + '-' +
+          isoMatch[2] + '-' +
+          isoMatch[3] + 'T' +
+          isoMatch[4] + ':' +
+          isoMatch[5] + ':' +
+          isoMatch[6] + '+07:00'
+        );
+
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return formatBangkokDateTime(
+          date
+        );
+      }
+    }
+
+    return text;
+  }
+
 
   function parseSystemDateTime(value) {
     const text = String(value || '').trim();
