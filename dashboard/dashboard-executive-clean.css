@@ -1,0 +1,1026 @@
+/* =========================================================
+   ROUND 65 — Executive Clean Layout
+   โหลดท้ายสุด และแทนแนวคิด one-screen รอบ 64
+   ========================================================= */
+
+:root {
+  --r65-header-h: 76px;
+  --r65-toolbar-h: 54px;
+  --r65-gap: 8px;
+  --r65-pad: 8px;
+  --r65-border: #d9e5eb;
+  --r65-bg: #f4f8fb;
+  --r65-panel: #ffffff;
+  --r65-ink: #092f49;
+  --r65-muted: #637888;
+  --r65-blue: #0a5b7a;
+  --r65-navy: #06324f;
+  --r65-danger: #c82d2d;
+  --r65-warning: #c67a00;
+  --r65-ok: #13805f;
+}
+
+html,
+body.r65-dashboard-clean {
+  height: 100%;
+}
+
+body.r65-dashboard-clean {
+  overflow: hidden !important;
+  background: var(--r65-bg) !important;
+}
+
+body.r65-dashboard-clean .control-header {
+  min-height: var(--r65-header-h) !important;
+  height: var(--r65-header-h) !important;
+}
+
+body.r65-dashboard-clean .control-header__inner {
+  min-height: var(--r65-header-h) !important;
+  height: var(--r65-header-h) !important;
+  padding-block: 8px !important;
+}
+
+body.r65-dashboard-clean .control-brand__text h1 {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.r65-dashboard-clean .control-header__actions {
+  min-width: 0;
+}
+
+body.r65-dashboard-clean .control-main {
+  width: min(1920px, 100%) !important;
+  height: calc(100dvh - var(--r65-header-h)) !important;
+  margin: 0 auto !important;
+  padding: var(--r65-pad) !important;
+  display: grid !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+  align-content: stretch !important;
+}
+
+/* Toolbar */
+body.r65-dashboard-clean .dashboard-view-toolbar {
+  grid-area: toolbar;
+  height: var(--r65-toolbar-h) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 7px 9px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+  border-radius: 13px !important;
+}
+
+body.r65-dashboard-clean .dashboard-view-tabs {
+  min-width: 0;
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+body.r65-dashboard-clean .dashboard-view-tabs button {
+  min-height: 36px !important;
+  padding: 5px 12px !important;
+  white-space: nowrap;
+}
+
+body.r65-dashboard-clean .dashboard-shift-date-controls {
+  margin-left: auto !important;
+}
+
+/* Shared cards */
+body.r65-dashboard-clean .panel,
+body.r65-dashboard-clean .shift-analysis-panel,
+body.r65-dashboard-clean .daily-insight-panel,
+body.r65-dashboard-clean .shift-performance-card,
+body.r65-dashboard-clean .shift-executive-kpis > div,
+body.r65-dashboard-clean .daily-summary-grid > div {
+  border: 1px solid var(--r65-border) !important;
+  border-radius: 13px !important;
+  background: var(--r65-panel) !important;
+  box-shadow: 0 10px 24px rgba(6, 33, 52, .045) !important;
+}
+
+body.r65-dashboard-clean .panel-heading,
+body.r65-dashboard-clean .chart-panel__header,
+body.r65-dashboard-clean .shift-analysis-panel > header,
+body.r65-dashboard-clean .daily-insight-panel > header {
+  min-height: 0 !important;
+  padding: 8px 10px !important;
+}
+
+body.r65-dashboard-clean h2,
+body.r65-dashboard-clean h3 {
+  color: var(--r65-ink) !important;
+}
+
+/* =========================================================
+   LIVE — สถานการณ์สด
+   ========================================================= */
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .control-main {
+  grid-template-areas:
+    "toolbar"
+    "command"
+    "operations"
+    "analytics"
+    "summary" !important;
+  grid-template-rows:
+    var(--r65-toolbar-h)
+    108px
+    minmax(0, 1fr)
+    168px
+    38px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] #dashboardShiftWorkspace,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .mobile-analytics-tabs,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .mobile-section-title {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .command-row {
+  grid-area: command;
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    minmax(180px, 15%)
+    minmax(0, 1fr)
+    minmax(238px, 18%) !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .operations-row {
+  grid-area: operations;
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    minmax(280px, 22%)
+    minmax(0, 1fr)
+    minmax(282px, 22%) !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row {
+  grid-area: analytics;
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1.18fr)
+    minmax(260px, .72fr)
+    minmax(300px, .86fr) !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .system-summary {
+  grid-area: summary;
+  height: 38px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 5px 10px !important;
+  display: grid !important;
+  grid-template-columns:
+    160px
+    repeat(4, minmax(0, 1fr))
+    220px
+    120px !important;
+  align-items: center !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  border-radius: 10px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .system-summary small {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .system-summary__item strong {
+  font-size: 13px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .situation-panel,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-panel,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .threshold-panel,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .overdue-panel,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-panel,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .operations-side,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .chart-panel,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .process-panel {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .situation-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .situation-content {
+  min-height: 0 !important;
+  padding: 8px 10px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 44px !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .situation-content strong {
+  font-size: clamp(24px, 2vw, 34px) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  padding: 8px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-card {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 8px 7px !important;
+  align-content: center !important;
+  gap: 2px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-card__icon {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-card strong {
+  font-size: clamp(20px, 1.75vw, 28px) !important;
+  line-height: 1 !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .status-command-card small {
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .threshold-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .threshold-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  padding: 8px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .threshold-grid > div {
+  min-height: 0 !important;
+  height: 100% !important;
+  justify-content: center !important;
+  padding: 6px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .threshold-grid strong {
+  font-size: 21px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-panel__heading {
+  padding: 8px 10px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-toolbar {
+  gap: 5px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-toolbar input,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-toolbar select {
+  height: 34px !important;
+  min-height: 0 !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-table-shell {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: auto !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-table th,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-table td {
+  padding: 7px 8px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-table tbody tr:nth-child(n+9) {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .overdue-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) 34px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .overdue-list {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .overdue-list > *:nth-child(n+6) {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .operations-side {
+  display: grid !important;
+  grid-template-rows: minmax(0, .95fr) minmax(0, 1fr) !important;
+  gap: var(--r65-gap) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .receiving-panel.is-hidden {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .receiving-panel:not(.is-hidden) {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-panel {
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-queue,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-queue-list {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-queue > *:nth-child(n+6),
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-queue-list > *:nth-child(n+6) {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row .chart-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row .chart-panel[data-chart-panel="trend"],
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row .chart-panel[data-chart-panel="waiting"] {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .chart-panel__header {
+  min-height: 0 !important;
+  padding: 8px 10px 6px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .chart-panel__header h2 span {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .chart-shell,
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .chart-shell--doughnut {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 4px 6px !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .process-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) 28px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .process-funnel {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 6px !important;
+  gap: 6px !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .process-funnel__stage {
+  min-height: 0 !important;
+  padding: 7px 8px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="LIVE"] .process-rate {
+  min-height: 0 !important;
+  padding: 5px 8px !important;
+}
+
+/* =========================================================
+   SHIFT — ผลงานตามกะ
+   ========================================================= */
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .command-row,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .operations-row,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .analytics-row,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .mobile-analytics-tabs,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .mobile-section-title,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .system-summary {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .control-main {
+  grid-template-areas:
+    "toolbar"
+    "workspace" !important;
+  grid-template-rows:
+    var(--r65-toolbar-h)
+    minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] #dashboardShiftWorkspace {
+  grid-area: workspace;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .dashboard-shift-workspace {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-rows:
+    66px
+    74px
+    minmax(168px, .78fr)
+    minmax(210px, 1fr)
+    minmax(96px, .42fr)
+    24px !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-header {
+  min-height: 0 !important;
+  height: 66px !important;
+  padding: 8px 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-header p,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-methodology-note {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-badges {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-kpis {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-kpis > div {
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 7px 9px !important;
+  display: grid !important;
+  align-content: center !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-kpis strong {
+  font-size: clamp(17px, 1.45vw, 22px) !important;
+  line-height: 1.1 !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-comparison-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-performance-card {
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(42px, .8fr)
+    minmax(42px, .8fr)
+    34px !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-performance-card > header {
+  padding: 7px 9px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-card-flow,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-card-performance {
+  padding: 6px 8px !important;
+  gap: 5px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-context-row,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-card-comparison {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-card-detail-button {
+  min-height: 34px !important;
+  height: 34px !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-dashboard-analysis {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: 1.35fr .65fr !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-dashboard-lower {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: .9fr 1.1fr !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-analysis-panel {
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-chart-wrap {
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 4px 6px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-handover-flow,
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-exception-list {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-exception-list > *:nth-child(n+4) {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-dashboard-footer {
+  height: 24px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+/* =========================================================
+   DAILY — สรุปรายวัน
+   ========================================================= */
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .command-row,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .operations-row,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .analytics-row,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .mobile-analytics-tabs,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .mobile-section-title,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .system-summary {
+  display: none !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .control-main {
+  grid-template-areas:
+    "toolbar"
+    "workspace" !important;
+  grid-template-rows:
+    var(--r65-toolbar-h)
+    minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] #dashboardShiftWorkspace {
+  grid-area: workspace;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-rows:
+    66px
+    132px
+    minmax(0, 1fr)
+    24px !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-executive-header {
+  min-height: 0 !important;
+  height: 66px !important;
+  padding: 8px 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-executive-header p,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-methodology-note {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-summary-grid {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-summary-grid > div {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 6px 8px !important;
+  display: grid !important;
+  align-content: center !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-summary-grid strong {
+  font-size: clamp(15px, 1.3vw, 20px) !important;
+  line-height: 1.1 !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1.36fr)
+    minmax(360px, .64fr) !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    188px !important;
+  grid-template-areas:
+    "trend history"
+    "trend insight" !important;
+  gap: var(--r65-gap) !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-trend-panel {
+  grid-area: trend !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-panel {
+  grid-area: history !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel {
+  grid-area: insight !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-analysis-panel,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel {
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-analysis-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-chart-wrap {
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 5px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-table-wrap {
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-table th,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-table td {
+  padding: 6px 7px !important;
+  font-size: 10.5px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel {
+  display: grid !important;
+  grid-template-rows:
+    auto
+    repeat(6, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+  padding-bottom: 7px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel > header {
+  padding: 7px 10px 4px !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel > div {
+  min-height: 0 !important;
+  margin: 0 8px !important;
+  padding: 5px 7px !important;
+  display: grid !important;
+  grid-template-columns: minmax(110px, .72fr) minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 6px !important;
+  overflow: hidden !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel > div span,
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel > div small {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel > div strong {
+  min-width: 0 !important;
+  text-align: right !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-dashboard-footer {
+  height: 24px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+/* =========================================================
+   SweetAlert และวันที่เวลา
+   ========================================================= */
+
+body.r65-dashboard-clean .swal2-popup {
+  max-height: calc(100dvh - 18px) !important;
+}
+
+body.r65-dashboard-clean .swal2-html-container {
+  max-height: calc(100dvh - 150px) !important;
+  overflow: auto !important;
+}
+
+body.r65-dashboard-clean .swal2-close {
+  top: 10px !important;
+  right: 12px !important;
+  left: auto !important;
+}
+
+/* ลดปุ่มลอยที่อาจทับจอ หากมาจาก Browser Fullscreen helper */
+body.r65-dashboard-clean::backdrop {
+  background: #ffffff !important;
+}
+
+/* =========================================================
+   Desktop ย่อ
+   ========================================================= */
+
+@media (max-width: 1360px) {
+  :root {
+    --r65-toolbar-h: 52px;
+    --r65-gap: 7px;
+    --r65-pad: 7px;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .control-main {
+    grid-template-rows:
+      var(--r65-toolbar-h)
+      98px
+      minmax(0, 1fr)
+      150px
+      34px !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .command-row {
+    grid-template-columns:
+      170px minmax(0, 1fr) 220px !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .operations-row {
+    grid-template-columns:
+      250px minmax(0, 1fr) 250px !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .dashboard-shift-workspace {
+    grid-template-rows:
+      62px
+      68px
+      minmax(154px, .75fr)
+      minmax(190px, .95fr)
+      minmax(86px, .38fr)
+      22px !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-header,
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .shift-executive-header {
+    height: 62px !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+    grid-template-rows:
+      62px
+      122px
+      minmax(0, 1fr)
+      22px !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+    grid-template-rows:
+      minmax(0, 1fr)
+      168px !important;
+  }
+}
+
+/* =========================================================
+   Tablet และจอเล็ก: เลิกบังคับหน้าเดียว เพื่อไม่ให้ทับซ้อน
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  body.r65-dashboard-clean {
+    overflow: auto !important;
+  }
+
+  body.r65-dashboard-clean .control-header {
+    height: auto !important;
+    min-height: 70px !important;
+  }
+
+  body.r65-dashboard-clean .control-main {
+    height: auto !important;
+    min-height: calc(100dvh - 70px) !important;
+    overflow: visible !important;
+    display: grid !important;
+    grid-template-rows: auto !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .control-main,
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .control-main,
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .control-main {
+    grid-template-areas: none !important;
+    grid-template-rows: auto !important;
+  }
+
+  body.r65-dashboard-clean .dashboard-view-toolbar {
+    height: auto !important;
+    min-height: 0 !important;
+    flex-wrap: wrap !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .command-row,
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .operations-row,
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row,
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .system-summary,
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .dashboard-shift-workspace,
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .dashboard-shift-workspace,
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-dashboard-analysis,
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-dashboard-lower,
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    grid-template-areas: none !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .command-row,
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .operations-row,
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row .chart-panel[data-chart-panel="trend"],
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .analytics-row .chart-panel[data-chart-panel="waiting"] {
+    display: grid !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .records-table tbody tr:nth-child(n+9),
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .overdue-list > *:nth-child(n+6),
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-queue > *:nth-child(n+6),
+  body.r65-dashboard-clean[data-dashboard-view="LIVE"] .action-queue-list > *:nth-child(n+6),
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-exception-list > *:nth-child(n+4) {
+    display: revert !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-comparison-grid,
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-context-row {
+    display: grid !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-card-comparison {
+    display: block !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-insight-panel {
+    grid-template-rows: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body.r65-dashboard-clean .dashboard-view-tabs {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  body.r65-dashboard-clean .dashboard-view-tabs button {
+    min-width: 0 !important;
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+  }
+
+  body.r65-dashboard-clean .dashboard-shift-date-controls {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="SHIFT"] .shift-comparison-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.r65-dashboard-clean[data-dashboard-view="DAILY"] .daily-history-table {
+    min-width: 680px !important;
+  }
+}
