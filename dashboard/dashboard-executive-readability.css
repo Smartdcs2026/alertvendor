@@ -407,120 +407,82 @@ body.r66-executive-readability .swal2-html-container {
   }
 }
 /************************************************************
- * ROUND 68 — Executive Situation Height Fix
- * แก้ EXECUTIVE SITUATION ข้อความด้านล่างถูกตัด
+ * ROUND 69 — Current Status Card Balance Fix
+ * แก้ CURRENT STATUS ข้อความในการ์ดชิดขอบบน
+ * โดยไม่กระทบ EXECUTIVE SITUATION ที่แก้ดีแล้ว
  ************************************************************/
 
 body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation.situation-panel {
+.status-command-panel {
   display: grid !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
   overflow: hidden !important;
 }
 
 body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .panel-heading {
-  min-height: 30px !important;
-  padding: 7px 10px 3px !important;
-  overflow: visible !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .panel-heading small {
-  font-size: 8px !important;
-  line-height: 1 !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .panel-heading h2 {
-  margin: 1px 0 0 !important;
-  font-size: 13px !important;
-  line-height: 1.15 !important;
-  white-space: nowrap !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .r66-context-info {
-  width: 24px !important;
-  height: 24px !important;
-  flex: 0 0 24px !important;
-  font-size: 11px !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-content {
-  height: 100% !important;
+.status-command-grid {
   min-height: 0 !important;
-  max-height: none !important;
-  padding: 4px 10px 8px !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 42px !important;
-  align-items: center !important;
+  height: 100% !important;
+  padding: 12px 8px 11px !important;
   gap: 8px !important;
-  overflow: hidden !important;
+  align-items: center !important;
 }
 
 body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-content > div:first-child {
-  min-width: 0 !important;
+.status-command-card {
+  min-height: 58px !important;
+  height: auto !important;
   display: grid !important;
+  grid-template-columns: 31px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  column-gap: 8px !important;
+  row-gap: 3px !important;
   align-content: center !important;
-  gap: 2px !important;
-  padding: 0 !important;
-  overflow: visible !important;
+  align-items: center !important;
+  padding: 9px 9px 9px 12px !important;
+  border-radius: 10px !important;
 }
 
 body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-content strong {
-  display: block !important;
-  margin: 0 !important;
-  color: #e33434 !important;
-  font-size: 28px !important;
-  line-height: 1 !important;
-  font-weight: 950 !important;
-  overflow: visible !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-content span {
-  display: block !important;
-  margin: 0 !important;
-  font-size: 11px !important;
-  line-height: 1.15 !important;
-  font-weight: 900 !important;
-  white-space: nowrap !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-content small {
-  display: block !important;
-  margin: 0 !important;
-  color: #526d7f !important;
-  font-size: 8px !important;
-  line-height: 1.15 !important;
-  white-space: nowrap !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  -webkit-line-clamp: unset !important;
-  -webkit-box-orient: unset !important;
-}
-
-body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-symbol {
-  width: 42px !important;
-  height: 42px !important;
-  flex: 0 0 42px !important;
+.status-command-card__icon {
+  grid-column: 1 !important;
+  grid-row: 1 / 4 !important;
+  width: 30px !important;
+  height: 30px !important;
   align-self: center !important;
-  justify-self: end !important;
+  justify-self: center !important;
   margin: 0 !important;
 }
 
 body.r66-executive-readability[data-dashboard-view="LIVE"]
-#dashboardSituation .situation-symbol svg {
-  width: 28px !important;
-  height: 28px !important;
+.status-command-card > span:not(.status-command-card__icon) {
+  grid-column: 2 !important;
+  align-self: end !important;
+  margin: 0 !important;
+  font-size: 9px !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card strong {
+  grid-column: 2 !important;
+  align-self: center !important;
+  margin: 0 !important;
+  font-size: 25px !important;
+  line-height: 1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card small {
+  grid-column: 2 !important;
+  align-self: start !important;
+  margin: 0 !important;
+  font-size: 7.5px !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
 }
