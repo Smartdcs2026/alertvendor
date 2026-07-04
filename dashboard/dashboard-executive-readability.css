@@ -1,12 +1,4 @@
-/* =========================================================
-   ROUND 66 — Executive Readability Fix
-   แก้จุดที่พบจากภาพล่าสุด:
-   - ปุ่ม i กลาง Toolbar
-   - Date Picker ให้แสดง dd/MM/yyyy HH:mm:ss
-   - Shift Header / Lower panels ถูกบีบ
-   - Daily executive summary อ่านยาก
-   - Live receiving/process แน่นเกินไป
-   ========================================================= */
+
 
 :root {
   --r66-info-blue: #0a6f8c;
