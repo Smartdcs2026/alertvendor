@@ -1,12 +1,12 @@
 /*
  * vcw-inbound.js
- * VCW-R08E Inbound Workflow Page - Professional Auto Save
+ * VCW-R08F Inbound Fast Auto Save - No Success Swal
  */
 (function (window, document) {
   'use strict';
 
   const app = {
-    version: 'VCW-R08E',
+    version: 'VCW-R08F',
     busy: false,
     user: null,
     latest: null,
@@ -318,7 +318,7 @@
       toast(actionLabel + ' สำเร็จ', 'success');
 
       if (options.autoSave) {
-        await showAutoSuccess(actionLabel, entryCode);
+        showInlineSaveDone(actionLabel, entryCode);
         prepareNextScan('บันทึกสำเร็จ พร้อมรับคันถัดไป');
       }
     } finally {
@@ -506,7 +506,7 @@
 
     return '' +
       '<div class="swal-compact-body">' +
-        '<p class="swal-countdown-text">ระบบจะบันทึกอัตโนมัติใน <b>' + escapeHtml(seconds) + '</b> วินาที</p>' +
+        '<p class="swal-countdown-text">กำลังบันทึกใน <b>' + escapeHtml(seconds) + '</b> วินาที</p>' +
         '<div class="swal-compact-grid">' +
           rows.map(function (row) {
             return '<div class="swal-compact-row">' +
@@ -540,17 +540,34 @@
     });
   }
 
-  async function showAutoSuccess(actionLabel, entryCode) {
-    if (window.Swal) {
-      await window.Swal.fire({
-        title: 'บันทึกสำเร็จ',
-        text: actionLabel + ' | Auto ID: ' + entryCode,
-        icon: 'success',
-        timer: 1300,
-        timerProgressBar: true,
-        showConfirmButton: false
-      });
+  function showInlineSaveDone(actionLabel, entryCode) {
+    const strip = $('inboundStatusStrip');
+
+    if (strip) {
+      strip.classList.add('save-done');
+      strip.innerHTML =
+        '<span class="status-dot"></span>' +
+        '<strong>บันทึกสำเร็จ</strong>' +
+        '<span>' +
+        escapeHtml(actionLabel || 'บันทึก') +
+        ' | ' +
+        escapeHtml(entryCode || '') +
+        '</span>';
+
+      window.setTimeout(function () {
+        strip.classList.remove('save-done');
+        strip.innerHTML =
+          '<span class="status-dot"></span>' +
+          '<strong>Auto Save</strong>' +
+          '<span>พร้อมรับรายการถัดไป</span>';
+      }, 900);
     }
+  }
+
+  async function showAutoSuccess(actionLabel, entryCode) {
+    // VCW-R08F: intentionally no SweetAlert here.
+    // บันทึกสำเร็จแล้วให้กลับไปพร้อมรับคันถัดไปทันที
+    showInlineSaveDone(actionLabel, entryCode);
   }
 
   function prepareNextScan(message) {
