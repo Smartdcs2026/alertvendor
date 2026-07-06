@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0f3d5e">
   <title>Inbound Workflow | Alert Vendor</title>
-  <link rel="stylesheet" href="vcw-inbound.css?v=R08">
+  <link rel="stylesheet" href="vcw-inbound.css?v=R08C">
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">VCW-R08</p>
+        <p class="eyebrow">VCW-R08C</p>
         <h1>Inbound Workflow</h1>
-        <p class="subtitle">สแกน QR / Auto ID เพื่อบันทึกยื่นเอกสาร รับสินค้าเสร็จ และรับเอกสารคืน</p>
+        <p class="subtitle">สแกน QR / Auto ID แล้วระบบยืนยัน 3 วินาทีและบันทึกอัตโนมัติสำหรับงาน Inbound</p>
       </div>
       <div class="top-actions">
         <a class="ghost-link" href="admin.html">← กลับ Admin</a>
@@ -53,6 +53,25 @@
           <div>
             <label for="entryInput">รหัสเข้าพื้นที่ / Auto ID</label>
             <input id="entryInput" type="text" placeholder="เช่น SK02369916991" autocomplete="off" inputmode="text">
+          </div>
+        </div>
+
+        <div class="auto-save-box" id="autoSaveBox">
+          <div>
+            <p class="label">Auto Save Mode</p>
+            <h3>บันทึกอัตโนมัติหลังยืนยัน 3 วินาที</h3>
+            <p id="autoSaveStatus" class="hint">เปิดอยู่: สแกนหรือกด Enter หลังกรอกรหัส ระบบจะบันทึกขั้นตอน Inbound อัตโนมัติ</p>
+          </div>
+          <div class="auto-save-controls">
+            <label class="switch-row" for="autoSaveToggle">
+              <input id="autoSaveToggle" type="checkbox" checked>
+              <span>เปิด Auto Save</span>
+            </label>
+            <label class="delay-row" for="autoSaveDelayInput">
+              <span>หน่วงเวลา</span>
+              <input id="autoSaveDelayInput" type="number" min="1" max="10" value="3" inputmode="numeric">
+              <span>วินาที</span>
+            </label>
           </div>
         </div>
 
@@ -168,9 +187,10 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="vcw-workflow-api.js?v=R07B"></script>
-  <script src="./vcw-inbound-role-guard.js?v=R08B" defer></script>
-  <script src="vcw-inbound.js?v=R08"></script>
+  <script src="vcw-inbound-role-guard.js?v=R08B"></script>
+  <script src="vcw-inbound.js?v=R08C"></script>
 </body>
 </html>
