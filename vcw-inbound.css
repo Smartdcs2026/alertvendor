@@ -309,7 +309,7 @@ pre {
 
 
 /************************************************************
- * VCW-R08E Auto Save UI
+ * VCW-R08F Auto Save UI
  ************************************************************/
 
 .auto-save-box {
@@ -380,7 +380,7 @@ pre {
 
 
 /************************************************************
- * VCW-R08E Scanner Box Focus Lock
+ * VCW-R08F Scanner Box Focus Lock
  ************************************************************/
 
 .scanner-focus-box {
@@ -447,7 +447,7 @@ html[data-scanner-focus="on"] #entryInput {
 
 
 /************************************************************
- * VCW-R08E Professional Inbound UI
+ * VCW-R08F Professional Inbound UI
  ************************************************************/
 
 .inbound-status-strip {
@@ -545,4 +545,25 @@ html[data-scanner-focus="on"] #entryInput {
   .swal-compact-row {
     grid-template-columns: 70px 1fr;
   }
+}
+
+
+/************************************************************
+ * VCW-R08F Fast Save Feedback
+ * No success SweetAlert after auto save.
+ ************************************************************/
+
+.inbound-status-strip.save-done {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.inbound-status-strip.save-done strong {
+  color: #166534;
+}
+
+.inbound-status-strip.save-done .status-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22,163,74,.14);
 }
