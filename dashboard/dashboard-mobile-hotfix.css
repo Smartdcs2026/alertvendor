@@ -992,3 +992,163 @@
     grid-column: 1 / -1 !important;
   }
 }
+/************************************************************
+ * ROUND 82 — Desktop LIVE Dashboard Grid Restore
+ *
+ * สาเหตุที่หน้า "สถานการณ์" พัง:
+ * หน้า LIVE มี toolbar เพิ่มเป็น section แรกใน .control-main
+ * แต่ grid เดิมยังถูกกำหนดไว้แค่ 4 แถว
+ * ทำให้ command-row ไปตกในแถว minmax(350px, 1fr)
+ * ผลคือ EXECUTIVE / CURRENT STATUS / SLA ถูกยืดสูงผิดปกติ
+ *
+ * แก้เฉพาะจอ Desktop/Tablet กว้างกว่า 920px
+ * ไม่แตะ layout มือถือที่แก้ไปแล้ว
+ ************************************************************/
+
+@media (min-width: 921px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows:
+      62px
+      138px
+      minmax(330px, 1fr)
+      270px
+      82px !important;
+    grid-auto-rows: auto !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardViewToolbar {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 62px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 10px 12px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .dashboard-view-tabs {
+    min-width: 0 !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .dashboard-view-tabs button {
+    min-height: 40px !important;
+    height: 40px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 7px 16px !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .operations-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row {
+    height: 138px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .situation-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .threshold-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .situation-content {
+    height: calc(100% - 36px) !important;
+    min-height: 0 !important;
+    padding: 0 15px 12px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-grid {
+    height: calc(100% - 42px) !important;
+    min-height: 0 !important;
+    align-items: stretch !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .threshold-grid {
+    height: calc(100% - 42px) !important;
+    min-height: 0 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card {
+    min-height: 0 !important;
+    align-content: center !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .threshold-grid > div {
+    min-height: 0 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardShiftWorkspace[hidden],
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardShiftDateControls[hidden],
+  body.dashboard-page[data-dashboard-view="LIVE"] .mobile-analytics-tabs,
+  body.dashboard-page[data-dashboard-view="LIVE"] .mobile-section-title {
+    display: none !important;
+  }
+}
+
+@media (min-width: 921px) and (max-height: 840px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    grid-template-rows:
+      56px
+      118px
+      minmax(290px, 1fr)
+      220px
+      70px !important;
+    gap: 8px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardViewToolbar {
+    height: 56px !important;
+    padding: 8px 10px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .dashboard-view-tabs button {
+    min-height: 36px !important;
+    height: 36px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row {
+    height: 118px !important;
+  }
+}
+
+@media (min-width: 921px) and (max-width: 1450px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    grid-template-rows:
+      58px
+      126px
+      minmax(300px, 1fr)
+      235px
+      72px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardViewToolbar {
+    height: 58px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row {
+    height: 126px !important;
+  }
+}
