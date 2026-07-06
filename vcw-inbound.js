@@ -1,12 +1,12 @@
 /*
  * vcw-inbound.js
- * VCW-R08C Inbound Workflow Page - Auto Save 3 Seconds
+ * VCW-R08D Inbound Workflow Page - Scanner Box Focus Lock
  */
 (function (window, document) {
   'use strict';
 
   const app = {
-    version: 'VCW-R08C',
+    version: 'VCW-R08D',
     busy: false,
     user: null,
     latest: null,
@@ -17,7 +17,11 @@
     lastScanAt: 0,
     autoSavePending: false,
     lastAutoEntryCode: '',
-    lastAutoSavedAt: 0
+    lastAutoSavedAt: 0,
+    scannerBuffer: '',
+    scannerLastKeyAt: 0,
+    scannerBufferTimer: null,
+    focusLockTimer: null
   };
 
   const steps = [
@@ -57,10 +61,18 @@
 
   function init() {
     bindEvents();
+    setupScannerBoxMode();
     renderEmptyTimeline();
     checkSession();
     updateAutoSaveStatus();
+    updateScannerFocusStatus();
     updateButtons();
+
+    if (!busy) {
+      window.setTimeout(function () {
+        focusEntryInput('busy-off');
+      }, 120);
+    }
   }
 
   function bindEvents() {
@@ -96,6 +108,19 @@
       });
     }
 
+    if ($('scannerFocusToggle')) {
+      $('scannerFocusToggle').addEventListener('change', function () {
+        updateScannerFocusStatus();
+        focusEntryInput('toggle');
+      });
+    }
+
+    if ($('focusEntryButton')) {
+      $('focusEntryButton').addEventListener('click', function () {
+        focusEntryInput('button');
+      });
+    }
+
     $('submitDocumentButton').addEventListener('click', function () {
       runAction('submit-document');
     });
@@ -113,6 +138,10 @@
     $('entryInput').addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
+
+        const cleanCode = extractEntryCodeFromScanText($('entryInput').value);
+        $('entryInput').value = cleanCode;
+
         lookupEntry('MANUAL', {
           autoSave: isAutoSaveEnabled()
         });
@@ -176,12 +205,19 @@
   }
 
   function getEntryCode() {
-    return String($('entryInput').value || '').trim();
+    return extractEntryCodeFromScanText($('entryInput').value);
   }
 
   async function lookupEntry(method, options) {
     options = options || {};
+    if (app.busy || app.autoSavePending || isSweetAlertOpen()) {
+      toast('ระบบกำลังประมวลผลรายการก่อนหน้า กรุณารอสักครู่', 'error');
+      return;
+    }
+
     const entryCode = getEntryCode();
+    $('entryInput').value = entryCode;
+
     if (!entryCode) {
       toast('กรุณาระบุ Auto ID หรือสแกน QR ก่อน', 'error');
       $('entryInput').focus();
@@ -353,16 +389,16 @@
       return;
     }
 
-    const confirmed = await showAutoConfirm(decision, entryCode, method);
-
-    if (!confirmed) {
-      toast('ยกเลิกการบันทึกอัตโนมัติ', 'error');
-      return;
-    }
-
     app.autoSavePending = true;
 
     try {
+      const confirmed = await showAutoConfirm(decision, entryCode, method);
+
+      if (!confirmed) {
+        toast('ยกเลิกการบันทึกอัตโนมัติ', 'error');
+        return;
+      }
+
       await runAction(decision.actionName, {
         skipConfirm: true,
         autoSave: true
@@ -492,7 +528,7 @@
 
     const rows = [
       ['Auto ID', entryCode],
-      ['วิธีอ่านข้อมูล', method === 'QR' ? 'สแกน QR' : 'กรอก/ยิงรหัสด้วยมือ'],
+      ['วิธีอ่านข้อมูล', method === 'QR' ? 'สแกน QR ด้วยกล้อง' : method === 'SCANNER_BOX' ? 'กล่องอ่าน QR Code' : 'กรอก/ยิงรหัสด้วยมือ'],
       ['ขั้นตอนที่จะบันทึก', decision.actionLabel || decision.nextStage || '-'],
       ['เลขนัดหมาย', pick(gateIn, ['เลขนัดหมาย']) || state['เลขนัดหมาย'] || '-'],
       ['ทะเบียนรถ', pick(gateIn, ['ทะเบียนรถ']) || state['ทะเบียนรถ'] || '-'],
@@ -577,7 +613,7 @@
     updateButtons();
 
     window.setTimeout(function () {
-      $('entryInput').focus();
+      focusEntryInput('next-scan');
     }, 100);
   }
 
@@ -585,6 +621,322 @@
     return new Promise(function (resolve) {
       window.setTimeout(resolve, ms);
     });
+  }
+
+
+
+  /************************************************************
+   * Scanner Box Focus Lock
+   * รองรับกล่องอ่าน QR Code แบบ Keyboard Wedge
+   ************************************************************/
+
+  function setupScannerBoxMode() {
+    document.addEventListener('pointerdown', handleScannerPointerFocus, true);
+    document.addEventListener('touchstart', handleScannerPointerFocus, true);
+    document.addEventListener('click', handleScannerClickFocus, true);
+    document.addEventListener('keydown', handleGlobalScannerKeydown, true);
+
+    $('entryInput').addEventListener('blur', function () {
+      if (!isScannerFocusEnabled()) return;
+      window.setTimeout(function () {
+        if (!shouldKeepCurrentFocus()) {
+          focusEntryInput('blur-return');
+        }
+      }, 180);
+    });
+
+    window.addEventListener('focus', function () {
+      window.setTimeout(function () {
+        focusEntryInput('window-focus');
+      }, 120);
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        window.setTimeout(function () {
+          focusEntryInput('visibility');
+        }, 180);
+      }
+    });
+
+    app.focusLockTimer = window.setInterval(function () {
+      if (
+        isScannerFocusEnabled() &&
+        !app.busy &&
+        !app.autoSavePending &&
+        !isSweetAlertOpen() &&
+        !shouldKeepCurrentFocus()
+      ) {
+        focusEntryInput('interval');
+      }
+    }, 1200);
+
+    window.setTimeout(function () {
+      focusEntryInput('initial');
+    }, 300);
+  }
+
+  function isScannerFocusEnabled() {
+    const toggle = $('scannerFocusToggle');
+    return toggle ? Boolean(toggle.checked) : true;
+  }
+
+  function updateScannerFocusStatus() {
+    const el = $('scannerFocusStatus');
+    const box = $('scannerFocusBox');
+
+    if (!el) return;
+
+    if (isScannerFocusEnabled()) {
+      el.textContent =
+        'เปิดอยู่: แตะพื้นที่หน้า Inbound หรือยิงกล่อง QR Code ได้ทันที ระบบจะดึง Focus กลับช่อง Auto ID ให้อัตโนมัติ';
+      if (box) box.classList.remove('scanner-off');
+    } else {
+      el.textContent =
+        'ปิดอยู่: ต้องคลิกช่อง Auto ID เองก่อนยิงกล่อง QR Code';
+      if (box) box.classList.add('scanner-off');
+    }
+  }
+
+  function focusEntryInput(reason) {
+    if (!isScannerFocusEnabled()) return;
+    if (isSweetAlertOpen()) return;
+
+    const input = $('entryInput');
+    if (!input || input.disabled) return;
+
+    const active = document.activeElement;
+
+    if (
+      active === input ||
+      shouldPreserveFocusElement(active)
+    ) {
+      return;
+    }
+
+    try {
+      input.focus({
+        preventScroll: true
+      });
+      const length = input.value.length;
+      input.setSelectionRange(length, length);
+      document.documentElement.setAttribute('data-scanner-focus', 'on');
+      document.documentElement.setAttribute('data-scanner-focus-reason', String(reason || ''));
+    } catch (error) {
+      try {
+        input.focus();
+      } catch (innerError) {
+        // ignore
+      }
+    }
+  }
+
+  function handleScannerPointerFocus(event) {
+    if (!isScannerFocusEnabled()) return;
+    if (isSweetAlertOpen()) return;
+
+    const target = event.target;
+
+    if (shouldPreserveFocusElement(target)) {
+      return;
+    }
+
+    if (isInboundSurface(target)) {
+      window.setTimeout(function () {
+        focusEntryInput('pointer');
+      }, 80);
+    }
+  }
+
+  function handleScannerClickFocus(event) {
+    if (!isScannerFocusEnabled()) return;
+    if (isSweetAlertOpen()) return;
+
+    const target = event.target;
+
+    if (shouldPreserveFocusElement(target)) {
+      return;
+    }
+
+    if (isInboundSurface(target)) {
+      window.setTimeout(function () {
+        focusEntryInput('click');
+      }, 120);
+    }
+  }
+
+  function handleGlobalScannerKeydown(event) {
+    if (!isScannerFocusEnabled()) return;
+    if (isSweetAlertOpen()) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const active = document.activeElement;
+
+    if (active === $('entryInput')) {
+      return;
+    }
+
+    if (shouldPreserveFocusElement(active)) {
+      return;
+    }
+
+    if (app.busy || app.autoSavePending) {
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (app.scannerBuffer) {
+        event.preventDefault();
+        commitScannerBuffer('enter');
+      }
+
+      return;
+    }
+
+    if (
+      event.key &&
+      event.key.length === 1
+    ) {
+      const now = Date.now();
+
+      if (
+        !app.scannerLastKeyAt ||
+        now - app.scannerLastKeyAt > 160
+      ) {
+        app.scannerBuffer = '';
+      }
+
+      app.scannerLastKeyAt = now;
+      app.scannerBuffer += event.key;
+
+      if (app.scannerBuffer.length >= 3) {
+        event.preventDefault();
+      }
+
+      if (app.scannerBufferTimer) {
+        window.clearTimeout(app.scannerBufferTimer);
+      }
+
+      app.scannerBufferTimer = window.setTimeout(function () {
+        if (app.scannerBuffer.length >= 6) {
+          commitScannerBuffer('timer');
+        } else {
+          app.scannerBuffer = '';
+        }
+      }, 260);
+    }
+  }
+
+  function commitScannerBuffer(trigger) {
+    const raw = app.scannerBuffer;
+    app.scannerBuffer = '';
+
+    if (app.scannerBufferTimer) {
+      window.clearTimeout(app.scannerBufferTimer);
+      app.scannerBufferTimer = null;
+    }
+
+    const code = extractEntryCodeFromScanText(raw);
+
+    if (!code || code.length < 3) {
+      return;
+    }
+
+    if (app.busy || app.autoSavePending || isSweetAlertOpen()) {
+      return;
+    }
+
+    $('entryInput').value = code;
+    focusEntryInput('scanner-buffer');
+
+    logResponse('SCANNER BOX INPUT', {
+      success: true,
+      trigger: trigger || '',
+      entryCode: code
+    });
+
+    lookupEntry('SCANNER_BOX', {
+      autoSave: isAutoSaveEnabled()
+    });
+  }
+
+  function isSweetAlertOpen() {
+    return Boolean(
+      document.body.classList.contains('swal2-shown') ||
+      document.querySelector('.swal2-container')
+    );
+  }
+
+  function isInboundSurface(target) {
+    if (!target || !target.closest) return false;
+
+    return Boolean(
+      target.closest('.app-shell') ||
+      target.closest('.card') ||
+      target.closest('.scanner-card') ||
+      target.closest('.result-card') ||
+      target.closest('.action-card')
+    );
+  }
+
+  function shouldKeepCurrentFocus() {
+    return shouldPreserveFocusElement(document.activeElement);
+  }
+
+  function shouldPreserveFocusElement(element) {
+    if (!element || !element.closest) return false;
+
+    if (element === document.body || element === document.documentElement) {
+      return false;
+    }
+
+    if (element.closest('#entryInput')) {
+      return false;
+    }
+
+    if (element.closest('.swal2-container')) {
+      return true;
+    }
+
+    if (
+      element.closest('#apiBaseInput') ||
+      element.closest('#moduleInput') ||
+      element.closest('#autoSaveDelayInput') ||
+      element.closest('#noteInput') ||
+      element.closest('#cancelReasonInput') ||
+      element.closest('#cancelActionInput') ||
+      element.closest('#autoSaveToggle') ||
+      element.closest('#scannerFocusToggle')
+    ) {
+      return true;
+    }
+
+    const tagName =
+      String(
+        element.tagName || ''
+      ).toUpperCase();
+
+    if (
+      tagName === 'TEXTAREA' ||
+      tagName === 'SELECT'
+    ) {
+      return true;
+    }
+
+    if (
+      tagName === 'INPUT' &&
+      element.id !== 'entryInput'
+    ) {
+      return true;
+    }
+
+    if (
+      element.isContentEditable
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
 
@@ -792,7 +1144,7 @@
           if (now - app.lastScanAt < 1500) return;
           app.lastScanAt = now;
 
-          const code = cleanQrText(decodedText);
+          const code = extractEntryCodeFromScanText(decodedText);
           if (!code) return;
 
           $('entryInput').value = code;
@@ -826,19 +1178,91 @@
   }
 
   function cleanQrText(value) {
-    const text = String(value || '').trim();
+    return extractEntryCodeFromScanText(value);
+  }
+
+  function extractEntryCodeFromScanText(value) {
+    let text = String(value || '')
+      .trim()
+      .replace(/[\r\n\t]+/g, '')
+      .replace(/^URL:/i, '')
+      .trim();
+
     if (!text) return '';
 
     try {
-      const url = new URL(text);
-      return url.searchParams.get('entryCode') ||
-        url.searchParams.get('autoId') ||
-        url.searchParams.get('code') ||
-        url.searchParams.get('q') ||
-        text;
+      const parsedJson = JSON.parse(text);
+      if (parsedJson && typeof parsedJson === 'object') {
+        const jsonCode =
+          parsedJson.entryCode ||
+          parsedJson.autoId ||
+          parsedJson.autoID ||
+          parsedJson.auto_id ||
+          parsedJson.code ||
+          parsedJson.id;
+
+        if (jsonCode) {
+          return normalizeEntryCodeText(jsonCode);
+        }
+      }
     } catch (error) {
-      return text.replace(/^URL:/i, '').trim();
+      // not json
     }
+
+    try {
+      const url = new URL(text);
+      const urlCode =
+        url.searchParams.get('entryCode') ||
+        url.searchParams.get('entry_code') ||
+        url.searchParams.get('autoId') ||
+        url.searchParams.get('autoID') ||
+        url.searchParams.get('auto_id') ||
+        url.searchParams.get('code') ||
+        url.searchParams.get('id') ||
+        url.searchParams.get('q');
+
+      if (urlCode) {
+        return normalizeEntryCodeText(urlCode);
+      }
+
+      const pathParts =
+        url.pathname
+          .split('/')
+          .map(function (part) {
+            return normalizeEntryCodeText(part);
+          })
+          .filter(Boolean);
+
+      if (pathParts.length) {
+        return pathParts[pathParts.length - 1];
+      }
+    } catch (error) {
+      // not url
+    }
+
+    const keyValueMatch =
+      text.match(/(?:entryCode|entry_code|autoId|autoID|auto_id|code|id)\s*[:=]\s*([A-Za-z0-9._-]+)/i);
+
+    if (keyValueMatch) {
+      return normalizeEntryCodeText(keyValueMatch[1]);
+    }
+
+    const autoIdMatch =
+      text.match(/[A-Za-z]{1,8}[0-9][A-Za-z0-9._-]{4,80}/);
+
+    if (autoIdMatch) {
+      return normalizeEntryCodeText(autoIdMatch[0]);
+    }
+
+    return normalizeEntryCodeText(text);
+  }
+
+  function normalizeEntryCodeText(value) {
+    return String(value || '')
+      .trim()
+      .replace(/^[\s"'`]+|[\s"'`]+$/g, '')
+      .replace(/[^\p{L}\p{N}._-]/gu, '')
+      .slice(0, 120);
   }
 
   function captureGeo() {
@@ -876,6 +1300,12 @@
       if (el) el.disabled = busy;
     });
     updateButtons();
+
+    if (!busy) {
+      window.setTimeout(function () {
+        focusEntryInput('busy-off');
+      }, 120);
+    }
   }
 
   function createClientRequestId(actionName) {
