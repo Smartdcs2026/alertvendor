@@ -1,12 +1,12 @@
 /*
  * vcw-inbound.js
- * VCW-R08 Inbound Workflow Page
+ * VCW-R08C Inbound Workflow Page - Auto Save 3 Seconds
  */
 (function (window, document) {
   'use strict';
 
   const app = {
-    version: 'VCW-R08',
+    version: 'VCW-R08C',
     busy: false,
     user: null,
     latest: null,
@@ -14,7 +14,10 @@
     geo: null,
     scanner: null,
     scannerRunning: false,
-    lastScanAt: 0
+    lastScanAt: 0,
+    autoSavePending: false,
+    lastAutoEntryCode: '',
+    lastAutoSavedAt: 0
   };
 
   const steps = [
@@ -56,12 +59,15 @@
     bindEvents();
     renderEmptyTimeline();
     checkSession();
+    updateAutoSaveStatus();
     updateButtons();
   }
 
   function bindEvents() {
     $('lookupButton').addEventListener('click', function () {
-      lookupEntry('MANUAL');
+      lookupEntry('MANUAL', {
+        autoSave: isAutoSaveEnabled()
+      });
     });
 
     $('stateButton').addEventListener('click', function () {
@@ -78,6 +84,17 @@
     $('clearLogButton').addEventListener('click', function () {
       $('logOutput').textContent = 'ล้าง Log แล้ว';
     });
+
+    if ($('autoSaveToggle')) {
+      $('autoSaveToggle').addEventListener('change', updateAutoSaveStatus);
+    }
+
+    if ($('autoSaveDelayInput')) {
+      $('autoSaveDelayInput').addEventListener('change', function () {
+        $('autoSaveDelayInput').value = String(getAutoSaveDelaySeconds());
+        updateAutoSaveStatus();
+      });
+    }
 
     $('submitDocumentButton').addEventListener('click', function () {
       runAction('submit-document');
@@ -96,7 +113,9 @@
     $('entryInput').addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
-        lookupEntry('MANUAL');
+        lookupEntry('MANUAL', {
+          autoSave: isAutoSaveEnabled()
+        });
       }
     });
   }
@@ -160,7 +179,8 @@
     return String($('entryInput').value || '').trim();
   }
 
-  async function lookupEntry(method) {
+  async function lookupEntry(method, options) {
+    options = options || {};
     const entryCode = getEntryCode();
     if (!entryCode) {
       toast('กรุณาระบุ Auto ID หรือสแกน QR ก่อน', 'error');
@@ -183,6 +203,10 @@
       app.latest = unwrapWorkflowData(response.data);
       renderWorkflow(app.latest);
       toast('ค้นหาข้อมูลสำเร็จ', 'success');
+
+      if (options.autoSave !== false && isAutoSaveEnabled()) {
+        await scheduleAutoSaveAfterLookup(method || 'MANUAL');
+      }
     } finally {
       setBusy(false);
     }
@@ -214,7 +238,8 @@
     }
   }
 
-  async function runAction(actionName) {
+  async function runAction(actionName, options) {
+    options = options || {};
     const entryCode = getEntryCode();
     if (!entryCode) {
       toast('กรุณาค้นหารายการก่อนบันทึก', 'error');
@@ -222,8 +247,10 @@
     }
 
     const actionLabel = getActionLabel(actionName);
-    if (!window.confirm('ยืนยัน ' + actionLabel + ' สำหรับ Auto ID: ' + entryCode + ' ?')) {
-      return;
+    if (!options.skipConfirm) {
+      if (!window.confirm('ยืนยัน ' + actionLabel + ' สำหรับ Auto ID: ' + entryCode + ' ?')) {
+        return;
+      }
     }
 
     const payload = createStagePayload(actionName, entryCode);
@@ -253,10 +280,313 @@
       }
 
       toast(actionLabel + ' สำเร็จ', 'success');
+
+      if (options.autoSave) {
+        await showAutoSuccess(actionLabel, entryCode);
+        prepareNextScan('บันทึกสำเร็จ พร้อมรับคันถัดไป');
+      }
     } finally {
       setBusy(false);
     }
   }
+
+
+  function isAutoSaveEnabled() {
+    const toggle = $('autoSaveToggle');
+    return toggle ? Boolean(toggle.checked) : true;
+  }
+
+  function getAutoSaveDelaySeconds() {
+    const input = $('autoSaveDelayInput');
+    const raw = input ? Number(input.value || 3) : 3;
+    if (!Number.isFinite(raw)) return 3;
+    return Math.max(1, Math.min(10, Math.floor(raw)));
+  }
+
+  function updateAutoSaveStatus() {
+    const el = $('autoSaveStatus');
+    const box = $('autoSaveBox');
+
+    if (!el) return;
+
+    if (isAutoSaveEnabled()) {
+      const seconds = getAutoSaveDelaySeconds();
+      el.textContent =
+        'เปิดอยู่: สแกน QR หรือกด Enter หลังกรอกรหัส ระบบจะยืนยัน ' +
+        seconds +
+        ' วินาที แล้วบันทึกอัตโนมัติ';
+      if (box) box.classList.remove('auto-off');
+    } else {
+      el.textContent =
+        'ปิดอยู่: ระบบจะค้นหาข้อมูลเท่านั้น ต้องกดปุ่มบันทึกเอง';
+      if (box) box.classList.add('auto-off');
+    }
+  }
+
+  async function scheduleAutoSaveAfterLookup(method) {
+    if (app.autoSavePending) {
+      toast('มีรายการกำลังรอยืนยันอยู่ กรุณารอสักครู่', 'error');
+      return;
+    }
+
+    const entryCode = getEntryCode();
+
+    if (!entryCode || !app.latest) {
+      return;
+    }
+
+    const decision = getNextInboundAutoAction(app.latest);
+
+    if (!decision.actionName) {
+      await showAutoNoAction(decision, entryCode);
+      prepareNextScan(decision.message || 'พร้อมรับคันถัดไป');
+      return;
+    }
+
+    const now = Date.now();
+    if (
+      app.lastAutoEntryCode === entryCode &&
+      now - app.lastAutoSavedAt < 5000
+    ) {
+      toast('รายการนี้เพิ่งบันทึกไปแล้ว ระบบป้องกันการยิงซ้ำ', 'error');
+      prepareNextScan('ป้องกันการบันทึกซ้ำ พร้อมรับคันถัดไป');
+      return;
+    }
+
+    const confirmed = await showAutoConfirm(decision, entryCode, method);
+
+    if (!confirmed) {
+      toast('ยกเลิกการบันทึกอัตโนมัติ', 'error');
+      return;
+    }
+
+    app.autoSavePending = true;
+
+    try {
+      await runAction(decision.actionName, {
+        skipConfirm: true,
+        autoSave: true
+      });
+
+      app.lastAutoEntryCode = entryCode;
+      app.lastAutoSavedAt = Date.now();
+
+    } finally {
+      app.autoSavePending = false;
+    }
+  }
+
+  function getNextInboundAutoAction(data) {
+    const role = app.user ? String(app.user.role || '').toUpperCase() : '';
+    const state = data && data.state ? data.state : {};
+    const gateIn = data && data.gateIn ? data.gateIn : {};
+
+    if (!hasRole(role, ['ADMIN', 'INBOUND'])) {
+      return {
+        actionName: '',
+        title: 'ไม่มีสิทธิ์บันทึกฝั่ง Inbound',
+        message: 'หน้านี้อนุญาตเฉพาะ ADMIN หรือ INBOUND เท่านั้น'
+      };
+    }
+
+    if (isClosed(state)) {
+      return {
+        actionName: '',
+        title: 'รายการนี้ปิดงานแล้ว',
+        message: 'รายการนี้ปิดงานแล้ว ไม่ต้องบันทึกซ้ำ'
+      };
+    }
+
+    const submitted = Boolean(String(state['เวลายื่นเอกสาร'] || '').trim());
+    const completed = Boolean(String(state['เวลารับสินค้าเสร็จ'] || '').trim());
+    const returned = Boolean(String(state['เวลารับเอกสารคืน'] || '').trim());
+
+    if (!submitted) {
+      return {
+        actionName: 'submit-document',
+        actionLabel: 'บันทึกยื่นเอกสาร',
+        title: 'ตรวจพบข้อมูลรถ',
+        message: 'กำลังบันทึก “ยื่นเอกสาร” อัตโนมัติ',
+        nextStage: 'ยื่นเอกสาร Inbound',
+        gateIn: gateIn,
+        state: state
+      };
+    }
+
+    if (submitted && !completed) {
+      return {
+        actionName: '',
+        title: 'ยังรอรับสินค้าเสร็จ',
+        message: 'รายการนี้ยื่นเอกสารแล้ว แต่ยังไม่มีเวลารับสินค้าเสร็จ จึงยังรับเอกสารคืนไม่ได้',
+        gateIn: gateIn,
+        state: state
+      };
+    }
+
+    if (completed && !returned) {
+      return {
+        actionName: 'return-document',
+        actionLabel: 'บันทึกรับเอกสารคืน',
+        title: 'ตรวจพบข้อมูลรถ',
+        message: 'กำลังบันทึก “รับเอกสารคืน” อัตโนมัติ',
+        nextStage: 'รับเอกสารคืน',
+        gateIn: gateIn,
+        state: state
+      };
+    }
+
+    return {
+      actionName: '',
+      title: 'รายการนี้รับเอกสารคืนแล้ว',
+      message: 'รายการนี้บันทึกรับเอกสารคืนแล้ว รอ Gate Out / ปิดงาน',
+      gateIn: gateIn,
+      state: state
+    };
+  }
+
+  async function showAutoConfirm(decision, entryCode, method) {
+    const seconds = getAutoSaveDelaySeconds();
+    const html = createAutoConfirmHtml(decision, entryCode, method, seconds);
+
+    if (window.Swal) {
+      const result = await window.Swal.fire({
+        title: decision.title || 'ตรวจพบข้อมูล',
+        html: html,
+        icon: 'info',
+        timer: seconds * 1000,
+        timerProgressBar: true,
+        showCancelButton: true,
+        showConfirmButton: true,
+        confirmButtonText: 'บันทึกทันที',
+        cancelButtonText: 'ยกเลิก',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        reverseButtons: true,
+        customClass: {
+          popup: 'vcw-swal-popup'
+        }
+      });
+
+      if (result.dismiss === window.Swal.DismissReason.cancel) {
+        return false;
+      }
+
+      return result.isConfirmed || result.dismiss === window.Swal.DismissReason.timer;
+    }
+
+    toast(
+      (decision.message || 'กำลังบันทึกอัตโนมัติ') +
+      ' ใน ' +
+      seconds +
+      ' วินาที',
+      'success'
+    );
+
+    await delay(seconds * 1000);
+    return true;
+  }
+
+  function createAutoConfirmHtml(decision, entryCode, method, seconds) {
+    const gateIn = decision.gateIn || {};
+    const state = decision.state || {};
+
+    const rows = [
+      ['Auto ID', entryCode],
+      ['วิธีอ่านข้อมูล', method === 'QR' ? 'สแกน QR' : 'กรอก/ยิงรหัสด้วยมือ'],
+      ['ขั้นตอนที่จะบันทึก', decision.actionLabel || decision.nextStage || '-'],
+      ['เลขนัดหมาย', pick(gateIn, ['เลขนัดหมาย']) || state['เลขนัดหมาย'] || '-'],
+      ['ทะเบียนรถ', pick(gateIn, ['ทะเบียนรถ']) || state['ทะเบียนรถ'] || '-'],
+      ['ชื่อบริษัท', pick(gateIn, ['ชื่อบริษัท']) || state['ชื่อบริษัท'] || '-']
+    ];
+
+    return '' +
+      '<div style="text-align:left">' +
+        '<p style="margin:0 0 10px;color:#475569;font-weight:700">' +
+          escapeHtml(decision.message || '') +
+          ' ใน <b>' + escapeHtml(seconds) + '</b> วินาที' +
+        '</p>' +
+        '<div style="display:grid;gap:8px;margin-top:10px">' +
+          rows.map(function (row) {
+            return '<div style="display:grid;grid-template-columns:115px 1fr;gap:8px;border:1px solid #e2e8f0;border-radius:12px;padding:8px 10px;background:#f8fafc">' +
+              '<span style="color:#64748b;font-size:12px;font-weight:800">' + escapeHtml(row[0]) + '</span>' +
+              '<strong style="color:#0f172a;word-break:break-word">' + escapeHtml(row[1]) + '</strong>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        '<p style="margin:12px 0 0;color:#b45309;font-size:13px;font-weight:800">' +
+          'ถ้าสแกนผิดคัน ให้กด “ยกเลิก” ก่อนครบเวลา' +
+        '</p>' +
+      '</div>';
+  }
+
+  async function showAutoNoAction(decision, entryCode) {
+    if (window.Swal) {
+      await window.Swal.fire({
+        title: decision.title || 'ยังไม่ต้องบันทึก',
+        text: decision.message || 'ยังไม่มีขั้นตอนที่ต้องบันทึกอัตโนมัติ',
+        icon: 'warning',
+        timer: 2800,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+    } else {
+      toast(decision.message || 'ยังไม่มีขั้นตอนที่ต้องบันทึก', 'error');
+      await delay(1800);
+    }
+
+    logResponse('AUTO SAVE SKIPPED', {
+      success: false,
+      entryCode: entryCode,
+      reason: decision.message || ''
+    });
+  }
+
+  async function showAutoSuccess(actionLabel, entryCode) {
+    if (window.Swal) {
+      await window.Swal.fire({
+        title: 'บันทึกสำเร็จ',
+        text: actionLabel + ' | Auto ID: ' + entryCode,
+        icon: 'success',
+        timer: 1300,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+    }
+  }
+
+  function prepareNextScan(message) {
+    $('entryInput').value = '';
+
+    if ($('noteInput')) {
+      $('noteInput').value = '';
+    }
+
+    app.latest = null;
+    app.lastLookupMethod = 'MANUAL';
+
+    $('recordTitle').textContent = 'พร้อมสแกนคันถัดไป';
+    $('workflowStageBadge').textContent = 'READY';
+    $('workflowStageBadge').className = 'badge badge-ok';
+    $('vehicleSummary').classList.add('empty');
+    $('vehicleSummary').innerHTML =
+      '<p>' +
+      escapeHtml(message || 'พร้อมรับ QR / Auto ID คันถัดไป') +
+      '</p>';
+
+    renderEmptyTimeline();
+    updateButtons();
+
+    window.setTimeout(function () {
+      $('entryInput').focus();
+    }, 100);
+  }
+
+  function delay(ms) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
 
   function createStagePayload(actionName, entryCode) {
     return {
@@ -468,7 +798,9 @@
           $('entryInput').value = code;
           toast('อ่าน QR สำเร็จ: ' + code, 'success');
           stopScanner().finally(function () {
-            lookupEntry('QR');
+            lookupEntry('QR', {
+              autoSave: isAutoSaveEnabled()
+            });
           });
         }
       );
