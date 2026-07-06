@@ -1,12 +1,12 @@
 /*
  * vcw-inbound.js
- * VCW-R08D Inbound Workflow Page - Scanner Box Focus Lock
+ * VCW-R08E Inbound Workflow Page - Professional Auto Save
  */
 (function (window, document) {
   'use strict';
 
   const app = {
-    version: 'VCW-R08D',
+    version: 'VCW-R08E',
     busy: false,
     user: null,
     latest: null,
@@ -328,34 +328,17 @@
 
 
   function isAutoSaveEnabled() {
-    const toggle = $('autoSaveToggle');
-    return toggle ? Boolean(toggle.checked) : true;
+    return true;
   }
 
   function getAutoSaveDelaySeconds() {
-    const input = $('autoSaveDelayInput');
-    const raw = input ? Number(input.value || 3) : 3;
-    if (!Number.isFinite(raw)) return 3;
-    return Math.max(1, Math.min(10, Math.floor(raw)));
+    return 3;
   }
 
   function updateAutoSaveStatus() {
-    const el = $('autoSaveStatus');
-    const box = $('autoSaveBox');
-
-    if (!el) return;
-
-    if (isAutoSaveEnabled()) {
-      const seconds = getAutoSaveDelaySeconds();
-      el.textContent =
-        'เปิดอยู่: สแกน QR หรือกด Enter หลังกรอกรหัส ระบบจะยืนยัน ' +
-        seconds +
-        ' วินาที แล้วบันทึกอัตโนมัติ';
-      if (box) box.classList.remove('auto-off');
-    } else {
-      el.textContent =
-        'ปิดอยู่: ระบบจะค้นหาข้อมูลเท่านั้น ต้องกดปุ่มบันทึกเอง';
-      if (box) box.classList.add('auto-off');
+    const strip = $('inboundStatusStrip');
+    if (strip) {
+      strip.setAttribute('data-ready', 'true');
     }
   }
 
@@ -442,7 +425,7 @@
         actionName: 'submit-document',
         actionLabel: 'บันทึกยื่นเอกสาร',
         title: 'ตรวจพบข้อมูลรถ',
-        message: 'กำลังบันทึก “ยื่นเอกสาร” อัตโนมัติ',
+        message: 'เตรียมบันทึกยื่นเอกสาร',
         nextStage: 'ยื่นเอกสาร Inbound',
         gateIn: gateIn,
         state: state
@@ -453,7 +436,7 @@
       return {
         actionName: '',
         title: 'ยังรอรับสินค้าเสร็จ',
-        message: 'รายการนี้ยื่นเอกสารแล้ว แต่ยังไม่มีเวลารับสินค้าเสร็จ จึงยังรับเอกสารคืนไม่ได้',
+        message: 'ยื่นเอกสารแล้ว รอรับสินค้าเสร็จ',
         gateIn: gateIn,
         state: state
       };
@@ -464,7 +447,7 @@
         actionName: 'return-document',
         actionLabel: 'บันทึกรับเอกสารคืน',
         title: 'ตรวจพบข้อมูลรถ',
-        message: 'กำลังบันทึก “รับเอกสารคืน” อัตโนมัติ',
+        message: 'เตรียมบันทึกรับเอกสารคืน',
         nextStage: 'รับเอกสารคืน',
         gateIn: gateIn,
         state: state
@@ -474,49 +457,37 @@
     return {
       actionName: '',
       title: 'รายการนี้รับเอกสารคืนแล้ว',
-      message: 'รายการนี้บันทึกรับเอกสารคืนแล้ว รอ Gate Out / ปิดงาน',
+      message: 'รับเอกสารคืนแล้ว รอ Gate Out',
       gateIn: gateIn,
       state: state
     };
   }
 
   async function showAutoConfirm(decision, entryCode, method) {
-    const seconds = getAutoSaveDelaySeconds();
+    const seconds = 3;
     const html = createAutoConfirmHtml(decision, entryCode, method, seconds);
 
     if (window.Swal) {
-      const result = await window.Swal.fire({
-        title: decision.title || 'ตรวจพบข้อมูล',
+      await window.Swal.fire({
+        title: decision.actionLabel || 'กำลังบันทึก',
         html: html,
         icon: 'info',
         timer: seconds * 1000,
         timerProgressBar: true,
-        showCancelButton: true,
-        showConfirmButton: true,
-        confirmButtonText: 'บันทึกทันที',
-        cancelButtonText: 'ยกเลิก',
+        showConfirmButton: false,
+        showCancelButton: false,
         allowOutsideClick: false,
         allowEscapeKey: false,
-        reverseButtons: true,
         customClass: {
-          popup: 'vcw-swal-popup'
+          popup: 'vcw-swal-popup compact-swal'
+        },
+        didOpen: function () {
+          window.Swal.showLoading();
         }
       });
 
-      if (result.dismiss === window.Swal.DismissReason.cancel) {
-        return false;
-      }
-
-      return result.isConfirmed || result.dismiss === window.Swal.DismissReason.timer;
+      return true;
     }
-
-    toast(
-      (decision.message || 'กำลังบันทึกอัตโนมัติ') +
-      ' ใน ' +
-      seconds +
-      ' วินาที',
-      'success'
-    );
 
     await delay(seconds * 1000);
     return true;
@@ -528,46 +499,38 @@
 
     const rows = [
       ['Auto ID', entryCode],
-      ['วิธีอ่านข้อมูล', method === 'QR' ? 'สแกน QR ด้วยกล้อง' : method === 'SCANNER_BOX' ? 'กล่องอ่าน QR Code' : 'กรอก/ยิงรหัสด้วยมือ'],
-      ['ขั้นตอนที่จะบันทึก', decision.actionLabel || decision.nextStage || '-'],
-      ['เลขนัดหมาย', pick(gateIn, ['เลขนัดหมาย']) || state['เลขนัดหมาย'] || '-'],
-      ['ทะเบียนรถ', pick(gateIn, ['ทะเบียนรถ']) || state['ทะเบียนรถ'] || '-'],
-      ['ชื่อบริษัท', pick(gateIn, ['ชื่อบริษัท']) || state['ชื่อบริษัท'] || '-']
+      ['ทะเบียน', pick(gateIn, ['ทะเบียนรถ']) || state['ทะเบียนรถ'] || '-'],
+      ['บริษัท', pick(gateIn, ['ชื่อบริษัท']) || state['ชื่อบริษัท'] || '-'],
+      ['ขั้นตอน', decision.actionLabel || decision.nextStage || '-']
     ];
 
     return '' +
-      '<div style="text-align:left">' +
-        '<p style="margin:0 0 10px;color:#475569;font-weight:700">' +
-          escapeHtml(decision.message || '') +
-          ' ใน <b>' + escapeHtml(seconds) + '</b> วินาที' +
-        '</p>' +
-        '<div style="display:grid;gap:8px;margin-top:10px">' +
+      '<div class="swal-compact-body">' +
+        '<p class="swal-countdown-text">ระบบจะบันทึกอัตโนมัติใน <b>' + escapeHtml(seconds) + '</b> วินาที</p>' +
+        '<div class="swal-compact-grid">' +
           rows.map(function (row) {
-            return '<div style="display:grid;grid-template-columns:115px 1fr;gap:8px;border:1px solid #e2e8f0;border-radius:12px;padding:8px 10px;background:#f8fafc">' +
-              '<span style="color:#64748b;font-size:12px;font-weight:800">' + escapeHtml(row[0]) + '</span>' +
-              '<strong style="color:#0f172a;word-break:break-word">' + escapeHtml(row[1]) + '</strong>' +
+            return '<div class="swal-compact-row">' +
+              '<span>' + escapeHtml(row[0]) + '</span>' +
+              '<strong>' + escapeHtml(row[1]) + '</strong>' +
             '</div>';
           }).join('') +
         '</div>' +
-        '<p style="margin:12px 0 0;color:#b45309;font-size:13px;font-weight:800">' +
-          'ถ้าสแกนผิดคัน ให้กด “ยกเลิก” ก่อนครบเวลา' +
-        '</p>' +
       '</div>';
   }
 
   async function showAutoNoAction(decision, entryCode) {
     if (window.Swal) {
       await window.Swal.fire({
-        title: decision.title || 'ยังไม่ต้องบันทึก',
-        text: decision.message || 'ยังไม่มีขั้นตอนที่ต้องบันทึกอัตโนมัติ',
-        icon: 'warning',
-        timer: 2800,
+        title: decision.title || 'ไม่ต้องบันทึก',
+        text: decision.message || 'ไม่มีขั้นตอนที่ต้องบันทึก',
+        icon: 'info',
+        timer: 1600,
         timerProgressBar: true,
         showConfirmButton: false
       });
     } else {
-      toast(decision.message || 'ยังไม่มีขั้นตอนที่ต้องบันทึก', 'error');
-      await delay(1800);
+      toast(decision.message || 'ไม่มีขั้นตอนที่ต้องบันทึก', 'error');
+      await delay(1000);
     }
 
     logResponse('AUTO SAVE SKIPPED', {
@@ -677,24 +640,13 @@
   }
 
   function isScannerFocusEnabled() {
-    const toggle = $('scannerFocusToggle');
-    return toggle ? Boolean(toggle.checked) : true;
+    return true;
   }
 
   function updateScannerFocusStatus() {
-    const el = $('scannerFocusStatus');
-    const box = $('scannerFocusBox');
-
-    if (!el) return;
-
-    if (isScannerFocusEnabled()) {
-      el.textContent =
-        'เปิดอยู่: แตะพื้นที่หน้า Inbound หรือยิงกล่อง QR Code ได้ทันที ระบบจะดึง Focus กลับช่อง Auto ID ให้อัตโนมัติ';
-      if (box) box.classList.remove('scanner-off');
-    } else {
-      el.textContent =
-        'ปิดอยู่: ต้องคลิกช่อง Auto ID เองก่อนยิงกล่อง QR Code';
-      if (box) box.classList.add('scanner-off');
+    const strip = $('inboundStatusStrip');
+    if (strip) {
+      strip.setAttribute('data-scanner-ready', 'true');
     }
   }
 
