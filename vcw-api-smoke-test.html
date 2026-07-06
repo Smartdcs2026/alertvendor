@@ -3,195 +3,347 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VCW-R07A Workflow API Smoke Test</title>
+  <title>VCW-R07B Workflow API Smoke Test</title>
   <style>
-    :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { margin: 0; padding: 16px; background: #f6f7fb; color: #101828; }
-    main { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 18px; padding: 18px; box-shadow: 0 10px 30px rgba(16,24,40,.08); }
-    h1 { margin: 0 0 8px; font-size: 22px; }
-    p { line-height: 1.6; }
-    label { display: block; font-size: 13px; font-weight: 700; margin-top: 14px; }
-    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #d0d5dd; border-radius: 12px; padding: 12px 14px; font-size: 16px; margin-top: 6px; background: #fff; }
-    textarea { min-height: 72px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-    .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-    button { border: 0; border-radius: 12px; padding: 12px 14px; font-size: 15px; font-weight: 700; background: #101828; color: #fff; cursor: pointer; }
-    button.secondary { background: #344054; }
-    button.ghost { background: #eef2f6; color: #101828; }
-    pre { white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #d1e9ff; border-radius: 14px; padding: 14px; min-height: 170px; overflow: auto; }
-    .note { background: #fffaeb; border: 1px solid #fedf89; border-radius: 14px; padding: 12px; font-size: 14px; }
-    .status { border-radius: 14px; padding: 12px; margin-top: 12px; font-weight: 700; }
-    .ok { background: #ecfdf3; color: #027a48; border: 1px solid #abefc6; }
-    .bad { background: #fef3f2; color: #b42318; border: 1px solid #fecdca; }
-    .muted { color: #667085; font-size: 13px; }
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #d9e2ef;
+      --primary: #0f172a;
+      --primary2: #334155;
+      --ok: #15803d;
+      --warn: #b45309;
+      --bad: #b91c1c;
+      --soft-ok: #dcfce7;
+      --soft-warn: #fef3c7;
+      --soft-bad: #fee2e2;
+      --code: #020617;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, "Noto Sans Thai", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #ffffff 0, var(--bg) 52%);
+      padding: 24px;
+    }
+
+    main {
+      width: min(940px, 100%);
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid #eef2f7;
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
+      padding: 22px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(22px, 3vw, 30px);
+      line-height: 1.2;
+    }
+
+    .version {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .notice {
+      border: 1px solid #facc15;
+      background: #fffbeb;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 10px 0 16px;
+      color: #713f12;
+      line-height: 1.55;
+    }
+
+    .token-status {
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 10px 0 16px;
+      line-height: 1.55;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+    }
+
+    .token-status.ok {
+      border-color: #86efac;
+      background: var(--soft-ok);
+      color: #14532d;
+    }
+
+    .token-status.bad {
+      border-color: #fca5a5;
+      background: var(--soft-bad);
+      color: #7f1d1d;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      margin-top: 7px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 13px 14px;
+      font-size: 16px;
+      outline: none;
+      background: #fff;
+    }
+
+    input:focus {
+      border-color: #0f172a;
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      min-height: 48px;
+      padding: 12px 14px;
+      color: #fff;
+      background: var(--primary);
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    button.secondary { background: var(--primary2); }
+    button.health { background: #0369a1; }
+    button.me { background: #047857; }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    h2 {
+      margin: 22px 0 10px;
+      font-size: 22px;
+    }
+
+    pre {
+      min-height: 220px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: var(--code);
+      color: #dbeafe;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .quick-help {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .help-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: #f8fafc;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .help-card strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 12px; }
+      main { padding: 16px; border-radius: 16px; }
+      .grid, .quick-help { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <h1>VCW-R07A Workflow API Smoke Test</h1>
-    <p class="note">
-      เวอร์ชันนี้แก้การอ่าน Token จากระบบเดิมของ Alert Vendor แล้ว โดยรองรับ key: <b>alertvendor_access_token</b>
-    </p>
+    <div class="version">VCW-R07B Diagnostic Build</div>
+    <h1>Workflow API Smoke Test</h1>
 
-    <div id="tokenStatus" class="status bad">กำลังตรวจ Session...</div>
-    <p class="muted" id="tokenHint"></p>
+    <div class="notice">
+      หน้านี้ใช้ตรวจแยกปัญหาเป็น 3 ชั้น: Health ไม่ใช้ Token, Auth ใช้ Bearer Token, และ Workflow Lookup/State
+    </div>
 
-    <label for="apiBase">API Base</label>
-    <input id="apiBase" value="https://alertvendor.somchaibutphon.workers.dev">
+    <div id="tokenStatus" class="token-status">
+      กำลังตรวจ Session Token...
+    </div>
 
-    <label for="moduleId">Module ID</label>
-    <input id="moduleId" value="vendors">
+    <label>
+      API Base
+      <input id="apiBase" value="https://alertvendor.somchaibutphon.workers.dev" autocomplete="off">
+    </label>
 
-    <label for="entryCode">รหัสเข้าพื้นที่ / Auto ID / QR Code</label>
-    <input id="entryCode" placeholder="ใส่ Auto ID จาก Gate In">
+    <label>
+      Module ID
+      <input id="moduleId" value="vendors" autocomplete="off">
+    </label>
 
-    <label for="manualToken">Bearer Token สำรอง ถ้าระบบอ่านจาก sessionStorage ไม่เจอ</label>
-    <textarea id="manualToken" placeholder="ปกติไม่ต้องกรอก ช่องนี้ใช้เฉพาะกรณีทดสอบแล้วไม่พบ Session"></textarea>
+    <label>
+      รหัสเข้าพื้นที่ / Auto ID / QR Code
+      <input id="entryCode" value="" placeholder="เช่น SK02774325995" autocomplete="off">
+    </label>
 
-    <div class="actions">
-      <button type="button" id="btnRefresh" class="ghost">ตรวจ Token ใหม่</button>
-      <button type="button" id="btnMe" class="secondary">ทดสอบ /api/auth/me</button>
-      <button type="button" id="btnLookup">ทดสอบ Lookup</button>
-      <button type="button" class="secondary" id="btnState">ทดสอบ State</button>
+    <div class="grid">
+      <button class="health" type="button" data-action="health">1. ตรวจ Health</button>
+      <button class="me" type="button" data-action="me">2. ตรวจ /api/auth/me</button>
+      <button type="button" data-action="lookup">3. ทดสอบ Lookup</button>
+      <button class="secondary" type="button" data-action="state">4. ทดสอบ State</button>
+    </div>
+
+    <div class="quick-help">
+      <div class="help-card">
+        <strong>Health Failed</strong>
+        ตรวจ API Base, Worker Deploy, ALLOWED_ORIGINS
+      </div>
+      <div class="help-card">
+        <strong>Health ผ่าน แต่ Auth Failed to fetch</strong>
+        มักเป็น CORS preflight/Authorization header
+      </div>
+      <div class="help-card">
+        <strong>Auth ผ่าน แต่ Lookup ผิดพลาด</strong>
+        ค่อยตรวจ Api.gs / VCW_R06 Bridge / R05 Service
+      </div>
     </div>
 
     <h2>ผลลัพธ์</h2>
-    <pre id="result">รอทดสอบ...</pre>
+    <pre id="output">พร้อมทดสอบ</pre>
   </main>
 
-  <script src="./vcw-workflow-api.js"></script>
+  <script src="./vcw-workflow-api.js?v=VCW-R07B"></script>
   <script>
-    const apiBaseInput = document.getElementById('apiBase');
-    const moduleIdInput = document.getElementById('moduleId');
-    const entryCodeInput = document.getElementById('entryCode');
-    const manualTokenInput = document.getElementById('manualToken');
-    const tokenStatusEl = document.getElementById('tokenStatus');
-    const tokenHintEl = document.getElementById('tokenHint');
-    const resultEl = document.getElementById('result');
+    (function () {
+      'use strict';
 
-    function show(value) {
-      resultEl.textContent = typeof value === 'string'
-        ? value
-        : JSON.stringify(value, null, 2);
-    }
+      const output = document.getElementById('output');
+      const tokenStatus = document.getElementById('tokenStatus');
+      const apiBaseEl = document.getElementById('apiBase');
+      const moduleIdEl = document.getElementById('moduleId');
+      const entryCodeEl = document.getElementById('entryCode');
 
-    function previewToken(token) {
-      if (!token) return '';
-      return token.slice(0, 18) + '...' + token.slice(-10);
-    }
+      function pretty(value) {
+        return JSON.stringify(value, null, 2);
+      }
 
-    function findStoredTokenKey() {
-      const keys = [
-        'alertvendor_access_token',
-        'vehicle_status_access_token',
-        'vehicleStatusAccessToken',
-        'accessToken',
-        'authToken',
-        'token',
-        'sessionToken',
-        'vehicle_status_token'
-      ];
+      function render(value) {
+        output.textContent = pretty(value);
+      }
 
-      for (const storageName of ['sessionStorage', 'localStorage']) {
-        const storage = window[storageName];
-        if (!storage) continue;
+      function updateTokenStatus() {
+        const api = window.VCWWorkflowAPI;
+        const info = api && api.getAccessTokenInfo ? api.getAccessTokenInfo() : { hasToken: false, found: [] };
 
-        for (const key of keys) {
-          try {
-            const value = String(storage.getItem(key) || '').trim();
-            if (value) return storageName + ':' + key;
-          } catch (error) {}
+        if (info.hasToken) {
+          tokenStatus.className = 'token-status ok';
+          tokenStatus.innerHTML = 'พบ Bearer Token แล้ว<br>แหล่งที่พบ: <b>' + escapeHtml(info.source || '-') + '</b><br>จำนวน token ที่พบ: <b>' + String(info.found.length) + '</b>';
+        } else {
+          tokenStatus.className = 'token-status bad';
+          tokenStatus.innerHTML = 'ยังไม่พบ Bearer Token ใน Browser นี้<br>ให้กลับไปหน้า admin.html แล้ว Login ใหม่ จากนั้นกลับมาเปิดหน้านี้ด้วย <b>?v=R07B</b>';
         }
       }
 
-      return '';
-    }
-
-    function getManualToken() {
-      return manualTokenInput.value.trim();
-    }
-
-    function refreshTokenStatus() {
-      const token = getManualToken() || window.VCWWorkflowApi.getAccessToken();
-      const key = findStoredTokenKey();
-
-      if (token) {
-        tokenStatusEl.className = 'status ok';
-        tokenStatusEl.textContent = 'พบ Bearer Token แล้ว: ' + previewToken(token);
-        tokenHintEl.textContent = key ? ('อ่านจาก ' + key) : 'อ่านจาก object/session หรือช่อง Bearer Token สำรอง';
-      } else {
-        tokenStatusEl.className = 'status bad';
-        tokenStatusEl.textContent = 'ยังไม่พบ Bearer Token';
-        tokenHintEl.textContent = 'ให้กลับไปหน้า admin.html แล้วกดออกจากระบบ จากนั้น Login ใหม่ แล้วเปิดหน้านี้อีกครั้ง';
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
       }
 
-      return token;
-    }
+      async function run(action) {
+        const api = window.VCWWorkflowAPI;
+        const apiBase = apiBaseEl.value.trim();
+        const moduleId = moduleIdEl.value.trim() || 'vendors';
+        const entryCode = entryCodeEl.value.trim();
 
-    function getInput() {
-      window.VCWWorkflowApi.configure({
-        apiBase: apiBaseInput.value,
-        defaultModuleId: moduleIdInput.value
+        if (!api) {
+          render({ success: false, code: 'CLIENT_NOT_LOADED', message: 'ไม่พบ vcw-workflow-api.js' });
+          return;
+        }
+
+        updateTokenStatus();
+
+        let result;
+
+        if (action === 'health') {
+          result = await api.health(apiBase);
+        } else if (action === 'me') {
+          result = await api.me(apiBase);
+        } else if (action === 'lookup') {
+          result = await api.lookup(moduleId, entryCode, apiBase);
+        } else if (action === 'state') {
+          result = await api.state(moduleId, entryCode, apiBase);
+        } else {
+          result = { success: false, code: 'UNKNOWN_ACTION' };
+        }
+
+        render({
+          r07b: true,
+          action: action,
+          apiBase: apiBase,
+          moduleId: moduleId,
+          entryCode: entryCode,
+          token: api.getAccessTokenInfo(),
+          result: result
+        });
+      }
+
+      document.querySelectorAll('button[data-action]').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          const buttons = Array.prototype.slice.call(document.querySelectorAll('button'));
+          buttons.forEach(function (item) { item.disabled = true; });
+
+          try {
+            await run(button.getAttribute('data-action'));
+          } finally {
+            buttons.forEach(function (item) { item.disabled = false; });
+          }
+        });
       });
 
-      return {
-        moduleId: moduleIdInput.value.trim(),
-        entryCode: entryCodeInput.value.trim(),
-        accessToken: refreshTokenStatus()
-      };
-    }
-
-    document.getElementById('btnRefresh').addEventListener('click', () => {
-      const token = refreshTokenStatus();
-      show({
-        success: Boolean(token),
-        authenticatedClientSide: Boolean(token),
-        tokenPreview: previewToken(token),
-        apiVersion: window.VCWWorkflowApi.version,
-        config: window.VCWWorkflowApi.getConfig()
+      updateTokenStatus();
+      render({
+        ready: true,
+        version: 'VCW-R07B',
+        message: 'เริ่มจากปุ่ม 1. ตรวจ Health ก่อนเสมอ',
+        token: window.VCWWorkflowAPI ? window.VCWWorkflowAPI.getAccessTokenInfo() : null
       });
-    });
-
-    document.getElementById('btnMe').addEventListener('click', async () => {
-      try {
-        const input = getInput();
-        show('กำลังตรวจ /api/auth/me ...');
-        const data = await window.VCWWorkflowApi.request('/api/auth/me', {
-          method: 'GET',
-          accessToken: input.accessToken
-        });
-        show(data);
-      } catch (error) {
-        show({ success: false, code: error.code || error.name, message: error.message, status: error.status || 0, details: error.details || {} });
-      }
-    });
-
-    document.getElementById('btnLookup').addEventListener('click', async () => {
-      try {
-        const input = getInput();
-        show('กำลัง Lookup...');
-        const data = await window.VCWWorkflowApi.lookupEntry(input.moduleId, input.entryCode, {
-          accessToken: input.accessToken
-        });
-        show(data);
-      } catch (error) {
-        show({ success: false, code: error.code || error.name, message: error.message, status: error.status || 0, details: error.details || {} });
-      }
-    });
-
-    document.getElementById('btnState').addEventListener('click', async () => {
-      try {
-        const input = getInput();
-        show('กำลังอ่าน State...');
-        const data = await window.VCWWorkflowApi.getState(input.moduleId, input.entryCode, {
-          accessToken: input.accessToken
-        });
-        show(data);
-      } catch (error) {
-        show({ success: false, code: error.code || error.name, message: error.message, status: error.status || 0, details: error.details || {} });
-      }
-    });
-
-    refreshTokenStatus();
+    })();
   </script>
 </body>
 </html>
