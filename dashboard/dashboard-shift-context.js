@@ -1,6 +1,6 @@
 /**
  * dashboard-shift.js
- * ROUND 63 — Contextual Executive Dashboard
+ * ROUND 80 — Contextual Executive Dashboard
  */
 (function (window, document) {
   'use strict';
@@ -3579,10 +3579,20 @@
 
           options:
             chartOptions(
-              false
+              isMobileChart()
             )
         }
       );
+  }
+
+
+  function isMobileChart() {
+    return Boolean(
+      window.matchMedia &&
+      window.matchMedia(
+        '(max-width: 920px)'
+      ).matches
+    );
   }
 
 
@@ -3645,13 +3655,19 @@
               'rectRounded',
 
             boxWidth:
-              11,
+              compact
+                ? 8
+                : 11,
 
             boxHeight:
-              11,
+              compact
+                ? 8
+                : 11,
 
             padding:
-              16,
+              compact
+                ? 8
+                : 16,
 
             color:
               '#385365',
@@ -3659,7 +3675,7 @@
             font: {
               size:
                 compact
-                  ? 12
+                  ? 10
                   : 13,
 
               weight:
@@ -3677,16 +3693,22 @@
 
           titleFont: {
             size:
-              13
+              compact
+                ? 11
+                : 13
           },
 
           bodyFont: {
             size:
-              13
+              compact
+                ? 11
+                : 13
           },
 
           padding:
-            10,
+            compact
+              ? 8
+              : 10,
 
           displayColors:
             true
@@ -3712,12 +3734,19 @@
             precision:
               0,
 
+            maxTicksLimit:
+              compact
+                ? 5
+                : 8,
+
             color:
               '#607784',
 
             font: {
               size:
-                12,
+                compact
+                  ? 10
+                  : 12,
 
               weight:
                 '600'
@@ -3737,12 +3766,28 @@
           },
 
           ticks: {
+            autoSkip:
+              true,
+
+            maxRotation:
+              0,
+
+            minRotation:
+              0,
+
+            maxTicksLimit:
+              compact
+                ? 5
+                : 10,
+
             color:
               '#334f61',
 
             font: {
               size:
-                13,
+                compact
+                  ? 10
+                  : 13,
 
               weight:
                 '750'
@@ -4874,14 +4919,30 @@
         '.control-header'
       );
 
-    const headerHeight =
+    const measuredHeaderHeight =
       header
         ? Math.ceil(
             header
               .getBoundingClientRect()
               .height
           )
-        : 0;
+        : 76;
+
+    const isSmallScreen =
+      window.matchMedia &&
+      window.matchMedia(
+        '(max-width: 920px)'
+      ).matches;
+
+    /*
+     * ROUND 80:
+     * desktop ต้องใช้ค่ามาตรฐาน เพื่อกัน header สูงค้าง
+     * หลังจากย่อหน้าต่างเข้า breakpoint มือถือแล้วขยายกลับ
+     */
+    const headerHeight =
+      isSmallScreen
+        ? measuredHeaderHeight
+        : 76;
 
     document.documentElement
       .style.setProperty(
