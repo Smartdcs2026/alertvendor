@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0f3d5e">
   <title>Inbound Workflow | Alert Vendor</title>
-  <link rel="stylesheet" href="vcw-inbound.css?v=R08C">
+  <link rel="stylesheet" href="vcw-inbound.css?v=R08D">
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">VCW-R08C</p>
+        <p class="eyebrow">VCW-R08D</p>
         <h1>Inbound Workflow</h1>
-        <p class="subtitle">สแกน QR / Auto ID แล้วระบบยืนยัน 3 วินาทีและบันทึกอัตโนมัติสำหรับงาน Inbound</p>
+        <p class="subtitle">รองรับกล้องมือถือและกล่องอ่าน QR Code: แตะพื้นที่หน้า Inbound แล้ว Focus จะกลับช่อง Auto ID อัตโนมัติ</p>
       </div>
       <div class="top-actions">
         <a class="ghost-link" href="admin.html">← กลับ Admin</a>
@@ -52,7 +52,7 @@
           </div>
           <div>
             <label for="entryInput">รหัสเข้าพื้นที่ / Auto ID</label>
-            <input id="entryInput" type="text" placeholder="เช่น SK02369916991" autocomplete="off" inputmode="text">
+            <input id="entryInput" type="text" placeholder="ยิงกล่อง QR / กรอก Auto ID เช่น SK02369916991" autocomplete="off" inputmode="text" autocapitalize="characters" spellcheck="false" data-scan-input="true">
           </div>
         </div>
 
@@ -72,6 +72,21 @@
               <input id="autoSaveDelayInput" type="number" min="1" max="10" value="3" inputmode="numeric">
               <span>วินาที</span>
             </label>
+          </div>
+        </div>
+
+        <div class="scanner-focus-box" id="scannerFocusBox">
+          <div>
+            <p class="label">Scanner Box Mode</p>
+            <h3>พร้อมรับกล่องอ่าน QR Code ตลอดเวลา</h3>
+            <p id="scannerFocusStatus" class="hint">เปิดอยู่: แตะพื้นที่หน้า Inbound แล้ว Cursor จะกลับไปช่อง Auto ID อัตโนมัติ</p>
+          </div>
+          <div class="scanner-focus-controls">
+            <label class="switch-row" for="scannerFocusToggle">
+              <input id="scannerFocusToggle" type="checkbox" checked>
+              <span>ล็อก Focus ช่อง Auto ID</span>
+            </label>
+            <button id="focusEntryButton" class="btn light small" type="button">Focus ช่อง Auto ID</button>
           </div>
         </div>
 
@@ -191,6 +206,6 @@
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="vcw-workflow-api.js?v=R07B"></script>
   <script src="vcw-inbound-role-guard.js?v=R08B"></script>
-  <script src="vcw-inbound.js?v=R08C"></script>
+  <script src="vcw-inbound.js?v=R08D"></script>
 </body>
 </html>
