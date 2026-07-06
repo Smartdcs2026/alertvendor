@@ -1,9 +1,8 @@
 /************************************************************
  * dashboard-mobile-hotfix.css
- * ROUND 77 — Mobile Shift/Daily Stable Layout
- *
- * ใช้แทนไฟล์ mobile รุ่นเก่าทุกตัว
+ * ROUND 78 — Mobile View Router + Date Controls Fix
  * โหลดเป็น CSS ตัวสุดท้ายของ dashboard/index.html
+ * ใช้แทนไฟล์ mobile รุ่นเก่าทุกตัว
  ************************************************************/
 
 @media (max-width: 920px) {
@@ -16,10 +15,10 @@
     background: #eef7fb !important;
   }
 
-  body.r77-mobile-stable,
-  body.dashboard-page.r77-mobile-stable {
+  body.dashboard-page.r78-mobile-stable {
     min-height: 100dvh !important;
     height: auto !important;
+    margin: 0 !important;
     color: #082f49 !important;
     background: #eef7fb !important;
     overflow-x: hidden !important;
@@ -28,9 +27,9 @@
     filter: none !important;
   }
 
-  body.r77-mobile-stable *,
-  body.r77-mobile-stable *::before,
-  body.r77-mobile-stable *::after {
+  body.r78-mobile-stable *,
+  body.r78-mobile-stable *::before,
+  body.r78-mobile-stable *::after {
     box-sizing: border-box !important;
   }
 
@@ -38,55 +37,58 @@
    * Header
    ************************************************************/
 
-  body.r77-mobile-stable .control-header {
+  body.r78-mobile-stable .control-header {
     position: relative !important;
     top: auto !important;
+    z-index: 40 !important;
     min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
     background: linear-gradient(180deg, #063a55, #074c67) !important;
     border-bottom: 0 !important;
+    box-shadow: 0 7px 22px rgba(3, 31, 52, .18) !important;
   }
 
-  body.r77-mobile-stable .control-header__inner {
+  body.r78-mobile-stable .control-header__inner {
     width: 100% !important;
     max-width: 100% !important;
     min-height: 0 !important;
     display: grid !important;
-    grid-template-columns: 46px minmax(0, 1fr) !important;
+    grid-template-columns: 44px minmax(0, 1fr) !important;
     grid-template-areas:
       "back brand"
       "live live" !important;
     align-items: center !important;
-    gap: 10px !important;
-    padding: 12px 12px 14px !important;
+    gap: 9px !important;
+    margin: 0 !important;
+    padding: 11px 12px 13px !important;
   }
 
-  body.r77-mobile-stable .header-icon-button {
+  body.r78-mobile-stable .header-icon-button {
     grid-area: back !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
   }
 
-  body.r77-mobile-stable .control-brand {
+  body.r78-mobile-stable .control-brand {
     grid-area: brand !important;
     min-width: 0 !important;
     display: flex !important;
     align-items: center !important;
-    gap: 9px !important;
+    gap: 8px !important;
   }
 
-  body.r77-mobile-stable .control-brand__mark {
+  body.r78-mobile-stable .control-brand__mark {
     display: none !important;
   }
 
-  body.r77-mobile-stable .control-brand__text {
+  body.r78-mobile-stable .control-brand__text {
     min-width: 0 !important;
   }
 
-  body.r77-mobile-stable .control-brand__text small {
+  body.r78-mobile-stable .control-brand__text small {
     display: block !important;
     margin: 0 0 2px !important;
     color: #74f2ee !important;
@@ -98,21 +100,22 @@
     text-overflow: ellipsis !important;
   }
 
-  body.r77-mobile-stable .control-brand__text h1 {
+  body.r78-mobile-stable .control-brand__text h1 {
     margin: 0 !important;
+    max-width: 100% !important;
     color: #ffffff !important;
-    font-size: clamp(23px, 7vw, 34px) !important;
-    line-height: 1.15 !important;
+    font-size: clamp(22px, 7vw, 32px) !important;
+    line-height: 1.12 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
 
-  body.r77-mobile-stable .control-brand__text p {
+  body.r78-mobile-stable .control-brand__text p {
     display: none !important;
   }
 
-  body.r77-mobile-stable .control-header__actions {
+  body.r78-mobile-stable .control-header__actions {
     grid-area: live !important;
     min-width: 0 !important;
     display: grid !important;
@@ -120,16 +123,17 @@
     gap: 8px !important;
   }
 
-  body.r77-mobile-stable .control-header__actions .header-action-button,
-  body.r77-mobile-stable .control-header__actions .header-user {
+  body.r78-mobile-stable .control-header__actions .header-action-button,
+  body.r78-mobile-stable .control-header__actions .header-user {
     display: none !important;
   }
 
-  body.r77-mobile-stable .live-block {
+  body.r78-mobile-stable .live-block {
     width: 100% !important;
     min-width: 0 !important;
-    min-height: 52px !important;
+    min-height: 50px !important;
     display: grid !important;
+    justify-items: start !important;
     align-content: center !important;
     gap: 2px !important;
     border: 1px solid rgba(183, 218, 231, .34) !important;
@@ -138,26 +142,21 @@
     background: rgba(255, 255, 255, .08) !important;
   }
 
-  body.r77-mobile-stable .live-status,
-  body.r77-mobile-stable #dashboardCurrentDateTime,
-  body.r77-mobile-stable #dashboardLastUpdated {
-    opacity: 1 !important;
-    filter: none !important;
-  }
-
-  body.r77-mobile-stable .live-status {
+  body.r78-mobile-stable .live-status {
     color: #d9fff6 !important;
     font-size: 11px !important;
     line-height: 1.1 !important;
+    opacity: 1 !important;
   }
 
-  body.r77-mobile-stable #dashboardCurrentDateTime {
+  body.r78-mobile-stable #dashboardCurrentDateTime {
     color: #ffffff !important;
     font-size: 15px !important;
     line-height: 1.15 !important;
+    opacity: 1 !important;
   }
 
-  body.r77-mobile-stable #dashboardLastUpdated {
+  body.r78-mobile-stable #dashboardLastUpdated {
     display: none !important;
   }
 
@@ -165,14 +164,13 @@
    * Main / Toolbar
    ************************************************************/
 
-  body.r77-mobile-stable .control-main {
+  body.r78-mobile-stable .control-main {
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
     display: block !important;
     grid-template: none !important;
-    grid-template-areas: none !important;
     gap: 0 !important;
     margin: 0 !important;
     padding: 10px 10px 18px !important;
@@ -180,21 +178,21 @@
     background: #eef7fb !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-toolbar {
+  body.r78-mobile-stable .dashboard-view-toolbar {
     position: relative !important;
     inset: auto !important;
     z-index: 20 !important;
     width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 9px !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
     margin: 0 0 10px !important;
-    padding: 9px !important;
+    padding: 8px !important;
     border: 1px solid #cce2ec !important;
     border-radius: 16px !important;
-    background: rgba(255, 255, 255, .96) !important;
+    background: rgba(255, 255, 255, .97) !important;
     box-shadow: 0 10px 24px rgba(6, 53, 77, .08) !important;
     overflow: visible !important;
     opacity: 1 !important;
@@ -202,8 +200,7 @@
     transform: none !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-tabs {
-    order: 1 !important;
+  body.r78-mobile-stable .dashboard-view-tabs {
     width: 100% !important;
     min-width: 0 !important;
     display: grid !important;
@@ -214,29 +211,28 @@
     background: transparent !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-tabs button {
+  body.r78-mobile-stable .dashboard-view-tabs button {
     width: 100% !important;
     min-width: 0 !important;
-    min-height: 47px !important;
+    min-height: 44px !important;
     display: grid !important;
     place-items: center !important;
     gap: 2px !important;
     border: 1px solid #c7dde8 !important;
     border-radius: 12px !important;
-    padding: 6px 4px !important;
+    padding: 5px 4px !important;
     color: #284d63 !important;
     background: #ffffff !important;
     font-size: 12px !important;
     font-weight: 900 !important;
     line-height: 1.15 !important;
     opacity: 1 !important;
-    filter: none !important;
     white-space: nowrap !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-tabs button span {
-    min-width: 26px !important;
-    min-height: 19px !important;
+  body.r78-mobile-stable .dashboard-view-tabs button span {
+    min-width: 25px !important;
+    min-height: 18px !important;
     display: inline-grid !important;
     place-items: center !important;
     border-radius: 999px !important;
@@ -246,28 +242,33 @@
     font-weight: 950 !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-tabs button.is-active {
+  body.r78-mobile-stable .dashboard-view-tabs button.is-active {
     border-color: #087f9a !important;
     color: #ffffff !important;
     background: linear-gradient(135deg, #07859e, #056a84) !important;
     box-shadow: 0 8px 18px rgba(8, 127, 154, .24) !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-tabs button.is-active span {
+  body.r78-mobile-stable .dashboard-view-tabs button.is-active span {
     color: #087f9a !important;
     background: #ffffff !important;
   }
 
-  body.r77-mobile-stable .dashboard-global-info {
+  body.r78-mobile-stable .dashboard-global-info {
     display: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls[hidden] {
+  /************************************************************
+   * Date controls — show only SHIFT / DAILY
+   ************************************************************/
+
+  body.r78-mobile-stable[data-dashboard-view="LIVE"] #dashboardShiftDateControls,
+  body.r78-mobile-stable #dashboardShiftDateControls[hidden] {
     display: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls:not([hidden]) {
-    order: 2 !important;
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] #dashboardShiftDateControls,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] #dashboardShiftDateControls {
     width: 100% !important;
     min-width: 0 !important;
     min-height: 0 !important;
@@ -283,10 +284,10 @@
     transform: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls button,
-  body.r77-mobile-stable #dashboardShiftDateControls label {
+  body.r78-mobile-stable #dashboardShiftDateControls button,
+  body.r78-mobile-stable #dashboardShiftDateControls label {
     min-width: 0 !important;
-    min-height: 46px !important;
+    min-height: 45px !important;
     border: 1px solid #c7dde8 !important;
     border-radius: 12px !important;
     background: #ffffff !important;
@@ -295,7 +296,7 @@
     filter: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls button {
+  body.r78-mobile-stable #dashboardShiftDateControls button {
     display: grid !important;
     place-items: center !important;
     padding: 0 !important;
@@ -304,7 +305,7 @@
     font-weight: 950 !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls label {
+  body.r78-mobile-stable #dashboardShiftDateControls label {
     position: relative !important;
     display: grid !important;
     align-content: center !important;
@@ -312,15 +313,17 @@
     overflow: hidden !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls label > span:not(.r66-date-display) {
+  body.r78-mobile-stable #dashboardShiftDateControls label > span:not(.r78-date-display):not(.r66-date-display) {
     display: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDate {
+  body.r78-mobile-stable #dashboardShiftDate {
+    position: absolute !important;
+    inset: 0 !important;
     width: 100% !important;
+    height: 100% !important;
     min-width: 0 !important;
-    height: 1px !important;
-    min-height: 1px !important;
+    min-height: 0 !important;
     border: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -330,8 +333,10 @@
     pointer-events: auto !important;
   }
 
-  body.r77-mobile-stable .r66-date-display {
-    position: static !important;
+  body.r78-mobile-stable .r78-date-display,
+  body.r78-mobile-stable .r66-date-display {
+    position: relative !important;
+    inset: auto !important;
     display: block !important;
     width: 100% !important;
     min-width: 0 !important;
@@ -350,24 +355,39 @@
   }
 
   /************************************************************
-   * Workspace / Shift / Daily
+   * View visibility
    ************************************************************/
 
-  body.r77-mobile-stable #dashboardShiftWorkspace[hidden] {
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] .command-row,
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] .operations-row,
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] .mobile-analytics-tabs,
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] .analytics-row,
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] .mobile-system-title,
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] .system-summary,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] .command-row,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] .operations-row,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] .mobile-analytics-tabs,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] .analytics-row,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] .mobile-system-title,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] .system-summary {
     display: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftWorkspace:not([hidden]) {
+  body.r78-mobile-stable[data-dashboard-view="LIVE"] #dashboardShiftWorkspace {
+    display: none !important;
+  }
+
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] #dashboardShiftWorkspace,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] #dashboardShiftWorkspace {
     position: relative !important;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
     height: auto !important;
-    min-height: 0 !important;
+    min-height: 260px !important;
     max-height: none !important;
     display: block !important;
     grid-template: none !important;
-    grid-template-areas: none !important;
     gap: 10px !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -381,12 +401,14 @@
     transform: none !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftWorkspace * {
+  body.r78-mobile-stable #dashboardShiftWorkspace,
+  body.r78-mobile-stable #dashboardShiftWorkspace * {
     opacity: 1 !important;
     filter: none !important;
+    transform: none !important;
   }
 
-  body.r77-mobile-stable .shift-dashboard-loading {
+  body.r78-mobile-stable .shift-dashboard-loading {
     min-height: 180px !important;
     display: grid !important;
     place-items: center !important;
@@ -400,20 +422,20 @@
     box-shadow: 0 10px 24px rgba(6, 53, 77, .08) !important;
   }
 
-  body.r77-mobile-stable .shift-dashboard-loading strong {
+  body.r78-mobile-stable .shift-dashboard-loading strong {
     color: #123c54 !important;
     font-size: 15px !important;
     opacity: 1 !important;
   }
 
-  body.r77-mobile-stable .shift-executive-header,
-  body.r77-mobile-stable .shift-executive-kpis,
-  body.r77-mobile-stable .shift-comparison-grid,
-  body.r77-mobile-stable .shift-dashboard-analysis,
-  body.r77-mobile-stable .shift-dashboard-lower,
-  body.r77-mobile-stable .daily-summary-grid,
-  body.r77-mobile-stable .daily-dashboard-analysis,
-  body.r77-mobile-stable .shift-dashboard-footer {
+  body.r78-mobile-stable .shift-executive-header,
+  body.r78-mobile-stable .shift-executive-kpis,
+  body.r78-mobile-stable .shift-comparison-grid,
+  body.r78-mobile-stable .shift-dashboard-analysis,
+  body.r78-mobile-stable .shift-dashboard-lower,
+  body.r78-mobile-stable .daily-summary-grid,
+  body.r78-mobile-stable .daily-dashboard-analysis,
+  body.r78-mobile-stable .shift-dashboard-footer {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
@@ -427,7 +449,7 @@
     transform: none !important;
   }
 
-  body.r77-mobile-stable .shift-executive-header {
+  body.r78-mobile-stable .shift-executive-header {
     display: grid !important;
     grid-template-columns: 1fr !important;
     gap: 9px !important;
@@ -440,21 +462,21 @@
     box-shadow: 0 10px 24px rgba(6, 53, 77, .07) !important;
   }
 
-  body.r77-mobile-stable .shift-executive-header small {
+  body.r78-mobile-stable .shift-executive-header small {
     color: #087f9a !important;
     font-size: 10px !important;
     font-weight: 950 !important;
   }
 
-  body.r77-mobile-stable .shift-executive-header h2 {
+  body.r78-mobile-stable .shift-executive-header h2 {
     margin: 0 !important;
     color: #082f49 !important;
     font-size: 20px !important;
     line-height: 1.2 !important;
   }
 
-  body.r77-mobile-stable .shift-executive-header p,
-  body.r77-mobile-stable .shift-methodology-note {
+  body.r78-mobile-stable .shift-executive-header p,
+  body.r78-mobile-stable .shift-methodology-note {
     margin: 4px 0 0 !important;
     color: #466777 !important;
     font-size: 11px !important;
@@ -464,13 +486,13 @@
     text-overflow: clip !important;
   }
 
-  body.r77-mobile-stable .shift-executive-badges {
+  body.r78-mobile-stable .shift-executive-badges {
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 6px !important;
   }
 
-  body.r77-mobile-stable .shift-executive-badges span {
+  body.r78-mobile-stable .shift-executive-badges span {
     min-height: 24px !important;
     display: inline-grid !important;
     place-items: center !important;
@@ -480,15 +502,15 @@
     font-weight: 900 !important;
   }
 
-  body.r77-mobile-stable .shift-executive-kpis,
-  body.r77-mobile-stable .daily-summary-grid {
+  body.r78-mobile-stable .shift-executive-kpis,
+  body.r78-mobile-stable .daily-summary-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
   }
 
-  body.r77-mobile-stable .shift-executive-kpis > div,
-  body.r77-mobile-stable .daily-summary-grid > div {
+  body.r78-mobile-stable .shift-executive-kpis > div,
+  body.r78-mobile-stable .daily-summary-grid > div {
     min-width: 0 !important;
     min-height: 76px !important;
     display: grid !important;
@@ -500,35 +522,35 @@
     background: #ffffff !important;
   }
 
-  body.r77-mobile-stable .shift-executive-kpis span,
-  body.r77-mobile-stable .daily-summary-grid span {
+  body.r78-mobile-stable .shift-executive-kpis span,
+  body.r78-mobile-stable .daily-summary-grid span {
     color: #597383 !important;
     font-size: 10px !important;
     line-height: 1.2 !important;
     font-weight: 850 !important;
   }
 
-  body.r77-mobile-stable .shift-executive-kpis strong,
-  body.r77-mobile-stable .daily-summary-grid strong {
+  body.r78-mobile-stable .shift-executive-kpis strong,
+  body.r78-mobile-stable .daily-summary-grid strong {
     color: #082f49 !important;
     font-size: 22px !important;
     line-height: 1.1 !important;
     font-weight: 950 !important;
   }
 
-  body.r77-mobile-stable .shift-comparison-grid,
-  body.r77-mobile-stable .shift-dashboard-analysis,
-  body.r77-mobile-stable .shift-dashboard-lower,
-  body.r77-mobile-stable .daily-dashboard-analysis {
+  body.r78-mobile-stable .shift-comparison-grid,
+  body.r78-mobile-stable .shift-dashboard-analysis,
+  body.r78-mobile-stable .shift-dashboard-lower,
+  body.r78-mobile-stable .daily-dashboard-analysis {
     display: grid !important;
     grid-template-columns: 1fr !important;
     grid-template-rows: auto !important;
     gap: 10px !important;
   }
 
-  body.r77-mobile-stable .shift-performance-card,
-  body.r77-mobile-stable .shift-analysis-panel,
-  body.r77-mobile-stable .daily-insight-panel {
+  body.r78-mobile-stable .shift-performance-card,
+  body.r78-mobile-stable .shift-analysis-panel,
+  body.r78-mobile-stable .daily-insight-panel {
     width: 100% !important;
     min-width: 0 !important;
     height: auto !important;
@@ -543,15 +565,15 @@
     box-shadow: 0 8px 20px rgba(6, 53, 77, .06) !important;
   }
 
-  body.r77-mobile-stable .shift-performance-card > header,
-  body.r77-mobile-stable .shift-analysis-panel > header,
-  body.r77-mobile-stable .daily-insight-panel > header {
+  body.r78-mobile-stable .shift-performance-card > header,
+  body.r78-mobile-stable .shift-analysis-panel > header,
+  body.r78-mobile-stable .daily-insight-panel > header {
     padding: 10px 12px !important;
     border-bottom: 1px solid #e4eef3 !important;
   }
 
-  body.r77-mobile-stable .shift-chart-wrap,
-  body.r77-mobile-stable .daily-history-chart-wrap {
+  body.r78-mobile-stable .shift-chart-wrap,
+  body.r78-mobile-stable .daily-history-chart-wrap {
     width: 100% !important;
     min-width: 0 !important;
     height: 220px !important;
@@ -560,7 +582,7 @@
     overflow: hidden !important;
   }
 
-  body.r77-mobile-stable .daily-history-table-wrap {
+  body.r78-mobile-stable .daily-history-table-wrap {
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: auto !important;
@@ -568,11 +590,11 @@
     padding: 8px !important;
   }
 
-  body.r77-mobile-stable .daily-history-table {
+  body.r78-mobile-stable .daily-history-table {
     min-width: 760px !important;
   }
 
-  body.r77-mobile-stable .shift-dashboard-footer {
+  body.r78-mobile-stable .shift-dashboard-footer {
     display: grid !important;
     gap: 4px !important;
     padding: 8px 4px 16px !important;
@@ -582,34 +604,36 @@
 }
 
 @media (max-width: 390px) {
-  body.r77-mobile-stable .control-header__inner {
-    grid-template-columns: 42px minmax(0, 1fr) !important;
+  body.r78-mobile-stable .control-header__inner {
+    grid-template-columns: 40px minmax(0, 1fr) !important;
     padding: 10px !important;
   }
 
-  body.r77-mobile-stable .header-icon-button {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
+  body.r78-mobile-stable .header-icon-button {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
   }
 
-  body.r77-mobile-stable .dashboard-view-tabs button {
-    min-height: 44px !important;
+  body.r78-mobile-stable .dashboard-view-tabs button {
+    min-height: 42px !important;
     font-size: 11px !important;
   }
 
-  body.r77-mobile-stable #dashboardShiftDateControls:not([hidden]) {
+  body.r78-mobile-stable[data-dashboard-view="SHIFT"] #dashboardShiftDateControls,
+  body.r78-mobile-stable[data-dashboard-view="DAILY"] #dashboardShiftDateControls {
     grid-template-columns: 38px minmax(0, 1fr) 58px 38px !important;
     gap: 6px !important;
   }
 
-  body.r77-mobile-stable .r66-date-display {
+  body.r78-mobile-stable .r78-date-display,
+  body.r78-mobile-stable .r66-date-display {
     font-size: 12px !important;
   }
 
-  body.r77-mobile-stable .shift-executive-kpis,
-  body.r77-mobile-stable .daily-summary-grid {
+  body.r78-mobile-stable .shift-executive-kpis,
+  body.r78-mobile-stable .daily-summary-grid {
     grid-template-columns: 1fr !important;
   }
 }
