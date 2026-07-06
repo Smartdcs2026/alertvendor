@@ -1,6 +1,6 @@
 /************************************************************
  * dashboard-executive-clean.js
- * ROUND 65 — Executive Clean Layout Controller
+ * ROUND 80 — Executive Clean Layout Controller
  ************************************************************/
 
 (function (window, document) {
@@ -116,7 +116,13 @@
         'dashboardViewToolbar'
       );
 
-    const headerHeight =
+    const isSmallScreen =
+      window.matchMedia &&
+      window.matchMedia(
+        '(max-width: 920px)'
+      ).matches;
+
+    const measuredHeaderHeight =
       header
         ? Math.ceil(
             header.getBoundingClientRect()
@@ -124,12 +130,28 @@
           )
         : 76;
 
-    const toolbarHeight =
+    const measuredToolbarHeight =
       toolbar
         ? Math.ceil(
             toolbar.getBoundingClientRect()
               .height
           )
+        : 54;
+
+    /*
+     * ROUND 80:
+     * ห้ามนำค่าความสูง header ตอนจอเล็กไปค้างใช้บน desktop
+     * เพราะตอน mobile header ถูกจัดเป็นหลายแถว ทำให้สูงกว่าปกติ
+     * เมื่อขยายกลับ desktop จึงเกิดอาการแถบด้านบนใหญ่ผิดปกติ
+     */
+    const headerHeight =
+      isSmallScreen
+        ? measuredHeaderHeight
+        : 76;
+
+    const toolbarHeight =
+      isSmallScreen
+        ? measuredToolbarHeight
         : 54;
 
     document.documentElement
@@ -147,6 +169,18 @@
     document.documentElement
       .style.setProperty(
         '--r65-vh',
+        window.innerHeight + 'px'
+      );
+
+    document.documentElement
+      .style.setProperty(
+        '--shift-dashboard-header-height',
+        headerHeight + 'px'
+      );
+
+    document.documentElement
+      .style.setProperty(
+        '--shift-dashboard-viewport-height',
         window.innerHeight + 'px'
       );
   }
