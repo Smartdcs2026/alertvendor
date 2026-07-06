@@ -306,3 +306,74 @@ pre {
   .step { grid-template-columns: 30px 1fr; }
   .step .badge { grid-column: 2; justify-self: flex-start; }
 }
+
+
+/************************************************************
+ * VCW-R08C Auto Save UI
+ ************************************************************/
+
+.auto-save-box {
+  margin-top: 16px;
+  border: 1px solid #b7e4d2;
+  background: linear-gradient(135deg, #effdf7, #f8fafc);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.auto-save-box h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #0f172a;
+}
+
+.auto-save-box.auto-off {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.auto-save-controls {
+  display: grid;
+  gap: 10px;
+  min-width: 210px;
+}
+
+.switch-row,
+.delay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.switch-row input {
+  width: 20px;
+  min-height: 20px;
+  accent-color: var(--success);
+}
+
+.delay-row input {
+  width: 72px;
+  min-height: 38px;
+  text-align: center;
+  font-weight: 900;
+}
+
+.vcw-swal-popup {
+  border-radius: 22px !important;
+}
+
+@media (max-width: 860px) {
+  .auto-save-box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .auto-save-controls {
+    min-width: 0;
+  }
+}
