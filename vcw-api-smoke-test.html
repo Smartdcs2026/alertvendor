@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VCW-R07 Workflow API Smoke Test</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #f6f7fb;
+      color: #101828;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(16, 24, 40, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 14px;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d0d5dd;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      margin-top: 6px;
+      background: #ffffff;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 700;
+      background: #101828;
+      color: #ffffff;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #344054;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0b1220;
+      color: #d1e9ff;
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 180px;
+      overflow: auto;
+    }
+
+    .note {
+      background: #fffaeb;
+      border: 1px solid #fedf89;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>VCW-R07 Workflow API Smoke Test</h1>
+    <p class="note">
+      หน้านี้ใช้ทดสอบ Lookup / State เท่านั้น ยังไม่บันทึกข้อมูลจริง
+      ต้อง Login ในระบบก่อน เพื่อให้ Browser มี Bearer Token
+    </p>
+
+    <label for="apiBase">API Base</label>
+    <input id="apiBase" value="https://alertvendor.somchaibutphon.workers.dev">
+
+    <label for="moduleId">Module ID</label>
+    <input id="moduleId" value="vendors">
+
+    <label for="entryCode">รหัสเข้าพื้นที่ / Auto ID / QR Code</label>
+    <input id="entryCode" placeholder="ใส่ Auto ID จาก Gate In">
+
+    <div class="actions">
+      <button type="button" id="btnLookup">ทดสอบ Lookup</button>
+      <button type="button" class="secondary" id="btnState">ทดสอบ State</button>
+    </div>
+
+    <h2>ผลลัพธ์</h2>
+    <pre id="result">รอทดสอบ...</pre>
+  </main>
+
+  <script src="./vcw-workflow-api.js"></script>
+  <script>
+    const apiBaseInput = document.getElementById('apiBase');
+    const moduleIdInput = document.getElementById('moduleId');
+    const entryCodeInput = document.getElementById('entryCode');
+    const resultEl = document.getElementById('result');
+
+    function show(value) {
+      resultEl.textContent = typeof value === 'string'
+        ? value
+        : JSON.stringify(value, null, 2);
+    }
+
+    function getInput() {
+      window.VCWWorkflowApi.configure({
+        apiBase: apiBaseInput.value,
+        defaultModuleId: moduleIdInput.value
+      });
+
+      return {
+        moduleId: moduleIdInput.value.trim(),
+        entryCode: entryCodeInput.value.trim()
+      };
+    }
+
+    document.getElementById('btnLookup').addEventListener('click', async () => {
+      try {
+        const input = getInput();
+        show('กำลัง Lookup...');
+        const data = await window.VCWWorkflowApi.lookupEntry(
+          input.moduleId,
+          input.entryCode
+        );
+        show(data);
+      } catch (error) {
+        show({
+          success: false,
+          code: error.code || error.name,
+          message: error.message,
+          status: error.status || 0,
+          details: error.details || {}
+        });
+      }
+    });
+
+    document.getElementById('btnState').addEventListener('click', async () => {
+      try {
+        const input = getInput();
+        show('กำลังอ่าน State...');
+        const data = await window.VCWWorkflowApi.getState(
+          input.moduleId,
+          input.entryCode
+        );
+        show(data);
+      } catch (error) {
+        show({
+          success: false,
+          code: error.code || error.name,
+          message: error.message,
+          status: error.status || 0,
+          details: error.details || {}
+        });
+      }
+    });
+  </script>
+</body>
+</html>
