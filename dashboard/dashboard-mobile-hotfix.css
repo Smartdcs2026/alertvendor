@@ -1,6 +1,6 @@
 /************************************************************
  * dashboard-mobile-hotfix.css
- * ROUND 79 — Mobile Real Fix
+ * ROUND 80 — Mobile Daily Chart + Header Stable Fix
  *
  * ใช้เป็นไฟล์ CSS ตัวสุดท้ายของ dashboard/index.html
  * ไฟล์นี้แก้ปัญหา:
@@ -694,5 +694,144 @@
   body.dashboard-page .shift-executive-kpis,
   body.dashboard-page .daily-summary-grid {
     grid-template-columns: 1fr !important;
+  }
+}
+/************************************************************
+ * ROUND 80 — Daily Mobile Chart / Header Stabilizer
+ * โหลดต่อท้ายในไฟล์นี้ เพื่อแก้ปัญหาเฉพาะที่ยังเหลือจาก R79
+ ************************************************************/
+
+@media (max-width: 920px) {
+  /*
+   * ป้องกันค่า header จาก desktop clean layout ค้างในมือถือ
+   * และทำให้ header สูงตามเนื้อหาจริงเท่านั้น
+   */
+  html {
+    --r65-header-h: auto !important;
+    --shift-dashboard-header-height: auto !important;
+  }
+
+  body.dashboard-page .control-header,
+  body.r65-dashboard-clean .control-header {
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  body.dashboard-page .control-header__inner,
+  body.r65-dashboard-clean .control-header__inner {
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /*
+   * หน้า SHIFT / DAILY ต้องวางเนื้อหาเป็นลำดับเดียว
+   * ห้ามใช้ grid area จาก desktop เพราะทำให้ซ้อนกันเมื่อจอแคบ
+   */
+  body.dashboard-page[data-dashboard-view="SHIFT"] #dashboardShiftWorkspace,
+  body.dashboard-page[data-dashboard-view="DAILY"] #dashboardShiftWorkspace {
+    display: block !important;
+    contain: layout paint !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] #dashboardShiftWorkspace > *,
+  body.dashboard-page[data-dashboard-view="DAILY"] #dashboardShiftWorkspace > * {
+    max-width: 100% !important;
+  }
+
+  /*
+   * แก้จุดหลัก: กราฟแนวโน้มรายวันต้องสูงพอสำหรับ
+   * เส้นกราฟ + แกน X + legend ด้านล่าง
+   */
+  body.dashboard-page .daily-trend-panel {
+    overflow: visible !important;
+  }
+
+  body.dashboard-page .daily-history-chart-wrap {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 320px !important;
+    min-height: 320px !important;
+    padding: 8px 8px 22px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page .daily-history-chart-wrap canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /*
+   * ตารางรายละเอียดรายวันไม่ควรไปทับกราฟ
+   * ให้เลื่อนแนวนอนได้เมื่อคอลัมน์มากกว่าความกว้างมือถือ
+   */
+  body.dashboard-page .daily-history-panel {
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page .daily-history-table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 280px !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 8px !important;
+  }
+
+  body.dashboard-page .daily-history-table {
+    width: max-content !important;
+    min-width: 760px !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+  }
+
+  body.dashboard-page .daily-history-table th,
+  body.dashboard-page .daily-history-table td {
+    white-space: nowrap !important;
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+  }
+
+  /*
+   * กล่องสรุปผู้บริหารบนมือถือให้เรียง 1 คอลัมน์
+   * ป้องกันข้อความยาวเบียดกัน
+   */
+  body.dashboard-page .daily-insight-panel {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+    overflow: visible !important;
+  }
+
+  body.dashboard-page .daily-insight-panel > * {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body.dashboard-page .daily-history-chart-wrap {
+    height: 340px !important;
+    min-height: 340px !important;
+    padding-bottom: 26px !important;
+  }
+
+  body.dashboard-page .daily-history-table-wrap {
+    max-height: 260px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body.dashboard-page .daily-history-chart-wrap {
+    height: 360px !important;
+    min-height: 360px !important;
+  }
+
+  body.dashboard-page .daily-history-table th,
+  body.dashboard-page .daily-history-table td {
+    font-size: 9px !important;
   }
 }
