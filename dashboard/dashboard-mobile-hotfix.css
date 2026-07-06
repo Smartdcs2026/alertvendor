@@ -1971,3 +1971,211 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/************************************************************
+ * ROUND 86 — Desktop Normal Window Chart Fit
+ *
+ * แก้หน้า LIVE บนจอคอมพ์ที่ยังไม่ได้กดเต็มจอ:
+ * - HOURLY FLOW ถูกบีบจนข้อมูล/แกน/legend ขาดหาย
+ * - FLOW COMPLETION TODAY แสดงไม่ครบทุกแถว
+ *
+ * แนวทาง:
+ * - ให้ analytics row มีความสูงขั้นต่ำที่พอสำหรับกราฟและ funnel
+ * - ถ้าความสูงหน้าต่างไม่พอ ให้เลื่อนหน้าได้แทนการตัดข้อมูล
+ * - บีบขนาดเฉพาะภายใน funnel ให้ครบ 5 ขั้นตอนโดยยังอ่านได้
+ ************************************************************/
+
+@media (min-width: 921px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    height: calc(100dvh - 76px) !important;
+    min-height: 720px !important;
+    grid-template-rows:
+      54px
+      116px
+      minmax(255px, 1fr)
+      minmax(230px, .72fr)
+      64px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-bottom: 10px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row {
+    min-height: 230px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    align-items: stretch !important;
+    grid-template-columns:
+      1.18fr
+      .82fr
+      1fr
+      1fr
+      .98fr !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel {
+    min-height: 230px !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-rows: 42px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel__header {
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 8px 11px 5px !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel__header h2 {
+    line-height: 1.12 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-shell {
+    min-height: 0 !important;
+    height: auto !important;
+    display: block !important;
+    padding: 0 9px 9px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-shell canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-panel {
+    min-height: 230px !important;
+    display: grid !important;
+    grid-template-rows: 42px minmax(0, 1fr) 30px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five {
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-rows: repeat(5, minmax(0, 1fr)) !important;
+    align-content: stretch !important;
+    gap: 5px !important;
+    padding: 5px 10px 4px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five .process-funnel__stage {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    grid-template-columns: minmax(0, 1fr) auto 46px !important;
+    column-gap: 7px !important;
+    padding: 4px 13px 4px 10px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five .process-funnel__stage span {
+    min-width: 0 !important;
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five .process-funnel__stage strong {
+    font-size: 15px !important;
+    line-height: 1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five .process-funnel__stage small {
+    font-size: 7px !important;
+    line-height: 1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-rate {
+    min-height: 30px !important;
+    height: 30px !important;
+    margin: 0 10px 7px !important;
+    padding-top: 5px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (min-width: 921px) and (max-height: 820px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    min-height: 700px !important;
+    grid-template-rows:
+      50px
+      108px
+      minmax(240px, 1fr)
+      minmax(220px, .72fr)
+      56px !important;
+    gap: 7px !important;
+    overflow-y: auto !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardViewToolbar {
+    height: 50px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-panel {
+    min-height: 220px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel {
+    grid-template-rows: 38px minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel__header {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 7px 10px 4px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-panel {
+    grid-template-rows: 38px minmax(0, 1fr) 28px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five {
+    gap: 4px !important;
+    padding: 4px 9px 3px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-funnel--five .process-funnel__stage {
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-rate {
+    height: 28px !important;
+    min-height: 28px !important;
+    margin-bottom: 6px !important;
+  }
+}
+
+@media (min-width: 921px) and (min-height: 900px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    min-height: 0 !important;
+    grid-template-rows:
+      58px
+      126px
+      minmax(320px, 1fr)
+      minmax(245px, .72fr)
+      72px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .process-panel {
+    min-height: 245px !important;
+  }
+}
