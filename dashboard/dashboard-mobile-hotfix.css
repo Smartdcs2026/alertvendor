@@ -1295,3 +1295,456 @@
     height: 78px !important;
   }
 }
+
+/************************************************************
+ * ROUND 84 — Mobile KPI Compact + Desktop LIVE Stable Rows
+ *
+ * แก้จากภาพล่าสุด:
+ * 1) หน้าจอมือถือของ "ผลงานตามกะ" และ "สรุปรายวัน"
+ *    ไม่ให้ KPI เรียงยาว 1 แถวต่อ 1 การ์ด
+ *    เปลี่ยนเป็น 2 คอลัมน์เพื่อใช้พื้นที่คุ้มขึ้น
+ *
+ * 2) หน้า Desktop LIVE
+ *    ลดความสูงแถวให้พอดีกับจอจริง
+ *    ป้องกัน footer / SYSTEM SUMMARY ด้านล่างถูกตัด
+ *
+ * 3) CURRENT STATUS
+ *    แยก heading กับ card grid ให้ชัดเจน
+ *    ป้องกันข้อความหัวข้อถูกการ์ดทับ
+ *
+ * 4) ACTION QUEUE
+ *    ให้ใช้พื้นที่แนวตั้งเต็ม panel
+ *    ลดความสูง item เพื่อแสดงรายการได้มากขึ้น
+ ************************************************************/
+
+@media (max-width: 920px) {
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis > div,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid > div {
+    min-width: 0 !important;
+    min-height: 78px !important;
+    height: auto !important;
+    display: grid !important;
+    align-content: center !important;
+    justify-items: center !important;
+    gap: 3px !important;
+    padding: 9px 8px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis span,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid span {
+    max-width: 100% !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis strong,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid strong {
+    max-width: 100% !important;
+    font-size: 22px !important;
+    line-height: 1.05 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis small,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid small {
+    max-width: 100% !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis > div,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid > div {
+    min-height: 74px !important;
+    padding: 8px 6px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis strong,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid strong {
+    font-size: 20px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis span,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid span {
+    font-size: 9px !important;
+  }
+}
+
+@media (max-width: 330px) {
+  body.dashboard-page[data-dashboard-view="SHIFT"] .shift-executive-kpis,
+  body.dashboard-page[data-dashboard-view="DAILY"] .daily-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 921px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] {
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    height: calc(100dvh - 76px) !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows:
+      54px
+      116px
+      minmax(0, 1fr)
+      172px
+      62px !important;
+    grid-auto-rows: minmax(0, auto) !important;
+    gap: 8px !important;
+    padding: 8px 0 10px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardViewToolbar {
+    height: 54px !important;
+    min-height: 0 !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .dashboard-view-tabs button {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 6px 15px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .operations-row,
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .command-row {
+    grid-template-columns:
+      minmax(270px, .82fr)
+      minmax(560px, 2.45fr)
+      minmax(270px, .9fr) !important;
+    gap: 8px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .analytics-row {
+    grid-template-columns:
+      1.15fr
+      .82fr
+      1fr
+      1fr
+      .88fr !important;
+    gap: 8px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-shell {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-panel__header {
+    min-height: 38px !important;
+    padding: 7px 10px 4px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .chart-shell {
+    height: calc(100% - 38px) !important;
+    padding: 0 8px 7px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 7px 12px !important;
+    box-sizing: border-box !important;
+    align-self: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__title,
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__item {
+    min-height: 0 !important;
+    height: auto !important;
+    align-self: stretch !important;
+    display: grid !important;
+    align-content: center !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__item strong {
+    font-size: 15px !important;
+    line-height: 1.05 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary__item--wide strong {
+    font-size: 11px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .situation-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel,
+  body.dashboard-page[data-dashboard-view="LIVE"] .threshold-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel {
+    display: grid !important;
+    grid-template-rows: 40px minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel .panel-heading {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 8px 11px 2px !important;
+    box-sizing: border-box !important;
+    align-items: start !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel .panel-heading small {
+    font-size: 8px !important;
+    line-height: 1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel .panel-heading h2 {
+    margin-top: 1px !important;
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-grid {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    padding: 5px 9px 8px !important;
+    box-sizing: border-box !important;
+    align-content: stretch !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    display: grid !important;
+    grid-template-columns: 28px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto !important;
+    align-content: center !important;
+    column-gap: 6px !important;
+    padding: 6px 8px 6px 10px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card__icon {
+    width: 28px !important;
+    height: 28px !important;
+    align-self: center !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card__icon svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card > span:not(.status-command-card__icon) {
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card strong {
+    font-size: 21px !important;
+    line-height: 1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card small {
+    font-size: 6.5px !important;
+    line-height: 1.1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .operations-row {
+    grid-template-columns:
+      minmax(255px, .82fr)
+      minmax(620px, 2.65fr)
+      minmax(275px, .92fr) !important;
+    gap: 8px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .operations-side {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .receiving-panel {
+    display: none !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: 42px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-panel .panel-heading {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 8px 10px 4px !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-queue {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    display: grid !important;
+    grid-auto-rows: minmax(38px, auto) !important;
+    align-content: start !important;
+    gap: 5px !important;
+    padding: 0 8px 8px !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-item {
+    min-height: 38px !important;
+    grid-template-columns: 25px minmax(0, 1fr) auto !important;
+    gap: 5px !important;
+    padding: 4px 6px !important;
+    border-radius: 8px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-item__rank {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 9px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-item__main strong {
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-item__main small {
+    font-size: 7px !important;
+    line-height: 1.1 !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-item__time {
+    font-size: 8.5px !important;
+  }
+}
+
+@media (min-width: 921px) and (max-height: 820px) {
+  body.dashboard-page[data-dashboard-view="LIVE"] .control-main {
+    grid-template-rows:
+      50px
+      108px
+      minmax(0, 1fr)
+      145px
+      56px !important;
+    gap: 7px !important;
+    padding: 7px 0 9px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] #dashboardViewToolbar {
+    height: 50px !important;
+    padding: 6px 10px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .dashboard-view-tabs button {
+    height: 35px !important;
+    min-height: 35px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel {
+    grid-template-rows: 36px minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-panel .panel-heading {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 7px 10px 1px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-grid {
+    padding: 4px 8px 7px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .status-command-card strong {
+    font-size: 19px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-panel {
+    grid-template-rows: 38px minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-panel .panel-heading {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 7px 9px 3px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-queue {
+    grid-auto-rows: minmax(34px, auto) !important;
+    gap: 4px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .action-item {
+    min-height: 34px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary {
+    padding: 5px 10px !important;
+  }
+
+  body.dashboard-page[data-dashboard-view="LIVE"] .system-summary small {
+    display: none !important;
+  }
+}
