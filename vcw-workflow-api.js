@@ -35,6 +35,8 @@
     'module';
 
   const TOKEN_KEYS = [
+    // key ที่ api.js เดิมของระบบ Alert Vendor ใช้อยู่
+    'alertvendor_access_token',
     'vehicle_status_access_token',
     'vehicleStatusAccessToken',
     'accessToken',
@@ -45,6 +47,8 @@
   ];
 
   const SESSION_KEYS = [
+    'alertvendor_session',
+    'alertvendor_user',
     'vehicle_status_session',
     'vehicleStatusSession',
     'authSession',
@@ -916,7 +920,7 @@
 
   const api = {
     version:
-      'VCW-R07-2026-07-06',
+      'VCW-R07A-2026-07-07',
 
     VCWApiError,
 
