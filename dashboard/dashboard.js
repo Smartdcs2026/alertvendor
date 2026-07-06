@@ -3441,24 +3441,203 @@
     };
   }
 
+  /************************************************************
+   * ROUND 74 — Chart lifecycle guard
+   *
+   * แก้ปัญหา:
+   * Canvas is already in use. Chart with ID '0'
+   * must be destroyed before the canvas can be reused.
+   *
+   * สาเหตุ:
+   * บางครั้ง DOM / CSS mobile layout / silent refresh ทำให้ state.charts
+   * ไม่ตรงกับ Chart instance ที่ Chart.js ผูกอยู่กับ canvas จริง
+   ************************************************************/
+
   function upsertChart(
     existingChart,
     canvas,
     config
   ) {
-    if (existingChart) {
-      existingChart.data = config.data;
-      existingChart.options = config.options;
-      existingChart.update('none');
-      return existingChart;
+    if (
+      !canvas ||
+      typeof window.Chart === 'undefined'
+    ) {
+      return null;
     }
 
-    return new Chart(canvas, config);
+    const canvasChart =
+      getChartOnCanvas(
+        canvas
+      );
+
+    const reusableChart =
+      existingChart &&
+      existingChart.canvas === canvas &&
+      existingChart.ctx
+        ? existingChart
+        : canvasChart;
+
+    if (
+      reusableChart &&
+      reusableChart.canvas === canvas &&
+      reusableChart.ctx
+    ) {
+      reusableChart.data =
+        config.data;
+
+      reusableChart.options =
+        config.options;
+
+      try {
+        reusableChart.update(
+          'none'
+        );
+      } catch (error) {
+        safeDestroyChartInstance(
+          reusableChart
+        );
+
+        return createFreshChart(
+          canvas,
+          config
+        );
+      }
+
+      return reusableChart;
+    }
+
+    if (
+      existingChart &&
+      existingChart !== canvasChart
+    ) {
+      safeDestroyChartInstance(
+        existingChart
+      );
+    }
+
+    if (canvasChart) {
+      safeDestroyChartInstance(
+        canvasChart
+      );
+    }
+
+    return createFreshChart(
+      canvas,
+      config
+    );
   }
 
+
+  function createFreshChart(
+    canvas,
+    config
+  ) {
+    const currentChart =
+      getChartOnCanvas(
+        canvas
+      );
+
+    if (currentChart) {
+      safeDestroyChartInstance(
+        currentChart
+      );
+    }
+
+    return new Chart(
+      canvas,
+      config
+    );
+  }
+
+
+  function getChartOnCanvas(
+    canvas
+  ) {
+    if (
+      !canvas ||
+      typeof window.Chart === 'undefined' ||
+      typeof window.Chart.getChart !== 'function'
+    ) {
+      return null;
+    }
+
+    try {
+      return (
+        window.Chart.getChart(
+          canvas
+        ) || null
+      );
+    } catch (error) {
+      return null;
+    }
+  }
+
+
+  function safeDestroyChartInstance(
+    chart
+  ) {
+    if (!chart) {
+      return;
+    }
+
+    try {
+      if (
+        typeof chart.destroy === 'function'
+      ) {
+        chart.destroy();
+      }
+    } catch (error) {
+      console.warn(
+        'ทำลาย Chart เดิมไม่สำเร็จ',
+        error
+      );
+    }
+  }
+
+
   function destroyChart(name) {
-    state.charts[name]?.destroy();
-    state.charts[name] = null;
+    const chart =
+      state.charts[name];
+
+    safeDestroyChartInstance(
+      chart
+    );
+
+    state.charts[name] =
+      null;
+
+    const canvasIdMap = {
+      hourly:
+        'hourlyMovementChart',
+
+      status:
+        'statusDistributionChart',
+
+      activeTrend:
+        'activeTrendChart',
+
+      longestWaiting:
+        'longestWaitingChart'
+    };
+
+    const canvasId =
+      canvasIdMap[name];
+
+    if (canvasId) {
+      const canvas =
+        byId(
+          canvasId
+        );
+
+      const canvasChart =
+        getChartOnCanvas(
+          canvas
+        );
+
+      safeDestroyChartInstance(
+        canvasChart
+      );
+    }
   }
 
   function resizeCharts() {
