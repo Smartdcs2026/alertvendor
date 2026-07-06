@@ -309,7 +309,7 @@ pre {
 
 
 /************************************************************
- * VCW-R08C Auto Save UI
+ * VCW-R08D Auto Save UI
  ************************************************************/
 
 .auto-save-box {
@@ -374,6 +374,73 @@ pre {
   }
 
   .auto-save-controls {
+    min-width: 0;
+  }
+}
+
+
+/************************************************************
+ * VCW-R08D Scanner Box Focus Lock
+ ************************************************************/
+
+.scanner-focus-box {
+  margin-top: 14px;
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.scanner-focus-box h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #0f172a;
+}
+
+.scanner-focus-box.scanner-off {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.scanner-focus-controls {
+  display: grid;
+  gap: 10px;
+  min-width: 230px;
+}
+
+#entryInput:focus {
+  outline: 3px solid rgba(14, 165, 233, .35);
+  border-color: #0284c7;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, .12);
+}
+
+html[data-scanner-focus="on"] #entryInput {
+  background-image: linear-gradient(90deg, rgba(14,165,233,.08), rgba(255,255,255,0));
+}
+
+.scanner-ready-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .scanner-focus-box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .scanner-focus-controls {
     min-width: 0;
   }
 }
