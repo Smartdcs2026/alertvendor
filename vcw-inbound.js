@@ -1,12 +1,12 @@
 /*
  * vcw-inbound.js
- * VCW-R08G Inbound DateTime Display Fix
+ * VCW-R08H Inbound API Load Guard
  */
 (function (window, document) {
   'use strict';
 
   const app = {
-    version: 'VCW-R08G',
+    version: 'VCW-R08H',
     busy: false,
     user: null,
     latest: null,
@@ -150,15 +150,25 @@
   }
 
   async function checkSession() {
-    if (!window.VCWWorkflowAPI) {
-      setSession(false, 'ไม่พบ vcw-workflow-api.js', 'กรุณาอัปโหลดไฟล์ vcw-workflow-api.js จาก R07B ก่อน');
+    const api = await waitForWorkflowApi(4000);
+
+    if (!api) {
+      setSession(false, 'ไม่พบ vcw-workflow-api.js', 'ตรวจสอบว่าไฟล์ vcw-workflow-api.js อยู่ที่ root เดียวกับ inbound.html และโหลดก่อน vcw-inbound.js');
       return;
     }
 
-    $('apiVersionBadge').textContent = window.VCWWorkflowAPI.version || app.version;
+    if (typeof api.me !== 'function') {
+      setSession(false, 'vcw-workflow-api.js รุ่นไม่ถูกต้อง', 'ต้องใช้ไฟล์ VCW-R11C ที่มีฟังก์ชัน me()');
+      return;
+    }
+
+    window.VCWWorkflowAPI = api;
+    window.VCWWorkflowApi = api;
+
+    $('apiVersionBadge').textContent = api.version || app.version;
     log('กำลังตรวจสอบ /api/auth/me ...');
 
-    const response = await window.VCWWorkflowAPI.me(getApiBase());
+    const response = await api.me(getApiBase());
     logResponse('AUTH ME', response);
 
     if (!response.success) {
@@ -177,6 +187,30 @@
     );
 
     updateButtons();
+  }
+
+  function waitForWorkflowApi(timeoutMs) {
+    const startedAt = Date.now();
+
+    return new Promise(function (resolve) {
+      function check() {
+        const api = window.VCWWorkflowAPI || window.VCWWorkflowApi;
+
+        if (api) {
+          resolve(api);
+          return;
+        }
+
+        if (Date.now() - startedAt >= timeoutMs) {
+          resolve(null);
+          return;
+        }
+
+        window.setTimeout(check, 80);
+      }
+
+      check();
+    });
   }
 
   function normalizeUser(data) {
@@ -565,7 +599,7 @@
   }
 
   async function showAutoSuccess(actionLabel, entryCode) {
-    // VCW-R08G: intentionally no SweetAlert here.
+    // VCW-R08H: intentionally no SweetAlert here.
     // บันทึกสำเร็จแล้วให้กลับไปพร้อมรับคันถัดไปทันที
     showInlineSaveDone(actionLabel, entryCode);
   }
@@ -1298,7 +1332,7 @@
 
 
   /************************************************************
-   * DateTime Display Fix — VCW-R08G
+   * DateTime Display Fix — VCW-R08H
    * แสดงวันที่เวลาเป็น dd/MM/yyyy HH:mm:ss / Asia/Bangkok
    ************************************************************/
 
