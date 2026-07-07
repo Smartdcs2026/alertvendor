@@ -35,8 +35,12 @@
     'module';
 
   const TOKEN_KEYS = [
+    'alertvendor_access_token',
+    'alertvendor_token',
+    'alertvendorAccessToken',
     'vehicle_status_access_token',
     'vehicleStatusAccessToken',
+    'access_token',
     'accessToken',
     'authToken',
     'token',
@@ -45,6 +49,8 @@
   ];
 
   const SESSION_KEYS = [
+    'alertvendor_session',
+    'alertvendor_user',
     'vehicle_status_session',
     'vehicleStatusSession',
     'authSession',
@@ -926,6 +932,24 @@
     isAuthenticated,
     request,
 
+    workflowDashboard: async function (moduleId, options, apiBase) {
+      const opts = options || {};
+      const payload =
+        await workflowRequest({
+          moduleId,
+          action: 'dashboard',
+          query: {
+            limit: opts.limit || 30
+          },
+          requestOptions: {
+            method: 'GET',
+            apiBase: apiBase || undefined
+          }
+        });
+
+      return unwrapData(payload);
+    },
+
     lookupEntry,
     lookup:
       lookupEntry,
@@ -943,11 +967,20 @@
     createRequestId
   };
 
+  window.VCWWorkflowAPI =
+    api;
+
   window.VCWWorkflowApi =
     api;
 
   window.dispatchEvent(
     new CustomEvent('vcw-workflow-api-ready', {
+      detail: api.getConfig()
+    })
+  );
+
+  window.dispatchEvent(
+    new CustomEvent('VCWWorkflowAPIReady', {
       detail: api.getConfig()
     })
   );
