@@ -1,1 +1,100 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>VCW Smoke Test | Alert Vendor</title>
+  <style>
+    body{margin:0;background:#f1f5f9;color:#0f172a;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{max-width:980px;margin:0 auto;padding:20px}
+    .card{background:#fff;border:1px solid #dbe4ef;border-radius:22px;box-shadow:0 14px 32px rgba(15,23,42,.08);padding:16px;margin:14px 0}
+    h1{margin:0 0 6px;font-size:28px}
+    .muted{color:#64748b}
+    .grid{display:grid;grid-template-columns:1fr 120px 120px;gap:10px;align-items:end}
+    label{display:block;color:#475569;font-size:12px;font-weight:900}
+    input{width:100%;min-height:38px;border:1px solid #cbd5e1;border-radius:12px;padding:0 10px;font-weight:800;box-sizing:border-box}
+    button{min-height:38px;border:0;border-radius:12px;background:#0f3d5e;color:#fff;font-weight:950;cursor:pointer}
+    pre{white-space:pre-wrap;max-height:520px;overflow:auto;background:#0f172a;color:#e2e8f0;border-radius:16px;padding:14px;font-size:12px}
+    .ok{color:#166534;background:#dcfce7;border-radius:999px;padding:4px 10px;font-weight:900}
+    .bad{color:#991b1b;background:#fee2e2;border-radius:999px;padding:4px 10px;font-weight:900}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <p class="muted">VCW-R14B</p>
+    <h1>Alert Vendor Smoke Test</h1>
+    <p class="muted">ใช้ตรวจ Worker / Session / Dashboard / SLA / Report หลัง Deploy</p>
+  </section>
 
+  <section class="card">
+    <div class="grid">
+      <div>
+        <label>API Base</label>
+        <input id="apiBase" value="https://alertvendor.somchaibutphon.workers.dev">
+      </div>
+      <div>
+        <label>Module</label>
+        <input id="moduleId" value="vendors">
+      </div>
+      <button id="runBtn">Run Test</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div id="status" class="muted">พร้อมตรวจสอบ</div>
+    <pre id="output">-</pre>
+  </section>
+</main>
+
+<script src="./vcw-workflow-api.js?v=R14B"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  $('runBtn').addEventListener('click', run);
+
+  async function run(){
+    const api = window.VCWWorkflowAPI || window.VCWWorkflowApi;
+    const apiBase = $('apiBase').value.trim();
+    const moduleId = $('moduleId').value.trim() || 'vendors';
+    const output = { build:'VCW-R14B', moduleId, checks:{} };
+
+    setStatus('กำลังตรวจสอบ...', '');
+
+    if(!api){
+      setStatus('FAIL: ไม่พบ vcw-workflow-api.js', 'bad');
+      $('output').textContent = JSON.stringify(output, null, 2);
+      return;
+    }
+
+    output.checks.client = { ok:true, version: api.version || '-' };
+
+    output.checks.me = await api.me(apiBase);
+    output.checks.dashboard = api.workflowDashboard ? await api.workflowDashboard(moduleId, {limit:5}, apiBase) : {success:false,message:'ไม่มี workflowDashboard()'};
+    output.checks.sla = api.slaAlerts ? await api.slaAlerts(moduleId, {limit:5}, apiBase) : {success:false,message:'ไม่มี slaAlerts()'};
+    output.checks.autoSync = api.autoGateOutStatus ? await api.autoGateOutStatus(moduleId, apiBase) : {success:true,message:'ไม่มี autoGateOutStatus() แต่ไม่บังคับ'};
+    output.checks.report = api.workflowReport ? await api.workflowReport(moduleId, {date: todayIso(), limit:5}, apiBase) : {success:true,message:'ไม่มี workflowReport() ใน client นี้'};
+
+    const pass = Object.keys(output.checks).every(k => output.checks[k] && output.checks[k].success !== false);
+    setStatus(pass ? 'PASS: Smoke Test ผ่าน' : 'CHECK: ยังมีบางจุดต้องตรวจ', pass ? 'ok' : 'bad');
+    $('output').textContent = JSON.stringify(output, null, 2);
+  }
+
+  function setStatus(text, cls){
+    $('status').innerHTML = '<span class="'+(cls||'')+'">'+escapeHtml(text)+'</span>';
+  }
+
+  function todayIso(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function escapeHtml(v){
+    return String(v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));
+  }
+})();
+</script>
+</body>
+</html>
