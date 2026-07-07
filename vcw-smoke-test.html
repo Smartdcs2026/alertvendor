@@ -3,13 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>VCW Smoke Test | Alert Vendor</title>
+  <title>VCW Auth Smoke Test | Alert Vendor</title>
   <style>
     body{margin:0;background:#f1f5f9;color:#0f172a;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     main{max-width:980px;margin:0 auto;padding:20px}
     .card{background:#fff;border:1px solid #dbe4ef;border-radius:22px;box-shadow:0 14px 32px rgba(15,23,42,.08);padding:16px;margin:14px 0}
-    h1{margin:0 0 6px;font-size:28px}
-    .muted{color:#64748b}
+    h1{margin:0 0 6px;font-size:28px}.muted{color:#64748b}
     .grid{display:grid;grid-template-columns:1fr 120px 120px;gap:10px;align-items:end}
     label{display:block;color:#475569;font-size:12px;font-weight:900}
     input{width:100%;min-height:38px;border:1px solid #cbd5e1;border-radius:12px;padding:0 10px;font-weight:800;box-sizing:border-box}
@@ -23,9 +22,9 @@
 <body>
 <main>
   <section class="card">
-    <p class="muted">VCW-R14B</p>
-    <h1>Alert Vendor Smoke Test</h1>
-    <p class="muted">ใช้ตรวจ Worker / Session / Dashboard / SLA / Report หลัง Deploy</p>
+    <p class="muted">VCW-R14C</p>
+    <h1>Alert Vendor Auth Smoke Test</h1>
+    <p class="muted">ตรวจ Token / Session / Dashboard / SLA / Report หลัง Login</p>
   </section>
 
   <section class="card">
@@ -48,7 +47,7 @@
   </section>
 </main>
 
-<script src="./vcw-workflow-api.js?v=R14B"></script>
+<script src="./vcw-workflow-api.js?v=R14C"></script>
 <script>
 (function(){
   const $ = id => document.getElementById(id);
@@ -59,7 +58,7 @@
     const api = window.VCWWorkflowAPI || window.VCWWorkflowApi;
     const apiBase = $('apiBase').value.trim();
     const moduleId = $('moduleId').value.trim() || 'vendors';
-    const output = { build:'VCW-R14B', moduleId, checks:{} };
+    const output = { build:'VCW-R14C', moduleId, checks:{} };
 
     setStatus('กำลังตรวจสอบ...', '');
 
@@ -70,8 +69,22 @@
     }
 
     output.checks.client = { ok:true, version: api.version || '-' };
+    output.checks.tokenInfo = api.getTokenInfo ? api.getTokenInfo() : null;
+
+    if(!output.checks.tokenInfo || !output.checks.tokenInfo.hasToken){
+      setStatus('FAIL: ไม่พบ Token — กรุณา Login ใหม่', 'bad');
+      $('output').textContent = JSON.stringify(output, null, 2);
+      return;
+    }
 
     output.checks.me = await api.me(apiBase);
+
+    if(!output.checks.me.success){
+      setStatus('FAIL: Session ไม่ผ่าน — ' + output.checks.me.message, 'bad');
+      $('output').textContent = JSON.stringify(output, null, 2);
+      return;
+    }
+
     output.checks.dashboard = api.workflowDashboard ? await api.workflowDashboard(moduleId, {limit:5}, apiBase) : {success:false,message:'ไม่มี workflowDashboard()'};
     output.checks.sla = api.slaAlerts ? await api.slaAlerts(moduleId, {limit:5}, apiBase) : {success:false,message:'ไม่มี slaAlerts()'};
     output.checks.autoSync = api.autoGateOutStatus ? await api.autoGateOutStatus(moduleId, apiBase) : {success:true,message:'ไม่มี autoGateOutStatus() แต่ไม่บังคับ'};
