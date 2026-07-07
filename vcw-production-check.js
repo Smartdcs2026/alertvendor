@@ -1,18 +1,269 @@
-/* vcw-production-check.js — VCW-R14 */
-(function(window,document){'use strict';
-const BUILD='VCW-R14',DEFAULT_MODULE='vendors';
-function $(id){return document.getElementById(id)}
-function ready(fn){document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn()}
-ready(init);
-async function init(){try{if(!window.VCWWorkflowAPI||!shouldRender())return;const me=await window.VCWWorkflowAPI.me();if(!me.success)return;const u=me.data&&(me.data.user||me.data);if(String(u&&u.role||'').toUpperCase()!=='ADMIN')return;render();await runCheck()}catch(e){}}
-function shouldRender(){const h=String(location.href||'').toLowerCase(),p=String(location.pathname||'').toLowerCase();return p.includes('admin')||p.includes('dashboard')||h.includes('tab=dashboard')||h.includes('tab=modules')||h.includes('tab=shifts')}
-function mod(){const u=new URL(location.href);return u.searchParams.get('module')||u.searchParams.get('moduleId')||window.VCW_ACTIVE_MODULE||DEFAULT_MODULE}
-function host(){return document.querySelector('[data-vcw-dashboard]')||document.querySelector('#dashboard')||document.querySelector('#adminDashboard')||document.querySelector('.dashboard-grid')||document.querySelector('.admin-dashboard')||document.querySelector('main')||document.body}
-function render(){if($('vcwProductionCheckCard'))return;const s=document.createElement('section');s.id='vcwProductionCheckCard';s.className='vcw-prod-card';s.innerHTML='<div class="vcw-prod-head"><div><p>Production</p><h2>Final Readiness Check</h2></div><span>'+BUILD+'</span></div><div class="vcw-prod-toolbar"><label>Module<input id="vcwProdModuleId" value="'+esc(mod())+'"></label><button id="vcwProdRunCheck" type="button">Run Check</button></div><div id="vcwProdHealth" class="vcw-prod-health">กำลังตรวจสอบ...</div><div class="vcw-prod-grid">'+item('auth','Login / Session')+item('api','Workflow API')+item('dashboard','Dashboard')+item('sla','SLA Alerts')+item('autosync','Auto Sync')+item('report','Report / Export')+'</div><pre id="vcwProdOutput">-</pre>';const h=host();h===document.body?document.body.insertBefore(s,document.body.firstChild):h.insertBefore(s,h.firstChild);$('vcwProdRunCheck').addEventListener('click',runCheck)}
-function item(k,l){return '<div class="vcw-prod-item"><span>'+esc(l)+'</span><strong id="vcwProd_'+k+'">WAIT</strong></div>'}
-async function runCheck(){const m=String($('vcwProdModuleId').value||DEFAULT_MODULE).trim()||DEFAULT_MODULE;health('กำลังตรวจสอบ Production...','');set('auth','OK',true);const checks={api:false,dashboard:false,sla:false,autosync:false,report:false},detail={moduleId:m,build:BUILD,checkedAt:new Date().toISOString(),results:{}};checks.api=!!(window.VCWWorkflowAPI&&typeof window.VCWWorkflowAPI.me==='function');set('api',checks.api?'OK':'FAIL',checks.api);try{const r=await window.VCWWorkflowAPI.workflowDashboard(m,{limit:5});checks.dashboard=!!(r&&r.success);detail.results.dashboard=r;set('dashboard',checks.dashboard?'OK':'FAIL',checks.dashboard)}catch(e){detail.results.dashboardError=e.message||String(e);set('dashboard','FAIL',false)}try{const r=await window.VCWWorkflowAPI.slaAlerts(m,{limit:5});checks.sla=!!(r&&r.success);detail.results.sla=r;set('sla',checks.sla?'OK':'FAIL',checks.sla)}catch(e){detail.results.slaError=e.message||String(e);set('sla','FAIL',false)}try{if(typeof window.VCWWorkflowAPI.autoGateOutStatus==='function'){const r=await window.VCWWorkflowAPI.autoGateOutStatus(m);checks.autosync=!!(r&&r.success);detail.results.autoSync=r;set('autosync',checks.autosync?'OK':'CHECK',checks.autosync)}else{checks.autosync=true;set('autosync','N/A',true)}}catch(e){detail.results.autoSyncError=e.message||String(e);set('autosync','CHECK',false)}try{if(typeof window.VCWWorkflowAPI.workflowReport==='function'){const r=await window.VCWWorkflowAPI.workflowReport(m,{date:today(),limit:10});checks.report=!!(r&&r.success);detail.results.report=r;set('report',checks.report?'OK':'FAIL',checks.report)}else{checks.report=true;set('report','N/A',true)}}catch(e){detail.results.reportError=e.message||String(e);set('report','FAIL',false)}const pass=Object.keys(checks).every(k=>checks[k]);health(pass?'Production Check ผ่าน':'ยังมีจุดต้องตรวจ',pass?'ok':'warn');$('vcwProdOutput').textContent=JSON.stringify(detail,null,2)}
-function set(k,t,ok){const e=$('vcwProd_'+k);if(e){e.textContent=t;e.className=ok?'ok':'warn'}}
-function health(t,s){const e=$('vcwProdHealth');if(e){e.textContent=t;e.className='vcw-prod-health '+(s||'')}}
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
-})(window,document);
+/*
+ * vcw-production-check.js
+ * VCW-R14C Auth-aware Final Production Check
+ */
+(function (window, document) {
+  'use strict';
+
+  const BUILD = 'VCW-R14C';
+  const DEFAULT_MODULE = 'vendors';
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function ready(fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  ready(init);
+
+  async function init() {
+    if (!window.VCWWorkflowAPI && !window.VCWWorkflowApi) return;
+    if (!shouldRender()) return;
+
+    renderShell();
+    await runCheck();
+  }
+
+  function shouldRender() {
+    const href = String(location.href || '').toLowerCase();
+    const path = String(location.pathname || '').toLowerCase();
+
+    return (
+      path.includes('admin') ||
+      path.includes('dashboard') ||
+      href.includes('tab=dashboard') ||
+      href.includes('tab=modules') ||
+      href.includes('tab=shifts')
+    );
+  }
+
+  function resolveModuleId() {
+    const url = new URL(location.href);
+    return (
+      url.searchParams.get('module') ||
+      url.searchParams.get('moduleId') ||
+      window.VCW_ACTIVE_MODULE ||
+      DEFAULT_MODULE
+    );
+  }
+
+  function findHost() {
+    return (
+      document.querySelector('[data-vcw-dashboard]') ||
+      document.querySelector('#dashboard') ||
+      document.querySelector('#adminDashboard') ||
+      document.querySelector('.dashboard-grid') ||
+      document.querySelector('.admin-dashboard') ||
+      document.querySelector('main') ||
+      document.body
+    );
+  }
+
+  function renderShell() {
+    if ($('vcwProductionCheckCard')) return;
+
+    const section = document.createElement('section');
+    section.id = 'vcwProductionCheckCard';
+    section.className = 'vcw-prod-card';
+    section.innerHTML = ''
+      + '<div class="vcw-prod-head">'
+      + '  <div>'
+      + '    <p>Production</p>'
+      + '    <h2>Final Readiness Check</h2>'
+      + '  </div>'
+      + '  <span>' + BUILD + '</span>'
+      + '</div>'
+      + '<div class="vcw-prod-toolbar">'
+      + '  <label>Module<input id="vcwProdModuleId" value="' + escapeHtml(resolveModuleId()) + '"></label>'
+      + '  <button id="vcwProdRunCheck" type="button">Run Check</button>'
+      + '</div>'
+      + '<div id="vcwProdHealth" class="vcw-prod-health">กำลังตรวจสอบ...</div>'
+      + '<div class="vcw-prod-grid">'
+      + itemHtml('auth', 'Login / Session')
+      + itemHtml('token', 'Token')
+      + itemHtml('api', 'Workflow API')
+      + itemHtml('dashboard', 'Dashboard')
+      + itemHtml('sla', 'SLA Alerts')
+      + itemHtml('autosync', 'Auto Sync')
+      + itemHtml('report', 'Report / Export')
+      + '</div>'
+      + '<pre id="vcwProdOutput">-</pre>';
+
+    const host = findHost();
+
+    if (host === document.body) {
+      document.body.insertBefore(section, document.body.firstChild);
+    } else {
+      host.insertBefore(section, host.firstChild);
+    }
+
+    $('vcwProdRunCheck').addEventListener('click', runCheck);
+  }
+
+  function itemHtml(key, label) {
+    return ''
+      + '<div class="vcw-prod-item" data-key="' + key + '">'
+      + '  <span>' + escapeHtml(label) + '</span>'
+      + '  <strong id="vcwProd_' + key + '">WAIT</strong>'
+      + '</div>';
+  }
+
+  async function runCheck() {
+    const api = window.VCWWorkflowAPI || window.VCWWorkflowApi;
+    const moduleId = String($('vcwProdModuleId').value || DEFAULT_MODULE).trim() || DEFAULT_MODULE;
+
+    setHealth('กำลังตรวจสอบ Production...', '');
+
+    const detail = {
+      build: BUILD,
+      moduleId: moduleId,
+      checkedAt: new Date().toISOString(),
+      apiVersion: api && api.version ? api.version : '',
+      tokenInfo: api && typeof api.getTokenInfo === 'function' ? api.getTokenInfo() : null,
+      results: {}
+    };
+
+    if (!api) {
+      setItem('api', 'FAIL', false);
+      setHealth('ไม่พบ vcw-workflow-api.js', 'bad');
+      $('vcwProdOutput').textContent = JSON.stringify(detail, null, 2);
+      return;
+    }
+
+    setItem('api', 'OK', true);
+
+    const hasToken = Boolean(detail.tokenInfo && detail.tokenInfo.hasToken);
+    setItem('token', hasToken ? 'OK' : 'NO TOKEN', hasToken);
+
+    if (!hasToken) {
+      setItem('auth', 'FAIL', false);
+      setItem('dashboard', 'SKIP', false);
+      setItem('sla', 'SKIP', false);
+      setItem('autosync', 'SKIP', false);
+      setItem('report', 'SKIP', false);
+      setHealth('ไม่พบ Token ใน browser storage — กรุณา Logout/Login ใหม่', 'bad');
+      $('vcwProdOutput').textContent = JSON.stringify(detail, null, 2);
+      return;
+    }
+
+    const me = await api.me();
+    detail.results.me = me;
+
+    if (!me || me.success !== true) {
+      setItem('auth', 'FAIL', false);
+      setItem('dashboard', 'SKIP', false);
+      setItem('sla', 'SKIP', false);
+      setItem('autosync', 'SKIP', false);
+      setItem('report', 'SKIP', false);
+      setHealth('Session ไม่ผ่าน: ' + ((me && me.message) || 'AUTH_REQUIRED'), 'bad');
+      $('vcwProdOutput').textContent = JSON.stringify(detail, null, 2);
+      return;
+    }
+
+    setItem('auth', 'OK', true);
+
+    const checks = {
+      dashboard: false,
+      sla: false,
+      autosync: true,
+      report: true
+    };
+
+    try {
+      const dash = await api.workflowDashboard(moduleId, { limit: 5 });
+      detail.results.dashboard = dash;
+      checks.dashboard = Boolean(dash && dash.success);
+      setItem('dashboard', checks.dashboard ? 'OK' : 'FAIL', checks.dashboard);
+    } catch (error) {
+      detail.results.dashboardError = error.message || String(error);
+      setItem('dashboard', 'FAIL', false);
+    }
+
+    try {
+      const sla = await api.slaAlerts(moduleId, { limit: 5 });
+      detail.results.sla = sla;
+      checks.sla = Boolean(sla && sla.success);
+      setItem('sla', checks.sla ? 'OK' : 'FAIL', checks.sla);
+    } catch (error) {
+      detail.results.slaError = error.message || String(error);
+      setItem('sla', 'FAIL', false);
+    }
+
+    try {
+      if (typeof api.autoGateOutStatus === 'function') {
+        const auto = await api.autoGateOutStatus(moduleId);
+        detail.results.autoSync = auto;
+        checks.autosync = Boolean(auto && auto.success);
+        setItem('autosync', checks.autosync ? 'OK' : 'CHECK', checks.autosync);
+      } else {
+        setItem('autosync', 'N/A', true);
+      }
+    } catch (error) {
+      checks.autosync = false;
+      detail.results.autoSyncError = error.message || String(error);
+      setItem('autosync', 'CHECK', false);
+    }
+
+    try {
+      if (typeof api.workflowReport === 'function') {
+        const report = await api.workflowReport(moduleId, {
+          date: todayIso(),
+          limit: 10
+        });
+        detail.results.report = report;
+        checks.report = Boolean(report && report.success);
+        setItem('report', checks.report ? 'OK' : 'FAIL', checks.report);
+      } else {
+        setItem('report', 'N/A', true);
+      }
+    } catch (error) {
+      checks.report = false;
+      detail.results.reportError = error.message || String(error);
+      setItem('report', 'FAIL', false);
+    }
+
+    const pass = Object.keys(checks).every(function (key) {
+      return checks[key] === true;
+    });
+
+    setHealth(pass ? 'Production Check ผ่าน' : 'ยังมีจุดต้องตรวจ', pass ? 'ok' : 'warn');
+    $('vcwProdOutput').textContent = JSON.stringify(detail, null, 2);
+  }
+
+  function setItem(key, text, ok) {
+    const el = $('vcwProd_' + key);
+    if (!el) return;
+    el.textContent = text;
+    el.className = ok ? 'ok' : 'warn';
+  }
+
+  function setHealth(text, status) {
+    const el = $('vcwProdHealth');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'vcw-prod-health ' + (status || '');
+  }
+
+  function todayIso() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+})(window, document);
