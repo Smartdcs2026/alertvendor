@@ -1,6 +1,6 @@
 /*
  * vcw-workflow-api.js
- * VCW-R12 Frontend Workflow API Client
+ * VCW-R13 Frontend Workflow API Client
  *
  * ใช้กับ GitHub Pages เพื่อเรียก Cloudflare Worker:
  * - /api/health
@@ -224,7 +224,7 @@
   }
 
   const api = {
-    version: 'VCW-R12-InboundCompat',
+    version: 'VCW-R13-InboundCompat',
     defaultApiBase: DEFAULT_API_BASE,
     tokenKeys: TOKEN_KEYS.slice(),
     getAccessTokenInfo: safeTokenInfo,
@@ -365,6 +365,43 @@
         auth: true,
         body: {
           limit: opts.limit || 30
+        }
+      });
+    },
+
+    workflowReport: function (moduleId, options, apiBase) {
+      const opts = options || {};
+      return request('/api/workflow/modules/' + encodeURIComponent(cleanModuleId(moduleId)) + '/report', {
+        apiBase: apiBase,
+        auth: true,
+        query: {
+          date: opts.date || opts.reportDate || '',
+          limit: opts.limit || 500
+        }
+      });
+    },
+
+    workflowAudit: function (moduleId, options, apiBase) {
+      const opts = options || {};
+      return request('/api/workflow/modules/' + encodeURIComponent(cleanModuleId(moduleId)) + '/audit', {
+        apiBase: apiBase,
+        auth: true,
+        query: {
+          date: opts.date || opts.reportDate || '',
+          limit: opts.limit || 300
+        }
+      });
+    },
+
+    exportWorkflowCsv: function (moduleId, options, apiBase) {
+      const opts = options || {};
+      return request('/api/workflow/modules/' + encodeURIComponent(cleanModuleId(moduleId)) + '/export/csv', {
+        apiBase: apiBase,
+        method: 'POST',
+        auth: true,
+        body: {
+          date: opts.date || opts.reportDate || '',
+          limit: opts.limit || 500
         }
       });
     },
