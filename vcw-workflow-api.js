@@ -1,6 +1,6 @@
 /*
  * vcw-workflow-api.js
- * VCW-R11C Frontend Workflow API Client
+ * VCW-R12 Frontend Workflow API Client
  *
  * ใช้กับ GitHub Pages เพื่อเรียก Cloudflare Worker:
  * - /api/health
@@ -224,7 +224,7 @@
   }
 
   const api = {
-    version: 'VCW-R11C-InboundCompat',
+    version: 'VCW-R12-InboundCompat',
     defaultApiBase: DEFAULT_API_BASE,
     tokenKeys: TOKEN_KEYS.slice(),
     getAccessTokenInfo: safeTokenInfo,
@@ -366,6 +366,24 @@
         body: {
           limit: opts.limit || 30
         }
+      });
+    },
+
+    slaAlerts: function (moduleId, options, apiBase) {
+      const opts = options || {};
+      return request('/api/workflow/modules/' + encodeURIComponent(cleanModuleId(moduleId)) + '/sla-alerts', {
+        apiBase: apiBase,
+        auth: true,
+        query: { limit: opts.limit || 50 }
+      });
+    },
+
+    setupDefaultSlaRules: function (moduleId, apiBase) {
+      return request('/api/workflow/modules/' + encodeURIComponent(cleanModuleId(moduleId)) + '/sla-alerts/setup-default', {
+        apiBase: apiBase,
+        method: 'POST',
+        auth: true,
+        body: {}
       });
     },
 
