@@ -1,12 +1,12 @@
 /*
  * vcw-inbound.js
- * VCW-R08F Inbound Fast Auto Save - No Success Swal
+ * VCW-R08G Inbound DateTime Display Fix
  */
 (function (window, document) {
   'use strict';
 
   const app = {
-    version: 'VCW-R08F',
+    version: 'VCW-R08G',
     busy: false,
     user: null,
     latest: null,
@@ -565,7 +565,7 @@
   }
 
   async function showAutoSuccess(actionLabel, entryCode) {
-    // VCW-R08F: intentionally no SweetAlert here.
+    // VCW-R08G: intentionally no SweetAlert here.
     // บันทึกสำเร็จแล้วให้กลับไปพร้อมรับคันถัดไปทันที
     showInlineSaveDone(actionLabel, entryCode);
   }
@@ -992,6 +992,8 @@
   }
 
   function renderWorkflow(data) {
+    data = normalizeWorkflowDateTimes(data);
+
     const source = data || {};
     const gateIn = source.gateIn || {};
     const state = source.state || {};
@@ -1292,6 +1294,101 @@
     if (actionName === 'complete-receiving') return 'บันทึกรับสินค้าเสร็จ';
     if (actionName === 'return-document') return 'บันทึกรับเอกสารคืน';
     return actionName;
+  }
+
+
+  /************************************************************
+   * DateTime Display Fix — VCW-R08G
+   * แสดงวันที่เวลาเป็น dd/MM/yyyy HH:mm:ss / Asia/Bangkok
+   ************************************************************/
+
+  function formatVcwDateTime(value) {
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+
+    const raw = String(value).trim();
+
+    if (!raw) {
+      return '';
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(raw)) {
+      return raw;
+    }
+
+    const localSlashMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (localSlashMatch) {
+      return (
+        localSlashMatch[1] + '/' +
+        localSlashMatch[2] + '/' +
+        localSlashMatch[3] + ' ' +
+        localSlashMatch[4] + ':' +
+        localSlashMatch[5] + ':' +
+        (localSlashMatch[6] || '00')
+      );
+    }
+
+    const parsed = new Date(raw);
+
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(parsed).replace(',', '');
+    }
+
+    return raw;
+  }
+
+  function isLikelyDateTimeLabel(label) {
+    const text = String(label || '').toLowerCase();
+
+    return (
+      text.indexOf('เวลา') !== -1 ||
+      text.indexOf('วันที่') !== -1 ||
+      text.indexOf('timestamp') !== -1 ||
+      text.indexOf('gate in') !== -1 ||
+      text.indexOf('gate out') !== -1 ||
+      text.indexOf('updated') !== -1 ||
+      text.indexOf('อัปเดต') !== -1
+    );
+  }
+
+  function normalizeWorkflowDateTimes(data) {
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+
+    const output = Array.isArray(data) ? data.slice() : Object.assign({}, data);
+
+    Object.keys(output).forEach(function (key) {
+      if (isLikelyDateTimeLabel(key)) {
+        output[key] = formatVcwDateTime(output[key]);
+      }
+    });
+
+    ['gateIn', 'state', 'workflowState', 'record'].forEach(function (key) {
+      if (output[key] && typeof output[key] === 'object') {
+        output[key] = normalizeWorkflowDateTimes(output[key]);
+      }
+    });
+
+    ['timeline', 'events', 'items', 'records'].forEach(function (key) {
+      if (Array.isArray(output[key])) {
+        output[key] = output[key].map(function (item) {
+          return normalizeWorkflowDateTimes(item);
+        });
+      }
+    });
+
+    return output;
   }
 
   function pick(object, keys) {
