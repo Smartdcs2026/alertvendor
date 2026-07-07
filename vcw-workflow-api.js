@@ -1,6 +1,6 @@
 /*
  * vcw-workflow-api.js
- * VCW-R13 Frontend Workflow API Client
+ * VCW-R14C Frontend Workflow API Client
  *
  * ใช้กับ GitHub Pages เพื่อเรียก Cloudflare Worker:
  * - /api/health
@@ -19,9 +19,22 @@
 
   const TOKEN_KEYS = [
     'alertvendor_access_token',
+    'alertvendor_token',
+    'alertvendorAccessToken',
+    'alertvendor_auth_token',
+    'alertvendor_session_token',
+    'av_access_token',
+    'access_token',
+    'accessToken',
+    'authToken',
+    'token',
+    'sessionToken',
+    'jwt',
+    'idToken',
     'vehicle_status_access_token',
     'vehicle_access_token',
-    'access_token'
+    'vehicleStatusAccessToken',
+    'vehicle_status_token'
   ];
 
   function cleanApiBase(value) {
@@ -35,57 +48,273 @@
 
   function getAccessTokenInfo() {
     const found = [];
-    let token = '';
-    let source = '';
+    const candidates = [];
+    const storages = [];
 
-    TOKEN_KEYS.forEach(function (key) {
-      let value = '';
+    try {
+      storages.push({
+        name: 'sessionStorage',
+        storage: window.sessionStorage
+      });
+    } catch (error) {}
 
-      try {
-        value = String(window.sessionStorage.getItem(key) || '').trim();
-      } catch (error) {
-        value = '';
-      }
+    try {
+      storages.push({
+        name: 'localStorage',
+        storage: window.localStorage
+      });
+    } catch (error) {}
 
-      if (value) {
-        found.push({
-          storage: 'sessionStorage',
-          key: key,
-          length: value.length
+    function addCandidate(storageName, key, value, reason, priority) {
+      const token = normalizeTokenValue(value);
+
+      found.push({
+        storage: storageName,
+        key: key,
+        length: token ? token.length : String(value || '').length,
+        reason: reason || ''
+      });
+
+      if (token && isTokenLike(token)) {
+        candidates.push({
+          token: token,
+          source: storageName + ':' + key,
+          reason: reason || '',
+          priority: priority || 50,
+          length: token.length
         });
+      }
+    }
 
-        if (!token) {
-          token = value;
-          source = 'sessionStorage:' + key;
+    storages.forEach(function (box) {
+      TOKEN_KEYS.forEach(function (key, index) {
+        let value = '';
+
+        try {
+          value = box.storage.getItem(key);
+        } catch (error) {
+          value = '';
         }
-      }
+
+        if (value) {
+          addCandidate(box.name, key, value, 'exact-key', 1000 - index);
+        }
+      });
+    });
+
+    storages.forEach(function (box) {
+      let length = 0;
 
       try {
-        value = String(window.localStorage.getItem(key) || '').trim();
+        length = box.storage.length || 0;
       } catch (error) {
-        value = '';
+        length = 0;
       }
 
-      if (value) {
-        found.push({
-          storage: 'localStorage',
-          key: key,
-          length: value.length
-        });
+      for (let i = 0; i < length; i += 1) {
+        let key = '';
 
-        if (!token) {
-          token = value;
-          source = 'localStorage:' + key;
+        try {
+          key = box.storage.key(i);
+        } catch (error) {
+          key = '';
+        }
+
+        if (!key || TOKEN_KEYS.indexOf(key) !== -1) {
+          continue;
+        }
+
+        const lowerKey = String(key).toLowerCase();
+
+        if (
+          lowerKey.indexOf('token') === -1 &&
+          lowerKey.indexOf('auth') === -1 &&
+          lowerKey.indexOf('session') === -1 &&
+          lowerKey.indexOf('user') === -1 &&
+          lowerKey.indexOf('alertvendor') === -1
+        ) {
+          continue;
+        }
+
+        let raw = '';
+
+        try {
+          raw = box.storage.getItem(key);
+        } catch (error) {
+          raw = '';
+        }
+
+        if (!raw) {
+          continue;
+        }
+
+        const extracted = extractTokensFromValue(raw);
+
+        if (extracted.length) {
+          extracted.forEach(function (item, itemIndex) {
+            addCandidate(
+              box.name,
+              key,
+              item.value,
+              'deep-scan:' + item.path,
+              650 - itemIndex
+            );
+          });
+        } else {
+          addCandidate(box.name, key, raw, 'deep-scan-raw', 250);
         }
       }
     });
 
+    candidates.sort(function (a, b) {
+      if (b.priority !== a.priority) {
+        return b.priority - a.priority;
+      }
+
+      return b.length - a.length;
+    });
+
+    const best = candidates[0] || null;
+
     return {
-      token: token,
-      source: source,
+      token: best ? best.token : '',
+      source: best ? best.source : '',
+      reason: best ? best.reason : '',
       found: found,
-      hasToken: Boolean(token)
+      hasToken: Boolean(best && best.token),
+      candidateCount: candidates.length
     };
+  }
+
+  function normalizeTokenValue(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    let text = String(value).trim();
+
+    if (!text) {
+      return '';
+    }
+
+    text = text.replace(/^Bearer\s+/i, '').trim();
+
+    if (
+      (text.charAt(0) === '"' && text.charAt(text.length - 1) === '"') ||
+      (text.charAt(0) === "'" && text.charAt(text.length - 1) === "'")
+    ) {
+      text = text.slice(1, -1).trim();
+    }
+
+    return text;
+  }
+
+  function isTokenLike(value) {
+    const token = normalizeTokenValue(value);
+
+    if (!token) {
+      return false;
+    }
+
+    if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+      return true;
+    }
+
+    if (
+      token.length >= 20 &&
+      /^[A-Za-z0-9._~+/=-]+$/.test(token)
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function extractTokensFromValue(raw) {
+    const results = [];
+    const text = String(raw || '').trim();
+
+    if (!text) {
+      return results;
+    }
+
+    if (isTokenLike(text)) {
+      results.push({
+        path: 'raw',
+        value: text
+      });
+      return results;
+    }
+
+    let object = null;
+
+    try {
+      object = JSON.parse(text);
+    } catch (error) {
+      object = null;
+    }
+
+    if (!object || typeof object !== 'object') {
+      return results;
+    }
+
+    const tokenKeys = [
+      'token',
+      'accessToken',
+      'access_token',
+      'authToken',
+      'sessionToken',
+      'jwt',
+      'idToken',
+      'bearer',
+      'bearerToken'
+    ];
+
+    const tokenKeyMap = {};
+    tokenKeys.forEach(function (key) {
+      tokenKeyMap[key.toLowerCase()] = true;
+    });
+
+    function walk(value, path, depth) {
+      if (depth > 5 || value === undefined || value === null) {
+        return;
+      }
+
+      if (typeof value === 'string') {
+        const keyName = String(path.split('.').pop() || '').toLowerCase();
+
+        if (
+          tokenKeyMap[keyName] === true ||
+          isTokenLike(value)
+        ) {
+          if (isTokenLike(value)) {
+            results.push({
+              path: path || 'string',
+              value: value
+            });
+          }
+        }
+
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        value.slice(0, 5).forEach(function (item, index) {
+          walk(item, path + '[' + index + ']', depth + 1);
+        });
+        return;
+      }
+
+      if (typeof value === 'object') {
+        Object.keys(value).forEach(function (key) {
+          walk(value[key], path ? path + '.' + key : key, depth + 1);
+        });
+      }
+    }
+
+    walk(object, '', 0);
+
+    return results;
   }
 
   function buildHeaders(options) {
@@ -187,7 +416,10 @@
         code: data && data.error && data.error.code ? data.error.code : 'HTTP_' + response.status,
         message: data && data.error && data.error.message ? data.error.message : 'API ตอบกลับผิดพลาด',
         status: response.status,
-        details: data && data.error && data.error.details ? data.error.details : {},
+        details: Object.assign({}, data && data.error && data.error.details ? data.error.details : {}, {
+          tokenInfo: safeTokenInfo(),
+          withAuthorization: fetchOptions.headers.has('Authorization')
+        }),
         requestId: data && data.requestId ? data.requestId : '',
         serverTime: data && data.serverTime ? data.serverTime : '',
         raw: data,
@@ -208,26 +440,25 @@
 
   function safeTokenInfo() {
     const info = getAccessTokenInfo();
+
     return {
       hasToken: info.hasToken,
       source: info.source,
-      found: info.found
+      reason: info.reason,
+      found: info.found,
+      candidateCount: info.candidateCount
     };
   }
 
-  function cleanEntryCode(value) {
-    return String(value || '').trim().slice(0, 200);
-  }
-
-  function cleanModuleId(value) {
-    return String(value || '').trim().slice(0, 80) || 'vendors';
-  }
-
   const api = {
-    version: 'VCW-R13-InboundCompat',
+    version: 'VCW-R14C-AuthTokenCompat',
     defaultApiBase: DEFAULT_API_BASE,
     tokenKeys: TOKEN_KEYS.slice(),
     getAccessTokenInfo: safeTokenInfo,
+    getTokenInfo: safeTokenInfo,
+    diagnoseAuth: function () {
+      return safeTokenInfo();
+    },
 
     health: function (apiBase) {
       return request('/api/health', {
