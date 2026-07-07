@@ -1,6 +1,6 @@
 /*
  * vcw-workflow-api.js
- * VCW-R14C Frontend Workflow API Client
+ * VCW-R14E Frontend Workflow API Client
  *
  * ใช้กับ GitHub Pages เพื่อเรียก Cloudflare Worker:
  * - /api/health
@@ -39,6 +39,17 @@
 
   function cleanApiBase(value) {
     return String(value || DEFAULT_API_BASE).trim().replace(/\/+$/, '');
+  }
+
+
+  function cleanModuleId(value) {
+    const text = String(value || 'vendors').trim();
+
+    return text || 'vendors';
+  }
+
+  function cleanEntryCode(value) {
+    return String(value || '').trim();
   }
 
   function getConfiguredApiBase() {
@@ -451,7 +462,7 @@
   }
 
   const api = {
-    version: 'VCW-R14C-AuthTokenCompat',
+    version: 'VCW-R14E-ClientHelperFix',
     defaultApiBase: DEFAULT_API_BASE,
     tokenKeys: TOKEN_KEYS.slice(),
     getAccessTokenInfo: safeTokenInfo,
@@ -471,6 +482,16 @@
       return request('/api/auth/me', {
         apiBase: apiBase,
         auth: true
+      });
+    },
+
+    lookupEntry: function (moduleId, entryCode, apiBase) {
+      return request('/api/workflow/modules/' + encodeURIComponent(cleanModuleId(moduleId)) + '/lookup', {
+        apiBase: apiBase,
+        auth: true,
+        query: {
+          entryCode: cleanEntryCode(entryCode)
+        }
       });
     },
 
