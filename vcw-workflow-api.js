@@ -1,6 +1,6 @@
 /*
  * vcw-workflow-api.js
- * VCW-R14E Frontend Workflow API Client
+ * VCW-R14F Frontend Workflow API Client
  *
  * ใช้กับ GitHub Pages เพื่อเรียก Cloudflare Worker:
  * - /api/health
@@ -462,7 +462,7 @@
   }
 
   const api = {
-    version: 'VCW-R14E-ClientHelperFix',
+    version: 'VCW-R14F-BackendSyncClient',
     defaultApiBase: DEFAULT_API_BASE,
     tokenKeys: TOKEN_KEYS.slice(),
     getAccessTokenInfo: safeTokenInfo,
