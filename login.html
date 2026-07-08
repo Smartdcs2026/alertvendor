@@ -42,13 +42,11 @@
     เข้าสู่ระบบ | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
 
-  <!-- PWA Manifest -->
   <link
     rel="manifest"
     href="./manifest.webmanifest?v=20260628"
   >
 
-  <!-- Browser favicon -->
   <link
     rel="icon"
     type="image/png"
@@ -63,7 +61,6 @@
     href="./icons/favicon-32.png?v=20260628"
   >
 
-  <!-- iPhone / iPad Home Screen -->
   <link
     rel="apple-touch-icon"
     sizes="180x180"
@@ -80,30 +77,33 @@
     defer
   ></script>
 
-  <!--
-    VCW-R14G
-    ต้องโหลดก่อน config.js / api.js / auth.js
-    เพื่อดัก token จากการ Login และบันทึกลง browser storage
-  -->
-<script src="./vcw-logout-hardening.js?v=R14M" defer></script>
-<script src="./vcw-auth-persistence-hotfix.js?v=R14G" defer></script>
+  <script
+    src="./config.js?v=R14N"
+    defer
+  ></script>
+
+  <script
+    src="./vcw-logout-hardening.js?v=R14M"
+    defer
+  ></script>
+
   <script
     src="./vcw-auth-persistence-hotfix.js?v=R14G"
     defer
   ></script>
 
   <script
-    src="./config.js?v=R14G"
+    src="./vcw-login-auth-bridge.js?v=R14N"
     defer
   ></script>
 
   <script
-    src="./api.js?v=R14G"
+    src="./api.js?v=R14N"
     defer
   ></script>
 
   <script
-    src="./auth.js?v=R14G"
+    src="./auth.js?v=R14N"
     defer
   ></script>
 </head>
