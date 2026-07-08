@@ -1,16 +1,16 @@
 /*
  * vcw-logout-hardening.js
- * VCW-R14L
+ * VCW-R14M
  *
- * แก้เฉพาะปัญหา:
- * - กดออกจากระบบแล้วเด้งกลับเข้าระบบเอง
- * - ล้าง token ทุก key ที่เกี่ยวข้องกับ Alert Vendor
- * - redirect ไป login.html?logout=1 เพื่อบังคับล้างซ้ำในหน้า login
+ * HOTFIX:
+ * - แก้ปัญหากดปุ่ม "ออกจากระบบ" ใน SweetAlert แล้วไม่ไปไหน
+ * - สาเหตุ: ตัวดักคลิก logout ไปดักปุ่ม confirm ใน SweetAlert ซ้ำ
+ * - รุ่นนี้ไม่ดักปุ่มที่อยู่ใน .swal2-container และมี lock กันคลิกซ้ำ
  */
 (function (window, document) {
   'use strict';
 
-  const BUILD = 'VCW-R14L';
+  const BUILD = 'VCW-R14M';
 
   const AUTH_KEYS = [
     'alertvendor_access_token',
@@ -50,6 +50,8 @@
     'signedOut'
   ];
 
+  let logoutRunning = false;
+
   initEarly();
 
   if (document.readyState === 'loading') {
@@ -80,6 +82,7 @@
       version: BUILD,
       clear: clearAuthStorage,
       logout: doLogout,
+      forceLogout: forceLogout,
       snapshot: getAuthSnapshot
     };
   }
@@ -88,8 +91,18 @@
     document.addEventListener(
       'click',
       function (event) {
-        const el = event.target && event.target.closest
-          ? event.target.closest('button, a, [role="button"]')
+        const rawTarget = event.target;
+
+        if (
+          rawTarget &&
+          rawTarget.closest &&
+          rawTarget.closest('.swal2-container')
+        ) {
+          return;
+        }
+
+        const el = rawTarget && rawTarget.closest
+          ? rawTarget.closest('button, a, [role="button"]')
           : null;
 
         if (!el || !isLogoutControl(el)) {
@@ -107,6 +120,17 @@
   }
 
   function isLogoutControl(el) {
+    if (!el) {
+      return false;
+    }
+
+    if (
+      el.closest &&
+      el.closest('.swal2-container')
+    ) {
+      return false;
+    }
+
     const text = String(el.textContent || '').trim().toLowerCase();
     const attrs = [
       el.id,
@@ -129,23 +153,35 @@
   }
 
   async function doLogout() {
-    const ok = await confirmLogout();
-
-    if (!ok) {
+    if (logoutRunning) {
       return;
     }
 
+    logoutRunning = true;
+
+    const ok = await confirmLogout();
+
+    if (!ok) {
+      logoutRunning = false;
+      return;
+    }
+
+    await forceLogout('manual-logout');
+  }
+
+  async function forceLogout(reason) {
     const token = findToken();
 
-    // พยายามแจ้ง backend แต่ไม่รอให้สำเร็จ เพราะเป้าหมายหลักคือล้าง token ฝั่ง browser
     try {
       await callLogoutApi(token);
-    } catch (error) {}
+    } catch (error) {
+      // ต่อให้ backend logout fail ก็ต้องล้าง token ฝั่ง browser
+    }
 
-    clearAuthStorage('manual-logout');
+    clearAuthStorage(reason || 'force-logout');
 
     window.location.replace(
-      './login.html?logout=1&v=R14L&t=' + Date.now()
+      './login.html?logout=1&v=R14M&t=' + Date.now()
     );
   }
 
@@ -158,7 +194,9 @@
         showCancelButton: true,
         confirmButtonText: 'ออกจากระบบ',
         cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#0f3d5e'
+        confirmButtonColor: '#0f3d5e',
+        allowOutsideClick: false,
+        allowEscapeKey: true
       });
 
       return result.isConfirmed === true;
