@@ -1,22 +1,22 @@
 /*
  * vcw-login-auth-bridge.js
- * VCW-R14N
+ * VCW-R14O
  *
- * แก้ปัญหา:
- * - Login สำเร็จแล้วไป index.html แต่ระบบบอก Session หมดอายุ
- * - เกิดจาก token ไม่ถูกบันทึกใน key ที่หน้าระบบเดิมอ่านได้
- * - Role INBOUND ต้องถูกส่งไป inbound.html ทันที
+ * HOTFIX จาก R14N:
+ * - R14N อาจหยิบ userId / requestId ที่ยาวเหมือน token มาเก็บผิด
+ * - ทำให้ login แล้วไป index.html แต่ /api/auth/me ได้ 401 Session หมดอายุ
  *
- * วิธีทำงาน:
- * - ดัก submit ของฟอร์ม login
- * - เรียก /api/auth/login เอง
- * - บันทึก token ลงหลาย key ให้ทั้งระบบเก่าและ workflow อ่านได้
- * - Redirect ตาม role
+ * รุ่นนี้:
+ * - ดึง token เฉพาะ key ที่เป็น token จริงเท่านั้น เช่น accessToken, access_token, token, sessionToken
+ * - ไม่เดา token จาก string ยาวทั่วไป
+ * - ล้าง session เก่าก่อน login ทุกครั้ง
+ * - ADMIN / USER ไป index.html
+ * - INBOUND ไป inbound.html
  */
 (function (window, document) {
   'use strict';
 
-  const BUILD = 'VCW-R14N';
+  const BUILD = 'VCW-R14O';
 
   const API_BASE =
     (window.CONFIG && window.CONFIG.API_BASE) ||
@@ -52,6 +52,18 @@
     'vehicle_status_user'
   ];
 
+  const TOKEN_FIELD_NAMES = [
+    'accesstoken',
+    'access_token',
+    'token',
+    'authtoken',
+    'sessiontoken',
+    'jwt',
+    'idtoken',
+    'bearer',
+    'bearertoken'
+  ];
+
   let submitting = false;
 
   if (document.readyState === 'loading') {
@@ -81,7 +93,8 @@
       login: loginWithWorker,
       persistSession: persistSession,
       clearSession: clearSession,
-      getTokenInfo: getTokenInfo
+      getTokenInfo: getTokenInfo,
+      extractTokenStrict: extractTokenStrict
     };
   }
 
@@ -114,6 +127,8 @@
     setButtonBusy(true);
 
     try {
+      clearSession('before-login');
+
       const result = await loginWithWorker(username, password);
 
       if (!result.success) {
@@ -125,11 +140,12 @@
       const session = normalizeLoginResult(result);
 
       if (!session.token) {
-        showAlert('error', 'เข้าสู่ระบบไม่สำเร็จ', 'ระบบไม่พบ token จาก server');
+        console.warn('VCW-R14O login raw result without token', result);
+        showAlert('error', 'เข้าสู่ระบบไม่สำเร็จ', 'Server ไม่ส่ง accessToken/token กลับมา');
         return;
       }
 
-      persistSession(session, 'login-success');
+      persistSession(session, 'login-success-r14o');
 
       await showSuccessBrief(session);
 
@@ -211,8 +227,8 @@
     const data = result.data || {};
 
     const token =
-      findTokenInObject(data) ||
-      findTokenInObject(raw) ||
+      extractTokenStrict(data) ||
+      extractTokenStrict(raw) ||
       '';
 
     const user =
@@ -243,18 +259,14 @@
     };
   }
 
-  function findTokenInObject(value) {
-    const keys = [
-      'token',
-      'accessToken',
-      'access_token',
-      'authToken',
-      'sessionToken',
-      'jwt',
-      'idToken',
-      'bearer',
-      'bearerToken'
-    ];
+  function extractTokenStrict(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return '';
+    }
 
     const found = [];
 
@@ -267,13 +279,6 @@
         return;
       }
 
-      if (typeof item === 'string') {
-        if (isTokenLike(item)) {
-          found.push(item);
-        }
-        return;
-      }
-
       if (Array.isArray(item)) {
         item.slice(0, 5).forEach(function (child, index) {
           walk(child, path + '[' + index + ']', depth + 1);
@@ -281,19 +286,25 @@
         return;
       }
 
-      if (typeof item === 'object') {
-        Object.keys(item).forEach(function (key) {
-          const lowerKey = String(key || '').toLowerCase();
-
-          if (keys.map(function (k) { return k.toLowerCase(); }).indexOf(lowerKey) !== -1) {
-            if (typeof item[key] === 'string' && isTokenLike(item[key])) {
-              found.push(item[key]);
-            }
-          }
-
-          walk(item[key], path ? path + '.' + key : key, depth + 1);
-        });
+      if (typeof item !== 'object') {
+        return;
       }
+
+      Object.keys(item).forEach(function (key) {
+        const valueAtKey = item[key];
+        const normalizedKey = String(key || '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+
+        if (
+          TOKEN_FIELD_NAMES.indexOf(normalizedKey) !== -1 &&
+          typeof valueAtKey === 'string' &&
+          isTokenLike(valueAtKey)
+        ) {
+          found.push(valueAtKey);
+          return;
+        }
+
+        walk(valueAtKey, path ? path + '.' + key : key, depth + 1);
+      });
     }
   }
 
@@ -315,8 +326,10 @@
     });
 
     setBoth('alertvendor_session', JSON.stringify({
+      accessToken: token,
       token: token,
       user: session.user || {},
+      authenticated: true,
       expiresAt: session.expiresAt || '',
       savedAt: new Date().toISOString(),
       source: source || BUILD
@@ -329,7 +342,7 @@
       window.VCWAuthPersistence &&
       typeof window.VCWAuthPersistence.persistToken === 'function'
     ) {
-      window.VCWAuthPersistence.persistToken(token, 'login-bridge');
+      window.VCWAuthPersistence.persistToken(token, 'login-bridge-r14o');
     }
 
     return true;
@@ -348,7 +361,7 @@
   function redirectByRole(user) {
     const role = String(user && user.role || '').trim().toUpperCase();
 
-    let target = './index.html?v=R14N&t=' + Date.now();
+    let target = './index.html?v=R14O&t=' + Date.now();
 
     if (role === 'INBOUND') {
       target = './inbound.html?module=vendors&v=R08H&t=' + Date.now();
@@ -471,6 +484,6 @@
       return true;
     }
 
-    return token.length >= 20 && /^[A-Za-z0-9._~+/=-]+$/.test(token);
+    return token.length >= 80 && /^[A-Za-z0-9._~+/=-]+$/.test(token);
   }
 })(window, document);
