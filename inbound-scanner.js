@@ -1,11 +1,8 @@
 /************************************************************
  * inbound-scanner.js
- * ROUND 05 HOTFIX 01 — Native BarcodeDetector + ZXing Fallback
- *
- * แก้ปัญหา:
- * - บางเครื่อง/Chrome Desktop ไม่มี BarcodeDetector
- * - ให้ fallback ไปใช้ ZXing ถ้าโหลด library ได้
- * - ถ้าไม่มีทั้งสองวิธี ให้ใช้ช่องกรอกรหัสเองโดยไม่ทำให้หน้าเสีย
+ * ROUND 05 HOTFIX 02 — Native BarcodeDetector + ZXing Fallback
+ * - ป้องกันสแกนซ้ำเมื่อ QR ค้างหน้ากล้อง
+ * - ไม่แสดง popup เอง ให้ inbound.js จัดการข้อความ
  ************************************************************/
 (function (window) {
   'use strict';
@@ -18,8 +15,9 @@
       this.onScan = typeof config.onScan === 'function' ? config.onScan : function () {};
       this.onStatus = typeof config.onStatus === 'function' ? config.onStatus : function () {};
       this.onError = typeof config.onError === 'function' ? config.onError : function () {};
-      this.scanIntervalMs = Number(config.scanIntervalMs) || 180;
-      this.cooldownMs = Number(config.cooldownMs) || 1600;
+      this.scanIntervalMs = Number(config.scanIntervalMs) || 160;
+      this.cooldownMs = Number(config.cooldownMs) || 2600;
+      this.sameTextHardBlockMs = Number(config.sameTextHardBlockMs) || 8000;
       this.stream = null;
       this.detector = null;
       this.zxingReader = null;
@@ -31,11 +29,17 @@
       this.loopTimer = 0;
     }
 
+    isCameraAvailable() {
+      return Boolean(
+        this.video &&
+        navigator.mediaDevices &&
+        typeof navigator.mediaDevices.getUserMedia === 'function'
+      );
+    }
+
     isSupported() {
       return (
-        Boolean(this.video) &&
-        Boolean(navigator.mediaDevices) &&
-        typeof navigator.mediaDevices.getUserMedia === 'function' &&
+        this.isCameraAvailable() &&
         (
           typeof window.BarcodeDetector === 'function' ||
           this.hasZxingSupport()
@@ -69,7 +73,7 @@
       if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
         throw createScannerError(
           'CAMERA_NOT_SUPPORTED',
-          'เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง กรุณากรอกรหัสเอง'
+          'เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง ให้เสียบเครื่องสแกนหรือกรอกรหัสเอง'
         );
       }
 
@@ -90,14 +94,14 @@
           this.stop();
           throw createScannerError(
             'ZXING_CAMERA_FAILED',
-            'เปิดกล้องสำหรับสแกนไม่ได้ กรุณาอนุญาตกล้องหรือกรอกรหัสเอง'
+            'เปิดกล้องสำหรับสแกนไม่ได้ กรุณาอนุญาตกล้อง หรือเสียบเครื่องสแกน/กรอกรหัสเอง'
           );
         }
       }
 
       throw createScannerError(
         'SCANNER_ENGINE_NOT_AVAILABLE',
-        'เครื่องนี้ไม่รองรับตัวอ่าน QR อัตโนมัติ กรุณากรอกรหัสเอง'
+        'เครื่องนี้ไม่รองรับตัวอ่าน QR อัตโนมัติ ให้เสียบเครื่องสแกนหรือกรอกรหัสเอง'
       );
     }
 
@@ -116,7 +120,7 @@
       } catch (error) {
         throw createScannerError(
           'CAMERA_OPEN_FAILED',
-          'เปิดกล้องไม่ได้ กรุณาอนุญาตกล้องหรือกรอกรหัสเอง'
+          'เปิดกล้องไม่ได้ กรุณาอนุญาตกล้อง หรือเสียบเครื่องสแกน/กรอกรหัสเอง'
         );
       }
 
@@ -152,19 +156,12 @@
       this.running = true;
       this.onStatus('CAMERA_READY', 'กล้องพร้อมสแกน');
 
-      const constraints = cameraConstraints();
-
       await this.zxingReader.decodeFromConstraints(
-        constraints,
+        cameraConstraints(),
         this.video,
-        (result, error) => {
-          if (!this.running) {
-            return;
-          }
-
-          if (Date.now() < this.pausedUntil) {
-            return;
-          }
+        (result) => {
+          if (!this.running) return;
+          if (Date.now() < this.pausedUntil) return;
 
           if (result) {
             const rawText = String(
@@ -285,16 +282,22 @@
 
     handleDetectedText_(rawText, source) {
       const now = Date.now();
+      const text = String(rawText || '').trim();
+
+      if (!text) return;
 
       if (
-        rawText !== this.lastScanText ||
-        now - this.lastScanAt > this.cooldownMs
+        text === this.lastScanText &&
+        now - this.lastScanAt < this.sameTextHardBlockMs
       ) {
-        this.lastScanText = rawText;
-        this.lastScanAt = now;
-        this.pause(this.cooldownMs);
-        this.onScan(rawText, source);
+        this.pause(Math.min(this.cooldownMs, 1800));
+        return;
       }
+
+      this.lastScanText = text;
+      this.lastScanAt = now;
+      this.pause(this.cooldownMs);
+      this.onScan(text, source);
     }
   }
 
