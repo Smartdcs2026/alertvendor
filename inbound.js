@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 03 — Fast scan + auto stage save
+ * ROUND 05 HOTFIX 04 — Operator table + focus fix
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -9,9 +9,10 @@
   const API = window.VehicleAPI;
   const DUPLICATE_BLOCK_MS = 15000;
   const HARD_BLOCK_AFTER_SAVE_MS = 22000;
-  const INPUT_DEBOUNCE_MS = 90;
+  const INPUT_DEBOUNCE_MS = 35;
   const MIN_CODE_LENGTH = 8;
   const DASHBOARD_LIMIT = 500;
+  const FOCUS_SUPPRESS_MS = 18000;
 
   const state = {
     session: null,
@@ -28,7 +29,8 @@
     inFlightCodes: new Set(),
     recentCodes: new Map(),
     audioContext: null,
-    audioUnlocked: false
+    audioUnlocked: false,
+    suppressFocusUntil: 0
   };
 
   document.addEventListener('DOMContentLoaded', initialize);
@@ -93,12 +95,12 @@
     byId('clearCodeButton')?.addEventListener('click', () => {
       clearInput();
       clearCurrentResult();
-      focusCodeInput();
+      focusCodeInput(true);
     });
     byId('closeSelectedPanel')?.addEventListener('click', () => {
       const panel = byId('selectedRecordPanel');
       if (panel) panel.hidden = true;
-      focusCodeInput();
+      focusCodeInput(true);
     });
 
     byId('manualLookupForm')?.addEventListener('submit', (event) => {
@@ -109,7 +111,7 @@
       } else {
         beep('warn');
         setScanMessage('กรุณากรอก Auto ID ก่อนค้นหา', 'WARN');
-        focusCodeInput();
+        focusCodeInput(true);
       }
     });
 
@@ -141,10 +143,13 @@
       state.moduleId = String(event.target.value || '').trim();
       clearCurrentResult();
       await loadWorkflowDashboard(false);
-      focusCodeInput();
+      focusCodeInput(true);
     });
 
-    byId('workflowSearchInput')?.addEventListener('input', (event) => {
+    const searchInput = byId('workflowSearchInput');
+    searchInput?.addEventListener('focus', pauseScanFocus);
+    searchInput?.addEventListener('input', (event) => {
+      pauseScanFocus();
       state.dashboardQuery = String(event.target.value || '').trim().toLowerCase();
       renderWorkflowTable();
     });
@@ -157,7 +162,6 @@
         item.classList.toggle('is-active', item === button);
       });
       renderWorkflowTable();
-      focusCodeInput();
     });
 
     byId('workflowTableBody')?.addEventListener('click', (event) => {
@@ -165,15 +169,16 @@
       if (!row) return;
       const autoId = row.dataset.autoId || '';
       const item = state.dashboardItems.find((entry) => entry.autoId === autoId);
+      pauseScanFocus();
       if (item) renderSelectedRecord(item);
       if (event.target.closest('[data-open-detail]')) return;
-      focusCodeInput();
     });
 
     document.addEventListener('click', unlockAudio, {capture: true});
+    document.addEventListener('pointerdown', handlePointerIntent, {capture: true});
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') stopCamera();
-      if (document.visibilityState === 'visible') focusCodeInput();
+      if (document.visibilityState === 'visible') focusCodeInput(false);
     });
   }
 
@@ -259,14 +264,14 @@
         setScanMessage(errorMessage(error), 'WARN');
       }
     } finally {
-      focusCodeInput();
+      focusCodeInput(true);
     }
   }
 
   function stopCamera() {
     if (state.scanner) state.scanner.stop();
     setScannerStatus('พร้อมรับรหัสจากช่องกรอก', 'IDLE');
-    focusCodeInput();
+    focusCodeInput(true);
   }
 
   async function processCode(rawCode, meta) {
@@ -307,8 +312,10 @@
     try {
       beep('scan');
       const lookupRaw = await API.lookupInboundWorkflow(state.moduleId, cleanCode, {
-        method: source,
-        qrText: meta && meta.rawText ? meta.rawText : cleanCode
+        method: 'MANUAL',
+        lookupMethod: 'MANUAL',
+        qrText: meta && meta.rawText ? meta.rawText : cleanCode,
+        scanSource: source
       });
 
       const lookup = normalizeLookup(lookupRaw);
@@ -344,7 +351,8 @@
     const result = await API.submitInboundDocument(state.moduleId, {
       entryCode: autoId,
       qrText: autoId,
-      method: source || 'SCAN',
+      method: 'MANUAL',
+      scanSource: source || 'SCAN',
       note: 'บันทึกอัตโนมัติจากการสแกน Inbound'
     });
     const updated = normalizeLookup(result, lookup.record);
@@ -364,7 +372,8 @@
     const result = await API.returnInboundDocument(state.moduleId, {
       entryCode: autoId,
       qrText: autoId,
-      method: source || 'SCAN',
+      method: 'MANUAL',
+      scanSource: source || 'SCAN',
       note: 'รับเอกสารคืนอัตโนมัติจากการสแกน Inbound'
     });
     const updated = normalizeLookup(result, lookup.record);
@@ -422,7 +431,7 @@
       renderDashboard();
       if (!silent) setScanMessage('โหลดตารางไม่สำเร็จ: ' + errorMessage(error), 'WARN');
     } finally {
-      focusCodeInput();
+      focusCodeInput(false);
     }
   }
 
@@ -539,14 +548,14 @@
 
     tbody.innerHTML = filtered.map((item) => `
       <tr data-auto-id="${escapeHtml(item.autoId)}">
+        <td><span class="workflow-cell-main">${escapeHtml(item.appointmentNumber || '-')}</span><span class="workflow-cell-sub">เลขนัดหมาย</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.companyName || '-')}</span><span class="workflow-cell-sub">บริษัท</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.driverName || '-')}</span><span class="workflow-cell-sub">พขร.</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(formatPlate(item))}</span><span class="workflow-cell-sub">${escapeHtml(item.province || '-')}</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.phone || '-')}</span><span class="workflow-cell-sub">โทรศัพท์</span></td>
         <td><span class="status-pill" data-status="${escapeHtml(item.statusCode)}">${escapeHtml(item.statusName || statusName(item.statusCode))}</span></td>
-        <td><strong>${escapeHtml(item.autoId || '-')}</strong><span>${escapeHtml(item.vehicleType || '')}</span></td>
-        <td>${escapeHtml(item.appointmentNumber || '-')}</td>
-        <td><strong>${escapeHtml(item.companyName || '-')}</strong></td>
-        <td>${escapeHtml(item.driverName || '-')}</td>
-        <td><strong>${escapeHtml(formatPlate(item))}</strong><span>${escapeHtml(item.province || '')}</span></td>
-        <td>${escapeHtml(item.phone || '-')}</td>
-        <td><strong>${escapeHtml(displayLatestTime(item) || '-')}</strong><span>${escapeHtml(item.nextStepText || '')}</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span><span class="workflow-cell-sub">${escapeHtml(item.nextStepText || '')}</span></td>
+        <td class="workflow-auto-id"><strong>${escapeHtml(item.autoId || '-')}</strong><span>${escapeHtml(item.vehicleType || '')}</span></td>
         <td><button type="button" class="icon-button" data-open-detail title="ดูรายละเอียด">✎</button></td>
       </tr>
     `).join('');
@@ -600,14 +609,17 @@
     setText('resultStatusBadge', status);
     body.innerHTML = `
       <div class="result-identity">
-        <strong>${escapeHtml(record.autoId || '-')}</strong>
-        <span>${escapeHtml(record.companyName || '-')} · ${escapeHtml(formatPlate(record))} · ${escapeHtml(record.driverName || '-')}</span>
+        <strong>${escapeHtml(record.appointmentNumber || '-')} · ${escapeHtml(record.companyName || '-')}</strong>
+        <span>${escapeHtml(record.driverName || '-')} · ${escapeHtml(formatPlate(record))}${record.province ? ' · ' + escapeHtml(record.province) : ''} · ${escapeHtml(record.phone || '-')}</span>
+        <small>Auto ID: ${escapeHtml(record.autoId || '-')}</small>
       </div>
       <div class="result-grid">
         ${fieldHtml('เลขนัดหมาย', record.appointmentNumber || '-')}
-        ${fieldHtml('เบอร์โทร', record.phone || '-')}
+        ${fieldHtml('ชื่อบริษัท', record.companyName || '-')}
         ${fieldHtml('ชื่อ พขร.', record.driverName || '-')}
         ${fieldHtml('ทะเบียน / จังหวัด', formatPlate(record) + (record.province ? ' · ' + record.province : ''))}
+        ${fieldHtml('เบอร์โทร', record.phone || '-')}
+        ${fieldHtml('Auto ID', record.autoId || '-')}
         ${fieldHtml('เวลาเข้า Gate In', record.timestampIn || '-')}
         ${fieldHtml('ยื่นเอกสาร', workflow.documentSubmittedAt || '-')}
         ${fieldHtml('รับสินค้าเสร็จ', workflow.receivingCompletedAt || '-')}
@@ -640,10 +652,10 @@
     panel.hidden = false;
     body.innerHTML = `
       <div class="selected-grid">
-        ${selectedField('Auto ID', item.autoId)}
-        ${selectedField('สถานะ', item.statusName || statusName(item.statusCode))}
         ${selectedField('เลขนัดหมาย', item.appointmentNumber)}
         ${selectedField('ชื่อบริษัท', item.companyName)}
+        ${selectedField('สถานะ', item.statusName || statusName(item.statusCode))}
+        ${selectedField('Auto ID', item.autoId)}
         ${selectedField('ชื่อ พขร.', item.driverName)}
         ${selectedField('ทะเบียน / จังหวัด', formatPlate(item) + (item.province ? ' · ' + item.province : ''))}
         ${selectedField('เบอร์โทร', item.phone)}
@@ -667,7 +679,7 @@
   function resetForNextScan() {
     window.setTimeout(() => {
       clearInput();
-      focusCodeInput();
+      focusCodeInput(false);
     }, 20);
   }
 
@@ -680,9 +692,43 @@
     return normalizeCode(byId('entryCodeInput')?.value || '');
   }
 
-  function focusCodeInput() {
+  function handlePointerIntent(event) {
+    const target = event.target;
+    if (!target) return;
+
+    if (
+      target.closest('.scanner-card') ||
+      target.closest('#manualLookupForm') ||
+      target.closest('#startCameraButton') ||
+      target.closest('#stopCameraButton') ||
+      target.closest('.swal2-container')
+    ) {
+      return;
+    }
+
+    pauseScanFocus();
+  }
+
+  function pauseScanFocus(durationMs) {
+    state.suppressFocusUntil = Date.now() + (Number(durationMs) || FOCUS_SUPPRESS_MS);
+  }
+
+  function shouldFocusCodeInput(force) {
+    if (force === true) return true;
+    if (Date.now() < state.suppressFocusUntil) return false;
+
+    const active = document.activeElement;
+    if (!active) return true;
+    if (active.id === 'workflowSearchInput') return false;
+    if (active.tagName === 'SELECT') return false;
+    if (active.closest && active.closest('.inbound-right')) return false;
+    return true;
+  }
+
+  function focusCodeInput(force) {
+    if (!shouldFocusCodeInput(force)) return;
     const input = byId('entryCodeInput');
-    if (!input) return;
+    if (!input || input.disabled) return;
     try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
     try { input.select(); } catch (error) {}
   }
