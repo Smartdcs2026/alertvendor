@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 09 — Full-height table + paging + stable refresh
+ * ROUND 05 HOTFIX 10 — Persistent dashboard reload after browser refresh
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -13,6 +13,8 @@
   const MIN_CODE_LENGTH = 8;
   const DASHBOARD_LIMIT = 500;
   const FOCUS_SUPPRESS_MS = 18000;
+  const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V10_';
+  const DASHBOARD_CACHE_MAX_ITEMS = 800;
 
   const state = {
     session: null,
@@ -35,7 +37,10 @@
     tablePage: 1,
     tablePageSize: 'AUTO',
     computedPageSize: 20,
-    filteredTotal: 0
+    filteredTotal: 0,
+    dashboardLoadedAt: '',
+    dashboardCacheRestored: false,
+    dashboardRequestToken: 0
   };
 
   document.addEventListener('DOMContentLoaded', initialize);
@@ -71,8 +76,9 @@
       setText('inboundUser', (user.displayName || user.username || '-') + ' · ' + role);
 
       await loadModules();
+      restoreDashboardCache({silent: true});
       createScanner();
-      await loadWorkflowDashboard(true);
+      await loadWorkflowDashboard(true, {cacheFirst: false});
       focusCodeInput();
 
       // คอมพิวเตอร์ที่เสียบเครื่องสแกนจะพร้อมรับรหัสทันที
@@ -94,7 +100,7 @@
 
   function bindEvents() {
     byId('inboundLogoutButton')?.addEventListener('click', logout);
-    byId('inboundRefreshButton')?.addEventListener('click', () => void loadWorkflowDashboard(false));
+    byId('inboundRefreshButton')?.addEventListener('click', () => void loadWorkflowDashboard(false, {manual: true}));
     byId('startCameraButton')?.addEventListener('click', () => void startCamera({silent: false}));
     byId('stopCameraButton')?.addEventListener('click', stopCamera);
     byId('clearCodeButton')?.addEventListener('click', () => {
@@ -147,7 +153,8 @@
     byId('inboundModuleSelect')?.addEventListener('change', async (event) => {
       state.moduleId = String(event.target.value || '').trim();
       clearCurrentResult();
-      await loadWorkflowDashboard(false);
+      restoreDashboardCache({replace: true, silent: true});
+      await loadWorkflowDashboard(false, {cacheFirst: false, moduleChanged: true});
       focusCodeInput(true);
     });
 
@@ -209,6 +216,7 @@
         keepCameraStandby();
         focusCodeInput(false);
         refreshAutoPageSize();
+        void loadWorkflowDashboard(true, {cacheFirst: false});
       }
     });
 
@@ -468,24 +476,153 @@
     return {type: 'NONE', level: 'WARN', message: workflow.nextStepText || 'สถานะนี้ยังไม่พร้อมบันทึกขั้นตอนถัดไป'};
   }
 
-  async function loadWorkflowDashboard(silent) {
+  async function loadWorkflowDashboard(silent, options) {
+    const config = options && typeof options === 'object' ? options : {};
+
     if (!state.moduleId || !API || typeof API.getInboundWorkflowDashboard !== 'function') {
+      if (!state.dashboardItems.length) {
+        restoreDashboardCache({silent: true});
+      }
       renderDashboard();
       return;
     }
+
+    if (config.cacheFirst !== false && !state.dashboardItems.length) {
+      restoreDashboardCache({silent: true});
+    }
+
+    const requestToken = ++state.dashboardRequestToken;
+
     try {
-      if (!silent) setScanMessage('กำลังโหลดตารางสถานะ', 'BUSY');
-      const data = await API.getInboundWorkflowDashboard(state.moduleId, {limit: DASHBOARD_LIMIT});
-      state.dashboardItems = normalizeDashboardItems(data);
-      renderDashboard();
-      if (!silent) setScanMessage('โหลดข้อมูลล่าสุดแล้ว', 'SUCCESS');
+      if (!silent) {
+        setScanMessage('กำลังโหลดตารางสถานะจากฐานข้อมูล', 'BUSY');
+      }
+
+      const data = await API.getInboundWorkflowDashboard(state.moduleId, {
+        limit: DASHBOARD_LIMIT,
+        cacheBust: Date.now()
+      });
+
+      if (requestToken !== state.dashboardRequestToken) {
+        return;
+      }
+
+      const nextItems = normalizeDashboardItems(data);
+      const hadLocalItems = state.dashboardItems.length > 0;
+
+      if (nextItems.length > 0 || !hadLocalItems) {
+        state.dashboardItems = nextItems;
+        state.dashboardLoadedAt = formatBangkokDateTime(new Date());
+        saveDashboardCache();
+        renderDashboard();
+
+        if (!silent) {
+          setScanMessage('โหลดข้อมูลล่าสุดแล้ว ' + nextItems.length + ' รายการ', 'SUCCESS');
+        }
+      } else {
+        /*
+         * ถ้า Backend ตอบกลับว่าง แต่หน้าจอยังมี cache/local state อยู่
+         * ห้ามล้างตารางทันที เพราะจะทำให้ผู้ใช้เข้าใจว่าข้อมูลหายหลัง Refresh
+         * กรณีนี้ให้คงข้อมูลเดิมไว้ แล้วแจ้งเตือนแบบไม่รบกวน
+         */
+        renderDashboard();
+        if (!silent) {
+          setScanMessage('ไม่พบรายการใหม่จากฐานข้อมูล แต่คงข้อมูลล่าสุดบนหน้าจอไว้', 'WARN');
+        }
+      }
     } catch (error) {
       console.warn('workflow dashboard failed', error);
+
+      if (!state.dashboardItems.length) {
+        restoreDashboardCache({silent: true});
+      }
+
       renderDashboard();
-      if (!silent) setScanMessage('โหลดตารางไม่สำเร็จ: ' + errorMessage(error), 'WARN');
+
+      if (!silent) {
+        setScanMessage('โหลดตารางไม่สำเร็จ แต่ยังคงข้อมูลล่าสุดไว้: ' + errorMessage(error), 'WARN');
+      }
     } finally {
       focusCodeInput(false);
     }
+  }
+
+  function restoreDashboardCache(options) {
+    const config = options && typeof options === 'object' ? options : {};
+
+    try {
+      const key = dashboardCacheKey();
+      if (!key) {
+        return false;
+      }
+
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        if (config.replace === true) {
+          state.dashboardItems = [];
+          renderDashboard();
+        }
+        return false;
+      }
+
+      const cached = JSON.parse(raw);
+      const items = Array.isArray(cached.items) ? cached.items : [];
+
+      state.dashboardItems = items
+        .map(normalizeDashboardItem)
+        .filter((item) => item.autoId)
+        .slice(0, DASHBOARD_CACHE_MAX_ITEMS)
+        .sort((a, b) => dateToMs(b.updatedAt) - dateToMs(a.updatedAt));
+
+      state.dashboardLoadedAt = String(cached.savedAt || '');
+      state.dashboardCacheRestored = true;
+      resetWorkflowPage();
+      renderDashboard();
+
+      if (!config.silent && state.dashboardItems.length) {
+        setScanMessage('แสดงข้อมูลล่าสุดจากเครื่องก่อน แล้วกำลังตรวจฐานข้อมูลจริง', 'WARN');
+      }
+
+      return state.dashboardItems.length > 0;
+    } catch (error) {
+      console.warn('restore inbound dashboard cache failed', error);
+      return false;
+    }
+  }
+
+  function saveDashboardCache() {
+    try {
+      const key = dashboardCacheKey();
+      if (!key) {
+        return;
+      }
+
+      const items = state.dashboardItems
+        .slice()
+        .sort((a, b) => dateToMs(b.updatedAt) - dateToMs(a.updatedAt))
+        .slice(0, DASHBOARD_CACHE_MAX_ITEMS);
+
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({
+          version: 10,
+          moduleId: state.moduleId,
+          savedAt: formatBangkokDateTime(new Date()),
+          items
+        })
+      );
+    } catch (error) {
+      console.warn('save inbound dashboard cache failed', error);
+    }
+  }
+
+  function dashboardCacheKey() {
+    const moduleId = String(state.moduleId || '').trim();
+    if (!moduleId) {
+      return '';
+    }
+
+    return DASHBOARD_CACHE_PREFIX + moduleId;
   }
 
   function normalizeDashboardItems(data) {
@@ -725,6 +862,7 @@
     state.dashboardItems = [item]
       .concat(state.dashboardItems.filter((entry) => entry.autoId !== item.autoId))
       .sort((a, b) => dateToMs(b.updatedAt) - dateToMs(a.updatedAt));
+    saveDashboardCache();
   }
 
   function dashboardItemFromLookup(lookup) {
