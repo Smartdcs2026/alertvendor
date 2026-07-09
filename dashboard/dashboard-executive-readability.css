@@ -1,0 +1,920 @@
+/* =========================================================
+   ROUND 66 — Executive Readability Fix
+   แก้จุดที่พบจากภาพล่าสุด:
+   - ปุ่ม i กลาง Toolbar
+   - Date Picker ให้แสดง dd/MM/yyyy HH:mm:ss
+   - Shift Header / Lower panels ถูกบีบ
+   - Daily executive summary อ่านยาก
+   - Live receiving/process แน่นเกินไป
+   ========================================================= */
+
+:root {
+  --r66-info-blue: #0a6f8c;
+  --r66-border: #d7e5ec;
+  --r66-muted: #667d8a;
+  --r66-ink: #082f49;
+}
+
+/* 1) ซ่อนปุ่ม i กลาง Toolbar ที่ไม่มีบริบท */
+body.r66-executive-readability .dashboard-global-info {
+  display: none !important;
+}
+
+/* ปุ่ม i ที่ถูกย้ายไปติดหัวข้อ */
+body.r66-executive-readability .r66-context-info {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #afd6e5;
+  border-radius: 50%;
+  color: var(--r66-info-blue);
+  background: #f1fbff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.r66-executive-readability .panel-heading h2,
+body.r66-executive-readability .shift-title-line,
+body.r66-executive-readability .shift-panel-title-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 2) Date Picker: ซ่อนข้อความ native แล้วแสดง dd/MM/yyyy HH:mm:ss ทับแทน */
+body.r66-executive-readability .dashboard-shift-date-controls label {
+  position: relative;
+  min-width: 174px !important;
+}
+
+body.r66-executive-readability #dashboardShiftDate.r66-native-date {
+  color: transparent !important;
+  caret-color: transparent !important;
+  min-width: 174px !important;
+  padding-right: 32px !important;
+}
+
+body.r66-executive-readability #dashboardShiftDate.r66-native-date::-webkit-datetime-edit,
+body.r66-executive-readability #dashboardShiftDate.r66-native-date::-webkit-datetime-edit-fields-wrapper,
+body.r66-executive-readability #dashboardShiftDate.r66-native-date::-webkit-datetime-edit-text,
+body.r66-executive-readability #dashboardShiftDate.r66-native-date::-webkit-datetime-edit-day-field,
+body.r66-executive-readability #dashboardShiftDate.r66-native-date::-webkit-datetime-edit-month-field,
+body.r66-executive-readability #dashboardShiftDate.r66-native-date::-webkit-datetime-edit-year-field {
+  color: transparent !important;
+}
+
+body.r66-executive-readability .r66-date-display {
+  position: absolute;
+  left: 12px;
+  right: 34px;
+  bottom: 10px;
+  pointer-events: none;
+  color: var(--r66-ink);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 3) Live: ทำ Receiving เป็น Summary สั้น และเพิ่มพื้นที่ให้ Action Queue */
+body.r66-executive-readability[data-dashboard-view="LIVE"] .operations-side {
+  grid-template-rows: 116px minmax(0, 1fr) !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection {
+  min-height: 0 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .panel-heading {
+  padding: 6px 8px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .panel-heading small {
+  display: none !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .panel-heading h2 {
+  font-size: 13px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .receiving-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-rows: 1fr !important;
+  gap: 6px !important;
+  padding: 6px !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .receiving-grid > *:nth-child(n+4) {
+  display: none !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .receiving-grid > * {
+  min-height: 0 !important;
+  padding: 6px !important;
+  border-radius: 9px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .receiving-grid span {
+  font-size: 9px !important;
+  line-height: 1.15 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .receiving-grid strong {
+  font-size: 19px !important;
+  line-height: 1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] #dashboardReceivingSection .receiving-grid small {
+  display: none !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .action-panel {
+  min-height: 0 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .action-queue > *:nth-child(n+7),
+body.r66-executive-readability[data-dashboard-view="LIVE"] .action-queue-list > *:nth-child(n+7) {
+  display: none !important;
+}
+
+/* Flow Completion วันนี้: เปลี่ยนให้สูงพออ่าน */
+body.r66-executive-readability[data-dashboard-view="LIVE"] .process-funnel {
+  gap: 5px !important;
+  padding: 6px 8px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .process-funnel__stage {
+  min-height: 28px !important;
+  padding: 4px 8px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .process-funnel__stage span {
+  font-size: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .process-funnel__stage strong {
+  font-size: 14px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .process-rate {
+  height: 26px !important;
+  min-height: 26px !important;
+  padding: 4px 8px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"] .process-rate strong {
+  font-size: 15px !important;
+}
+
+/* 4) Shift: เพิ่ม Header และปรับ Lower เป็นสรุปย่อ */
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .dashboard-shift-workspace {
+  grid-template-rows:
+    82px
+    72px
+    minmax(162px, .76fr)
+    minmax(214px, 1fr)
+    104px
+    22px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-executive-header {
+  height: 82px !important;
+  min-height: 82px !important;
+  padding: 10px 12px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-executive-header h2 {
+  font-size: 20px !important;
+  line-height: 1.15 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-executive-header p {
+  display: block !important;
+  max-width: 100% !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-methodology-note {
+  max-width: 920px !important;
+  font-size: 10px !important;
+  line-height: 1.25 !important;
+}
+
+/* ซ่อนค่าเฉลี่ยในการ์ดกะบน Desktop เพื่อเหลือแต่ค่าตัดสินใจ */
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-card-performance > div:nth-child(3) {
+  display: none !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-card-performance {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-dashboard-lower {
+  grid-template-columns: .82fr 1.18fr !important;
+  height: 104px !important;
+  min-height: 104px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-dashboard-lower .shift-analysis-panel > header {
+  padding: 6px 9px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-dashboard-lower .shift-analysis-panel h3 {
+  font-size: 13px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-handover-flow,
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-exception-list {
+  padding: 5px 8px !important;
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-handover-flow > *:nth-child(n+3),
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-exception-list > *:nth-child(n+3) {
+  display: none !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-view-all-button {
+  display: inline-flex !important;
+}
+
+/* 5) Daily: Executive summary เป็น 6 บรรทัดอ่านง่าย ไม่ใช้ Scroll ย่อย */
+body.r66-executive-readability[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+  grid-template-rows:
+    76px
+    132px
+    minmax(0, 1fr)
+    22px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .shift-executive-header {
+  height: 76px !important;
+  min-height: 76px !important;
+  padding: 10px 12px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+  grid-template-columns:
+    minmax(0, 1.32fr)
+    minmax(390px, .68fr) !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    214px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel {
+  display: grid !important;
+  grid-template-rows: 42px repeat(6, 1fr) !important;
+  gap: 0 !important;
+  padding: 0 0 6px !important;
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > header {
+  padding: 7px 10px 4px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > div {
+  margin: 0 10px !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(140px, .72fr) minmax(0, 1fr) !important;
+  align-items: center !important;
+  border-bottom: 1px solid #edf3f5 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > div span {
+  color: #496879 !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > div strong {
+  color: var(--r66-ink) !important;
+  font-size: 16px !important;
+  font-weight: 950 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > div small {
+  display: none !important;
+}
+
+/* Daily table: หัวคอลัมน์สั้นและไม่ตัดมากเกิน */
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-history-table th,
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-history-table td {
+  font-size: 11px !important;
+  padding: 7px 6px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-history-table th:first-child,
+body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-history-table td:first-child {
+  width: 96px !important;
+}
+
+/* SweetAlert */
+body.r66-executive-readability .swal2-popup {
+  max-height: calc(100dvh - 18px) !important;
+}
+
+body.r66-executive-readability .swal2-html-container {
+  max-height: calc(100dvh - 150px) !important;
+  overflow: auto !important;
+}
+
+/* Responsive: จอเล็กยกเลิกการซ่อนรายละเอียดเกินไป */
+@media (max-width: 1100px) {
+  body.r66-executive-readability .dashboard-global-info {
+    display: inline-grid !important;
+    margin-left: 0 !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .dashboard-shift-workspace,
+  body.r66-executive-readability[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+    height: auto !important;
+    grid-template-rows: auto !important;
+    overflow: visible !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-executive-header,
+  body.r66-executive-readability[data-dashboard-view="DAILY"] .shift-executive-header {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-card-performance > div:nth-child(3) {
+    display: grid !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-card-performance {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-dashboard-lower,
+  body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-dashboard-analysis {
+    height: auto !important;
+    min-height: 0 !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-handover-flow > *:nth-child(n+3),
+  body.r66-executive-readability[data-dashboard-view="SHIFT"] .shift-exception-list > *:nth-child(n+3) {
+    display: revert !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel {
+    grid-template-rows: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body.r66-executive-readability .r66-date-display {
+    font-size: 11px;
+  }
+
+  body.r66-executive-readability .dashboard-shift-date-controls label,
+  body.r66-executive-readability #dashboardShiftDate.r66-native-date {
+    min-width: 170px !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > div {
+    grid-template-columns: 1fr !important;
+    gap: 2px !important;
+    padding: 6px 0 !important;
+  }
+
+  body.r66-executive-readability[data-dashboard-view="DAILY"] .daily-insight-panel > div strong {
+    text-align: left !important;
+  }
+}
+
+
+/************************************************************
+ * ROUND 67 — Dashboard Visual Fix
+ * แก้จากภาพล่าสุด:
+ * - CURRENT STATUS การ์ดชิดขอบบน
+ * - EXECUTIVE SITUATION ข้อความขาด
+ * - ขั้นตอนรับสินค้า ข้อความในการ์ดแน่น/ขาด
+ * - DAILY รายละเอียดรายวัน วันที่ต้องแสดง dd/MM/yyyy HH:mm:ss
+ ************************************************************/
+
+
+/* =========================================================
+   LIVE: EXECUTIVE SITUATION
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation {
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading {
+  min-height: 34px !important;
+  padding: 8px 10px 5px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading small {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading h2 {
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content {
+  height: auto !important;
+  min-height: 92px !important;
+  padding: 10px 12px 12px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 52px !important;
+  align-items: start !important;
+  gap: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content > div:first-child {
+  min-width: 0 !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 4px !important;
+  padding-top: 1px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content strong {
+  font-size: 31px !important;
+  line-height: 1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content span {
+  margin-top: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-content small {
+  margin-top: 0 !important;
+  font-size: 9px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.situation-symbol {
+  width: 52px !important;
+  height: 52px !important;
+  align-self: center !important;
+}
+
+
+/* =========================================================
+   LIVE: CURRENT STATUS
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel {
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel .panel-heading {
+  min-height: 34px !important;
+  padding: 8px 10px 5px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel .panel-heading small {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel .panel-heading h2 {
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 10px 8px 10px !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card {
+  min-height: 78px !important;
+  height: auto !important;
+  display: grid !important;
+  grid-template-columns: 31px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  column-gap: 8px !important;
+  row-gap: 4px !important;
+  align-content: start !important;
+  padding: 10px 8px 9px 12px !important;
+  border-radius: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card__icon {
+  grid-column: 1 !important;
+  grid-row: 1 / 4 !important;
+  width: 30px !important;
+  height: 30px !important;
+  align-self: start !important;
+  margin-top: 1px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card__icon svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card > span:not(.status-command-card__icon) {
+  grid-column: 2 !important;
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card strong {
+  grid-column: 2 !important;
+  font-size: 26px !important;
+  line-height: 1.05 !important;
+  margin-top: 0 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card small {
+  grid-column: 2 !important;
+  font-size: 7.5px !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+
+/* =========================================================
+   LIVE: ขั้นตอนรับสินค้า
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection {
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .panel-heading {
+  min-height: 34px !important;
+  padding: 8px 10px 5px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .panel-heading h2 {
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 8px !important;
+  gap: 7px !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid > * {
+  min-height: 68px !important;
+  height: auto !important;
+  padding: 8px 8px 8px 10px !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 4px !important;
+  border-radius: 10px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid span {
+  font-size: 9.5px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid strong {
+  font-size: 20px !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardReceivingSection .receiving-grid small {
+  display: block !important;
+  font-size: 7px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+
+/* =========================================================
+   DAILY: รายละเอียดรายวัน
+   ========================================================= */
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table th,
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table td {
+  font-size: 11px !important;
+  padding: 7px 6px !important;
+  line-height: 1.25 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table th:first-child,
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table td:first-child {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="DAILY"]
+.daily-history-table-wrap {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+
+/************************************************************
+ * ROUND 68 — Executive Situation Height Fix
+ * แก้ EXECUTIVE SITUATION ข้อความด้านล่างถูกตัด
+ ************************************************************/
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation.situation-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading {
+  min-height: 30px !important;
+  padding: 7px 10px 3px !important;
+  overflow: visible !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading small {
+  font-size: 8px !important;
+  line-height: 1 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .panel-heading h2 {
+  margin: 1px 0 0 !important;
+  font-size: 13px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .r66-context-info {
+  width: 24px !important;
+  height: 24px !important;
+  flex: 0 0 24px !important;
+  font-size: 11px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-content {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 4px 10px 8px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 42px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-content > div:first-child {
+  min-width: 0 !important;
+  display: grid !important;
+  align-content: center !important;
+  gap: 2px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-content strong {
+  display: block !important;
+  margin: 0 !important;
+  color: #e33434 !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  overflow: visible !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-content span {
+  display: block !important;
+  margin: 0 !important;
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-content small {
+  display: block !important;
+  margin: 0 !important;
+  color: #526d7f !important;
+  font-size: 8px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: unset !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-symbol {
+  width: 42px !important;
+  height: 42px !important;
+  flex: 0 0 42px !important;
+  align-self: center !important;
+  justify-self: end !important;
+  margin: 0 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+#dashboardSituation .situation-symbol svg {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+
+/* /************************************************************
+ * ROUND 70 — Current Status Bottom Spacing Fix
+ * แก้ CURRENT STATUS การ์ดชิดขอบล่างเกินไป
+ ************************************************************/
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-grid {
+  height: auto !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  align-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 7px 8px 14px !important;
+  box-sizing: border-box !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card {
+  min-height: 54px !important;
+  max-height: 58px !important;
+  height: 56px !important;
+  display: grid !important;
+  grid-template-columns: 30px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  column-gap: 8px !important;
+  row-gap: 2px !important;
+  align-content: center !important;
+  align-items: center !important;
+  padding: 7px 9px 7px 12px !important;
+  border-radius: 10px !important;
+  box-sizing: border-box !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card__icon {
+  grid-column: 1 !important;
+  grid-row: 1 / 4 !important;
+  width: 29px !important;
+  height: 29px !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card__icon svg {
+  width: 19px !important;
+  height: 19px !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card > span:not(.status-command-card__icon) {
+  grid-column: 2 !important;
+  align-self: end !important;
+  margin: 0 !important;
+  font-size: 8.6px !important;
+  line-height: 1.12 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card strong {
+  grid-column: 2 !important;
+  align-self: center !important;
+  margin: 0 !important;
+  font-size: 24px !important;
+  line-height: .95 !important;
+}
+
+body.r66-executive-readability[data-dashboard-view="LIVE"]
+.status-command-card small {
+  grid-column: 2 !important;
+  align-self: start !important;
+  margin: 0 !important;
+  font-size: 7px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
