@@ -3,6 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
+ * ROUND 03: เพิ่ม INBOUND_URL สำหรับสิทธิ์ INBOUND
  */
 (function (window) {
   'use strict';
@@ -22,6 +23,9 @@
 
     DASHBOARD_URL:
       './index.html',
+
+    INBOUND_URL:
+      './inbound.html',
 
     API_TIMEOUT_MS:
       60000,
