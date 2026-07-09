@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 04 — Operator table + focus fix
+ * ROUND 05 HOTFIX 05 — SweetAlert detail + camera standby
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -30,7 +30,8 @@
     recentCodes: new Map(),
     audioContext: null,
     audioUnlocked: false,
-    suppressFocusUntil: 0
+    suppressFocusUntil: 0,
+    cameraWanted: false
   };
 
   document.addEventListener('DOMContentLoaded', initialize);
@@ -170,15 +171,18 @@
       const autoId = row.dataset.autoId || '';
       const item = state.dashboardItems.find((entry) => entry.autoId === autoId);
       pauseScanFocus();
-      if (item) renderSelectedRecord(item);
-      if (event.target.closest('[data-open-detail]')) return;
+      if (item) {
+        void openRecordDetailAlert(item);
+      }
     });
 
     document.addEventListener('click', unlockAudio, {capture: true});
     document.addEventListener('pointerdown', handlePointerIntent, {capture: true});
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') stopCamera();
-      if (document.visibilityState === 'visible') focusCodeInput(false);
+      if (document.visibilityState === 'visible') {
+        keepCameraStandby();
+        focusCodeInput(false);
+      }
     });
   }
 
@@ -228,8 +232,8 @@
     }
     state.scanner = new window.InboundScanner({
       video: byId('inboundVideo'),
-      scanIntervalMs: 90,
-      pauseAfterScanMs: 900,
+      scanIntervalMs: 70,
+      pauseAfterScanMs: 250,
       sameCodeBlockMs: DUPLICATE_BLOCK_MS,
       onScan: (text, meta) => {
         beep('scan');
@@ -252,26 +256,42 @@
     unlockAudio();
     if (!state.scanner) createScanner();
     if (!state.scanner) return;
+    state.cameraWanted = true;
     try {
       setScannerStatus('กำลังเปิดกล้อง', 'BUSY');
       await state.scanner.start();
-      setScannerStatus('กล้องพร้อมสแกน', 'READY');
-      if (!config.silent) setScanMessage('กล้องพร้อม วาง QR / Barcode ในกรอบ ระบบจะบันทึกให้อัตโนมัติ', 'SUCCESS');
+      setScannerStatus('กล้องสแตนด์บายพร้อมสแกน', 'READY');
+      if (!config.silent) setScanMessage('กล้องเปิดสแตนด์บายแล้ว วาง QR / Barcode ในกรอบ ระบบจะบันทึกให้อัตโนมัติ', 'SUCCESS');
     } catch (error) {
+      state.cameraWanted = false;
       setScannerStatus('ใช้ช่องกรอกรหัสแทน', 'ERROR');
       if (!config.silent) {
         beep('warn');
         setScanMessage(errorMessage(error), 'WARN');
       }
     } finally {
-      focusCodeInput(true);
+      if (config.keepFocus !== false) focusCodeInput(true);
     }
   }
 
   function stopCamera() {
+    state.cameraWanted = false;
     if (state.scanner) state.scanner.stop();
-    setScannerStatus('พร้อมรับรหัสจากช่องกรอก', 'IDLE');
+    setScannerStatus('ปิดกล้องแล้ว ใช้ช่องกรอกรหัสแทน', 'IDLE');
     focusCodeInput(true);
+  }
+
+  function keepCameraStandby() {
+    if (!state.cameraWanted || !state.scanner) return;
+    if (state.scanner.running) {
+      setScannerStatus('กล้องสแตนด์บายพร้อมสแกน', 'READY');
+      return;
+    }
+    window.setTimeout(() => {
+      if (state.cameraWanted && state.scanner && !state.scanner.running) {
+        void startCamera({silent: true, keepFocus: false});
+      }
+    }, 250);
   }
 
   async function processCode(rawCode, meta) {
@@ -340,6 +360,7 @@
       setScanMessage(errorMessage(error), 'ERROR');
     } finally {
       state.inFlightCodes.delete(cleanCode);
+      keepCameraStandby();
       setScannerStatus('พร้อมสแกนรายการถัดไป', state.scanner && state.scanner.running ? 'READY' : 'IDLE');
       resetForNextScan();
     }
@@ -645,27 +666,94 @@
     `;
   }
 
-  function renderSelectedRecord(item) {
-    const panel = byId('selectedRecordPanel');
-    const body = byId('selectedRecordBody');
-    if (!panel || !body) return;
-    panel.hidden = false;
-    body.innerHTML = `
-      <div class="selected-grid">
-        ${selectedField('เลขนัดหมาย', item.appointmentNumber)}
-        ${selectedField('ชื่อบริษัท', item.companyName)}
-        ${selectedField('สถานะ', item.statusName || statusName(item.statusCode))}
-        ${selectedField('Auto ID', item.autoId)}
-        ${selectedField('ชื่อ พขร.', item.driverName)}
-        ${selectedField('ทะเบียน / จังหวัด', formatPlate(item) + (item.province ? ' · ' + item.province : ''))}
-        ${selectedField('เบอร์โทร', item.phone)}
-        ${selectedField('เวลาเข้า Gate In', item.gateInAt)}
-        ${selectedField('ยื่นเอกสาร', item.documentSubmittedAt)}
-        ${selectedField('รับสินค้าเสร็จ', item.receivingCompletedAt)}
-        ${selectedField('รับเอกสารคืน', item.documentReturnedAt)}
-        ${selectedField('Gate Out', item.gateOutAt)}
-        ${selectedField('ขั้นตอนถัดไป', item.nextStepText)}
-        ${selectedField('อัปเดตล่าสุด', item.updatedAt)}
+  async function openRecordDetailAlert(item) {
+    if (!item) return;
+    pauseScanFocus(24000);
+
+    const html = buildRecordDetailHtml(item);
+
+    if (!window.Swal || typeof window.Swal.fire !== 'function') {
+      // fallback กรณี SweetAlert2 ยังไม่โหลด
+      window.alert([
+        'รายละเอียดรายการ',
+        'เลขนัดหมาย: ' + (item.appointmentNumber || '-'),
+        'บริษัท: ' + (item.companyName || '-'),
+        'พขร.: ' + (item.driverName || '-'),
+        'ทะเบียน: ' + (formatPlate(item) || '-') + (item.province ? ' ' + item.province : ''),
+        'โทร: ' + (item.phone || '-'),
+        'Auto ID: ' + (item.autoId || '-')
+      ].join('\n'));
+      return;
+    }
+
+    await window.Swal.fire({
+      title: '',
+      html,
+      icon: undefined,
+      width: 'min(760px, calc(100vw - 24px))',
+      padding: 0,
+      heightAuto: false,
+      showCloseButton: true,
+      confirmButtonText: 'ปิด',
+      customClass: {
+        popup: 'inbound-detail-popup'
+      },
+      didOpen: () => {
+        pauseScanFocus(24000);
+      },
+      willClose: () => {
+        window.setTimeout(() => {
+          keepCameraStandby();
+          focusCodeInput(false);
+        }, 80);
+      }
+    });
+  }
+
+  function buildRecordDetailHtml(item) {
+    const plate = formatPlate(item) + (item.province ? ' · ' + item.province : '');
+    const statusText = item.statusName || statusName(item.statusCode);
+
+    return `
+      <article class="inbound-detail-modal">
+        <header class="inbound-detail-modal__header">
+          <div>
+            <small>INBOUND WORKFLOW DETAIL</small>
+            <h2>${escapeHtml(item.appointmentNumber || '-')} · ${escapeHtml(item.companyName || '-')}</h2>
+            <p>${escapeHtml(item.driverName || '-')} · ${escapeHtml(plate || '-')}</p>
+          </div>
+          <span class="inbound-detail-modal__status">${escapeHtml(statusText || '-')}</span>
+        </header>
+
+        <section class="inbound-detail-modal__primary">
+          ${detailBox('เลขนัดหมาย', item.appointmentNumber)}
+          ${detailBox('ชื่อบริษัท', item.companyName)}
+          ${detailBox('ชื่อ พขร.', item.driverName)}
+          ${detailBox('ทะเบียน / จังหวัด', plate)}
+        </section>
+
+        <section class="inbound-detail-modal__body">
+          ${detailBox('เบอร์โทร', item.phone)}
+          ${detailBox('Auto ID', item.autoId)}
+          ${detailBox('ประเภทรถ', item.vehicleType)}
+          ${detailBox('เวลาเข้า Gate In', item.gateInAt)}
+          ${detailBox('ยื่นเอกสาร Inbound', item.documentSubmittedAt)}
+          ${detailBox('รับสินค้าเสร็จ', item.receivingCompletedAt)}
+          ${detailBox('รับเอกสารคืน', item.documentReturnedAt)}
+          ${detailBox('Gate Out', item.gateOutAt)}
+          ${detailBox('ขั้นตอนถัดไป', item.nextStepText)}
+          ${detailBox('อัปเดตล่าสุด', item.updatedAt)}
+          ${item.cancelled ? detailBox('เหตุผลยกเลิก', item.cancelReason) : ''}
+        </section>
+      </article>
+    `;
+  }
+
+  function detailBox(label, value) {
+    return `
+      <div class="detail-box">
+        <span>${escapeHtml(label || '')}</span>
+        <strong>${escapeHtml(value || '-')}</strong>
       </div>
     `;
   }
