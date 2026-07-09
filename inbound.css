@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.css
- * ROUND 05 HOTFIX 03 — Fast Inbound Scan Control Room
+ * ROUND 05 HOTFIX 04 — Operator Table + Focus Fix
  ************************************************************/
 :root {
   --navy-950: #06283f;
@@ -27,7 +27,7 @@ html { min-height: 100%; background: var(--canvas); }
 body.inbound-page {
   min-height: 100vh;
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
   color: var(--ink);
   background: var(--canvas);
   font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
@@ -70,24 +70,25 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 @keyframes inbound-spin { to { transform: rotate(360deg); } }
 
 .inbound-shell {
-  width: min(1860px, calc(100vw - 24px));
-  min-height: 100vh;
+  width: min(1860px, calc(100vw - 20px));
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   margin: 0 auto;
-  padding: 10px 0 14px;
+  padding: 8px 0;
 }
 
 .inbound-topbar {
-  min-height: 76px;
+  min-height: 70px;
   display: grid;
   grid-template-columns: minmax(260px, .75fr) minmax(620px, 2fr) minmax(240px, .65fr);
   align-items: center;
   gap: 10px;
   border: 1px solid rgba(159, 196, 211, .55);
   border-radius: var(--radius);
-  padding: 9px 12px;
+  padding: 8px 11px;
   color: #ffffff;
   background: linear-gradient(110deg, var(--navy-950), var(--navy-800));
   box-shadow: var(--shadow);
@@ -123,7 +124,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 }
 .status-strip button {
   min-width: 0;
-  min-height: 52px;
+  min-height: 46px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -148,7 +149,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 }
 .status-strip strong {
   color: #ffffff;
-  font-size: 22px;
+  font-size: 19px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -289,7 +290,8 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 
 .scanner-window {
   position: relative;
-  min-height: 210px;
+  height: clamp(172px, 27vh, 250px);
+  min-height: 0;
   overflow: hidden;
   border-radius: 13px;
   background: radial-gradient(circle at center, #082b38, #020c12 72%);
@@ -297,7 +299,8 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .scanner-window video {
   width: 100%;
   height: 100%;
-  min-height: 210px;
+  height: clamp(172px, 27vh, 250px);
+  min-height: 0;
   display: block;
   object-fit: cover;
 }
@@ -348,7 +351,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   gap: 7px;
 }
 .scan-message {
-  min-height: 52px;
+  min-height: 46px;
   display: grid;
   align-items: center;
   border-radius: 12px;
@@ -531,4 +534,209 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   .workflow-table { min-width: 980px; }
   .scanner-window { min-height: 240px; }
   .scanner-window video { min-height: 240px; }
+}
+
+
+/* ==========================================================
+   HOTFIX 04 — หน้าจอเดียว + ตารางตามข้อมูลสำคัญ + ไม่แย่ง Focus
+   ========================================================== */
+@media (min-width: 861px) {
+  body.inbound-page {
+    overflow: hidden !important;
+  }
+
+  .inbound-shell {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    padding: 8px 0 !important;
+  }
+
+  .inbound-topbar {
+    min-height: 68px !important;
+  }
+
+  .inbound-brand h1 {
+    font-size: clamp(24px, 2.1vw, 34px) !important;
+  }
+
+  .inbound-brand p {
+    font-size: 10px !important;
+  }
+
+  .inbound-module-bar {
+    min-height: 62px !important;
+    padding: 7px 9px !important;
+  }
+
+  .inbound-workspace {
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-columns: minmax(315px, 25%) minmax(0, 75%) !important;
+    overflow: hidden !important;
+  }
+
+  .inbound-left {
+    height: 100% !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+  }
+
+  .scanner-card {
+    gap: 7px !important;
+    padding: 9px !important;
+  }
+
+  .scanner-window {
+    height: clamp(165px, 25vh, 230px) !important;
+    min-height: 0 !important;
+  }
+
+  .scanner-window video {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .manual-form input {
+    min-height: 44px !important;
+    font-size: 15px !important;
+  }
+
+  .manual-actions,
+  .scanner-actions {
+    gap: 6px !important;
+  }
+
+  .button {
+    min-height: 38px !important;
+    padding: 7px 10px !important;
+  }
+
+  .scan-message {
+    min-height: 44px !important;
+    padding: 7px 9px !important;
+    font-size: 11px !important;
+  }
+
+  .result-panel {
+    min-height: 0 !important;
+    overflow: auto !important;
+    margin-top: 0 !important;
+    padding: 9px !important;
+  }
+
+  .result-grid,
+  .selected-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .result-field,
+  .selected-field {
+    padding: 6px 7px !important;
+  }
+
+  .inbound-right {
+    height: 100% !important;
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, 170px) !important;
+  }
+
+  .table-toolbar {
+    min-height: 52px !important;
+    padding-bottom: 7px !important;
+  }
+
+  .table-toolbar input {
+    min-height: 38px !important;
+  }
+
+  .workflow-table {
+    min-width: 0 !important;
+    table-layout: fixed !important;
+  }
+
+  .workflow-table th,
+  .workflow-table td {
+    padding: 7px 7px !important;
+    font-size: 12px !important;
+  }
+
+  .workflow-table th:nth-child(1), .workflow-table td:nth-child(1) { width: 9%; }
+  .workflow-table th:nth-child(2), .workflow-table td:nth-child(2) { width: 17%; }
+  .workflow-table th:nth-child(3), .workflow-table td:nth-child(3) { width: 13%; }
+  .workflow-table th:nth-child(4), .workflow-table td:nth-child(4) { width: 14%; }
+  .workflow-table th:nth-child(5), .workflow-table td:nth-child(5) { width: 10%; }
+  .workflow-table th:nth-child(6), .workflow-table td:nth-child(6) { width: 12%; }
+  .workflow-table th:nth-child(7), .workflow-table td:nth-child(7) { width: 12%; }
+  .workflow-table th:nth-child(8), .workflow-table td:nth-child(8) { width: 9%; }
+  .workflow-table th:nth-child(9), .workflow-table td:nth-child(9) { width: 4%; text-align: center; }
+
+  .workflow-table td strong,
+  .workflow-table td span,
+  .workflow-cell-main,
+  .workflow-cell-sub {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .workflow-cell-main {
+    display: block;
+    color: var(--ink);
+    font-weight: 950;
+  }
+
+  .workflow-cell-sub {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .workflow-auto-id {
+    color: #516c7b !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+  }
+
+  .workflow-auto-id span {
+    color: #7b8e99 !important;
+    font-size: 10px !important;
+  }
+
+  .status-pill {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 128px !important;
+    padding: 5px 6px !important;
+    font-size: 10px !important;
+  }
+
+  .selected-panel[hidden] {
+    display: none !important;
+  }
+
+  .selected-panel {
+    overflow: auto !important;
+  }
+}
+
+@media (max-width: 860px) {
+  body.inbound-page {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .workflow-table {
+    min-width: 1120px !important;
+  }
+}
+
+.result-identity small {
+  display: block;
+  margin-top: 5px;
+  color: #66808e;
+  font-size: 11px;
+  font-weight: 850;
 }
