@@ -1,6 +1,6 @@
 /************************************************************
  * inbound-scanner.js
- * ROUND 05 HOTFIX 03 — Fast scanner engine
+ * ROUND 05 HOTFIX 04 — Fast scanner engine
  * Native BarcodeDetector + ZXing fallback
  ************************************************************/
 (function (window) {
