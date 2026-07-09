@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 04 — Inbound Scanner + Lookup + Submit Document
+ * ROUND 05 — Inbound Scanner + Submit/Return Document
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -85,6 +85,7 @@
     byId('stopCameraButton')?.addEventListener('click', stopCamera);
     byId('inboundRefreshButton')?.addEventListener('click', () => reloadCurrentLookup());
     byId('submitDocumentButton')?.addEventListener('click', submitDocument);
+    byId('returnDocumentButton')?.addEventListener('click', returnDocument);
     byId('clearResultButton')?.addEventListener('click', clearResult);
 
     byId('manualLookupForm')?.addEventListener('submit', (event) => {
@@ -373,10 +374,91 @@
     }
   }
 
+
+  async function returnDocument() {
+    const lookup = state.currentLookup;
+
+    if (!lookup || !lookup.record || !lookup.record.autoId) {
+      showToast('warning', 'กรุณาตรวจสอบรหัสก่อนบันทึก');
+      return;
+    }
+
+    if (!canReturnDocument(lookup)) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'ยังรับเอกสารคืนไม่ได้',
+        text: explainCannotReturn(lookup),
+        confirmButtonText: 'รับทราบ',
+        customClass: {
+          popup: 'inbound-swal-popup'
+        }
+      });
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      icon: undefined,
+      title: '',
+      html: buildReturnConfirmHtml(lookup),
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันรับเอกสารคืน',
+      cancelButtonText: 'ยกเลิก',
+      focusConfirm: false,
+      customClass: {
+        popup: 'inbound-swal-popup',
+        htmlContainer: 'inbound-swal-html'
+      }
+    });
+
+    if (!confirm.isConfirmed) {
+      return;
+    }
+
+    state.loading = true;
+    setLookupBusy(true);
+
+    try {
+      const result = await API.returnInboundDocument(
+        state.moduleId,
+        {
+          entryCode: lookup.record.autoId,
+          qrText: lookup.record.autoId,
+          method: 'SCAN',
+          note: 'บันทึกรับเอกสารคืนจากหน้า Inbound'
+        }
+      );
+
+      state.currentLookup = normalizeLookupResult(result);
+      renderLookupResult(state.currentLookup);
+      addRecent('RETURN_DOCUMENT', state.currentLookup);
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'บันทึกรับเอกสารคืนแล้ว',
+        text: lookup.record.autoId,
+        timer: 1300,
+        showConfirmButton: false,
+        customClass: {
+          popup: 'inbound-swal-popup'
+        }
+      });
+
+      clearCodeInput();
+      focusCodeInput();
+
+    } catch (error) {
+      await showWorkflowError('บันทึกรับเอกสารคืนไม่สำเร็จ', error);
+    } finally {
+      state.loading = false;
+      setLookupBusy(false);
+    }
+  }
+
   function renderLookupResult(lookup) {
     const panel = byId('lookupResultPanel');
     const body = byId('resultBody');
-    const button = byId('submitDocumentButton');
+    const submitButton = byId('submitDocumentButton');
+    const returnButton = byId('returnDocumentButton');
 
     if (!panel || !body) return;
 
@@ -401,15 +483,24 @@
         ${resultField('จังหวัด', record.province || '-')}
         ${resultField('สถานะ', currentState.statusName || '-')}
         ${resultField('ยื่นเอกสาร', currentState.documentSubmittedAt || '-')}
+        ${resultField('รับสินค้าเสร็จ', currentState.receivingCompletedAt || '-')}
+        ${resultField('รับเอกสารคืน', currentState.documentReturnedAt || '-')}
         ${resultField('ขั้นตอนถัดไป', currentState.nextStepText || '-')}
       </div>
     `;
 
-    if (button) {
-      button.disabled = !canSubmitDocument(lookup);
-      button.textContent = canSubmitDocument(lookup)
+    if (submitButton) {
+      submitButton.disabled = !canSubmitDocument(lookup);
+      submitButton.textContent = canSubmitDocument(lookup)
         ? 'บันทึกยื่นเอกสาร'
         : buttonLabelByState(lookup);
+    }
+
+    if (returnButton) {
+      returnButton.disabled = !canReturnDocument(lookup);
+      returnButton.textContent = canReturnDocument(lookup)
+        ? 'บันทึกรับเอกสารคืน'
+        : returnButtonLabelByState(lookup);
     }
   }
 
@@ -417,6 +508,7 @@
     const panel = byId('lookupResultPanel');
     const body = byId('resultBody');
     const button = byId('submitDocumentButton');
+    const returnButton = byId('returnDocumentButton');
 
     if (!panel || !body) return;
 
@@ -434,6 +526,11 @@
     if (button) {
       button.disabled = true;
       button.textContent = 'บันทึกไม่ได้';
+    }
+
+    if (returnButton) {
+      returnButton.disabled = true;
+      returnButton.textContent = 'รับเอกสารคืนไม่ได้';
     }
   }
 
@@ -513,6 +610,22 @@
     return !status || status === 'GATE_IN_ONLY';
   }
 
+
+  function canReturnDocument(lookup) {
+    const record = lookup && lookup.record ? lookup.record : {};
+    const currentState = lookup && lookup.state ? lookup.state : {};
+    const status = String(currentState.statusCode || '').toUpperCase();
+
+    if (!record.autoId) return false;
+    if (record.timestampOut || currentState.gateOutAt) return false;
+    if (currentState.cancelled) return false;
+    if (!currentState.documentSubmittedAt) return false;
+    if (!currentState.receivingCompletedAt) return false;
+    if (currentState.documentReturnedAt) return false;
+
+    return status === 'RECEIVING_COMPLETED';
+  }
+
   function explainCannotSubmit(lookup) {
     const record = lookup && lookup.record ? lookup.record : {};
     const currentState = lookup && lookup.state ? lookup.state : {};
@@ -530,6 +643,45 @@
     }
 
     return currentState.nextStepText || 'สถานะปัจจุบันไม่พร้อมสำหรับการยื่นเอกสาร';
+  }
+
+
+  function explainCannotReturn(lookup) {
+    const record = lookup && lookup.record ? lookup.record : {};
+    const currentState = lookup && lookup.state ? lookup.state : {};
+
+    if (record.timestampOut || currentState.gateOutAt) {
+      return 'รายการนี้มีเวลาออก Gate Out แล้ว ไม่สามารถรับเอกสารคืนได้';
+    }
+
+    if (currentState.cancelled) {
+      return 'รายการนี้ถูกยกเลิกแล้ว: ' + (currentState.cancelReason || '-');
+    }
+
+    if (!currentState.documentSubmittedAt) {
+      return 'รายการนี้ยังไม่ได้ยื่นเอกสาร Inbound';
+    }
+
+    if (!currentState.receivingCompletedAt) {
+      return 'ต้องให้ User/Admin กดรับสินค้าเสร็จก่อน จึงจะรับเอกสารคืนได้';
+    }
+
+    if (currentState.documentReturnedAt) {
+      return 'รายการนี้รับเอกสารคืนแล้วเมื่อ ' + currentState.documentReturnedAt;
+    }
+
+    return currentState.nextStepText || 'สถานะปัจจุบันไม่พร้อมสำหรับการรับเอกสารคืน';
+  }
+
+  function returnButtonLabelByState(lookup) {
+    const currentState = lookup && lookup.state ? lookup.state : {};
+
+    if (currentState.documentReturnedAt) return 'รับเอกสารคืนแล้ว';
+    if (!currentState.receivingCompletedAt) return 'รอรับสินค้าเสร็จ';
+    if (currentState.gateOutAt) return 'ออกคลังแล้ว';
+    if (currentState.cancelled) return 'ถูกยกเลิกแล้ว';
+
+    return 'รับเอกสารคืนไม่ได้';
   }
 
   function buttonLabelByState(lookup) {
@@ -561,6 +713,32 @@
           <dd>${escapeHtml(record.registration || '-')}</dd>
           <dt>เวลาเข้า</dt>
           <dd>${escapeHtml(record.timestampIn || '-')}</dd>
+        </dl>
+      </article>
+    `;
+  }
+
+
+  function buildReturnConfirmHtml(lookup) {
+    const record = lookup.record || {};
+    const currentState = lookup.state || {};
+
+    return `
+      <article class="inbound-confirm-card">
+        <header>
+          <small>CONFIRM DOCUMENT RETURN</small>
+          <h2>ยืนยันรับเอกสารคืน</h2>
+        </header>
+
+        <dl>
+          <dt>Auto ID</dt>
+          <dd>${escapeHtml(record.autoId || '-')}</dd>
+          <dt>บริษัท</dt>
+          <dd>${escapeHtml(record.companyName || '-')}</dd>
+          <dt>ทะเบียน</dt>
+          <dd>${escapeHtml(record.registration || '-')}</dd>
+          <dt>รับสินค้าเสร็จ</dt>
+          <dd>${escapeHtml(currentState.receivingCompletedAt || '-')}</dd>
         </dl>
       </article>
     `;
@@ -622,12 +800,22 @@
       <article class="recent-item">
         <div class="recent-item__top">
           <strong>${escapeHtml(item.autoId)}</strong>
-          <em>${escapeHtml(item.type === 'SUBMIT_DOCUMENT' ? 'ยื่นเอกสาร' : 'ตรวจสอบ')}</em>
+          <em>${escapeHtml(recentTypeLabel(item.type))}</em>
         </div>
         <span>${escapeHtml(item.companyName || '-')} · ${escapeHtml(item.registration || '-')}</span>
         <span>${escapeHtml(item.createdAt)} · ${escapeHtml(item.statusName || '-')}</span>
       </article>
     `).join('');
+  }
+
+
+  function recentTypeLabel(type) {
+    const value = String(type || '').toUpperCase();
+
+    if (value === 'SUBMIT_DOCUMENT') return 'ยื่นเอกสาร';
+    if (value === 'RETURN_DOCUMENT') return 'รับเอกสารคืน';
+
+    return 'ตรวจสอบ';
   }
 
   async function logout() {
@@ -657,7 +845,7 @@
   }
 
   function setLookupBusy(busy) {
-    ['submitDocumentButton', 'clearResultButton', 'startCameraButton', 'inboundRefreshButton']
+    ['submitDocumentButton', 'returnDocumentButton', 'clearResultButton', 'startCameraButton', 'inboundRefreshButton']
       .forEach((id) => {
         const element = byId(id);
         if (element) element.disabled = busy === true;
