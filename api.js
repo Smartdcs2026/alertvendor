@@ -6,7 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - รองรับ Receiving Flow, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
+ * - รองรับ Receiving Flow, Inbound Workflow, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
  */
 (function (window) {
   'use strict';
@@ -1254,6 +1254,154 @@
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
             body: record || {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async lookupInboundWorkflow(
+      moduleId,
+      entryCode,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/lookup',
+          {
+            timeoutMs:
+              CONFIG.INBOUND_LOOKUP_TIMEOUT_MS ||
+              CONFIG.API_TIMEOUT_MS ||
+              60000,
+
+            query: {
+              entryCode:
+                entryCode ||
+                config.entryCode ||
+                config.autoId ||
+                '',
+
+              method:
+                config.method ||
+                config.lookupMethod ||
+                'SCAN'
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getInboundWorkflowState(
+      moduleId,
+      entryCode,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const cleanCode =
+        entryCode ||
+        config.entryCode ||
+        config.autoId ||
+        '';
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/state/' +
+          encodeURIComponent(cleanCode),
+          {
+            timeoutMs:
+              CONFIG.INBOUND_LOOKUP_TIMEOUT_MS ||
+              CONFIG.API_TIMEOUT_MS ||
+              60000,
+
+            query: {
+              method:
+                config.method ||
+                config.lookupMethod ||
+                'SCAN'
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async submitInboundDocument(
+      moduleId,
+      payload
+    ) {
+      const body =
+        payload &&
+        typeof payload === 'object'
+          ? payload
+          : {};
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/submit-document',
+          {
+            method: 'POST',
+
+            timeoutMs:
+              CONFIG.INBOUND_SAVE_TIMEOUT_MS ||
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+
+            body: {
+              entryCode:
+                body.entryCode ||
+                body.autoId ||
+                body.code ||
+                body.qrText ||
+                '',
+
+              qrText:
+                body.qrText ||
+                body.entryCode ||
+                body.autoId ||
+                '',
+
+              lookupMethod:
+                body.lookupMethod ||
+                body.method ||
+                'SCAN',
+
+              note:
+                body.note ||
+                body.remark ||
+                '',
+
+              clientRequestId:
+                body.clientRequestId ||
+                body.requestId ||
+                createRequestId(),
+
+              latitude:
+                body.latitude,
+
+              longitude:
+                body.longitude
+            }
           }
         );
 
