@@ -22,7 +22,7 @@
 
   <link
     rel="stylesheet"
-    href="./inbound.css?v=20260709-r05-hotfix1"
+    href="./inbound.css?v=20260709-r05-control-room-1"
   >
 
   <script
@@ -40,19 +40,18 @@
     defer
   ></script>
 
-
   <script
     src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"
     defer
   ></script>
 
   <script
-    src="./inbound-scanner.js?v=20260709-r05-hotfix1"
+    src="./inbound-scanner.js?v=20260709-r05-control-room-1"
     defer
   ></script>
 
   <script
-    src="./inbound.js?v=20260709-r05-hotfix1"
+    src="./inbound.js?v=20260709-r05-control-room-1"
     defer
   ></script>
 </head>
@@ -61,15 +60,33 @@
   <div id="inboundLoading" class="inbound-loading" role="status" aria-live="polite">
     <div class="inbound-spinner"></div>
     <strong>กำลังเตรียมห้อง Inbound</strong>
-    <span>ตรวจสิทธิ์และเตรียมระบบสแกน</span>
+    <span>ตรวจสิทธิ์ เตรียมกล้อง และโหลดสถานะล่าสุด</span>
   </div>
 
   <main class="inbound-shell">
-    <header class="inbound-header">
-      <div class="inbound-header__title">
+    <header class="inbound-topbar">
+      <div class="inbound-brand">
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
         <p>สแกน Auto ID เพื่อยื่นเอกสารและรับเอกสารคืน</p>
+      </div>
+
+      <div class="top-status" aria-label="จำนวนสถานะงานเอกสาร">
+        <button type="button" data-status-filter="ALL" class="is-active">
+          ทั้งหมด <strong id="countTotalWorkflow">0</strong>
+        </button>
+        <button type="button" data-status-filter="DOCUMENT_SUBMITTED">
+          รอรับสินค้า <strong id="countWaitingReceiving">0</strong>
+        </button>
+        <button type="button" data-status-filter="RECEIVING_COMPLETED">
+          รอรับเอกสารคืน <strong id="countReceivingCompleted">0</strong>
+        </button>
+        <button type="button" data-status-filter="DOCUMENT_RETURNED">
+          คืนเอกสารแล้ว <strong id="countDocumentReturned">0</strong>
+        </button>
+        <button type="button" data-status-filter="CANCELLED">
+          ยกเลิก <strong id="countCancelled">0</strong>
+        </button>
       </div>
 
       <div class="inbound-user-card">
@@ -88,116 +105,146 @@
       </label>
 
       <button id="inboundRefreshButton" type="button">
-        รีเฟรช
+        รีเฟรชข้อมูล
       </button>
-    </section>
 
-    <section class="scanner-card" aria-label="สแกน Auto ID">
-      <div class="scanner-card__head">
-        <div>
-          <small>SCAN AUTO ID</small>
-          <h2>สแกนหรือกรอกรหัส Auto ID</h2>
-        </div>
-
-        <span id="scannerStatus" data-state="IDLE">
-          ยังไม่เปิดกล้อง
-        </span>
-      </div>
-
-      <div class="scanner-window">
-        <video id="inboundVideo" playsinline muted></video>
-        <div class="scanner-frame" aria-hidden="true"></div>
-        <div class="scanner-hint">
-          วาง QR / Barcode ให้อยู่ในกรอบ
-        </div>
-      </div>
-
-      <div class="scanner-actions">
-        <button id="startCameraButton" type="button" class="button button--primary">
-          เปิดกล้อง
-        </button>
-
-        <button id="stopCameraButton" type="button" class="button button--ghost">
-          ปิดกล้อง
-        </button>
-      </div>
-
-      <form id="manualLookupForm" class="manual-form">
-        <label>
-          <span>Auto ID / รหัสจาก Gate In</span>
-          <input
-            id="entryCodeInput"
-            type="text"
-            inputmode="latin"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-            placeholder="เช่น SK02369916991"
-          >
-        </label>
-
-        <button type="submit" class="button button--primary">
-          ตรวจสอบรหัส
-        </button>
-      </form>
-    </section>
-
-    <section id="lookupResultPanel" class="result-panel" hidden>
-      <div class="result-panel__head">
-        <div>
-          <small>RESULT</small>
-          <h2 id="resultTitle">พบข้อมูลรถ/ตู้</h2>
-        </div>
-
-        <span id="resultStatusBadge">-</span>
-      </div>
-
-      <div id="resultBody" class="result-body"></div>
-
-      <div class="result-actions">
-        <button id="submitDocumentButton" type="button" class="button button--success" disabled>
-          บันทึกยื่นเอกสาร
-        </button>
-
-        <button id="returnDocumentButton" type="button" class="button button--warning" disabled>
-          รับเอกสารคืน
-        </button>
-
-        <button id="clearResultButton" type="button" class="button button--ghost">
-          ล้างข้อมูล
-        </button>
-      </div>
-    </section>
-
-    <section class="recent-panel">
-      <div class="recent-panel__head">
-        <div>
-          <small>RECENT ACTIVITY</small>
-          <h2>รายการล่าสุด</h2>
-        </div>
-
-        <span id="recentCount">0 รายการ</span>
-      </div>
-
-      <label class="recent-search">
-        <span>ค้นหา</span>
-        <input
-          id="recentSearchInput"
-          type="search"
-          placeholder="Auto ID / ทะเบียน / บริษัท / เลขนัดหมาย"
-        >
-      </label>
-
-      <div id="recentList" class="recent-list">
-        <div class="empty-state">ยังไม่มีรายการในรอบการใช้งานนี้</div>
-      </div>
-    </section>
-
-    <footer class="inbound-footer">
-      <button id="inboundLogoutButton" type="button">
+      <button id="inboundLogoutButton" type="button" class="button--logout">
         ออกจากระบบ
       </button>
-    </footer>
+    </section>
+
+    <section class="inbound-workspace">
+      <aside class="inbound-left" aria-label="พื้นที่สแกนรหัส">
+        <section class="scanner-card" aria-label="สแกน Auto ID">
+          <div class="scanner-card__head">
+            <div>
+              <small>SCAN AUTO ID</small>
+              <h2>สแกนหรือกรอกรหัส Auto ID</h2>
+            </div>
+
+            <span id="scannerStatus" data-state="IDLE">
+              พร้อมกรอกรหัส
+            </span>
+          </div>
+
+          <div class="scanner-window">
+            <video id="inboundVideo" playsinline muted></video>
+            <div class="scanner-frame" aria-hidden="true"></div>
+            <div class="scanner-hint">
+              วาง QR / Barcode ให้อยู่ในกรอบ
+            </div>
+          </div>
+
+          <form id="manualLookupForm" class="manual-form">
+            <label>
+              <span>Auto ID / รหัสจาก Gate In</span>
+              <input
+                id="entryCodeInput"
+                type="text"
+                inputmode="latin"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                placeholder="เสียบเครื่องสแกนหรือกรอก เช่น SK02369916991"
+              >
+            </label>
+
+            <div class="manual-actions">
+              <button id="lookupCodeButton" type="submit" class="button button--primary">
+                ตรวจสอบ
+              </button>
+
+              <button id="clearCodeButton" type="button" class="button button--ghost">
+                ยกเลิก
+              </button>
+            </div>
+          </form>
+
+          <div class="scanner-actions">
+            <button id="startCameraButton" type="button" class="button button--success">
+              เปิดกล้อง
+            </button>
+
+            <button id="stopCameraButton" type="button" class="button button--ghost">
+              ปิดกล้อง
+            </button>
+          </div>
+
+          <div id="scanMessage" class="scan-message" data-state="IDLE">
+            พร้อมสแกนรายการถัดไป ระบบจะค้นหาทันทีเมื่อพบรหัส
+          </div>
+        </section>
+      </aside>
+
+      <section class="inbound-right" aria-label="ข้อมูลและสถานะงานเอกสาร">
+        <section id="lookupResultPanel" class="result-panel" hidden>
+          <div class="result-panel__head">
+            <div>
+              <small>RESULT</small>
+              <h2 id="resultTitle">พบข้อมูลรถ/ตู้</h2>
+            </div>
+
+            <span id="resultStatusBadge">-</span>
+          </div>
+
+          <div id="resultBody" class="result-body"></div>
+
+          <div class="result-actions">
+            <button id="submitDocumentButton" type="button" class="button button--success" disabled>
+              บันทึกยื่นเอกสาร
+            </button>
+
+            <button id="returnDocumentButton" type="button" class="button button--warning" disabled>
+              รับเอกสารคืน
+            </button>
+
+            <button id="clearResultButton" type="button" class="button button--ghost">
+              ล้างผลลัพธ์
+            </button>
+          </div>
+        </section>
+
+        <section class="workflow-table-panel">
+          <div class="workflow-table-panel__head">
+            <div>
+              <small>WORKFLOW STATUS</small>
+              <h2>สถานะรถ/ตู้ล่าสุด</h2>
+            </div>
+
+            <span id="workflowTableCount">0 รายการ</span>
+          </div>
+
+          <div class="workflow-tools">
+            <label>
+              <span>ค้นหา Auto ID / ทะเบียน / บริษัท / เลขนัดหมาย</span>
+              <input
+                id="workflowSearchInput"
+                type="search"
+                placeholder="พิมพ์เพื่อค้นหา"
+              >
+            </label>
+          </div>
+
+          <div class="workflow-table-wrap">
+            <table class="workflow-table">
+              <thead>
+                <tr>
+                  <th>Auto ID</th>
+                  <th>สถานะ</th>
+                  <th>อัปเดตล่าสุด</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="workflowTableBody">
+                <tr>
+                  <td colspan="4" class="empty-cell">กำลังโหลดข้อมูลล่าสุด...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </section>
   </main>
 </body>
 </html>
