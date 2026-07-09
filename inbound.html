@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#073b59"
+  >
+
+  <title>Inbound Scan | ระบบติดตามสถานะรถและตู้สินค้า</title>
+
+  <link
+    rel="stylesheet"
+    href="./inbound.css?v=20260709-r03"
+  >
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
+    defer
+  ></script>
+
+  <script
+    src="./config.js?v=20260709-r03"
+    defer
+  ></script>
+
+  <script
+    src="./api.js?v=20260709-r03"
+    defer
+  ></script>
+
+  <script
+    src="./inbound.js?v=20260709-r03"
+    defer
+  ></script>
+</head>
+
+<body class="inbound-page" data-page="inbound">
+  <main class="inbound-shell">
+    <header class="inbound-header">
+      <div>
+        <small>INBOUND DOCUMENT CONTROL</small>
+        <h1>ห้อง Inbound</h1>
+        <p>รอบนี้เป็นหน้าเตรียมสิทธิ์ ก่อนเพิ่มกล้องสแกนในรอบถัดไป</p>
+      </div>
+
+      <div class="inbound-user-card">
+        <span id="inboundConnection">กำลังตรวจสอบ</span>
+        <strong id="inboundDateTime">--/--/---- --:--:--</strong>
+        <small id="inboundUser">-</small>
+      </div>
+    </header>
+
+    <section class="inbound-access-panel">
+      <div class="inbound-status-mark" aria-hidden="true">IN</div>
+
+      <div>
+        <small>ROLE READY</small>
+        <h2>เตรียมสิทธิ์ INBOUND สำเร็จ</h2>
+        <p>
+          ผู้ใช้สิทธิ์ Inbound จะเข้าหน้านี้โดยตรงหลัง Login
+          และไม่ถูกส่งไปหน้า Module หลัก
+        </p>
+      </div>
+    </section>
+
+    <section class="inbound-next-panel">
+      <h2>รอบถัดไปจะเพิ่มอะไร</h2>
+      <div class="inbound-next-grid">
+        <article>
+          <strong>Scanner Zone</strong>
+          <span>เปิดกล้องหลัง สแกน Auto ID และกรอกรหัสเองได้</span>
+        </article>
+
+        <article>
+          <strong>Lookup Result</strong>
+          <span>แสดงรายละเอียดรถ/ตู้จากชีทต้นทางก่อนบันทึก</span>
+        </article>
+
+        <article>
+          <strong>Document Submit</strong>
+          <span>บันทึกยื่นเอกสาร Inbound พร้อมกันสแกนซ้ำ</span>
+        </article>
+      </div>
+    </section>
+
+    <footer class="inbound-footer">
+      <button id="inboundLogoutButton" type="button">ออกจากระบบ</button>
+    </footer>
+  </main>
+</body>
+</html>
