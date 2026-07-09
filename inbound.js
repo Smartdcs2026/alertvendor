@@ -1,12 +1,15 @@
 /************************************************************
  * inbound.js
- * ROUND 05 — Inbound Scanner + Submit/Return Document
+ * ROUND 05 HOTFIX 02 — Inbound Control Room + Fast Scan
  ************************************************************/
 (function (window, document) {
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
+  const SCAN_DUPLICATE_BLOCK_MS = 8000;
+  const SCAN_PAUSE_AFTER_READ_MS = 2600;
+  const KEYBOARD_SCAN_DEBOUNCE_MS = 230;
 
   const state = {
     clockTimer: null,
@@ -16,8 +19,15 @@
     moduleId: '',
     currentLookup: null,
     loading: false,
-    recent: [],
-    recentQuery: ''
+    dashboard: null,
+    dashboardItems: [],
+    dashboardQuery: '',
+    statusFilter: 'ALL',
+    recentScanMap: new Map(),
+    inFlightCodes: new Set(),
+    manualInputTimer: null,
+    audioContext: null,
+    audioUnlocked: false
   };
 
   document.addEventListener('DOMContentLoaded', initialize);
@@ -64,7 +74,8 @@
 
       await loadModules();
       createScanner();
-      renderRecent();
+      await loadWorkflowDashboard(true);
+      focusCodeInput();
 
     } catch (error) {
       if (isAuthError(error)) {
@@ -83,36 +94,98 @@
     byId('inboundLogoutButton')?.addEventListener('click', logout);
     byId('startCameraButton')?.addEventListener('click', startCamera);
     byId('stopCameraButton')?.addEventListener('click', stopCamera);
-    byId('inboundRefreshButton')?.addEventListener('click', () => reloadCurrentLookup());
+    byId('inboundRefreshButton')?.addEventListener('click', () => {
+      void loadWorkflowDashboard(false);
+      reloadCurrentLookup();
+    });
     byId('submitDocumentButton')?.addEventListener('click', submitDocument);
     byId('returnDocumentButton')?.addEventListener('click', returnDocument);
     byId('clearResultButton')?.addEventListener('click', clearResult);
+    byId('clearCodeButton')?.addEventListener('click', () => {
+      clearCodeInput();
+      setScanMessage('พร้อมสแกนรายการถัดไป', 'IDLE');
+      focusCodeInput();
+    });
 
     byId('manualLookupForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
       const code = getEntryCode();
       if (!code) {
-        showToast('warning', 'กรุณากรอก Auto ID');
+        beep('warn');
+        setScanMessage('กรุณากรอก Auto ID ก่อนตรวจสอบ', 'WARN');
         focusCodeInput();
         return;
       }
-      void lookupCode(code, 'MANUAL');
+      void lookupCode(code, 'MANUAL', code, {source: 'FORM'});
     });
 
-    byId('inboundModuleSelect')?.addEventListener('change', (event) => {
+    const entryInput = byId('entryCodeInput');
+    if (entryInput) {
+      entryInput.addEventListener('focus', unlockAudio);
+      entryInput.addEventListener('keydown', (event) => {
+        unlockAudio();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          const code = getEntryCode();
+          if (code) {
+            void lookupCode(code, 'SCAN', code, {source: 'KEYBOARD_ENTER'});
+          }
+        }
+      });
+
+      entryInput.addEventListener('input', () => {
+        unlockAudio();
+        if (state.manualInputTimer) {
+          window.clearTimeout(state.manualInputTimer);
+        }
+
+        state.manualInputTimer = window.setTimeout(() => {
+          const code = getEntryCode();
+          if (code.length >= 8) {
+            void lookupCode(code, 'SCAN', code, {source: 'KEYBOARD_IDLE'});
+          }
+        }, KEYBOARD_SCAN_DEBOUNCE_MS);
+      });
+    }
+
+    byId('inboundModuleSelect')?.addEventListener('change', async (event) => {
       state.moduleId = String(event.target.value || '').trim();
       clearResult();
-      renderRecent();
+      await loadWorkflowDashboard(false);
+      focusCodeInput();
     });
 
-    byId('recentSearchInput')?.addEventListener('input', (event) => {
-      state.recentQuery = String(event.target.value || '').trim().toLowerCase();
-      renderRecent();
+    byId('workflowSearchInput')?.addEventListener('input', (event) => {
+      state.dashboardQuery = String(event.target.value || '').trim().toLowerCase();
+      renderWorkflowTable();
     });
+
+    document.querySelector('.top-status')?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-status-filter]');
+      if (!button) return;
+      state.statusFilter = String(button.dataset.statusFilter || 'ALL').toUpperCase();
+      document.querySelectorAll('[data-status-filter]').forEach((item) => {
+        item.classList.toggle('is-active', item === button);
+      });
+      renderWorkflowTable();
+    });
+
+    byId('workflowTableBody')?.addEventListener('click', (event) => {
+      const row = event.target.closest('[data-auto-id]');
+      if (!row) return;
+      const autoId = row.dataset.autoId || '';
+      if (autoId) {
+        void lookupCode(autoId, 'TABLE', autoId, {source: 'TABLE'});
+      }
+    });
+
+    document.addEventListener('click', unlockAudio, {once: true, capture: true});
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         stopCamera();
+      } else {
+        focusCodeInput();
       }
     });
   }
@@ -186,17 +259,12 @@
 
     state.scanner = new window.InboundScanner({
       video,
-      scanIntervalMs: 220,
-      cooldownMs: 1800,
+      scanIntervalMs: 160,
+      cooldownMs: SCAN_PAUSE_AFTER_READ_MS,
       onScan(rawText) {
         const code = normalizeEntryCode(rawText);
-
-        if (!code) {
-          return;
-        }
-
-        setInputValue('entryCodeInput', code);
-        void lookupCode(code, 'SCAN', rawText);
+        if (!code) return;
+        void lookupCode(code, 'SCAN', rawText, {source: 'CAMERA'});
       },
       onStatus(code, message) {
         setScannerStatus(message, code === 'CAMERA_READY' ? 'READY' : 'IDLE');
@@ -206,35 +274,37 @@
       }
     });
 
-    if (!state.scanner.isSupported()) {
-      setScannerStatus('เครื่องนี้ให้กรอกรหัสเอง', 'ERROR');
+    if (!state.scanner.isCameraAvailable()) {
+      setScannerStatus('ใช้ช่องกรอกรหัส', 'ERROR');
+      setScanMessage('เครื่องนี้เปิดกล้องไม่ได้ ให้เสียบเครื่องสแกนหรือกรอกรหัสเอง', 'WARN');
+    } else if (!state.scanner.isSupported()) {
+      setScannerStatus('กล้องพร้อม แต่ต้องใช้ ZXing/BarcodeDetector', 'IDLE');
     }
   }
 
   async function startCamera() {
+    unlockAudio();
+
     if (!state.scanner) {
       createScanner();
     }
 
     if (!state.scanner) {
-      await showSystemError('เปิดกล้องไม่ได้', 'ไม่พบระบบสแกน กรุณากรอกรหัสเอง');
+      setScannerStatus('ใช้ช่องกรอกรหัส', 'ERROR');
+      setScanMessage('ไม่พบระบบสแกน ให้กรอกรหัสเองหรือเสียบเครื่องสแกน QR', 'WARN');
+      focusCodeInput();
       return;
     }
 
     try {
       await state.scanner.start();
       setScannerStatus('กล้องพร้อมสแกน', 'READY');
+      setScanMessage('กล้องพร้อม วาง QR / Barcode ในกรอบ ระบบจะค้นหาให้อัตโนมัติ', 'SUCCESS');
+      focusCodeInput();
     } catch (error) {
       setScannerStatus('ใช้ช่องกรอกรหัสแทน', 'ERROR');
-      await Swal.fire({
-        icon: 'warning',
-        title: 'เปิดกล้องไม่ได้',
-        text: errorMessage(error),
-        confirmButtonText: 'กรอกรหัสเอง',
-        customClass: {
-          popup: 'inbound-swal-popup'
-        }
-      });
+      setScanMessage(errorMessage(error), 'WARN');
+      beep('warn');
       focusCodeInput();
     }
   }
@@ -243,30 +313,54 @@
     if (state.scanner) {
       state.scanner.stop();
     }
+    focusCodeInput();
   }
 
-  async function lookupCode(code, method, rawText) {
+  async function lookupCode(code, method, rawText, options) {
     const cleanCode = normalizeEntryCode(code);
+    const config = options && typeof options === 'object' ? options : {};
 
     if (!cleanCode) {
-      showToast('warning', 'ไม่พบรหัสสำหรับค้นหา');
+      beep('warn');
+      setScanMessage('ไม่พบรหัสสำหรับค้นหา', 'WARN');
+      focusCodeInput();
       return;
     }
 
     if (!state.moduleId) {
-      showToast('warning', 'กรุณาเลือก Module ก่อน');
+      beep('warn');
+      setScanMessage('กรุณาเลือก Module ก่อนสแกน', 'WARN');
+      focusCodeInput();
       return;
     }
 
-    if (state.loading) {
+    if (isDuplicateScanBlocked(cleanCode) && config.source !== 'TABLE') {
+      beep('duplicate');
+      setScanMessage('รหัสนี้เพิ่งถูกสแกนแล้ว ระบบกันการอ่านซ้ำ: ' + cleanCode, 'WARN');
+      clearCodeInput();
+      focusCodeInput();
       return;
     }
 
+    if (state.inFlightCodes.has(cleanCode)) {
+      return;
+    }
+
+    state.inFlightCodes.add(cleanCode);
+    blockDuplicateScan(cleanCode);
     state.loading = true;
+
+    if (state.scanner && typeof state.scanner.pause === 'function') {
+      state.scanner.pause(SCAN_PAUSE_AFTER_READ_MS);
+    }
+
     setScannerStatus('กำลังตรวจสอบรหัส', 'IDLE');
+    setScanMessage('กำลังค้นหาข้อมูล ' + cleanCode, 'IDLE');
     setLookupBusy(true);
 
     try {
+      beep('scan');
+
       const result = await API.lookupInboundWorkflow(
         state.moduleId,
         cleanCode,
@@ -278,19 +372,22 @@
 
       state.currentLookup = normalizeLookupResult(result);
       renderLookupResult(state.currentLookup);
-      addRecent('LOOKUP', state.currentLookup);
-
-      if (method === 'SCAN') {
-        showToast('success', 'ตรวจพบรหัส ' + cleanCode);
-      }
+      upsertDashboardItemFromLookup(state.currentLookup);
+      renderWorkflowDashboardState();
+      beep('success');
+      setScanMessage('พบข้อมูลและแสดงสถานะแล้ว: ' + cleanCode, 'SUCCESS');
 
     } catch (error) {
       state.currentLookup = null;
       renderLookupError(cleanCode, error);
-      await showWorkflowError('ตรวจสอบรหัสไม่สำเร็จ', error);
+      beep('error');
+      setScanMessage(errorMessage(error), 'ERROR');
     } finally {
+      state.inFlightCodes.delete(cleanCode);
       state.loading = false;
       setLookupBusy(false);
+      clearCodeInput();
+      focusCodeInput();
       setScannerStatus('พร้อมสแกนรายการถัดไป', state.scanner && state.scanner.running ? 'READY' : 'IDLE');
     }
   }
@@ -299,20 +396,15 @@
     const lookup = state.currentLookup;
 
     if (!lookup || !lookup.record || !lookup.record.autoId) {
-      showToast('warning', 'กรุณาตรวจสอบรหัสก่อนบันทึก');
+      beep('warn');
+      setScanMessage('กรุณาตรวจสอบรหัสก่อนบันทึก', 'WARN');
+      focusCodeInput();
       return;
     }
 
     if (!canSubmitDocument(lookup)) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'ยังบันทึกยื่นเอกสารไม่ได้',
-        text: explainCannotSubmit(lookup),
-        confirmButtonText: 'รับทราบ',
-        customClass: {
-          popup: 'inbound-swal-popup'
-        }
-      });
+      beep('warn');
+      setScanMessage(explainCannotSubmit(lookup), 'WARN');
       return;
     }
 
@@ -331,6 +423,7 @@
     });
 
     if (!confirm.isConfirmed) {
+      focusCodeInput();
       return;
     }
 
@@ -350,49 +443,39 @@
 
       state.currentLookup = normalizeLookupResult(result);
       renderLookupResult(state.currentLookup);
-      addRecent('SUBMIT_DOCUMENT', state.currentLookup);
+      upsertDashboardItemFromLookup(state.currentLookup);
+      renderWorkflowDashboardState();
+      beep('success');
+      setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + lookup.record.autoId, 'SUCCESS');
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'บันทึกยื่นเอกสารแล้ว',
-        text: lookup.record.autoId,
-        timer: 1300,
-        showConfirmButton: false,
-        customClass: {
-          popup: 'inbound-swal-popup'
-        }
-      });
-
+      await loadWorkflowDashboard(true);
       clearCodeInput();
       focusCodeInput();
 
     } catch (error) {
+      beep('error');
+      setScanMessage(errorMessage(error), 'ERROR');
       await showWorkflowError('บันทึกยื่นเอกสารไม่สำเร็จ', error);
     } finally {
       state.loading = false;
       setLookupBusy(false);
+      focusCodeInput();
     }
   }
-
 
   async function returnDocument() {
     const lookup = state.currentLookup;
 
     if (!lookup || !lookup.record || !lookup.record.autoId) {
-      showToast('warning', 'กรุณาตรวจสอบรหัสก่อนบันทึก');
+      beep('warn');
+      setScanMessage('กรุณาตรวจสอบรหัสก่อนรับเอกสารคืน', 'WARN');
+      focusCodeInput();
       return;
     }
 
     if (!canReturnDocument(lookup)) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'ยังรับเอกสารคืนไม่ได้',
-        text: explainCannotReturn(lookup),
-        confirmButtonText: 'รับทราบ',
-        customClass: {
-          popup: 'inbound-swal-popup'
-        }
-      });
+      beep('warn');
+      setScanMessage(explainCannotReturn(lookup), 'WARN');
       return;
     }
 
@@ -411,6 +494,7 @@
     });
 
     if (!confirm.isConfirmed) {
+      focusCodeInput();
       return;
     }
 
@@ -424,34 +508,225 @@
           entryCode: lookup.record.autoId,
           qrText: lookup.record.autoId,
           method: 'SCAN',
-          note: 'บันทึกรับเอกสารคืนจากหน้า Inbound'
+          note: 'รับเอกสารคืนจากหน้า Inbound'
         }
       );
 
       state.currentLookup = normalizeLookupResult(result);
       renderLookupResult(state.currentLookup);
-      addRecent('RETURN_DOCUMENT', state.currentLookup);
+      upsertDashboardItemFromLookup(state.currentLookup);
+      renderWorkflowDashboardState();
+      beep('success');
+      setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + lookup.record.autoId, 'SUCCESS');
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'บันทึกรับเอกสารคืนแล้ว',
-        text: lookup.record.autoId,
-        timer: 1300,
-        showConfirmButton: false,
-        customClass: {
-          popup: 'inbound-swal-popup'
-        }
-      });
-
+      await loadWorkflowDashboard(true);
       clearCodeInput();
       focusCodeInput();
 
     } catch (error) {
-      await showWorkflowError('บันทึกรับเอกสารคืนไม่สำเร็จ', error);
+      beep('error');
+      setScanMessage(errorMessage(error), 'ERROR');
+      await showWorkflowError('รับเอกสารคืนไม่สำเร็จ', error);
     } finally {
       state.loading = false;
       setLookupBusy(false);
+      focusCodeInput();
     }
+  }
+
+  async function loadWorkflowDashboard(silent) {
+    if (!state.moduleId || !API || typeof API.getInboundWorkflowDashboard !== 'function') {
+      renderWorkflowDashboardState();
+      return;
+    }
+
+    try {
+      if (!silent) {
+        setScanMessage('กำลังโหลดสถานะล่าสุด', 'IDLE');
+      }
+
+      const data = await API.getInboundWorkflowDashboard(state.moduleId, {limit: 300});
+      state.dashboard = normalizeDashboard(data);
+      state.dashboardItems = state.dashboard.items;
+      renderWorkflowDashboardState();
+
+      if (!silent) {
+        setScanMessage('โหลดข้อมูลล่าสุดแล้ว', 'SUCCESS');
+      }
+    } catch (error) {
+      console.warn('โหลด dashboard workflow ไม่สำเร็จ', error);
+      setScanMessage('โหลดตารางสถานะไม่สำเร็จ: ' + errorMessage(error), 'WARN');
+      renderWorkflowDashboardState();
+    }
+  }
+
+  function normalizeDashboard(data) {
+    const source = data && data.data && typeof data.data === 'object'
+      ? data.data
+      : data && typeof data === 'object'
+        ? data
+        : {};
+
+    const allItems = []
+      .concat(Array.isArray(source.items) ? source.items : [])
+      .concat(Array.isArray(source.waitingReceiving) ? source.waitingReceiving : [])
+      .concat(Array.isArray(source.receivingCompleted) ? source.receivingCompleted : [])
+      .concat(Array.isArray(source.documentReturned) ? source.documentReturned : []);
+
+    const byAutoId = new Map();
+    allItems.forEach((item) => {
+      const normalized = normalizeDashboardItem(item);
+      if (!normalized.autoId) return;
+      const existing = byAutoId.get(normalized.autoId);
+      if (!existing || dateToMs(normalized.updatedAt) >= dateToMs(existing.updatedAt)) {
+        byAutoId.set(normalized.autoId, normalized);
+      }
+    });
+
+    const items = Array.from(byAutoId.values())
+      .sort((left, right) => dateToMs(right.updatedAt) - dateToMs(left.updatedAt));
+
+    return {
+      summary: source.summary && typeof source.summary === 'object'
+        ? source.summary
+        : countDashboardSummary(items),
+      items
+    };
+  }
+
+  function normalizeDashboardItem(item) {
+    const source = item && typeof item === 'object' ? item : {};
+    const statusCode = String(source.statusCode || '').trim().toUpperCase();
+
+    return {
+      autoId: String(source.autoId || source.entryCode || source.recordId || '').trim(),
+      statusCode,
+      statusName: String(source.statusName || statusNameFromCode(statusCode) || '').trim(),
+      nextStepText: String(source.nextStepText || '').trim(),
+      updatedAt: String(source.updatedAt || source.updatedAtText || '').trim(),
+      documentSubmittedAt: String(source.documentSubmittedAt || '').trim(),
+      receivingCompletedAt: String(source.receivingCompletedAt || '').trim(),
+      documentReturnedAt: String(source.documentReturnedAt || '').trim(),
+      gateOutAt: String(source.gateOutAt || '').trim(),
+      cancelled: source.cancelled === true || statusCode === 'CANCELLED',
+      cancelReason: String(source.cancelReason || '').trim()
+    };
+  }
+
+  function countDashboardSummary(items) {
+    const list = Array.isArray(items) ? items : [];
+    return {
+      totalWorkflow: list.length,
+      waitingReceiving: list.filter((item) => item.statusCode === 'DOCUMENT_SUBMITTED').length,
+      receivingCompleted: list.filter((item) => item.statusCode === 'RECEIVING_COMPLETED').length,
+      documentReturned: list.filter((item) => item.statusCode === 'DOCUMENT_RETURNED').length,
+      cancelled: list.filter((item) => item.cancelled || item.statusCode === 'CANCELLED').length
+    };
+  }
+
+  function renderWorkflowDashboardState() {
+    const dashboard = state.dashboard || {summary: countDashboardSummary(state.dashboardItems), items: state.dashboardItems};
+    const summary = dashboard.summary || countDashboardSummary(state.dashboardItems);
+
+    setText('countTotalWorkflow', summary.totalWorkflow || state.dashboardItems.length || 0);
+    setText('countWaitingReceiving', summary.waitingReceiving || 0);
+    setText('countReceivingCompleted', summary.receivingCompleted || 0);
+    setText('countDocumentReturned', summary.documentReturned || 0);
+    setText('countCancelled', summary.cancelled || 0);
+
+    renderWorkflowTable();
+  }
+
+  function renderWorkflowTable() {
+    const body = byId('workflowTableBody');
+    const count = byId('workflowTableCount');
+
+    if (!body) return;
+
+    const query = state.dashboardQuery;
+    const statusFilter = state.statusFilter;
+
+    const items = state.dashboardItems.filter((item) => {
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'CANCELLED') {
+          if (!item.cancelled && item.statusCode !== 'CANCELLED') return false;
+        } else if (item.statusCode !== statusFilter) {
+          return false;
+        }
+      }
+
+      if (!query) return true;
+
+      return [
+        item.autoId,
+        item.statusName,
+        item.statusCode,
+        item.updatedAt,
+        item.nextStepText,
+        item.cancelReason
+      ].join(' ').toLowerCase().includes(query);
+    });
+
+    if (count) {
+      count.textContent = items.length + ' รายการ';
+    }
+
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="4" class="empty-cell">ยังไม่มีรายการที่ตรงเงื่อนไข</td></tr>';
+      return;
+    }
+
+    body.innerHTML = items.slice(0, 300).map((item) => `
+      <tr data-auto-id="${escapeHtml(item.autoId)}">
+        <td>
+          <strong>${escapeHtml(item.autoId)}</strong>
+          <small>${escapeHtml(item.nextStepText || '-')}</small>
+        </td>
+        <td>
+          <span class="workflow-status-pill" data-status="${escapeHtml(item.statusCode)}">
+            ${escapeHtml(item.statusName || statusNameFromCode(item.statusCode) || '-')}
+          </span>
+        </td>
+        <td>
+          ${escapeHtml(item.updatedAt || '-')}
+        </td>
+        <td>
+          <button type="button" class="workflow-row-action" title="เปิดรายละเอียด" aria-label="เปิดรายละเอียด">
+            ✎
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function upsertDashboardItemFromLookup(lookup) {
+    const record = lookup && lookup.record ? lookup.record : {};
+    const currentState = lookup && lookup.state ? lookup.state : {};
+    const autoId = record.autoId || currentState.autoId || '';
+    if (!autoId) return;
+
+    const item = normalizeDashboardItem({
+      autoId,
+      statusCode: currentState.statusCode || '',
+      statusName: currentState.statusName || '',
+      nextStepText: currentState.nextStepText || '',
+      updatedAt: currentState.updatedAt || currentState.updatedAtText || formatBangkokDateTime(new Date()),
+      documentSubmittedAt: currentState.documentSubmittedAt || '',
+      receivingCompletedAt: currentState.receivingCompletedAt || '',
+      documentReturnedAt: currentState.documentReturnedAt || '',
+      gateOutAt: currentState.gateOutAt || '',
+      cancelled: currentState.cancelled === true,
+      cancelReason: currentState.cancelReason || ''
+    });
+
+    state.dashboardItems = [item]
+      .concat(state.dashboardItems.filter((existing) => existing.autoId !== autoId))
+      .sort((left, right) => dateToMs(right.updatedAt) - dateToMs(left.updatedAt));
+
+    state.dashboard = {
+      summary: countDashboardSummary(state.dashboardItems),
+      items: state.dashboardItems
+    };
   }
 
   function renderLookupResult(lookup) {
@@ -464,28 +739,27 @@
 
     const record = lookup.record || {};
     const currentState = lookup.state || {};
+    const statusName = currentState.statusName || '-';
 
     panel.hidden = false;
-    setText('resultTitle', record.autoId ? 'พบข้อมูลรถ/ตู้' : 'ผลการตรวจสอบ');
-    setText('resultStatusBadge', currentState.statusName || currentState.nextStepText || '-');
+    setText('resultTitle', 'พบข้อมูลรถ/ตู้');
+    setText('resultStatusBadge', statusName);
 
     body.innerHTML = `
       <div class="result-identity">
         <strong>${escapeHtml(record.autoId || '-')}</strong>
-        <span>${escapeHtml(record.companyName || '-')} · ${escapeHtml(record.registration || '-')}</span>
+        <span>${escapeHtml(record.companyName || '-')} · ${escapeHtml(record.registration || '-')} · ${escapeHtml(record.vehicleType || '-')}</span>
       </div>
 
       <div class="result-grid">
-        ${resultField('เวลาเข้า', record.timestampIn || '-')}
         ${resultField('เลขนัดหมาย', record.appointmentNumber || '-')}
-        ${resultField('ชื่อผู้ขับ', record.personName || '-')}
-        ${resultField('ประเภทรถ', record.vehicleType || '-')}
-        ${resultField('จังหวัด', record.province || '-')}
-        ${resultField('สถานะ', currentState.statusName || '-')}
+        ${resultField('เวลาเข้า Gate In', record.timestampIn || '-')}
         ${resultField('ยื่นเอกสาร', currentState.documentSubmittedAt || '-')}
         ${resultField('รับสินค้าเสร็จ', currentState.receivingCompletedAt || '-')}
         ${resultField('รับเอกสารคืน', currentState.documentReturnedAt || '-')}
+        ${resultField('Gate Out', record.timestampOut || currentState.gateOutAt || '-')}
         ${resultField('ขั้นตอนถัดไป', currentState.nextStepText || '-')}
+        ${resultField('ผู้แก้ไขล่าสุด', currentState.updatedBy || '-')}
       </div>
     `;
 
@@ -499,7 +773,7 @@
     if (returnButton) {
       returnButton.disabled = !canReturnDocument(lookup);
       returnButton.textContent = canReturnDocument(lookup)
-        ? 'บันทึกรับเอกสารคืน'
+        ? 'รับเอกสารคืน'
         : returnButtonLabelByState(lookup);
     }
   }
@@ -545,55 +819,57 @@
   function reloadCurrentLookup() {
     const code = state.currentLookup && state.currentLookup.record
       ? state.currentLookup.record.autoId
-      : getEntryCode();
+      : '';
 
     if (code) {
-      void lookupCode(code, 'MANUAL');
+      void lookupCode(code, 'REFRESH', code, {source: 'REFRESH'});
     } else {
-      void loadModules();
+      focusCodeInput();
     }
   }
 
   function normalizeLookupResult(result) {
     const data = result && result.data && typeof result.data === 'object'
       ? result.data
-      : result || {};
+      : result && typeof result === 'object'
+        ? result
+        : {};
 
     const record = data.record || data.vehicle || {};
     const currentState = data.state || data.workflowState || {};
 
+    const autoId = String(
+      record.autoId || record.autoID || record.entryCode || currentState.autoId || data.autoId || ''
+    ).trim();
+
     return {
-      raw: data,
-      module: data.module || {},
+      success: data.success !== false,
       record: {
-        autoId: String(record.autoId || record.entryCode || record.recordId || '').trim(),
-        timestampIn: String(record.timestampIn || record.gateInAt || '').trim(),
+        autoId,
+        timestampIn: String(record.timestampIn || record.gateInAt || record.timestamp || '').trim(),
         timestampOut: String(record.timestampOut || record.gateOutAt || '').trim(),
-        duration: String(record.duration || '').trim(),
-        personName: String(record.personName || record.driverName || '').trim(),
-        appointmentNumber: String(record.appointmentNumber || record.appointment || '').trim(),
+        appointmentNumber: String(record.appointmentNumber || record.appointment || record.booking || '').trim(),
         companyName: String(record.companyName || record.company || '').trim(),
-        phone: String(record.phone || '').trim(),
-        registration: String(record.registration || record.plate || record.vehicleRegistration || '').trim(),
+        phone: String(record.phone || record.mobile || '').trim(),
+        registration: String(record.registration || record.plate || record.vehiclePlate || '').trim(),
         province: String(record.province || '').trim(),
-        vehicleType: String(record.vehicleType || '').trim(),
-        sourceRowNumber: record.sourceRowNumber || ''
+        vehicleType: String(record.vehicleType || record.type || '').trim(),
+        driverName: String(record.driverName || record.fullName || '').trim()
       },
       state: {
-        statusCode: String(currentState.statusCode || currentState.currentStatus || '').trim(),
-        statusName: String(currentState.statusName || currentState.currentStatusName || '').trim(),
-        nextStepText: String(currentState.nextStepText || currentState.nextActionText || '').trim(),
-        gateInAt: String(currentState.gateInAt || '').trim(),
+        autoId,
+        statusCode: String(currentState.statusCode || data.statusCode || '').trim().toUpperCase(),
+        statusName: String(currentState.statusName || data.statusName || '').trim(),
+        nextStepText: String(currentState.nextStepText || data.nextStepText || '').trim(),
         documentSubmittedAt: String(currentState.documentSubmittedAt || '').trim(),
         receivingCompletedAt: String(currentState.receivingCompletedAt || '').trim(),
         documentReturnedAt: String(currentState.documentReturnedAt || '').trim(),
         gateOutAt: String(currentState.gateOutAt || '').trim(),
         cancelled: currentState.cancelled === true,
         cancelReason: String(currentState.cancelReason || '').trim(),
-        durations: currentState.durations || {}
-      },
-      nextAction: data.nextAction || {},
-      message: String(data.message || '').trim()
+        updatedAt: String(currentState.updatedAt || currentState.updatedAtText || '').trim(),
+        updatedBy: String(currentState.updatedBy || '').trim()
+      }
     };
   }
 
@@ -606,10 +882,10 @@
     if (record.timestampOut || currentState.gateOutAt) return false;
     if (currentState.cancelled) return false;
     if (currentState.documentSubmittedAt) return false;
+    if (status === 'DOCUMENT_SUBMITTED' || status === 'RECEIVING_COMPLETED' || status === 'DOCUMENT_RETURNED') return false;
 
-    return !status || status === 'GATE_IN_ONLY';
+    return true;
   }
-
 
   function canReturnDocument(lookup) {
     const record = lookup && lookup.record ? lookup.record : {};
@@ -622,53 +898,32 @@
     if (!currentState.documentSubmittedAt) return false;
     if (!currentState.receivingCompletedAt) return false;
     if (currentState.documentReturnedAt) return false;
+    if (status !== 'RECEIVING_COMPLETED') return false;
 
-    return status === 'RECEIVING_COMPLETED';
+    return true;
   }
 
   function explainCannotSubmit(lookup) {
     const record = lookup && lookup.record ? lookup.record : {};
     const currentState = lookup && lookup.state ? lookup.state : {};
 
-    if (record.timestampOut || currentState.gateOutAt) {
-      return 'รายการนี้มีเวลาออก Gate Out แล้ว ไม่สามารถยื่นเอกสารได้';
-    }
-
-    if (currentState.cancelled) {
-      return 'รายการนี้ถูกยกเลิกแล้ว: ' + (currentState.cancelReason || '-');
-    }
-
-    if (currentState.documentSubmittedAt) {
-      return 'รายการนี้ยื่นเอกสารแล้วเมื่อ ' + currentState.documentSubmittedAt;
-    }
+    if (!record.autoId) return 'ไม่พบ Auto ID';
+    if (record.timestampOut || currentState.gateOutAt) return 'รายการนี้มีเวลาออก Gate Out แล้ว';
+    if (currentState.cancelled) return 'รายการนี้ถูกยกเลิกแล้ว: ' + (currentState.cancelReason || '-');
+    if (currentState.documentSubmittedAt) return 'รายการนี้ยื่นเอกสารแล้วเมื่อ ' + currentState.documentSubmittedAt;
 
     return currentState.nextStepText || 'สถานะปัจจุบันไม่พร้อมสำหรับการยื่นเอกสาร';
   }
-
 
   function explainCannotReturn(lookup) {
     const record = lookup && lookup.record ? lookup.record : {};
     const currentState = lookup && lookup.state ? lookup.state : {};
 
-    if (record.timestampOut || currentState.gateOutAt) {
-      return 'รายการนี้มีเวลาออก Gate Out แล้ว ไม่สามารถรับเอกสารคืนได้';
-    }
-
-    if (currentState.cancelled) {
-      return 'รายการนี้ถูกยกเลิกแล้ว: ' + (currentState.cancelReason || '-');
-    }
-
-    if (!currentState.documentSubmittedAt) {
-      return 'รายการนี้ยังไม่ได้ยื่นเอกสาร Inbound';
-    }
-
-    if (!currentState.receivingCompletedAt) {
-      return 'ต้องให้ User/Admin กดรับสินค้าเสร็จก่อน จึงจะรับเอกสารคืนได้';
-    }
-
-    if (currentState.documentReturnedAt) {
-      return 'รายการนี้รับเอกสารคืนแล้วเมื่อ ' + currentState.documentReturnedAt;
-    }
+    if (record.timestampOut || currentState.gateOutAt) return 'รายการนี้มีเวลาออก Gate Out แล้ว';
+    if (currentState.cancelled) return 'รายการนี้ถูกยกเลิกแล้ว: ' + (currentState.cancelReason || '-');
+    if (!currentState.documentSubmittedAt) return 'รายการนี้ยังไม่ได้ยื่นเอกสาร Inbound';
+    if (!currentState.receivingCompletedAt) return 'ต้องให้ User/Admin กดรับสินค้าเสร็จก่อน จึงจะรับเอกสารคืนได้';
+    if (currentState.documentReturnedAt) return 'รายการนี้รับเอกสารคืนแล้วเมื่อ ' + currentState.documentReturnedAt;
 
     return currentState.nextStepText || 'สถานะปัจจุบันไม่พร้อมสำหรับการรับเอกสารคืน';
   }
@@ -718,7 +973,6 @@
     `;
   }
 
-
   function buildReturnConfirmHtml(lookup) {
     const record = lookup.record || {};
     const currentState = lookup.state || {};
@@ -744,78 +998,74 @@
     `;
   }
 
-  function addRecent(type, lookup) {
-    const record = lookup && lookup.record ? lookup.record : {};
-    const currentState = lookup && lookup.state ? lookup.state : {};
+  function isDuplicateScanBlocked(code) {
+    const until = state.recentScanMap.get(code) || 0;
+    return Date.now() < until;
+  }
 
-    if (!record.autoId) return;
+  function blockDuplicateScan(code) {
+    state.recentScanMap.set(code, Date.now() + SCAN_DUPLICATE_BLOCK_MS);
 
-    const item = {
-      type,
-      autoId: record.autoId,
-      companyName: record.companyName || '',
-      registration: record.registration || '',
-      appointmentNumber: record.appointmentNumber || '',
-      statusName: currentState.statusName || '',
-      createdAt: formatBangkokDateTime(new Date())
+    window.setTimeout(() => {
+      const until = state.recentScanMap.get(code) || 0;
+      if (Date.now() >= until) {
+        state.recentScanMap.delete(code);
+      }
+    }, SCAN_DUPLICATE_BLOCK_MS + 800);
+  }
+
+  function setScanMessage(text, stateName) {
+    const element = byId('scanMessage');
+    if (!element) return;
+    element.textContent = String(text || '');
+    element.dataset.state = stateName || 'IDLE';
+  }
+
+  function unlockAudio() {
+    if (state.audioUnlocked) return;
+
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      state.audioContext = state.audioContext || new AudioContext();
+      if (state.audioContext.state === 'suspended') {
+        void state.audioContext.resume();
+      }
+      state.audioUnlocked = true;
+    } catch (error) {
+      // no-op
+    }
+  }
+
+  function beep(type) {
+    unlockAudio();
+
+    const context = state.audioContext;
+    if (!context) return;
+
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    const frequencies = {
+      scan: 980,
+      success: 1280,
+      warn: 520,
+      duplicate: 420,
+      error: 260
     };
 
-    state.recent = [item]
-      .concat(
-        state.recent.filter((existing) => existing.autoId !== item.autoId || existing.type !== item.type)
-      )
-      .slice(0, 10);
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequencies[type] || 880, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
 
-    renderRecent();
-  }
-
-  function renderRecent() {
-    const list = byId('recentList');
-    const count = byId('recentCount');
-
-    if (!list) return;
-
-    const query = state.recentQuery;
-    const items = state.recent.filter((item) => {
-      if (!query) return true;
-      return [
-        item.autoId,
-        item.companyName,
-        item.registration,
-        item.appointmentNumber,
-        item.statusName
-      ].join(' ').toLowerCase().includes(query);
-    });
-
-    if (count) {
-      count.textContent = items.length + ' รายการ';
-    }
-
-    if (!items.length) {
-      list.innerHTML = '<div class="empty-state">ยังไม่มีรายการที่ตรงเงื่อนไข</div>';
-      return;
-    }
-
-    list.innerHTML = items.map((item) => `
-      <article class="recent-item">
-        <div class="recent-item__top">
-          <strong>${escapeHtml(item.autoId)}</strong>
-          <em>${escapeHtml(recentTypeLabel(item.type))}</em>
-        </div>
-        <span>${escapeHtml(item.companyName || '-')} · ${escapeHtml(item.registration || '-')}</span>
-        <span>${escapeHtml(item.createdAt)} · ${escapeHtml(item.statusName || '-')}</span>
-      </article>
-    `).join('');
-  }
-
-
-  function recentTypeLabel(type) {
-    const value = String(type || '').toUpperCase();
-
-    if (value === 'SUBMIT_DOCUMENT') return 'ยื่นเอกสาร';
-    if (value === 'RETURN_DOCUMENT') return 'รับเอกสารคืน';
-
-    return 'ตรวจสอบ';
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.17);
   }
 
   async function logout() {
@@ -845,7 +1095,7 @@
   }
 
   function setLookupBusy(busy) {
-    ['submitDocumentButton', 'returnDocumentButton', 'clearResultButton', 'startCameraButton', 'inboundRefreshButton']
+    ['submitDocumentButton', 'returnDocumentButton', 'clearResultButton', 'lookupCodeButton', 'inboundRefreshButton']
       .forEach((id) => {
         const element = byId(id);
         if (element) element.disabled = busy === true;
@@ -892,6 +1142,31 @@
       .trim()
       .replace(/\s+/g, '')
       .toUpperCase();
+  }
+
+  function statusNameFromCode(code) {
+    const value = String(code || '').toUpperCase();
+    if (value === 'DOCUMENT_SUBMITTED') return 'ยื่นเอกสารแล้ว';
+    if (value === 'RECEIVING_COMPLETED') return 'รับสินค้าเสร็จ';
+    if (value === 'DOCUMENT_RETURNED') return 'รับเอกสารคืนแล้ว';
+    if (value === 'GATE_OUT_COMPLETED') return 'ออกคลังแล้ว';
+    if (value === 'CANCELLED') return 'ยกเลิก';
+    if (value === 'GATE_IN_ONLY') return 'รอยื่นเอกสาร';
+    return value || '-';
+  }
+
+  function dateToMs(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (!match) return 0;
+    return new Date(
+      Number(match[3]),
+      Number(match[2]) - 1,
+      Number(match[1]),
+      Number(match[4]),
+      Number(match[5]),
+      Number(match[6])
+    ).getTime();
   }
 
   function formatBangkokDateTime(date) {
@@ -972,18 +1247,6 @@
     alert(title + '\n' + message);
   }
 
-  function showToast(icon, title) {
-    if (!window.Swal) return;
-    Swal.fire({
-      toast: true,
-      position: 'top',
-      icon,
-      title,
-      timer: 1400,
-      showConfirmButton: false
-    });
-  }
-
   function errorMessage(error) {
     return error && error.message ? error.message : String(error || 'เกิดข้อผิดพลาด');
   }
@@ -1021,6 +1284,11 @@
     if (state.clockTimer) {
       window.clearInterval(state.clockTimer);
       state.clockTimer = null;
+    }
+
+    if (state.manualInputTimer) {
+      window.clearTimeout(state.manualInputTimer);
+      state.manualInputTimer = null;
     }
   }
 })(window, document);
