@@ -13,11 +13,16 @@
     content="#073b59"
   >
 
+  <meta
+    name="color-scheme"
+    content="light"
+  >
+
   <title>Inbound Scan | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
   <link
     rel="stylesheet"
-    href="./inbound.css?v=20260709-r03"
+    href="./inbound.css?v=20260709-r04"
   >
 
   <script
@@ -26,72 +31,162 @@
   ></script>
 
   <script
-    src="./config.js?v=20260709-r03"
+    src="./config.js?v=20260709-r04"
     defer
   ></script>
 
   <script
-    src="./api.js?v=20260709-r03"
+    src="./api.js?v=20260709-r04"
     defer
   ></script>
 
   <script
-    src="./inbound.js?v=20260709-r03"
+    src="./inbound-scanner.js?v=20260709-r04"
+    defer
+  ></script>
+
+  <script
+    src="./inbound.js?v=20260709-r04"
     defer
   ></script>
 </head>
 
 <body class="inbound-page" data-page="inbound">
+  <div id="inboundLoading" class="inbound-loading" role="status" aria-live="polite">
+    <div class="inbound-spinner"></div>
+    <strong>กำลังเตรียมห้อง Inbound</strong>
+    <span>ตรวจสิทธิ์และเตรียมระบบสแกน</span>
+  </div>
+
   <main class="inbound-shell">
     <header class="inbound-header">
-      <div>
+      <div class="inbound-header__title">
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
-        <p>รอบนี้เป็นหน้าเตรียมสิทธิ์ ก่อนเพิ่มกล้องสแกนในรอบถัดไป</p>
+        <p>สแกน Auto ID เพื่อบันทึกยื่นเอกสาร</p>
       </div>
 
       <div class="inbound-user-card">
-        <span id="inboundConnection">กำลังตรวจสอบ</span>
+        <span id="inboundConnection" data-state="LOADING">กำลังตรวจสอบ</span>
         <strong id="inboundDateTime">--/--/---- --:--:--</strong>
         <small id="inboundUser">-</small>
       </div>
     </header>
 
-    <section class="inbound-access-panel">
-      <div class="inbound-status-mark" aria-hidden="true">IN</div>
+    <section class="inbound-module-bar" aria-label="เลือก Module">
+      <label>
+        <span>Module ที่ใช้งาน</span>
+        <select id="inboundModuleSelect">
+          <option value="">กำลังโหลด Module...</option>
+        </select>
+      </label>
 
-      <div>
-        <small>ROLE READY</small>
-        <h2>เตรียมสิทธิ์ INBOUND สำเร็จ</h2>
-        <p>
-          ผู้ใช้สิทธิ์ Inbound จะเข้าหน้านี้โดยตรงหลัง Login
-          และไม่ถูกส่งไปหน้า Module หลัก
-        </p>
+      <button id="inboundRefreshButton" type="button">
+        รีเฟรช
+      </button>
+    </section>
+
+    <section class="scanner-card" aria-label="สแกน Auto ID">
+      <div class="scanner-card__head">
+        <div>
+          <small>SCAN AUTO ID</small>
+          <h2>สแกนหรือกรอกรหัส</h2>
+        </div>
+
+        <span id="scannerStatus" data-state="IDLE">
+          ยังไม่เปิดกล้อง
+        </span>
+      </div>
+
+      <div class="scanner-window">
+        <video id="inboundVideo" playsinline muted></video>
+        <div class="scanner-frame" aria-hidden="true"></div>
+        <div class="scanner-hint">
+          วาง QR / Barcode ให้อยู่ในกรอบ
+        </div>
+      </div>
+
+      <div class="scanner-actions">
+        <button id="startCameraButton" type="button" class="button button--primary">
+          เปิดกล้อง
+        </button>
+
+        <button id="stopCameraButton" type="button" class="button button--ghost">
+          ปิดกล้อง
+        </button>
+      </div>
+
+      <form id="manualLookupForm" class="manual-form">
+        <label>
+          <span>Auto ID / รหัสจาก Gate In</span>
+          <input
+            id="entryCodeInput"
+            type="text"
+            inputmode="latin"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            placeholder="เช่น SK02369916991"
+          >
+        </label>
+
+        <button type="submit" class="button button--primary">
+          ตรวจสอบรหัส
+        </button>
+      </form>
+    </section>
+
+    <section id="lookupResultPanel" class="result-panel" hidden>
+      <div class="result-panel__head">
+        <div>
+          <small>RESULT</small>
+          <h2 id="resultTitle">พบข้อมูลรถ/ตู้</h2>
+        </div>
+
+        <span id="resultStatusBadge">-</span>
+      </div>
+
+      <div id="resultBody" class="result-body"></div>
+
+      <div class="result-actions">
+        <button id="submitDocumentButton" type="button" class="button button--success" disabled>
+          บันทึกยื่นเอกสาร
+        </button>
+
+        <button id="clearResultButton" type="button" class="button button--ghost">
+          ล้างข้อมูล
+        </button>
       </div>
     </section>
 
-    <section class="inbound-next-panel">
-      <h2>รอบถัดไปจะเพิ่มอะไร</h2>
-      <div class="inbound-next-grid">
-        <article>
-          <strong>Scanner Zone</strong>
-          <span>เปิดกล้องหลัง สแกน Auto ID และกรอกรหัสเองได้</span>
-        </article>
+    <section class="recent-panel">
+      <div class="recent-panel__head">
+        <div>
+          <small>RECENT ACTIVITY</small>
+          <h2>รายการล่าสุด</h2>
+        </div>
 
-        <article>
-          <strong>Lookup Result</strong>
-          <span>แสดงรายละเอียดรถ/ตู้จากชีทต้นทางก่อนบันทึก</span>
-        </article>
+        <span id="recentCount">0 รายการ</span>
+      </div>
 
-        <article>
-          <strong>Document Submit</strong>
-          <span>บันทึกยื่นเอกสาร Inbound พร้อมกันสแกนซ้ำ</span>
-        </article>
+      <label class="recent-search">
+        <span>ค้นหา</span>
+        <input
+          id="recentSearchInput"
+          type="search"
+          placeholder="Auto ID / ทะเบียน / บริษัท / เลขนัดหมาย"
+        >
+      </label>
+
+      <div id="recentList" class="recent-list">
+        <div class="empty-state">ยังไม่มีรายการในรอบการใช้งานนี้</div>
       </div>
     </section>
 
     <footer class="inbound-footer">
-      <button id="inboundLogoutButton" type="button">ออกจากระบบ</button>
+      <button id="inboundLogoutButton" type="button">
+        ออกจากระบบ
+      </button>
     </footer>
   </main>
 </body>
