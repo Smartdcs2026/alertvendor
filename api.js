@@ -1538,6 +1538,72 @@
     },
 
 
+    async cancelInboundWorkflow(
+      moduleId,
+      payload
+    ) {
+      const body =
+        payload &&
+        typeof payload === 'object'
+          ? payload
+          : {};
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/cancel-event',
+          {
+            method: 'POST',
+
+            timeoutMs:
+              CONFIG.INBOUND_SAVE_TIMEOUT_MS ||
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+
+            body: {
+              entryCode:
+                body.entryCode ||
+                body.autoId ||
+                body.code ||
+                body.qrText ||
+                '',
+
+              eventId:
+                body.eventId ||
+                '',
+
+              cancelScope:
+                body.cancelScope ||
+                'CURRENT_INBOUND_STAGE',
+
+              statusCode:
+                body.statusCode ||
+                '',
+
+              reason:
+                body.reason ||
+                body.cancelReason ||
+                body.note ||
+                '',
+
+              note:
+                body.note ||
+                body.reason ||
+                '',
+
+              clientRequestId:
+                body.clientRequestId ||
+                body.requestId ||
+                createRequestId()
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
     async getInboundWorkflowDashboard(
       moduleId,
       options
