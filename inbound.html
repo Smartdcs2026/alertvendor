@@ -22,7 +22,7 @@
 
   <link
     rel="stylesheet"
-    href="./inbound.css?v=20260709-r04"
+    href="./inbound.css?v=20260709-r05"
   >
 
   <script
@@ -31,22 +31,22 @@
   ></script>
 
   <script
-    src="./config.js?v=20260709-r04"
+    src="./config.js?v=20260709-r05"
     defer
   ></script>
 
   <script
-    src="./api.js?v=20260709-r04"
+    src="./api.js?v=20260709-r05"
     defer
   ></script>
 
   <script
-    src="./inbound-scanner.js?v=20260709-r04"
+    src="./inbound-scanner.js?v=20260709-r05"
     defer
   ></script>
 
   <script
-    src="./inbound.js?v=20260709-r04"
+    src="./inbound.js?v=20260709-r05"
     defer
   ></script>
 </head>
@@ -63,7 +63,7 @@
       <div class="inbound-header__title">
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
-        <p>สแกน Auto ID เพื่อบันทึกยื่นเอกสาร</p>
+        <p>สแกน Auto ID เพื่อยื่นเอกสารและรับเอกสารคืน</p>
       </div>
 
       <div class="inbound-user-card">
@@ -90,7 +90,7 @@
       <div class="scanner-card__head">
         <div>
           <small>SCAN AUTO ID</small>
-          <h2>สแกนหรือกรอกรหัส</h2>
+          <h2>สแกนหรือกรอกรหัส Auto ID</h2>
         </div>
 
         <span id="scannerStatus" data-state="IDLE">
@@ -151,6 +151,10 @@
       <div class="result-actions">
         <button id="submitDocumentButton" type="button" class="button button--success" disabled>
           บันทึกยื่นเอกสาร
+        </button>
+
+        <button id="returnDocumentButton" type="button" class="button button--warning" disabled>
+          รับเอกสารคืน
         </button>
 
         <button id="clearResultButton" type="button" class="button button--ghost">
