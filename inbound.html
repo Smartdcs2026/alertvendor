@@ -7,14 +7,14 @@
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-operator-table-1">
+  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-swal-standby-1">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260709-r05" defer></script>
   <script src="./api.js?v=20260709-r05" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260709-r05-operator-table-1" defer></script>
-  <script src="./inbound.js?v=20260709-r05-operator-table-1" defer></script>
+  <script src="./inbound-scanner.js?v=20260709-r05-swal-standby-1" defer></script>
+  <script src="./inbound.js?v=20260709-r05-swal-standby-1" defer></script>
 </head>
 
 <body class="inbound-page" data-page="inbound">
@@ -29,7 +29,7 @@
       <div class="inbound-brand">
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
-        <p>สแกนหรือยิงรหัสแล้วบันทึกขั้นตอนอัตโนมัติ ไม่ต้องกดปุ่มยืนยัน</p>
+        <p>สแกนหรือยิงรหัสแล้วบันทึกอัตโนมัติ · กดแถวในตารางเพื่อดูรายละเอียด</p>
       </div>
 
       <div class="status-strip" aria-label="จำนวนตามสถานะ">
@@ -166,13 +166,7 @@
           </table>
         </div>
 
-        <div id="selectedRecordPanel" class="selected-panel" hidden>
-          <div class="selected-panel__head">
-            <strong>รายละเอียดรายการ</strong>
-            <button id="closeSelectedPanel" type="button">ปิด</button>
-          </div>
-          <div id="selectedRecordBody"></div>
-        </div>
+        <!-- รายละเอียดรายการจะแสดงผ่าน SweetAlert เท่านั้น เพื่อคงทุกอย่างไว้ในหน้าหลักและไม่เพิ่มพื้นที่ด้านล่าง -->
       </section>
     </section>
   </main>
