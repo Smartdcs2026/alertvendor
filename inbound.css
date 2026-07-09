@@ -385,6 +385,11 @@ button:disabled {
   background: linear-gradient(135deg, #0b7d61, var(--inbound-teal));
 }
 
+.button--warning {
+  color: #ffffff;
+  background: linear-gradient(135deg, #bd6b06, #e88709);
+}
+
 .button--ghost {
   border: 1px solid #bfd5df;
   color: var(--inbound-navy);
@@ -462,7 +467,7 @@ button:disabled {
 
 .result-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, .9fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.05fr) minmax(0, .8fr);
   gap: 8px;
   margin-top: 10px;
 }
@@ -618,5 +623,20 @@ button:disabled {
 
   .scanner-window {
     height: 330px;
+  }
+}
+
+
+/************************************************************
+ * ROUND 05 — Return Document action
+ ************************************************************/
+.result-actions .button:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+  .result-actions {
+    grid-template-columns: 1fr;
   }
 }
