@@ -883,3 +883,98 @@ button:disabled { opacity: .55; cursor: not-allowed; }
     grid-template-columns: 1fr;
   }
 }
+
+/************************************************************
+ * ROUND 05 HOTFIX 06 — Clean table + SweetAlert cancel action
+ ************************************************************/
+.workflow-table .workflow-cell-sub {
+  display: none !important;
+}
+
+.workflow-table tbody td {
+  vertical-align: middle !important;
+}
+
+.workflow-table .icon-button {
+  min-width: 38px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+}
+
+.swal2-popup.inbound-detail-popup {
+  width: min(740px, calc(100vw - 18px)) !important;
+}
+
+.swal2-popup.inbound-detail-popup .swal2-close {
+  display: none !important;
+}
+
+.swal2-popup.inbound-detail-popup .swal2-actions.inbound-detail-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 10px 14px 14px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #dbe9ef !important;
+}
+
+.swal2-popup.inbound-detail-popup .inbound-detail-cancel-button {
+  min-width: 155px !important;
+  min-height: 40px !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  background: #b42318 !important;
+  font-weight: 950 !important;
+}
+
+.inbound-detail-modal__cancel-note {
+  margin: 0;
+  padding: 8px 14px 0;
+  color: #7a4b00;
+  font-size: 11px;
+  font-weight: 850;
+  background: #ffffff;
+}
+
+.swal2-popup.inbound-cancel-popup {
+  border-radius: 18px !important;
+  font-family: inherit !important;
+}
+
+.inbound-cancel-summary {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid #d8e6ed;
+  border-radius: 12px;
+  color: #12354a;
+  background: #f6fbfd;
+  text-align: left;
+}
+
+.inbound-cancel-summary strong,
+.inbound-cancel-summary span,
+.inbound-cancel-summary small {
+  display: block;
+}
+
+.inbound-cancel-summary strong {
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.inbound-cancel-summary span {
+  color: #355a6d;
+  font-size: 12px;
+}
+
+.inbound-cancel-summary small {
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 900;
+}
