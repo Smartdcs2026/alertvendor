@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 06 — Clean table + SweetAlert detail + cancel stage
+ * ROUND 05 HOTFIX 09 — Full-height table + paging + stable refresh
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -31,7 +31,11 @@
     audioContext: null,
     audioUnlocked: false,
     suppressFocusUntil: 0,
-    cameraWanted: false
+    cameraWanted: false,
+    tablePage: 1,
+    tablePageSize: 'AUTO',
+    computedPageSize: 20,
+    filteredTotal: 0
   };
 
   document.addEventListener('DOMContentLoaded', initialize);
@@ -152,6 +156,27 @@
     searchInput?.addEventListener('input', (event) => {
       pauseScanFocus();
       state.dashboardQuery = String(event.target.value || '').trim().toLowerCase();
+      resetWorkflowPage();
+      renderWorkflowTable();
+    });
+
+    byId('workflowPageSizeSelect')?.addEventListener('change', (event) => {
+      pauseScanFocus();
+      state.tablePageSize = String(event.target.value || 'AUTO').toUpperCase();
+      resetWorkflowPage();
+      renderWorkflowTable();
+    });
+
+    byId('workflowPrevPage')?.addEventListener('click', () => {
+      pauseScanFocus();
+      state.tablePage = Math.max(1, state.tablePage - 1);
+      renderWorkflowTable();
+    });
+
+    byId('workflowNextPage')?.addEventListener('click', () => {
+      pauseScanFocus();
+      const totalPages = getWorkflowTotalPages();
+      state.tablePage = Math.min(totalPages, state.tablePage + 1);
       renderWorkflowTable();
     });
 
@@ -162,6 +187,7 @@
       document.querySelectorAll('[data-status-filter]').forEach((item) => {
         item.classList.toggle('is-active', item === button);
       });
+      resetWorkflowPage();
       renderWorkflowTable();
     });
 
@@ -182,8 +208,14 @@
       if (document.visibilityState === 'visible') {
         keepCameraStandby();
         focusCodeInput(false);
+        refreshAutoPageSize();
       }
     });
+
+    window.addEventListener('resize', debounce(() => {
+      refreshAutoPageSize();
+      renderWorkflowTable();
+    }, 140), {passive: true});
   }
 
   async function loadModules() {
@@ -553,21 +585,28 @@
   function renderWorkflowTable() {
     const tbody = byId('workflowTableBody');
     if (!tbody) return;
-    const query = state.dashboardQuery;
-    const filtered = state.dashboardItems.filter((item) => {
-      const statusOk = state.statusFilter === 'ALL' || item.statusCode === state.statusFilter || (state.statusFilter === 'CANCELLED' && item.cancelled);
-      if (!statusOk) return false;
-      if (!query) return true;
-      return [item.autoId, item.appointmentNumber, item.companyName, item.driverName, item.registration, item.province, item.phone, item.statusName]
-        .join(' ').toLowerCase().includes(query);
-    }).slice(0, 300);
 
-    if (!filtered.length) {
+    refreshAutoPageSize();
+
+    const filtered = getFilteredDashboardItems();
+    state.filteredTotal = filtered.length;
+
+    const pageSize = getWorkflowPageSize();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+    if (state.tablePage > totalPages) state.tablePage = totalPages;
+    if (state.tablePage < 1) state.tablePage = 1;
+
+    const startIndex = (state.tablePage - 1) * pageSize;
+    const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+
+    if (!pageItems.length) {
       tbody.innerHTML = '<tr><td colspan="9" class="table-empty">ยังไม่มีข้อมูลตามเงื่อนไข</td></tr>';
+      renderWorkflowPagination(0, 0, 0, 1, 1);
       return;
     }
 
-    tbody.innerHTML = filtered.map((item) => `
+    tbody.innerHTML = pageItems.map((item) => `
       <tr data-auto-id="${escapeHtml(item.autoId)}">
         <td><span class="workflow-cell-main">${escapeHtml(item.appointmentNumber || '-')}</span></td>
         <td><span class="workflow-cell-main">${escapeHtml(item.companyName || '-')}</span></td>
@@ -580,11 +619,109 @@
         <td><button type="button" class="icon-button" data-open-detail title="ดูรายละเอียด">ดู</button></td>
       </tr>
     `).join('');
+
+    renderWorkflowPagination(
+      startIndex + 1,
+      startIndex + pageItems.length,
+      filtered.length,
+      state.tablePage,
+      totalPages
+    );
+  }
+
+  function getFilteredDashboardItems() {
+    const query = state.dashboardQuery;
+
+    return state.dashboardItems.filter((item) => {
+      const statusOk =
+        state.statusFilter === 'ALL' ||
+        item.statusCode === state.statusFilter ||
+        (state.statusFilter === 'CANCELLED' && item.cancelled);
+
+      if (!statusOk) return false;
+      if (!query) return true;
+
+      return [
+        item.autoId,
+        item.appointmentNumber,
+        item.companyName,
+        item.driverName,
+        item.registration,
+        item.province,
+        item.phone,
+        item.statusName
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    });
+  }
+
+  function getWorkflowPageSize() {
+    if (state.tablePageSize !== 'AUTO') {
+      return clampInteger(state.tablePageSize, 5, 200, 20);
+    }
+
+    return clampInteger(state.computedPageSize, 8, 80, 20);
+  }
+
+  function getWorkflowTotalPages() {
+    const pageSize = getWorkflowPageSize();
+    const total = Number(state.filteredTotal) || getFilteredDashboardItems().length;
+    return Math.max(1, Math.ceil(total / pageSize));
+  }
+
+  function refreshAutoPageSize() {
+    if (state.tablePageSize !== 'AUTO') return;
+
+    const wrap = byId('workflowTableWrap') || document.querySelector('.workflow-table-wrap');
+    if (!wrap) return;
+
+    const height = Math.max(0, Math.floor(wrap.getBoundingClientRect().height));
+    if (!height) return;
+
+    /*
+     * หักความสูงหัวตารางออก แล้วคำนวณจากความสูงแถวจริงโดยประมาณ
+     * เพื่อให้ตารางใช้พื้นที่เต็ม แต่ไม่วาดรายการเกินจอมากเกินไป
+     */
+    const headerHeight = 40;
+    const rowHeight = window.innerWidth >= 861 ? 48 : 58;
+    const nextSize = Math.floor((height - headerHeight) / rowHeight);
+
+    state.computedPageSize = clampInteger(nextSize, 8, 80, 20);
+  }
+
+  function renderWorkflowPagination(from, to, total, page, totalPages) {
+    const summary = byId('workflowTablePageSummary');
+    const indicator = byId('workflowPageIndicator');
+    const prev = byId('workflowPrevPage');
+    const next = byId('workflowNextPage');
+
+    if (summary) {
+      if (!total) {
+        summary.textContent = 'ไม่พบข้อมูลตามเงื่อนไข';
+      } else {
+        const sizeText = state.tablePageSize === 'AUTO'
+          ? 'อัตโนมัติ ' + getWorkflowPageSize() + ' แถว/หน้า'
+          : getWorkflowPageSize() + ' แถว/หน้า';
+
+        summary.textContent = 'แสดง ' + from + '–' + to + ' จาก ' + total + ' รายการ · ' + sizeText;
+      }
+    }
+
+    if (indicator) indicator.textContent = 'หน้า ' + page + ' / ' + totalPages;
+    if (prev) prev.disabled = page <= 1;
+    if (next) next.disabled = page >= totalPages;
+  }
+
+  function resetWorkflowPage() {
+    state.tablePage = 1;
   }
 
   function upsertDashboardItemFromLookup(lookup) {
     const item = dashboardItemFromLookup(lookup);
     if (!item.autoId) return;
+    resetWorkflowPage();
     state.dashboardItems = [item]
       .concat(state.dashboardItems.filter((entry) => entry.autoId !== item.autoId))
       .sort((a, b) => dateToMs(b.updatedAt) - dateToMs(a.updatedAt));
@@ -1150,6 +1287,21 @@
     }
     window.alert(title + '\n' + message);
     return Promise.resolve();
+  }
+
+
+  function clampInteger(value, minimum, maximum, fallback) {
+    const number = Math.floor(Number(value));
+    if (!Number.isFinite(number)) return fallback;
+    return Math.min(Math.max(number, minimum), maximum);
+  }
+
+  function debounce(fn, delay) {
+    let timer = 0;
+    return function (...args) {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => fn.apply(this, args), Number(delay) || 120);
+    };
   }
 
   function byId(id) { return document.getElementById(id); }
