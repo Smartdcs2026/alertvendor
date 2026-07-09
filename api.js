@@ -1,12 +1,13 @@
 /**
  * api.js
+ * ROUND 05 — เพิ่ม API รับสินค้าเสร็จเข้า Workflow + รับเอกสารคืน
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - รองรับ Receiving Flow, Inbound Workflow, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
+ * - รองรับ Receiving Flow, Inbound Workflow, รับเอกสารคืน, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
  */
 (function (window) {
   'use strict';
@@ -1408,6 +1409,166 @@
       return response.data;
     },
 
+
+
+
+    async completeInboundWorkflowReceiving(
+      moduleId,
+      payload
+    ) {
+      const body =
+        payload &&
+        typeof payload === 'object'
+          ? payload
+          : {};
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/complete-receiving',
+          {
+            method: 'POST',
+
+            timeoutMs:
+              CONFIG.INBOUND_SAVE_TIMEOUT_MS ||
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+
+            body: {
+              entryCode:
+                body.entryCode ||
+                body.autoId ||
+                body.code ||
+                body.qrText ||
+                body.recordId ||
+                '',
+
+              recordId:
+                body.recordId ||
+                body.entryCode ||
+                body.autoId ||
+                '',
+
+              sourceRowNumber:
+                body.sourceRowNumber ||
+                '',
+
+              expectedTimestampIn:
+                body.expectedTimestampIn ||
+                '',
+
+              expectedPrimaryValue:
+                body.expectedPrimaryValue ||
+                '',
+
+              note:
+                body.note ||
+                body.remark ||
+                '',
+
+              clientRequestId:
+                body.clientRequestId ||
+                body.requestId ||
+                createRequestId()
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async returnInboundDocument(
+      moduleId,
+      payload
+    ) {
+      const body =
+        payload &&
+        typeof payload === 'object'
+          ? payload
+          : {};
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/return-document',
+          {
+            method: 'POST',
+
+            timeoutMs:
+              CONFIG.INBOUND_SAVE_TIMEOUT_MS ||
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+
+            body: {
+              entryCode:
+                body.entryCode ||
+                body.autoId ||
+                body.code ||
+                body.qrText ||
+                '',
+
+              qrText:
+                body.qrText ||
+                body.entryCode ||
+                body.autoId ||
+                '',
+
+              lookupMethod:
+                body.lookupMethod ||
+                body.method ||
+                'SCAN',
+
+              note:
+                body.note ||
+                body.remark ||
+                '',
+
+              clientRequestId:
+                body.clientRequestId ||
+                body.requestId ||
+                createRequestId()
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getInboundWorkflowDashboard(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/workflow/modules/' +
+          encodeURIComponent(moduleId) +
+          '/dashboard',
+          {
+            timeoutMs:
+              CONFIG.INBOUND_LOOKUP_TIMEOUT_MS ||
+              CONFIG.API_TIMEOUT_MS ||
+              60000,
+
+            query: {
+              limit:
+                config.limit ||
+                30
+            }
+          }
+        );
+
+      return response.data;
+    },
 
     async getCalendar(
       moduleId,
