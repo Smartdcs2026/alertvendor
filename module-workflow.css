@@ -1,0 +1,147 @@
+/************************************************************
+ * module-workflow.css
+ * ROUND 05 — Hide receiving-completed cards + compact completed list
+ ************************************************************/
+
+.module-workflow-strip {
+  width: min(100%, 1240px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px auto 0;
+  padding: 0 12px;
+}
+
+.module-workflow-button {
+  min-height: 38px;
+  border: 1px solid #cddce4;
+  border-radius: 11px;
+  padding: 7px 9px;
+  color: #173d53;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 900;
+  box-shadow: 0 5px 14px rgba(15, 61, 94, .06);
+}
+
+.module-workflow-button strong {
+  color: #0b6f86;
+  font-size: .92rem;
+}
+
+.vehicle-card.workflow-hidden-after-receiving {
+  display: none !important;
+}
+
+.swal2-popup.workflow-completed-popup {
+  width: min(720px, calc(100vw - 16px)) !important;
+  padding: 0 !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.workflow-completed-html {
+  max-height: min(76dvh, 680px);
+  overflow: auto;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.workflow-completed-panel {
+  color: #173d53;
+  background: #f4f8fa;
+}
+
+.workflow-completed-panel header {
+  padding: 14px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #dce7ed;
+}
+
+.workflow-completed-panel small {
+  display: block;
+  color: #0a7289;
+  font-size: .62rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.workflow-completed-panel h2 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.workflow-completed-list {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+}
+
+.workflow-completed-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  border: 1px solid #d9e6ec;
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: #ffffff;
+}
+
+.workflow-completed-item strong,
+.workflow-completed-item span,
+.workflow-completed-item small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-completed-item strong {
+  color: #082f49;
+  font-size: .86rem;
+}
+
+.workflow-completed-item span {
+  color: #4f6876;
+  font-size: .72rem;
+}
+
+.workflow-completed-item small {
+  color: #728896;
+  font-size: .66rem;
+  text-align: right;
+}
+
+.workflow-wait-document-note {
+  margin-top: 6px;
+  border-radius: 9px;
+  padding: 6px 8px;
+  color: #9a4d00;
+  background: #fff5df;
+  font-size: .68rem;
+  font-weight: 850;
+}
+
+@media (max-width: 640px) {
+  .module-workflow-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+    padding: 0 10px;
+  }
+
+  .module-workflow-button {
+    min-height: 36px;
+    padding: 6px 5px;
+    font-size: .58rem;
+  }
+
+  .module-workflow-button strong {
+    display: block;
+    font-size: .86rem;
+  }
+}
