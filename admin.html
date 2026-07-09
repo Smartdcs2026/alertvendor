@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0f3d5e"
+  >
+
+  <title>
+    จัดการระบบ | ระบบติดตามสถานะรถและตู้สินค้า
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="./styles.css?v=20260630-r27-module-feature"
+  >
+
+  <link
+    rel="stylesheet"
+    href="./admin-shift-panel.css?v=20260703-r59-module-loading-fix"
+  >
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
+    defer
+  ></script>
+
+  <script
+    src="./config.js"
+    defer
+  ></script>
+
+  <script
+    src="./api.js?v=20260703-r59-module-loading-fix"
+    defer
+  ></script>
+
+  <script
+    src="./admin.js?v=20260630-r27-module-feature"
+    defer
+  ></script>
+
+  <script
+    src="./admin-shift-panel.js?v=20260703-r59-module-loading-fix"
+    defer
+  ></script>
+</head>
+
+<body
+  data-page="admin"
+  class="admin-page"
+>
+  <div
+    id="adminPageLoading"
+    class="page-loading"
+  >
+    <div class="spinner"></div>
+
+    <span>
+      กำลังตรวจสอบสิทธิ์ผู้ดูแลระบบ
+    </span>
+  </div>
+
+  <header class="admin-header">
+    <div class="admin-header__inner">
+      <div class="admin-header__brand">
+        <a
+          class="icon-text-button"
+          href="./index.html"
+        >
+          ← หน้าหลัก
+        </a>
+
+        <div>
+          <p class="eyebrow">
+            ADMIN CONTROL CENTER
+          </p>
+
+          <h1>
+            จัดการระบบรถและ Vendor
+          </h1>
+        </div>
+      </div>
+
+      <div class="admin-header__actions">
+        <span id="adminCurrentUser">
+          กำลังโหลด...
+        </span>
+
+        <button
+          id="adminRefreshButton"
+          class="button button--secondary button--compact"
+          type="button"
+        >
+          รีเฟรช
+        </button>
+
+        <button
+          id="adminLogoutButton"
+          class="button button--danger-ghost button--compact"
+          type="button"
+        >
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-container">
+    <section class="admin-hero">
+      <div>
+        <p class="eyebrow">
+          ระบบกลางสำหรับทุก Vendor
+        </p>
+
+        <h2>
+          บริหารโมดูล ผู้ใช้งาน และเงื่อนไขจากหน้าเดียว
+        </h2>
+
+        <p>
+          Makro เป็นโมดูลแรกของระบบ และสามารถสร้างโมดูลสำหรับ Vendor หรือประเภทรถอื่นได้โดยไม่ต้องแก้โค้ดหลัก
+        </p>
+      </div>
+
+      <div class="admin-hero__time">
+        <span>
+          วันที่และเวลาปัจจุบัน
+        </span>
+
+        <strong id="adminCurrentDateTime">
+          --/--/---- --:--:--
+        </strong>
+
+        <small id="adminGeneratedAt">
+          ยังไม่ได้โหลดข้อมูล
+        </small>
+      </div>
+    </section>
+
+    <nav
+      class="admin-tabs"
+      aria-label="เมนูหลังบ้าน"
+    >
+      <button
+        class="admin-tab is-active"
+        type="button"
+        data-admin-tab="overview"
+      >
+        ภาพรวม
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="modules"
+      >
+        โมดูล
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="users"
+      >
+        ผู้ใช้งาน
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="settings"
+      >
+        ตั้งค่า
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="shifts"
+      >
+        กะทำงาน
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="audit"
+      >
+        ประวัติ
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="system"
+      >
+        ตรวจระบบ
+      </button>
+    </nav>
+
+    <section
+      id="adminPanelOverview"
+      class="admin-panel"
+      data-admin-panel="overview"
+    >
+      <div class="admin-summary-grid">
+        <article class="admin-summary-card">
+          <span>
+            โมดูลทั้งหมด
+          </span>
+
+          <strong id="adminModuleCount">
+            0
+          </strong>
+
+          <small>
+            รายการ
+          </small>
+        </article>
+
+        <article class="admin-summary-card">
+          <span>
+            เปิดใช้งาน
+          </span>
+
+          <strong id="adminPublishedCount">
+            0
+          </strong>
+
+          <small>
+            โมดูล
+          </small>
+        </article>
+
+        <article class="admin-summary-card">
+          <span>
+            ผู้ใช้งาน
+          </span>
+
+          <strong id="adminUserCount">
+            0
+          </strong>
+
+          <small>
+            บัญชี
+          </small>
+        </article>
+
+        <article class="admin-summary-card">
+          <span>
+            โครงสร้างระบบ
+          </span>
+
+          <strong id="adminStructureStatus">
+            -
+          </strong>
+
+          <small>
+            สถานะ
+          </small>
+        </article>
+      </div>
+
+      <div class="admin-overview-grid">
+        <article class="admin-card">
+          <div class="admin-card__header">
+            <div>
+              <p class="eyebrow">
+                SYSTEM STRUCTURE
+              </p>
+
+              <h3>
+                ชีตหลังบ้าน
+              </h3>
+            </div>
+
+            <button
+              id="adminValidateQuickButton"
+              class="button button--secondary button--compact"
+              type="button"
+            >
+              ตรวจสอบ
+            </button>
+          </div>
+
+          <div
+            id="adminStructureList"
+            class="admin-status-list"
+          ></div>
+        </article>
+
+        <article class="admin-card">
+          <div class="admin-card__header">
+            <div>
+              <p class="eyebrow">
+                RECENT ACTIVITY
+              </p>
+
+              <h3>
+                รายการล่าสุด
+              </h3>
+            </div>
+
+            <button
+              class="button button--secondary button--compact"
+              type="button"
+              data-go-tab="audit"
+            >
+              ดูทั้งหมด
+            </button>
+          </div>
+
+          <div
+            id="adminRecentAudit"
+            class="admin-audit-list"
+          ></div>
+        </article>
+      </div>
+    </section>
+
+    <section
+      id="adminPanelModules"
+      class="admin-panel is-hidden"
+      data-admin-panel="modules"
+    >
+      <div class="admin-section-heading">
+        <div>
+          <p class="eyebrow">
+            MODULE MANAGEMENT
+          </p>
+
+          <h2>
+            โมดูล Vendor และประเภทรถ
+          </h2>
+
+          <p>
+            แยกเงื่อนไข แหล่งข้อมูล เวลา และฟิลด์แสดงผลของแต่ละกลุ่มได้อย่างอิสระ
+          </p>
+        </div>
+
+        <button
+          id="adminCreateModuleButton"
+          class="button button--primary"
+          type="button"
+        >
+          สร้างโมดูลใหม่
+        </button>
+      </div>
+
+      <div
+        id="adminModuleList"
+        class="admin-module-grid"
+      ></div>
+    </section>
+
+    <section
+      id="adminPanelUsers"
+      class="admin-panel is-hidden"
+      data-admin-panel="users"
+    >
+      <div class="admin-section-heading">
+        <div>
+          <p class="eyebrow">
+            USER MANAGEMENT
+          </p>
+
+          <h2>
+            ผู้ใช้งานและสิทธิ์
+          </h2>
+
+          <p>
+            สร้างบัญชี เปิดหรือปิดใช้งาน รีเซ็ตรหัสผ่าน และปลดล็อกบัญชี
+          </p>
+        </div>
+
+        <button
+          id="adminCreateUserButton"
+          class="button button--primary"
+          type="button"
+        >
+          สร้างผู้ใช้งาน
+        </button>
+      </div>
+
+      <div
+        id="adminUserList"
+        class="admin-user-list"
+      ></div>
+    </section>
+
+    <section
+      id="adminPanelSettings"
+      class="admin-panel is-hidden"
+      data-admin-panel="settings"
+    >
+      <div class="admin-section-heading">
+        <div>
+          <p class="eyebrow">
+            SYSTEM SETTINGS
+          </p>
+
+          <h2>
+            การตั้งค่าระบบกลาง
+          </h2>
+
+          <p>
+            ค่าความปลอดภัยและพฤติกรรมเริ่มต้นของระบบทั้งหมด
+          </p>
+        </div>
+      </div>
+
+      <form
+        id="adminSettingsForm"
+        class="admin-card admin-settings-form"
+      >
+        <div
+          id="adminSettingsFields"
+          class="admin-settings-grid"
+        ></div>
+
+        <div class="admin-form-actions">
+          <button
+            class="button button--primary"
+            type="submit"
+          >
+            บันทึกการตั้งค่า
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section
+      id="adminPanelShifts"
+      class="admin-panel is-hidden"
+      data-admin-panel="shifts"
+    >
+      <div class="admin-section-heading admin-shift-heading">
+        <div>
+          <p class="eyebrow">
+            SHIFT MANAGEMENT
+          </p>
+
+          <h2>
+            กะทำงานและการบันทึกสถิติ
+          </h2>
+
+          <p>
+            เปิดหรือปิดระบบกะ กำหนดเวลาแยกแต่ละ Module และตรวจสอบ Snapshot จากหน้า Admin โดยตรง
+          </p>
+        </div>
+
+        <div class="admin-shift-heading__actions">
+          <button
+            id="adminShiftSetupButton"
+            class="button button--secondary"
+            type="button"
+          >
+            เตรียมชีทระบบกะ
+          </button>
+
+          <a
+            class="button button--secondary"
+            href="./shift-admin.html"
+            target="_blank"
+            rel="noopener"
+          >
+            เปิดหน้าเต็ม
+          </a>
+        </div>
+      </div>
+
+      <div
+        id="adminShiftMessage"
+        class="admin-shift-message"
+        hidden
+      >
+        <span id="adminShiftMessageText"></span>
+
+        <button
+          id="adminShiftMessageRetry"
+          class="button button--secondary button--compact"
+          type="button"
+          hidden
+        >
+          ลองโหลดใหม่
+        </button>
+      </div>
+
+      <article class="admin-card admin-shift-config-card">
+        <div class="admin-shift-toolbar">
+          <label class="admin-field admin-shift-module-field">
+            <span>
+              เลือก Module
+            </span>
+
+            <select id="adminShiftModuleSelect">
+              <option value="">
+                กำลังโหลด Module...
+              </option>
+            </select>
+          </label>
+
+          <div class="admin-shift-current-status">
+            <span>
+              สถานะระบบกะ
+            </span>
+
+            <strong
+              id="adminShiftStatusBadge"
+              data-status="LOADING"
+            >
+              กำลังโหลด
+            </strong>
+          </div>
+
+          <div class="admin-shift-current-status">
+            <span>
+              เวอร์ชันที่ใช้งาน
+            </span>
+
+            <strong id="adminShiftVersion">
+              -
+            </strong>
+          </div>
+
+          <button
+            id="adminShiftReloadButton"
+            class="button button--secondary"
+            type="button"
+          >
+            โหลดใหม่
+          </button>
+        </div>
+
+        <div class="admin-shift-config-header">
+          <div>
+            <p class="eyebrow">
+              MODULE SHIFT CONFIGURATION
+            </p>
+
+            <h3>
+              การคำนวณข้อมูลตามกะ
+            </h3>
+
+            <p>
+              การเปิดใช้งานมีผลเฉพาะ Module ที่เลือก ไม่กระทบ Module อื่น
+            </p>
+          </div>
+
+          <label class="admin-shift-enable">
+            <input
+              id="adminShiftEnabled"
+              type="checkbox"
+            >
+
+            <span>
+              เปิดใช้งานระบบกะ
+            </span>
+          </label>
+        </div>
+
+        <div class="admin-shift-general-grid">
+          <label class="admin-field">
+            <span>
+              เขตเวลา
+            </span>
+
+            <input
+              id="adminShiftTimezone"
+              type="text"
+              value="Asia/Bangkok"
+            >
+          </label>
+
+          <label class="admin-field">
+            <span>
+              เวลาเริ่มวันปฏิบัติงาน
+            </span>
+
+            <input
+              id="adminShiftBusinessStart"
+              type="time"
+              value="06:00"
+            >
+
+            <small>
+              ใช้แบ่งสถิติรายวัน เช่น 06:00–06:00 ของวันถัดไป
+            </small>
+          </label>
+
+          <label class="admin-field">
+            <span>
+              วันที่เริ่มใช้
+            </span>
+
+            <input
+              id="adminShiftEffectiveDate"
+              type="date"
+            >
+
+            <small>
+              ระบบเก็บเวอร์ชันเดิมไว้สำหรับข้อมูลย้อนหลัง
+            </small>
+          </label>
+        </div>
+
+        <div class="admin-shift-list-heading">
+          <div>
+            <strong>
+              ตารางกะทำงาน
+            </strong>
+
+            <span>
+              กำหนดได้ 2–4 กะ และรองรับกะข้ามวัน
+            </span>
+          </div>
+
+          <button
+            id="adminShiftAddButton"
+            class="button button--secondary button--compact"
+            type="button"
+          >
+            + เพิ่มกะ
+          </button>
+        </div>
+
+        <div
+          id="adminShiftRows"
+          class="admin-shift-rows"
+        >
+          <div class="admin-shift-loading">
+            กำลังโหลดการตั้งค่ากะ
+          </div>
+        </div>
+
+        <div class="admin-shift-validation">
+          <div>
+            <span>
+              ความครอบคลุมของเวลา
+            </span>
+
+            <strong id="adminShiftCoverage">
+              -
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              การตรวจสอบช่วงเวลา
+            </span>
+
+            <strong
+              id="adminShiftValidationStatus"
+              data-status="IDLE"
+            >
+              รอตรวจสอบ
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              แก้ไขล่าสุด
+            </span>
+
+            <strong id="adminShiftUpdatedAt">
+              -
+            </strong>
+          </div>
+        </div>
+
+        <div class="admin-form-actions admin-shift-save-actions">
+          <span id="adminShiftSaveHint">
+            บันทึกแล้วระบบจะสร้างเวอร์ชันกะใหม่
+          </span>
+
+          <button
+            id="adminShiftSaveButton"
+            class="button button--primary"
+            type="button"
+          >
+            บันทึกการตั้งค่ากะ
+          </button>
+        </div>
+      </article>
+
+      <article class="admin-card admin-shift-statistics-card">
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">
+              SHIFT SNAPSHOT
+            </p>
+
+            <h3>
+              สถิติที่ระบบบันทึกไว้
+            </h3>
+
+            <p>
+              สรุปประจำกะจะถูก Upsert ด้วย Key จึงไม่สร้างรายการกะเดิมซ้ำ
+            </p>
+          </div>
+
+          <div class="admin-shift-stat-actions">
+            <button
+              id="adminShiftSnapshotButton"
+              class="button button--primary button--compact"
+              type="button"
+            >
+              บันทึก Snapshot ตอนนี้
+            </button>
+
+            <button
+              id="adminShiftStatsRefreshButton"
+              class="button button--secondary button--compact"
+              type="button"
+            >
+              รีเฟรชสถิติ
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-shift-summary-grid">
+          <div>
+            <span>
+              Snapshot ทั้งหมด
+            </span>
+
+            <strong id="adminShiftSnapshotCount">
+              0
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              ปิดกะสมบูรณ์
+            </span>
+
+            <strong id="adminShiftFinalCount">
+              0
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              วันที่ล่าสุด
+            </span>
+
+            <strong id="adminShiftLatestDate">
+              -
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              กะล่าสุด
+            </span>
+
+            <strong id="adminShiftLatestCode">
+              -
+            </strong>
+          </div>
+        </div>
+
+        <div class="admin-shift-table-wrap">
+          <table class="admin-shift-table">
+            <thead>
+              <tr>
+                <th>
+                  วันปฏิบัติงาน
+                </th>
+
+                <th>
+                  กะ
+                </th>
+
+                <th>
+                  สถานะ
+                </th>
+
+                <th>
+                  Gate In
+                </th>
+
+                <th>
+                  Gate Out
+                </th>
+
+                <th>
+                  Auto Close
+                </th>
+
+                <th>
+                  คงค้าง
+                </th>
+
+                <th>
+                  เกิน SLA
+                </th>
+
+                <th>
+                  SLA ผ่าน
+                </th>
+
+                <th>
+                  เวลาเฉลี่ย
+                </th>
+              </tr>
+            </thead>
+
+            <tbody id="adminShiftStatsBody">
+              <tr>
+                <td colspan="10">
+                  เลือก Module เพื่อดูสถิติ
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section
+      id="adminPanelAudit"
+      class="admin-panel is-hidden"
+      data-admin-panel="audit"
+    >
+      <div class="admin-section-heading">
+        <div>
+          <p class="eyebrow">
+            AUDIT LOG
+          </p>
+
+          <h2>
+            ประวัติการทำรายการ
+          </h2>
+
+          <p>
+            ตรวจสอบว่าใครแก้ข้อมูลอะไร เมื่อใด และผลลัพธ์เป็นอย่างไร
+          </p>
+        </div>
+      </div>
+
+      <form
+        id="adminAuditFilterForm"
+        class="admin-audit-filters"
+      >
+        <input
+          id="adminAuditUsername"
+          type="text"
+          placeholder="ชื่อผู้ใช้"
+        >
+
+        <input
+          id="adminAuditModuleId"
+          type="text"
+          placeholder="รหัสโมดูล"
+        >
+
+        <input
+          id="adminAuditAction"
+          type="text"
+          placeholder="การกระทำ"
+        >
+
+        <select id="adminAuditLimit">
+          <option value="30">
+            30 รายการ
+          </option>
+
+          <option value="50" selected>
+            50 รายการ
+          </option>
+
+          <option value="100">
+            100 รายการ
+          </option>
+
+          <option value="200">
+            200 รายการ
+          </option>
+        </select>
+
+        <button
+          class="button button--primary button--compact"
+          type="submit"
+        >
+          ค้นหา
+        </button>
+      </form>
+
+      <div
+        id="adminAuditList"
+        class="admin-audit-list admin-audit-list--full"
+      ></div>
+    </section>
+
+    <section
+      id="adminPanelSystem"
+      class="admin-panel is-hidden"
+      data-admin-panel="system"
+    >
+      <div class="admin-section-heading">
+        <div>
+          <p class="eyebrow">
+            SYSTEM VALIDATION
+          </p>
+
+          <h2>
+            ตรวจสอบความพร้อมของระบบ
+          </h2>
+
+          <p>
+            ตรวจ Frontend, Cloudflare Worker, Apps Script, ชีตหลังบ้าน โมดูล และ Spreadsheet ต้นทาง
+          </p>
+        </div>
+
+        <button
+          id="adminValidateSystemButton"
+          class="button button--primary"
+          type="button"
+        >
+          เริ่มตรวจสอบ
+        </button>
+      </div>
+
+      <section
+        id="adminDiagnosticSummary"
+        class="admin-diagnostic-summary"
+      >
+        <article class="admin-diagnostic-stat">
+          <span>ผลรวม</span>
+          <strong id="adminDiagnosticStatus">ยังไม่ได้ตรวจ</strong>
+        </article>
+
+        <article class="admin-diagnostic-stat admin-diagnostic-stat--pass">
+          <span>ผ่าน</span>
+          <strong id="adminDiagnosticPassed">0</strong>
+        </article>
+
+        <article class="admin-diagnostic-stat admin-diagnostic-stat--warn">
+          <span>คำเตือน</span>
+          <strong id="adminDiagnosticWarnings">0</strong>
+        </article>
+
+        <article class="admin-diagnostic-stat admin-diagnostic-stat--fail">
+          <span>ไม่ผ่าน</span>
+          <strong id="adminDiagnosticFailed">0</strong>
+        </article>
+      </section>
+
+      <div
+        id="adminValidationResult"
+        class="admin-validation-result"
+      >
+        <div class="empty-state">
+          <strong>
+            ยังไม่ได้ตรวจสอบระบบ
+          </strong>
+
+          <span>
+            กดปุ่มเริ่มตรวจสอบเพื่อดูผลลัพธ์ล่าสุด
+          </span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div
+    id="adminModuleEditor"
+    class="admin-editor is-hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="adminModuleEditorTitle"
+  >
+    <div
+      id="adminEditorBackdrop"
+      class="admin-editor__backdrop"
+    ></div>
+
+    <section class="admin-editor__panel">
+      <header class="admin-editor__header">
+        <div>
+          <p class="eyebrow">
+            MODULE EDITOR
+          </p>
+
+          <h2 id="adminModuleEditorTitle">
+            ตั้งค่าโมดูล
+          </h2>
+
+          <span id="adminModuleEditorStatus">
+            -
+          </span>
+        </div>
+
+        <button
+          id="adminCloseModuleEditorButton"
+          class="icon-text-button"
+          type="button"
+        >
+          ปิด
+        </button>
+      </header>
+
+      <form
+        id="adminModuleForm"
+        class="admin-editor__body"
+        novalidate
+      >
+        <input
+          id="adminExpectedUpdatedAt"
+          type="hidden"
+        >
+
+        <section class="admin-editor-section">
+          <div class="admin-editor-section__title">
+            <span>1</span>
+
+            <div>
+              <h3>
+                ข้อมูลโมดูล
+              </h3>
+
+              <p>
+                ชื่อ สถานะ และลำดับที่จะแสดงแก่ผู้ใช้งาน
+              </p>
+            </div>
+          </div>
+
+          <div class="admin-form-grid">
+            <label class="admin-field">
+              <span>
+                รหัสโมดูล
+              </span>
+
+              <input
+                id="adminModuleId"
+                type="text"
+                maxlength="80"
+                placeholder="เช่น makro หรือ vendor-a"
+                required
+              >
+            </label>
+
+            <label class="admin-field admin-field--wide">
+              <span>
+                ชื่อโมดูล
+              </span>
+
+              <input
+                id="adminModuleName"
+                type="text"
+                maxlength="200"
+                required
+              >
+            </label>
+
+            <label class="admin-field admin-field--full">
+              <span>
+                คำอธิบาย
+              </span>
+
+              <textarea
+                id="adminModuleDescription"
+                rows="3"
+                maxlength="2000"
+              ></textarea>
+            </label>
+
+            <label class="admin-field">
+              <span>
+                สถานะโมดูล
+              </span>
+
+              <select id="adminModuleStatus">
+                <option value="DRAFT">
+                  ฉบับร่าง
+                </option>
+
+                <option value="ADMIN_ONLY">
+                  เฉพาะ Admin
+                </option>
+
+                <option value="PUBLISHED">
+                  เปิดใช้งาน
+                </option>
+              </select>
+            </label>
+
+            <label class="admin-field">
+              <span>
+                ลำดับแสดง
+              </span>
+
+              <input
+                id="adminModuleDisplayOrder"
+                type="number"
+                min="1"
+                max="9999"
+                value="100"
+              >
+            </label>
+          </div>
+        </section>
+
+        <section class="admin-editor-section">
+          <div class="admin-editor-section__title">
+            <span>2</span>
+
+            <div>
+              <h3>
+                แหล่งข้อมูล
+              </h3>
+
+              <p>
+                กำหนด Spreadsheet ชีต และคอลัมน์เวลาเข้าออก
+              </p>
+            </div>
+          </div>
+
+          <div class="admin-form-grid">
+            <label class="admin-field admin-field--full">
+              <span>
+                Google Spreadsheet ID ต้นทาง
+              </span>
+
+              <input
+                id="adminSourceSpreadsheetId"
+                type="text"
+                autocomplete="off"
+                required
+              >
+            </label>
+
+            <label class="admin-field admin-field--wide">
+              <span>
+                ชื่อชีตต้นทาง
+              </span>
+
+              <input
+                id="adminSourceSheetName"
+                type="text"
+                list="adminSourceSheetOptions"
+                autocomplete="off"
+                required
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                แถวหัวตาราง
+              </span>
+
+              <input
+                id="adminHeaderRow"
+                type="number"
+                min="1"
+                max="100"
+                value="1"
+              >
+            </label>
+
+            <div class="admin-field admin-field--full">
+              <span>
+                ตรวจสอบแหล่งข้อมูล
+              </span>
+
+              <button
+                id="adminInspectSourceButton"
+                class="button button--secondary"
+                type="button"
+              >
+                อ่านรายชื่อชีตและหัวคอลัมน์
+              </button>
+
+              <small id="adminSourceInspectStatus">
+                ยังไม่ได้ตรวจสอบ
+              </small>
+            </div>
+
+            <label class="admin-field">
+              <span>
+                คอลัมน์เวลาเข้า
+              </span>
+
+              <input
+                id="adminTimestampInColumn"
+                type="text"
+                list="adminSourceColumnOptions"
+                maxlength="3"
+                required
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                คอลัมน์เวลาออก
+              </span>
+
+              <input
+                id="adminTimestampOutColumn"
+                type="text"
+                list="adminSourceColumnOptions"
+                maxlength="3"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                คอลัมน์ระยะเวลา
+              </span>
+
+              <input
+                id="adminDurationColumn"
+                type="text"
+                list="adminSourceColumnOptions"
+                maxlength="3"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                คอลัมน์ผู้บันทึกออก
+              </span>
+
+              <input
+                id="adminCheckoutUserColumn"
+                type="text"
+                list="adminSourceColumnOptions"
+                maxlength="3"
+              >
+            </label>
+          </div>
+        </section>
+
+        <section class="admin-editor-section">
+          <div class="admin-editor-section__title">
+            <span>3</span>
+
+            <div>
+              <h3>
+                สถานะและเวลา
+              </h3>
+
+              <p>
+                กำหนดวิธีตรวจรถที่ยังอยู่ในพื้นที่และช่วงเวลาแจ้งเตือน
+              </p>
+            </div>
+          </div>
+
+          <div class="admin-form-grid">
+            <label class="admin-field admin-field--wide">
+              <span>
+                วิธีตรวจสถานะปัจจุบัน
+              </span>
+
+              <select id="adminCurrentStatusMethod">
+                <option value="TIMESTAMP_OUT_EMPTY_AND_DURATION_EMPTY">
+                  เวลาออกและระยะเวลาต้องว่าง
+                </option>
+
+                <option value="TIMESTAMP_OUT_EMPTY">
+                  เวลาออกต้องว่าง
+                </option>
+
+                <option value="CUSTOM">
+                  เงื่อนไขกำหนดเอง
+                </option>
+              </select>
+            </label>
+
+            <label class="admin-field">
+              <span>
+                คอลัมน์สถานะกำหนดเอง
+              </span>
+
+              <input
+                id="adminCustomStatusColumn"
+                type="text"
+                list="adminSourceColumnOptions"
+                maxlength="3"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                ตัวดำเนินการสถานะ
+              </span>
+
+              <select id="adminCustomStatusOperator">
+                <option value="">
+                  ไม่กำหนด
+                </option>
+
+                <option value="EQUALS">
+                  เท่ากับ
+                </option>
+
+                <option value="NOT_EQUALS">
+                  ไม่เท่ากับ
+                </option>
+
+                <option value="CONTAINS">
+                  มีคำว่า
+                </option>
+
+                <option value="NOT_CONTAINS">
+                  ไม่มีคำว่า
+                </option>
+
+                <option value="IS_EMPTY">
+                  ว่าง
+                </option>
+
+                <option value="IS_NOT_EMPTY">
+                  ไม่ว่าง
+                </option>
+              </select>
+            </label>
+
+            <label class="admin-field">
+              <span>
+                ค่าสถานะกำหนดเอง
+              </span>
+
+              <input
+                id="adminCustomStatusValue"
+                type="text"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                นาทีเริ่มสีเขียว
+              </span>
+
+              <input
+                id="adminGreenStartMinutes"
+                type="number"
+                min="0"
+                value="0"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                นาทีเริ่มสีส้ม
+              </span>
+
+              <input
+                id="adminWarningStartMinutes"
+                type="number"
+                min="0"
+                value="45"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                นาทีเริ่มสีแดง
+              </span>
+
+              <input
+                id="adminRedStartMinutes"
+                type="number"
+                min="1"
+                value="60"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                แจ้งเตือนซ้ำทุกกี่นาที
+              </span>
+
+              <input
+                id="adminAlertRepeatMinutes"
+                type="number"
+                min="1"
+                max="1440"
+                value="10"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                รีเฟรชทุกกี่วินาที
+              </span>
+
+              <input
+                id="adminRefreshSeconds"
+                type="number"
+                min="10"
+                max="3600"
+                value="30"
+              >
+            </label>
+          </div>
+        </section>
+
+        <section class="admin-editor-section">
+          <div class="admin-editor-section__title">
+            <span>4</span>
+
+            <div>
+              <h3>
+                เงื่อนไขกรองข้อมูล
+              </h3>
+
+              <p>
+                ตัวอย่าง Makro: คอลัมน์ K มีคำว่า “ส่งสินค้าMakro”
+              </p>
+            </div>
+          </div>
+
+          <div class="admin-dynamic-toolbar">
+            <span id="adminFilterCount">
+              0 เงื่อนไข
+            </span>
+
+            <button
+              id="adminAddFilterButton"
+              class="button button--secondary button--compact"
+              type="button"
+            >
+              เพิ่มเงื่อนไข
+            </button>
+          </div>
+
+          <div
+            id="adminFilterRows"
+            class="admin-dynamic-list"
+          ></div>
+        </section>
+
+        <section class="admin-editor-section">
+          <div class="admin-editor-section__title">
+            <span>5</span>
+
+            <div>
+              <h3>
+                ฟิลด์ที่แสดงบนการ์ด
+              </h3>
+
+              <p>
+                รวมหลายคอลัมน์ได้ เช่น คำนำหน้า + ชื่อ + สกุล หรือทะเบียน + จังหวัด
+              </p>
+            </div>
+          </div>
+
+          <div class="admin-dynamic-toolbar">
+            <span id="adminFieldCount">
+              0 ฟิลด์
+            </span>
+
+            <button
+              id="adminAddFieldButton"
+              class="button button--secondary button--compact"
+              type="button"
+            >
+              เพิ่มฟิลด์
+            </button>
+          </div>
+
+          <div
+            id="adminFieldRows"
+            class="admin-dynamic-list"
+          ></div>
+        </section>
+
+        <section class="admin-editor-section">
+          <div class="admin-editor-section__title">
+            <span>6</span>
+
+            <div>
+              <h3>
+                การเปิดใช้งาน
+              </h3>
+
+              <p>
+                ควบคุมการแสดงผล ปฏิทิน การบันทึกออก เสียง และการสั่น
+              </p>
+            </div>
+          </div>
+
+          <div class="admin-toggle-grid">
+            <label class="admin-toggle">
+              <input
+                id="adminAlertEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดแจ้งเตือน
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminCheckoutEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดบันทึกออก
+              </span>
+            </label>
+
+
+            <label class="admin-toggle admin-toggle--feature">
+              <input
+                id="adminReceivingEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                <strong>
+                  เปิดหน้าบันทึกรับสินค้าเสร็จ
+                </strong>
+
+                <small>
+                  เมื่อเปิด User และ Admin ที่เข้าถึง Module นี้จะเห็น Receiving Flow และปุ่มบันทึก
+                </small>
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminShowToUsers"
+                type="checkbox"
+              >
+
+              <span>
+                แสดงแก่ User
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminHistoryEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดประวัติ
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminCalendarEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดปฏิทิน
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminShowCalendarToUsers"
+                type="checkbox"
+              >
+
+              <span>
+                แสดงปฏิทินแก่ User
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminDailySummaryEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดสรุปรายวัน
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminSoundEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดเสียง
+              </span>
+            </label>
+
+            <label class="admin-toggle">
+              <input
+                id="adminVibrationEnabled"
+                type="checkbox"
+              >
+
+              <span>
+                เปิดการสั่น
+              </span>
+            </label>
+          </div>
+
+          <div class="admin-form-grid admin-form-grid--compact">
+            <label class="admin-field">
+              <span>
+                เดือนย้อนหลัง
+              </span>
+
+              <input
+                id="adminHistoryMonths"
+                type="number"
+                min="1"
+                max="120"
+                value="12"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                จัดกลุ่มปฏิทินตาม
+              </span>
+
+              <select id="adminCalendarGroupBy">
+                <option value="TIMESTAMP_IN">
+                  เวลาเข้า
+                </option>
+
+                <option value="TIMESTAMP_OUT">
+                  เวลาออก
+                </option>
+              </select>
+            </label>
+
+            <label class="admin-field">
+              <span>
+                คอลัมน์สถานะหลังออก
+              </span>
+
+              <input
+                id="adminAfterCheckoutStatusColumn"
+                type="text"
+                list="adminSourceColumnOptions"
+                maxlength="3"
+              >
+            </label>
+
+            <label class="admin-field">
+              <span>
+                ค่าสถานะหลังออก
+              </span>
+
+              <input
+                id="adminAfterCheckoutStatusValue"
+                type="text"
+              >
+            </label>
+          </div>
+        </section>
+
+        <footer class="admin-editor__footer">
+          <button
+            id="adminCancelModuleButton"
+            class="button button--secondary"
+            type="button"
+          >
+            ยกเลิก
+          </button>
+
+          <button
+            id="adminSaveModuleButton"
+            class="button button--primary"
+            type="submit"
+          >
+            บันทึกโมดูล
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <datalist id="adminSourceSheetOptions"></datalist>
+  <datalist id="adminSourceColumnOptions"></datalist>
+
+  <footer class="app-footer">
+    ระบบหลังบ้านใช้เขตเวลา Asia/Bangkok และรูปแบบวันที่
+    dd/MM/yyyy HH:mm:ss
+  </footer>
+</body>
+</html>

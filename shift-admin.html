@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0f3d5e"
+  >
+
+  <title>
+    ตั้งค่ากะ | Vehicle Control Tower
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="./shift-admin.css?v=20260703-r56-shift-phase1"
+  >
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
+    defer
+  ></script>
+
+  <script
+    src="./config.js"
+    defer
+  ></script>
+
+  <script
+    src="./api.js?v=20260703-r56-shift-phase1"
+    defer
+  ></script>
+
+  <script
+    src="./shift-admin.js?v=20260703-r56-shift-phase1"
+    defer
+  ></script>
+</head>
+
+<body class="shift-admin-page">
+  <header class="shift-admin-header">
+    <a href="./admin.html">
+      ← กลับหน้าจัดการระบบ
+    </a>
+
+    <div>
+      <small>
+        ADMIN SHIFT CONTROL
+      </small>
+
+      <h1>
+        ตั้งค่ากะและสถิติการปฏิบัติงาน
+      </h1>
+    </div>
+
+    <span id="shiftAdminUser">
+      กำลังตรวจสอบ...
+    </span>
+  </header>
+
+  <main class="shift-admin-main">
+    <section class="shift-admin-toolbar">
+      <label>
+        <span>Module</span>
+
+        <select id="shiftAdminModule">
+          <option value="">
+            กำลังโหลด...
+          </option>
+        </select>
+      </label>
+
+      <button
+        id="shiftAdminSetup"
+        type="button"
+      >
+        เตรียมชีทระบบกะ
+      </button>
+
+      <button
+        id="shiftAdminRunSnapshot"
+        type="button"
+      >
+        บันทึก Snapshot ตอนนี้
+      </button>
+    </section>
+
+    <section class="shift-admin-card">
+      <header>
+        <div>
+          <small>SHIFT SETTINGS</small>
+
+          <h2>การคำนวณตามกะ</h2>
+        </div>
+
+        <label class="shift-toggle">
+          <input
+            id="shiftAdminEnabled"
+            type="checkbox"
+          >
+
+          <span>เปิดใช้งาน</span>
+        </label>
+      </header>
+
+      <div class="shift-admin-config-grid">
+        <label>
+          <span>เขตเวลา</span>
+
+          <input
+            id="shiftAdminTimezone"
+            type="text"
+            value="Asia/Bangkok"
+          >
+        </label>
+
+        <label>
+          <span>เวลาเริ่มวันปฏิบัติงาน</span>
+
+          <input
+            id="shiftAdminBusinessStart"
+            type="time"
+            value="06:00"
+          >
+        </label>
+
+        <label>
+          <span>วันที่เริ่มใช้</span>
+
+          <input
+            id="shiftAdminEffective"
+            type="date"
+          >
+        </label>
+      </div>
+
+      <div class="shift-admin-shifts-head">
+        <div>
+          <strong>เวลากะทำงาน</strong>
+
+          <span>
+            รองรับ 2–4 กะและกะข้ามวัน
+          </span>
+        </div>
+
+        <button
+          id="shiftAdminAddShift"
+          type="button"
+        >
+          + เพิ่มกะ
+        </button>
+      </div>
+
+      <div id="shiftAdminRows"></div>
+
+      <footer class="shift-admin-actions">
+        <span id="shiftAdminCoverage">
+          รวมช่วงเวลา 24 ชั่วโมง
+        </span>
+
+        <button
+          id="shiftAdminSave"
+          type="button"
+        >
+          บันทึกการตั้งค่า
+        </button>
+      </footer>
+    </section>
+
+    <section class="shift-admin-card">
+      <header>
+        <div>
+          <small>SNAPSHOT HISTORY</small>
+
+          <h2>สถิติประจำกะและรายวัน</h2>
+        </div>
+
+        <button
+          id="shiftAdminRefreshStats"
+          type="button"
+        >
+          รีเฟรช
+        </button>
+      </header>
+
+      <div class="shift-admin-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th>กะ</th>
+              <th>Gate In</th>
+              <th>Gate Out</th>
+              <th>คงค้าง</th>
+              <th>SLA</th>
+              <th>เฉลี่ย</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+
+          <tbody id="shiftAdminStatsBody">
+            <tr>
+              <td colspan="8">
+                ยังไม่มีข้อมูล
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

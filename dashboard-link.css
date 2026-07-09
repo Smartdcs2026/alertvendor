@@ -1,0 +1,193 @@
+/**
+ * dashboard-link.css
+ * ROUND 35 — Dashboard Launcher Compatibility
+ */
+
+.module-dashboard-launcher {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, .24);
+  border-radius: 8px;
+  padding: 5px 9px;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      135deg,
+      #0c7190,
+      #07546f
+    );
+  box-shadow:
+    0 4px 12px
+    rgba(3, 40, 64, .16);
+  cursor: pointer;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  white-space: nowrap;
+  transition:
+    transform .12s ease,
+    filter .12s ease,
+    box-shadow .12s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.module-dashboard-launcher:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    0 6px 16px
+    rgba(3, 40, 64, .22);
+}
+
+.module-dashboard-launcher:active {
+  transform: scale(.97);
+}
+
+.module-dashboard-launcher svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+.module-command-bar
+.module-clock
+.module-dashboard-launcher {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 27px;
+  padding: 4px 8px;
+}
+
+.module-command-bar >
+.module-dashboard-launcher {
+  align-self: center;
+}
+
+@media (max-width: 900px) {
+  .module-dashboard-launcher {
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: 7.5px;
+  }
+
+  .module-dashboard-launcher svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .module-command-bar
+  .module-clock
+  .module-dashboard-launcher {
+    width: auto;
+    min-width: 82px;
+    min-height: 26px;
+    justify-self: end;
+    padding: 3px 7px;
+    font-size: 7px;
+  }
+
+  .module-dashboard-launcher svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+@media (max-width: 380px) {
+  .module-command-bar
+  .module-clock
+  .module-dashboard-launcher {
+    min-width: 34px;
+    width: 34px;
+    padding: 0;
+  }
+
+  .module-command-bar
+  .module-clock
+  .module-dashboard-launcher span {
+    display: none;
+  }
+
+  .module-dashboard-launcher svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+/************************************************************
+ * ROUND 45 — Dashboard Launcher High Contrast
+ ************************************************************/
+
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher {
+  border-color:
+    rgba(255, 255, 255, .46) !important;
+  color: #ffffff !important;
+  background:
+    linear-gradient(
+      135deg,
+      #087d9d,
+      #064c6a
+    ) !important;
+  opacity: 1 !important;
+  text-shadow:
+    0 1px 2px
+    rgba(0, 24, 40, .42);
+}
+
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher
+span {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  font-weight: 950 !important;
+  -webkit-text-fill-color:
+    #ffffff !important;
+}
+
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher
+svg,
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher
+path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher:hover,
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher:focus-visible {
+  border-color:
+    rgba(255, 255, 255, .72) !important;
+  color: #ffffff !important;
+  background:
+    linear-gradient(
+      135deg,
+      #0a8bab,
+      #075b78
+    ) !important;
+  filter: none !important;
+  box-shadow:
+    0 0 0 3px
+    rgba(118, 232, 245, .18),
+    0 7px 18px
+    rgba(2, 34, 55, .28) !important;
+}
+
+body.module-page
+#moduleDashboardLauncher.module-dashboard-launcher:active {
+  color: #ffffff !important;
+  background:
+    linear-gradient(
+      135deg,
+      #056a88,
+      #043f5b
+    ) !important;
+}

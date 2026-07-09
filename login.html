@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0f3d5e"
+  >
+
+  <meta
+    name="color-scheme"
+    content="light"
+  >
+
+  <meta
+    name="mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="default"
+  >
+
+  <meta
+    name="apple-mobile-web-app-title"
+    content="Alert Vendor"
+  >
+
+  <title>
+    เข้าสู่ระบบ | ระบบติดตามสถานะรถและตู้สินค้า
+  </title>
+
+  <!-- PWA Manifest -->
+  <link
+    rel="manifest"
+    href="./manifest.webmanifest?v=20260628"
+  >
+
+  <!-- Browser favicon -->
+  <link
+    rel="icon"
+    type="image/png"
+    sizes="64x64"
+    href="./icons/favicon-64.png?v=20260628"
+  >
+
+  <link
+    rel="icon"
+    type="image/png"
+    sizes="32x32"
+    href="./icons/favicon-32.png?v=20260628"
+  >
+
+  <!-- iPhone / iPad Home Screen -->
+  <link
+    rel="apple-touch-icon"
+    sizes="180x180"
+    href="./icons/apple-touch-icon.png?v=20260628"
+  >
+
+  <link
+  rel="stylesheet"
+  href="./styles.css?v=20260628-login-icon-fix2"
+>
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
+    defer
+  ></script>
+
+  <script
+    src="./config.js"
+    defer
+  ></script>
+
+  <script
+    src="./api.js"
+    defer
+  ></script>
+
+  <script
+    src="./auth.js"
+    defer
+  ></script>
+</head>
+
+<body
+  data-page="login"
+  class="login-page"
+>
+  <main class="login-layout">
+    <section
+      class="login-card"
+      aria-labelledby="loginTitle"
+    >
+      <!-- ไอคอนระบบจริง -->
+     <div class="login-app-icon">
+  <img
+    src="./icons/icon-192.png?v=20260628-2"
+    alt="ไอคอนระบบติดตามสถานะรถและตู้สินค้า"
+    width="112"
+    height="112"
+    loading="eager"
+    decoding="async"
+  >
+</div>
+
+      <header class="login-header">
+        <p class="eyebrow">
+          WAREHOUSE VEHICLE STATUS
+        </p>
+
+        <h1 id="loginTitle">
+          ระบบติดตามสถานะรถและตู้สินค้า
+        </h1>
+
+        <p>
+          กรุณาเข้าสู่ระบบเพื่อดูสถานะรถในพื้นที่คลัง
+        </p>
+      </header>
+
+      <div class="date-time-panel">
+        <span>
+          วันที่และเวลาปัจจุบัน
+        </span>
+
+        <strong id="currentDateTime">
+          --/--/---- --:--:--
+        </strong>
+      </div>
+
+      <form
+        id="loginForm"
+        class="login-form"
+        autocomplete="on"
+        novalidate
+      >
+        <label class="form-field">
+          <span class="form-label">
+            ชื่อผู้ใช้
+          </span>
+
+          <input
+            id="username"
+            name="username"
+            type="text"
+            inputmode="text"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="80"
+            placeholder="กรอกชื่อผู้ใช้"
+            required
+          >
+        </label>
+
+        <label class="form-field">
+          <span class="form-label">
+            รหัสผ่าน
+          </span>
+
+          <span class="password-control">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              maxlength="128"
+              placeholder="กรอกรหัสผ่าน"
+              required
+            >
+
+            <button
+              id="togglePassword"
+              class="password-toggle"
+              type="button"
+              aria-label="แสดงหรือซ่อนรหัสผ่าน"
+              aria-pressed="false"
+            >
+              แสดง
+            </button>
+          </span>
+        </label>
+
+        <button
+          id="loginButton"
+          class="button button--primary button--login"
+          type="submit"
+        >
+          เข้าสู่ระบบ
+        </button>
+      </form>
+
+      <footer class="login-footer">
+        <span class="security-dot"></span>
+        เชื่อมต่อผ่านระบบยืนยันตัวตนที่ปลอดภัย
+      </footer>
+    </section>
+  </main>
+
+  <noscript>
+    <div class="noscript-message">
+      กรุณาเปิดใช้งาน JavaScript เพื่อใช้งานระบบ
+    </div>
+  </noscript>
+</body>
+</html>
+

@@ -1,0 +1,381 @@
+/**
+ * module-alert-detail.css
+ * ROUND 55 — Dedicated SweetAlert Record Detail Styles
+ *
+ * โหลดเป็น CSS ลำดับสุดท้ายเพื่อป้องกัน styles.css,
+ * module-focus.css และ SweetAlert Default ทับรูปแบบ
+ */
+
+.swal2-popup.av-record-detail-popup-v55,
+.swal2-popup.av-record-detail-popup-v55 * {
+  box-sizing: border-box !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55 {
+  width:
+    min(620px, calc(100vw - 12px)) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width:
+    calc(100vw - 12px) !important;
+  max-height:
+    min(90dvh, 720px) !important;
+  display: grid !important;
+  grid-template-rows:
+    minmax(0, 1fr)
+    auto !important;
+  overflow: hidden !important;
+  border: 1px solid #d7dfe4 !important;
+  border-radius: 14px !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 22px 60px
+    rgba(19, 39, 52, .26) !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.av-record-detail-hidden-v55 {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.swal2-html-container.av-record-detail-html-v55 {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height:
+    calc(min(90dvh, 720px) - 62px) !important;
+  display: block !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #243746 !important;
+  background: #ffffff !important;
+  text-align: left !important;
+}
+
+.av-record-detail-layout-v55 {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #243746 !important;
+  background: #ffffff !important;
+  text-align: left !important;
+}
+
+.av-record-detail-header-v55 {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 3px !important;
+  border-bottom:
+    1px solid #dce3e7 !important;
+  margin: 0 !important;
+  padding:
+    15px 50px
+    14px 17px !important;
+  background: #f5f7f8 !important;
+  text-align: left !important;
+}
+
+.av-record-detail-header-v55 span {
+  display: block !important;
+  color: #73818a !important;
+  font-size: .57rem !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+}
+
+.av-record-detail-header-v55 strong {
+  display: block !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  color: #17384a !important;
+  font-size: 1.1rem !important;
+  font-weight: 950 !important;
+  line-height: 1.25 !important;
+}
+
+.av-record-detail-body-v55 {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 0 !important;
+  padding:
+    0 16px
+    13px !important;
+  background: #ffffff !important;
+}
+
+.av-record-detail-company-v55 {
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 3px !important;
+  border-bottom:
+    1px solid #dce3e7 !important;
+  padding:
+    12px 2px !important;
+}
+
+.av-record-detail-company-v55 span,
+.av-record-detail-item-v55 span {
+  display: block !important;
+  color: #73818a !important;
+  font-size: .53rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.av-record-detail-company-v55 strong {
+  display: block !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  color: #243746 !important;
+  font-size: .86rem !important;
+  font-weight: 900 !important;
+  line-height: 1.3 !important;
+}
+
+.av-record-detail-grid-v55 {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+}
+
+.av-record-detail-item-v55 {
+  min-width: 0 !important;
+  min-height: 64px !important;
+  display: grid !important;
+  align-content: center !important;
+  gap: 4px !important;
+  border-bottom:
+    1px solid #dce3e7 !important;
+  margin: 0 !important;
+  padding:
+    9px 10px
+    9px 2px !important;
+  color: #243746 !important;
+  background: #ffffff !important;
+}
+
+.av-record-detail-item-v55:nth-child(odd) {
+  border-right:
+    1px solid #dce3e7 !important;
+  padding-right: 12px !important;
+}
+
+.av-record-detail-item-v55:nth-child(even) {
+  padding-left: 12px !important;
+}
+
+.av-record-detail-item-v55 strong {
+  display: block !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  color: #243746 !important;
+  font-size: .71rem !important;
+  font-weight: 850 !important;
+  line-height: 1.3 !important;
+}
+
+.av-record-detail-item-v55.is-overdue strong {
+  color: #b42323 !important;
+  font-size: .8rem !important;
+  font-weight: 950 !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.swal2-actions.av-record-detail-actions-v55 {
+  width: 100% !important;
+  min-height: 58px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  border-top:
+    1px solid #d9e0e4 !important;
+  margin: 0 !important;
+  padding:
+    8px 10px !important;
+  background: #ffffff !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.swal2-actions.av-record-detail-actions-v55
+button {
+  min-height: 39px !important;
+  border-radius: 8px !important;
+  margin: 0 !important;
+  padding:
+    6px 12px !important;
+  font-family: inherit !important;
+  font-size: .59rem !important;
+  font-weight: 900 !important;
+  line-height: 1.2 !important;
+  box-shadow: none !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.swal2-confirm.av-record-detail-back-v55 {
+  min-width: 128px !important;
+  border:
+    1px solid #aebdc6 !important;
+  color: #2b4656 !important;
+  background: #ffffff !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.swal2-deny.av-record-detail-main-v55 {
+  min-width: 150px !important;
+  border:
+    1px solid #264f63 !important;
+  color: #ffffff !important;
+  background: #264f63 !important;
+}
+
+.swal2-popup.av-record-detail-popup-v55
+.swal2-close.av-record-detail-close-v55 {
+  top: 8px !important;
+  right: 8px !important;
+  width: 31px !important;
+  height: 31px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #52636d !important;
+  background: #e9eef1 !important;
+  font-size: 1.15rem !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 680px) {
+  .swal2-popup.av-record-detail-popup-v55 {
+    width:
+      calc(100vw - 8px) !important;
+    max-width:
+      calc(100vw - 8px) !important;
+    max-height:
+      92dvh !important;
+    border-radius: 11px !important;
+  }
+
+  .swal2-popup.av-record-detail-popup-v55
+  .swal2-html-container.av-record-detail-html-v55 {
+    max-height:
+      calc(92dvh - 55px) !important;
+  }
+
+  .av-record-detail-header-v55 {
+    padding:
+      12px 43px
+      11px 12px !important;
+  }
+
+  .av-record-detail-header-v55 span {
+    font-size: .46rem !important;
+  }
+
+  .av-record-detail-header-v55 strong {
+    font-size: .88rem !important;
+  }
+
+  .av-record-detail-body-v55 {
+    padding:
+      0 10px
+      9px !important;
+  }
+
+  .av-record-detail-company-v55 {
+    padding:
+      10px 1px !important;
+  }
+
+  .av-record-detail-company-v55 span,
+  .av-record-detail-item-v55 span {
+    font-size: .41rem !important;
+  }
+
+  .av-record-detail-company-v55 strong {
+    font-size: .68rem !important;
+  }
+
+  .av-record-detail-grid-v55 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .av-record-detail-item-v55 {
+    min-height: 52px !important;
+    padding:
+      7px 7px
+      7px 1px !important;
+  }
+
+  .av-record-detail-item-v55:nth-child(odd) {
+    padding-right:
+      8px !important;
+  }
+
+  .av-record-detail-item-v55:nth-child(even) {
+    padding-left:
+      8px !important;
+  }
+
+  .av-record-detail-item-v55 strong {
+    font-size: .54rem !important;
+  }
+
+  .av-record-detail-item-v55.is-overdue strong {
+    font-size: .62rem !important;
+  }
+
+  .swal2-popup.av-record-detail-popup-v55
+  .swal2-actions.av-record-detail-actions-v55 {
+    min-height: 51px !important;
+    gap: 5px !important;
+    padding: 6px !important;
+  }
+
+  .swal2-popup.av-record-detail-popup-v55
+  .swal2-actions.av-record-detail-actions-v55
+  button {
+    min-width: 0 !important;
+    min-height: 35px !important;
+    flex: 1 1 0 !important;
+    padding:
+      5px 7px !important;
+    font-size: .49rem !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .av-record-detail-grid-v55 {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .av-record-detail-item-v55 strong {
+    font-size: .5rem !important;
+  }
+
+  .av-record-detail-item-v55.is-overdue strong {
+    font-size: .58rem !important;
+  }
+}
