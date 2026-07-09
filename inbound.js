@@ -484,7 +484,7 @@
       nextStepText: text(source.nextStepText),
       appointmentNumber: text(source.appointmentNumber || source.appointment || record.appointmentNumber || record.appointment),
       companyName: text(source.companyName || source.company || record.companyName || record.company),
-      driverName: text(source.driverName || source.fullName || record.driverName || record.fullName),
+      driverName: composeDriverName(source, record),
       registration: text(source.registration || source.plate || record.registration || record.plate),
       province: text(source.province || record.province),
       phone: text(source.phone || source.mobile || record.phone || record.mobile),
@@ -506,9 +506,9 @@
     const rawRecord = data.record || data.vehicle || data.sourceRecord || fallbackRecord || {};
     const rawState = data.state || data.workflowState || data.currentState || {};
     const autoId = text(rawRecord.autoId || rawRecord.autoID || rawRecord.entryCode || rawState.autoId || data.autoId || data.entryCode);
-    const firstName = text(rawRecord.firstName || rawRecord.name || rawRecord.driverFirstName);
-    const lastName = text(rawRecord.lastName || rawRecord.surname || rawRecord.driverLastName);
-    const prefix = text(rawRecord.prefix || rawRecord.title);
+    const firstName = text(rawRecord.firstName || rawRecord.name || rawRecord.driverFirstName || rawRecord['ชื่อ']);
+    const lastName = text(rawRecord.lastName || rawRecord.surname || rawRecord.driverLastName || rawRecord['สกุล'] || rawRecord['นามสกุล']);
+    const prefix = text(rawRecord.prefix || rawRecord.title || rawRecord['คำนำหน้า'] || rawRecord['คำนำหน้า ']);
     return {
       success: data.success !== false,
       record: {
@@ -521,7 +521,7 @@
         registration: text(rawRecord.registration || rawRecord.plate || rawRecord.vehiclePlate),
         province: text(rawRecord.province),
         vehicleType: text(rawRecord.vehicleType || rawRecord.type),
-        driverName: text(rawRecord.driverName || rawRecord.fullName || [prefix, firstName, lastName].filter(Boolean).join(' '))
+        driverName: composeDriverName(rawRecord, null, [prefix, firstName, lastName].filter(Boolean).join(' '))
       },
       state: {
         autoId,
@@ -1154,6 +1154,72 @@
 
   function byId(id) { return document.getElementById(id); }
   function setText(id, value) { const el = byId(id); if (el) el.textContent = String(value ?? ''); }
+
+  function composeDriverName(primary, secondary, fallback) {
+    const first = primary && typeof primary === 'object' ? primary : {};
+    const second = secondary && typeof secondary === 'object' ? secondary : {};
+
+    const direct = text(
+      first.driverName ||
+      first.personName ||
+      first.fullName ||
+      first['ชื่อ พขร.'] ||
+      first['ชื่อผู้ขับ'] ||
+      first['ชื่อคนขับ'] ||
+      second.driverName ||
+      second.personName ||
+      second.fullName ||
+      second['ชื่อ พขร.'] ||
+      second['ชื่อผู้ขับ'] ||
+      second['ชื่อคนขับ']
+    );
+
+    if (direct) {
+      return direct;
+    }
+
+    const prefix = text(
+      first.prefix ||
+      first.title ||
+      first['คำนำหน้า'] ||
+      first['คำนำหน้า '] ||
+      second.prefix ||
+      second.title ||
+      second['คำนำหน้า'] ||
+      second['คำนำหน้า ']
+    );
+
+    const firstName = text(
+      first.firstName ||
+      first.name ||
+      first.driverFirstName ||
+      first['ชื่อ'] ||
+      second.firstName ||
+      second.name ||
+      second.driverFirstName ||
+      second['ชื่อ']
+    );
+
+    const lastName = text(
+      first.lastName ||
+      first.surname ||
+      first.driverLastName ||
+      first['สกุล'] ||
+      first['นามสกุล'] ||
+      second.lastName ||
+      second.surname ||
+      second.driverLastName ||
+      second['สกุล'] ||
+      second['นามสกุล']
+    );
+
+    return text(
+      [prefix, firstName, lastName].filter(Boolean).join(' ') ||
+      fallback ||
+      ''
+    );
+  }
+
   function text(value) { return value === null || value === undefined ? '' : String(value).trim(); }
   function escapeHtml(value) {
     return String(value ?? '')
