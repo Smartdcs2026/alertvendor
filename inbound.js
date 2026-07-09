@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 05 — SweetAlert detail + camera standby
+ * ROUND 05 HOTFIX 06 — Clean table + SweetAlert detail + cancel stage
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -569,15 +569,15 @@
 
     tbody.innerHTML = filtered.map((item) => `
       <tr data-auto-id="${escapeHtml(item.autoId)}">
-        <td><span class="workflow-cell-main">${escapeHtml(item.appointmentNumber || '-')}</span><span class="workflow-cell-sub">เลขนัดหมาย</span></td>
-        <td><span class="workflow-cell-main">${escapeHtml(item.companyName || '-')}</span><span class="workflow-cell-sub">บริษัท</span></td>
-        <td><span class="workflow-cell-main">${escapeHtml(item.driverName || '-')}</span><span class="workflow-cell-sub">พขร.</span></td>
-        <td><span class="workflow-cell-main">${escapeHtml(formatPlate(item))}</span><span class="workflow-cell-sub">${escapeHtml(item.province || '-')}</span></td>
-        <td><span class="workflow-cell-main">${escapeHtml(item.phone || '-')}</span><span class="workflow-cell-sub">โทรศัพท์</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.appointmentNumber || '-')}</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.companyName || '-')}</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.driverName || '-')}</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(formatPlateWithProvince(item))}</span></td>
+        <td><span class="workflow-cell-main">${escapeHtml(item.phone || '-')}</span></td>
         <td><span class="status-pill" data-status="${escapeHtml(item.statusCode)}">${escapeHtml(item.statusName || statusName(item.statusCode))}</span></td>
-        <td><span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span><span class="workflow-cell-sub">${escapeHtml(item.nextStepText || '')}</span></td>
-        <td class="workflow-auto-id"><strong>${escapeHtml(item.autoId || '-')}</strong><span>${escapeHtml(item.vehicleType || '')}</span></td>
-        <td><button type="button" class="icon-button" data-open-detail title="ดูรายละเอียด">✎</button></td>
+        <td><span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span></td>
+        <td class="workflow-auto-id"><strong>${escapeHtml(item.autoId || '-')}</strong></td>
+        <td><button type="button" class="icon-button" data-open-detail title="ดูรายละเอียด">ดู</button></td>
       </tr>
     `).join('');
   }
@@ -686,17 +686,24 @@
       return;
     }
 
-    await window.Swal.fire({
+    const canCancel = canCancelCurrentInboundStage(item);
+
+    const result = await window.Swal.fire({
       title: '',
       html,
       icon: undefined,
       width: 'min(760px, calc(100vw - 24px))',
       padding: 0,
       heightAuto: false,
-      showCloseButton: true,
+      showCloseButton: false,
+      showDenyButton: canCancel,
       confirmButtonText: 'ปิด',
+      denyButtonText: 'ยกเลิกสถานะล่าสุด',
+      reverseButtons: true,
       customClass: {
-        popup: 'inbound-detail-popup'
+        popup: 'inbound-detail-popup',
+        actions: 'inbound-detail-actions',
+        denyButton: 'inbound-detail-cancel-button'
       },
       didOpen: () => {
         pauseScanFocus(24000);
@@ -708,6 +715,114 @@
         }, 80);
       }
     });
+
+    if (result && result.isDenied) {
+      await openCancelCurrentStageDialog(item);
+    }
+  }
+
+  function canCancelCurrentInboundStage(item) {
+    if (!item || item.cancelled) return false;
+    const status = String(item.statusCode || '').toUpperCase();
+
+    /*
+     * ให้ Inbound ยกเลิกเฉพาะสถานะที่ Inbound เป็นผู้บันทึก
+     * - DOCUMENT_SUBMITTED: ยกเลิกการยื่นเอกสาร กลับไปรอยื่นเอกสาร
+     * - DOCUMENT_RETURNED: ยกเลิกการรับเอกสารคืน กลับไปรอรับเอกสารคืน
+     * ไม่ให้ Inbound ยกเลิก RECEIVING_COMPLETED เพราะเป็นงานของ User/Admin
+     */
+    return status === 'DOCUMENT_SUBMITTED' || status === 'DOCUMENT_RETURNED';
+  }
+
+  async function openCancelCurrentStageDialog(item) {
+    if (!window.Swal || !item || !item.autoId) return;
+
+    pauseScanFocus(30000);
+
+    const stageText = item.statusName || statusName(item.statusCode) || 'สถานะล่าสุด';
+
+    const result = await window.Swal.fire({
+      title: 'ยกเลิกสถานะล่าสุด',
+      html: `
+        <div class="inbound-cancel-summary">
+          <strong>${escapeHtml(item.appointmentNumber || '-')} · ${escapeHtml(item.companyName || '-')}</strong>
+          <span>${escapeHtml(item.driverName || '-')} · ${escapeHtml(formatPlateWithProvince(item) || '-')}</span>
+          <small>สถานะที่จะยกเลิก: ${escapeHtml(stageText)}</small>
+        </div>
+      `,
+      input: 'textarea',
+      inputLabel: 'เหตุผลการยกเลิก',
+      inputPlaceholder: 'เช่น สแกนผิดคัน / คนขับนำ QR ผิด / บันทึกผิดขั้นตอน',
+      inputAttributes: {
+        maxlength: '300',
+        autocapitalize: 'off',
+        autocomplete: 'off'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันยกเลิก',
+      cancelButtonText: 'กลับ',
+      reverseButtons: true,
+      customClass: {
+        popup: 'inbound-cancel-popup'
+      },
+      preConfirm: (value) => {
+        const reason = String(value || '').trim();
+        if (reason.length < 5) {
+          window.Swal.showValidationMessage('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
+          return false;
+        }
+        return reason;
+      }
+    });
+
+    if (!result || !result.isConfirmed) {
+      focusCodeInput(false);
+      return;
+    }
+
+    const reason = String(result.value || '').trim();
+
+    try {
+      if (!API || typeof API.cancelInboundWorkflow !== 'function') {
+        throw createClientError(
+          'CANCEL_API_NOT_READY',
+          'ยังไม่พบ API สำหรับยกเลิกสถานะ กรุณาวางไฟล์ api.js และ InboundWorkflowCancelService.gs จากชุดนี้'
+        );
+      }
+
+      setScanMessage('กำลังยกเลิกสถานะล่าสุด: ' + item.autoId, 'BUSY');
+
+      const response = await API.cancelInboundWorkflow(state.moduleId, {
+        entryCode: item.autoId,
+        autoId: item.autoId,
+        reason,
+        statusCode: item.statusCode,
+        cancelScope: 'CURRENT_INBOUND_STAGE'
+      });
+
+      const updated = normalizeLookup(response, item);
+      state.currentLookup = updated;
+      renderLookupResult(updated);
+      upsertDashboardItemFromLookup(updated);
+      renderDashboard();
+      beep('success');
+      setScanMessage('ยกเลิกสถานะล่าสุดแล้ว: ' + item.autoId, 'SUCCESS');
+      await loadWorkflowDashboard(true);
+
+      await window.Swal.fire({
+        icon: 'success',
+        title: 'ยกเลิกเรียบร้อย',
+        text: 'ระบบบันทึกเหตุผลและปรับสถานะรายการแล้ว',
+        confirmButtonText: 'รับทราบ'
+      });
+    } catch (error) {
+      beep('error');
+      setScanMessage(errorMessage(error), 'ERROR');
+      await showAlert('ยกเลิกไม่สำเร็จ', errorMessage(error), 'error');
+    } finally {
+      keepCameraStandby();
+      focusCodeInput(false);
+    }
   }
 
   function buildRecordDetailHtml(item) {
@@ -886,6 +1001,12 @@
 
   function formatPlate(item) {
     return text(item.registration || item.plate || '-');
+  }
+
+  function formatPlateWithProvince(item) {
+    const plate = formatPlate(item);
+    const province = text(item && item.province);
+    return [plate && plate !== '-' ? plate : '', province].filter(Boolean).join(' · ') || '-';
   }
 
   function fieldHtml(label, value) {
