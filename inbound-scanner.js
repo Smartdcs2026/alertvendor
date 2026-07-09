@@ -1,8 +1,7 @@
 /************************************************************
  * inbound-scanner.js
- * ROUND 05 HOTFIX 02 — Native BarcodeDetector + ZXing Fallback
- * - ป้องกันสแกนซ้ำเมื่อ QR ค้างหน้ากล้อง
- * - ไม่แสดง popup เอง ให้ inbound.js จัดการข้อความ
+ * ROUND 05 HOTFIX 03 — Fast scanner engine
+ * Native BarcodeDetector + ZXing fallback
  ************************************************************/
 (function (window) {
   'use strict';
@@ -10,353 +9,187 @@
   class InboundScanner {
     constructor(options) {
       const config = options && typeof options === 'object' ? options : {};
-
       this.video = config.video || null;
       this.onScan = typeof config.onScan === 'function' ? config.onScan : function () {};
       this.onStatus = typeof config.onStatus === 'function' ? config.onStatus : function () {};
       this.onError = typeof config.onError === 'function' ? config.onError : function () {};
-      this.scanIntervalMs = Number(config.scanIntervalMs) || 160;
-      this.cooldownMs = Number(config.cooldownMs) || 2600;
-      this.sameTextHardBlockMs = Number(config.sameTextHardBlockMs) || 8000;
+      this.scanIntervalMs = Number(config.scanIntervalMs) || 90;
+      this.pauseAfterScanMs = Number(config.pauseAfterScanMs) || 900;
+      this.sameCodeBlockMs = Number(config.sameCodeBlockMs) || 15000;
       this.stream = null;
       this.detector = null;
       this.zxingReader = null;
       this.engine = '';
       this.running = false;
       this.pausedUntil = 0;
-      this.lastScanText = '';
-      this.lastScanAt = 0;
+      this.lastText = '';
+      this.lastTextAt = 0;
       this.loopTimer = 0;
-    }
-
-    isCameraAvailable() {
-      return Boolean(
-        this.video &&
-        navigator.mediaDevices &&
-        typeof navigator.mediaDevices.getUserMedia === 'function'
-      );
-    }
-
-    isSupported() {
-      return (
-        this.isCameraAvailable() &&
-        (
-          typeof window.BarcodeDetector === 'function' ||
-          this.hasZxingSupport()
-        )
-      );
-    }
-
-    hasZxingSupport() {
-      return Boolean(
-        window.ZXing &&
-        typeof window.ZXing.BrowserMultiFormatReader === 'function'
-      );
     }
 
     async start() {
       if (this.running) {
-        return {
-          started: true,
-          reused: true,
-          engine: this.engine || 'REUSED'
-        };
+        return {started: true, reused: true, engine: this.engine};
       }
-
       if (!this.video) {
-        throw createScannerError(
-          'SCANNER_VIDEO_MISSING',
-          'ไม่พบพื้นที่แสดงกล้อง'
-        );
+        throw scannerError('SCANNER_VIDEO_MISSING', 'ไม่พบพื้นที่แสดงภาพกล้อง');
       }
-
       if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-        throw createScannerError(
-          'CAMERA_NOT_SUPPORTED',
-          'เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง ให้เสียบเครื่องสแกนหรือกรอกรหัสเอง'
-        );
+        throw scannerError('CAMERA_NOT_SUPPORTED', 'เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง ให้ใช้ช่องกรอกรหัสหรือเครื่องสแกนแทน');
       }
 
       if (typeof window.BarcodeDetector === 'function') {
         try {
-          return await this.startNativeDetector_();
+          return await this.startNative_();
         } catch (error) {
-          console.warn('Native BarcodeDetector ใช้งานไม่ได้ จะลอง ZXing แทน', error);
+          console.warn('Native scanner failed; fallback to ZXing', error);
           this.stop();
         }
       }
 
-      if (this.hasZxingSupport()) {
-        try {
-          return await this.startZxingDetector_();
-        } catch (error) {
-          console.warn('ZXing ใช้งานไม่ได้', error);
-          this.stop();
-          throw createScannerError(
-            'ZXING_CAMERA_FAILED',
-            'เปิดกล้องสำหรับสแกนไม่ได้ กรุณาอนุญาตกล้อง หรือเสียบเครื่องสแกน/กรอกรหัสเอง'
-          );
-        }
+      if (window.ZXing && typeof window.ZXing.BrowserMultiFormatReader === 'function') {
+        return await this.startZxing_();
       }
 
-      throw createScannerError(
-        'SCANNER_ENGINE_NOT_AVAILABLE',
-        'เครื่องนี้ไม่รองรับตัวอ่าน QR อัตโนมัติ ให้เสียบเครื่องสแกนหรือกรอกรหัสเอง'
-      );
+      throw scannerError('SCANNER_ENGINE_NOT_AVAILABLE', 'เครื่องนี้ไม่มีตัวอ่าน QR อัตโนมัติ ให้ใช้เครื่องสแกนหรือกรอกรหัสเอง');
     }
 
-    async startNativeDetector_() {
+    async startNative_() {
       try {
-        this.detector = await createNativeDetector();
+        this.detector = new window.BarcodeDetector({
+          formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8', 'itf']
+        });
       } catch (error) {
-        throw createScannerError(
-          'BARCODE_DETECTOR_NOT_SUPPORTED',
-          'เครื่องนี้ไม่รองรับ BarcodeDetector'
-        );
+        throw scannerError('BARCODE_DETECTOR_NOT_READY', 'BarcodeDetector ไม่พร้อมใช้งาน');
       }
 
-      try {
-        this.stream = await navigator.mediaDevices.getUserMedia(cameraConstraints());
-      } catch (error) {
-        throw createScannerError(
-          'CAMERA_OPEN_FAILED',
-          'เปิดกล้องไม่ได้ กรุณาอนุญาตกล้อง หรือเสียบเครื่องสแกน/กรอกรหัสเอง'
-        );
-      }
-
+      this.stream = await navigator.mediaDevices.getUserMedia(cameraConstraints());
       this.video.srcObject = this.stream;
       this.video.setAttribute('playsinline', 'playsinline');
       this.video.muted = true;
-
-      try {
-        await this.video.play();
-      } catch (error) {
-        this.stop();
-        throw createScannerError(
-          'CAMERA_PLAY_FAILED',
-          'เริ่มแสดงภาพจากกล้องไม่ได้ กรุณาลองใหม่หรือกรอกรหัสเอง'
-        );
-      }
+      await this.video.play();
 
       this.engine = 'BARCODE_DETECTOR';
       this.running = true;
-      this.onStatus('CAMERA_READY', 'กล้องพร้อมสแกน');
-      this.scheduleLoop(100);
-
-      return {
-        started: true,
-        reused: false,
-        engine: this.engine
-      };
+      this.onStatus('READY', 'กล้องพร้อมสแกน');
+      this.scheduleLoop_(80);
+      return {started: true, reused: false, engine: this.engine};
     }
 
-    async startZxingDetector_() {
-      this.zxingReader = new window.ZXing.BrowserMultiFormatReader();
+    async startZxing_() {
       this.engine = 'ZXING';
       this.running = true;
-      this.onStatus('CAMERA_READY', 'กล้องพร้อมสแกน');
+      this.zxingReader = new window.ZXing.BrowserMultiFormatReader();
+      this.onStatus('READY', 'กล้องพร้อมสแกน');
 
       await this.zxingReader.decodeFromConstraints(
         cameraConstraints(),
         this.video,
         (result) => {
-          if (!this.running) return;
-          if (Date.now() < this.pausedUntil) return;
-
-          if (result) {
-            const rawText = String(
-              typeof result.getText === 'function'
-                ? result.getText()
-                : result.text || ''
-            ).trim();
-
-            if (rawText) {
-              this.handleDetectedText_(rawText, result);
-            }
-          }
+          if (!this.running || Date.now() < this.pausedUntil) return;
+          if (!result) return;
+          const text = String(typeof result.getText === 'function' ? result.getText() : result.text || '').trim();
+          if (text) this.handleText_(text, 'CAMERA_ZXING');
         }
       );
 
-      return {
-        started: true,
-        reused: false,
-        engine: this.engine
-      };
+      return {started: true, reused: false, engine: this.engine};
+    }
+
+    scheduleLoop_(delay) {
+      window.clearTimeout(this.loopTimer);
+      this.loopTimer = window.setTimeout(() => this.nativeLoop_(), Number(delay) || this.scanIntervalMs);
+    }
+
+    async nativeLoop_() {
+      if (!this.running || !this.detector || !this.video) return;
+      try {
+        if (Date.now() >= this.pausedUntil && this.video.readyState >= 2) {
+          const codes = await this.detector.detect(this.video);
+          if (Array.isArray(codes) && codes.length > 0) {
+            const rawValue = String(codes[0].rawValue || '').trim();
+            if (rawValue) this.handleText_(rawValue, 'CAMERA_NATIVE');
+          }
+        }
+      } catch (error) {
+        // keep loop alive; transient camera decode errors are normal
+      } finally {
+        if (this.running) this.scheduleLoop_(this.scanIntervalMs);
+      }
+    }
+
+    handleText_(text, source) {
+      const cleanText = normalizeScanText(text);
+      if (!cleanText) return;
+      const now = Date.now();
+      if (cleanText === this.lastText && now - this.lastTextAt < this.sameCodeBlockMs) {
+        this.onStatus('DUPLICATE', 'กันสแกนซ้ำ ' + cleanText);
+        return;
+      }
+      this.lastText = cleanText;
+      this.lastTextAt = now;
+      this.pause(this.pauseAfterScanMs);
+      this.onScan(cleanText, {source: source || 'CAMERA', rawText: text, engine: this.engine});
+    }
+
+    pause(ms) {
+      this.pausedUntil = Math.max(this.pausedUntil, Date.now() + (Number(ms) || this.pauseAfterScanMs));
+    }
+
+    blockText(text, ms) {
+      this.lastText = normalizeScanText(text);
+      this.lastTextAt = Date.now() - Math.max(0, this.sameCodeBlockMs - (Number(ms) || this.sameCodeBlockMs));
+      this.pausedUntil = Math.max(this.pausedUntil, Date.now() + 250);
     }
 
     stop() {
       this.running = false;
+      window.clearTimeout(this.loopTimer);
+      this.loopTimer = 0;
 
-      if (this.loopTimer) {
-        window.clearTimeout(this.loopTimer);
-        this.loopTimer = 0;
+      if (this.zxingReader && typeof this.zxingReader.reset === 'function') {
+        try { this.zxingReader.reset(); } catch (error) {}
       }
-
-      if (this.zxingReader) {
-        try {
-          this.zxingReader.reset();
-        } catch (error) {
-          // no-op
-        }
-      }
-
       this.zxingReader = null;
 
-      if (this.video) {
-        try {
-          this.video.pause();
-          this.video.srcObject = null;
-        } catch (error) {
-          // no-op
-        }
-      }
-
       if (this.stream) {
-        this.stream.getTracks().forEach(function (track) {
-          try {
-            track.stop();
-          } catch (error) {
-            // no-op
-          }
+        this.stream.getTracks().forEach((track) => {
+          try { track.stop(); } catch (error) {}
         });
       }
-
       this.stream = null;
-      this.detector = null;
-      this.engine = '';
-      this.onStatus('CAMERA_STOPPED', 'ปิดกล้องแล้ว');
-    }
-
-    pause(milliseconds) {
-      this.pausedUntil = Date.now() + (Number(milliseconds) || this.cooldownMs);
-    }
-
-    resume() {
-      this.pausedUntil = 0;
-    }
-
-    scheduleLoop(delay) {
-      if (!this.running || this.engine !== 'BARCODE_DETECTOR') {
-        return;
+      if (this.video) {
+        try { this.video.pause(); } catch (error) {}
+        this.video.srcObject = null;
       }
-
-      if (this.loopTimer) {
-        window.clearTimeout(this.loopTimer);
-      }
-
-      this.loopTimer = window.setTimeout(
-        () => this.detectLoop(),
-        Number(delay) || this.scanIntervalMs
-      );
+      this.onStatus('STOPPED', 'ปิดกล้องแล้ว');
     }
-
-    async detectLoop() {
-      if (!this.running || this.engine !== 'BARCODE_DETECTOR') {
-        return;
-      }
-
-      if (Date.now() < this.pausedUntil) {
-        this.scheduleLoop(this.scanIntervalMs);
-        return;
-      }
-
-      if (!this.detector || !this.video || this.video.readyState < 2) {
-        this.scheduleLoop(this.scanIntervalMs);
-        return;
-      }
-
-      try {
-        const results = await this.detector.detect(this.video);
-        const first = Array.isArray(results) && results.length > 0 ? results[0] : null;
-        const rawText = first && first.rawValue ? String(first.rawValue).trim() : '';
-
-        if (rawText) {
-          this.handleDetectedText_(rawText, first);
-        }
-      } catch (error) {
-        this.onError(error);
-      }
-
-      this.scheduleLoop(this.scanIntervalMs);
-    }
-
-    handleDetectedText_(rawText, source) {
-      const now = Date.now();
-      const text = String(rawText || '').trim();
-
-      if (!text) return;
-
-      if (
-        text === this.lastScanText &&
-        now - this.lastScanAt < this.sameTextHardBlockMs
-      ) {
-        this.pause(Math.min(this.cooldownMs, 1800));
-        return;
-      }
-
-      this.lastScanText = text;
-      this.lastScanAt = now;
-      this.pause(this.cooldownMs);
-      this.onScan(text, source);
-    }
-  }
-
-  async function createNativeDetector() {
-    if (typeof window.BarcodeDetector !== 'function') {
-      throw new Error('BarcodeDetector unavailable');
-    }
-
-    const requestedFormats = [
-      'qr_code',
-      'code_128',
-      'code_39',
-      'code_93',
-      'ean_13',
-      'ean_8',
-      'upc_a',
-      'upc_e',
-      'itf'
-    ];
-
-    if (typeof window.BarcodeDetector.getSupportedFormats === 'function') {
-      const supported = await window.BarcodeDetector.getSupportedFormats();
-      const formats = requestedFormats.filter(function (format) {
-        return supported.includes(format);
-      });
-
-      return new window.BarcodeDetector(
-        formats.length > 0
-          ? {formats: formats}
-          : undefined
-      );
-    }
-
-    return new window.BarcodeDetector({formats: requestedFormats});
   }
 
   function cameraConstraints() {
     return {
-      audio: false,
       video: {
-        facingMode: {
-          ideal: 'environment'
-        },
-        width: {
-          ideal: 1280
-        },
-        height: {
-          ideal: 720
-        },
-        frameRate: {
-          ideal: 30,
-          max: 60
-        }
-      }
+        facingMode: {ideal: 'environment'},
+        width: {ideal: 1280},
+        height: {ideal: 720},
+        frameRate: {ideal: 30, max: 60}
+      },
+      audio: false
     };
   }
 
-  function createScannerError(code, message) {
-    const error = new Error(message || 'สแกนเนอร์ไม่พร้อมใช้งาน');
+  function normalizeScanText(value) {
+    return String(value || '')
+      .trim()
+      .replace(/^https?:\/\/[^?]+\?/i, '')
+      .replace(/^.*(?:autoId|entryCode|code)=/i, '')
+      .split(/[&#\s]/)[0]
+      .trim()
+      .toUpperCase();
+  }
+
+  function scannerError(code, message) {
+    const error = new Error(message || 'เปิดระบบสแกนไม่ได้');
     error.code = code || 'SCANNER_ERROR';
     return error;
   }
