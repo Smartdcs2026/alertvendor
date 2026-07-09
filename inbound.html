@@ -2,90 +2,51 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#073b59">
+  <meta name="color-scheme" content="light">
+  <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  >
+  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-fast-scan-1">
 
-  <meta
-    name="theme-color"
-    content="#073b59"
-  >
-
-  <meta
-    name="color-scheme"
-    content="light"
-  >
-
-  <title>Inbound Scan | ระบบติดตามสถานะรถและตู้สินค้า</title>
-
-  <link
-    rel="stylesheet"
-    href="./inbound.css?v=20260709-r05-control-room-1"
-  >
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
-    defer
-  ></script>
-
-  <script
-    src="./config.js?v=20260709-r05"
-    defer
-  ></script>
-
-  <script
-    src="./api.js?v=20260709-r05-hotfix1"
-    defer
-  ></script>
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"
-    defer
-  ></script>
-
-  <script
-    src="./inbound-scanner.js?v=20260709-r05-control-room-1"
-    defer
-  ></script>
-
-  <script
-    src="./inbound.js?v=20260709-r05-control-room-1"
-    defer
-  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+  <script src="./config.js?v=20260709-r05" defer></script>
+  <script src="./api.js?v=20260709-r05" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
+  <script src="./inbound-scanner.js?v=20260709-r05-fast-scan-1" defer></script>
+  <script src="./inbound.js?v=20260709-r05-fast-scan-1" defer></script>
 </head>
 
 <body class="inbound-page" data-page="inbound">
   <div id="inboundLoading" class="inbound-loading" role="status" aria-live="polite">
     <div class="inbound-spinner"></div>
     <strong>กำลังเตรียมห้อง Inbound</strong>
-    <span>ตรวจสิทธิ์ เตรียมกล้อง และโหลดสถานะล่าสุด</span>
+    <span>ตรวจสิทธิ์ โหลดข้อมูล และเตรียมช่องสแกน</span>
   </div>
 
   <main class="inbound-shell">
-    <header class="inbound-topbar">
+    <header class="inbound-topbar" aria-label="แถบสถานะห้อง Inbound">
       <div class="inbound-brand">
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
-        <p>สแกน Auto ID เพื่อยื่นเอกสารและรับเอกสารคืน</p>
+        <p>สแกน Auto ID แล้วระบบจะบันทึกขั้นตอนที่ถูกต้องทันที</p>
       </div>
 
-      <div class="top-status" aria-label="จำนวนสถานะงานเอกสาร">
+      <div class="status-strip" aria-label="จำนวนตามสถานะ">
         <button type="button" data-status-filter="ALL" class="is-active">
-          ทั้งหมด <strong id="countTotalWorkflow">0</strong>
+          <span>ทั้งหมด</span><strong id="countTotalWorkflow">0</strong>
         </button>
         <button type="button" data-status-filter="DOCUMENT_SUBMITTED">
-          รอรับสินค้า <strong id="countWaitingReceiving">0</strong>
+          <span>รอรับสินค้า</span><strong id="countWaitingReceiving">0</strong>
         </button>
         <button type="button" data-status-filter="RECEIVING_COMPLETED">
-          รอรับเอกสารคืน <strong id="countReceivingCompleted">0</strong>
+          <span>รอรับเอกสารคืน</span><strong id="countReceivingCompleted">0</strong>
         </button>
         <button type="button" data-status-filter="DOCUMENT_RETURNED">
-          คืนเอกสารแล้ว <strong id="countDocumentReturned">0</strong>
+          <span>คืนเอกสารแล้ว</span><strong id="countDocumentReturned">0</strong>
         </button>
         <button type="button" data-status-filter="CANCELLED">
-          ยกเลิก <strong id="countCancelled">0</strong>
+          <span>ยกเลิก</span><strong id="countCancelled">0</strong>
         </button>
       </div>
 
@@ -96,46 +57,38 @@
       </div>
     </header>
 
-    <section class="inbound-module-bar" aria-label="เลือก Module">
+    <section class="inbound-module-bar" aria-label="เลือกโมดูล">
       <label>
-        <span>Module ที่ใช้งาน</span>
+        <span>Module</span>
         <select id="inboundModuleSelect">
           <option value="">กำลังโหลด Module...</option>
         </select>
       </label>
 
-      <button id="inboundRefreshButton" type="button">
-        รีเฟรชข้อมูล
-      </button>
-
-      <button id="inboundLogoutButton" type="button" class="button--logout">
-        ออกจากระบบ
-      </button>
+      <div class="module-actions">
+        <button id="inboundRefreshButton" type="button">รีเฟรช</button>
+        <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
+      </div>
     </section>
 
     <section class="inbound-workspace">
-      <aside class="inbound-left" aria-label="พื้นที่สแกนรหัส">
-        <section class="scanner-card" aria-label="สแกน Auto ID">
+      <aside class="inbound-left" aria-label="พื้นที่สแกนและกรอกรหัส">
+        <section class="scanner-card">
           <div class="scanner-card__head">
             <div>
               <small>SCAN AUTO ID</small>
-              <h2>สแกนหรือกรอกรหัส Auto ID</h2>
+              <h2>สแกน / กรอกรหัส</h2>
             </div>
-
-            <span id="scannerStatus" data-state="IDLE">
-              พร้อมกรอกรหัส
-            </span>
+            <span id="scannerStatus" data-state="IDLE">พร้อมรับรหัส</span>
           </div>
 
           <div class="scanner-window">
             <video id="inboundVideo" playsinline muted></video>
             <div class="scanner-frame" aria-hidden="true"></div>
-            <div class="scanner-hint">
-              วาง QR / Barcode ให้อยู่ในกรอบ
-            </div>
+            <div class="scanner-hint">วาง QR / Barcode ในกรอบ</div>
           </div>
 
-          <form id="manualLookupForm" class="manual-form">
+          <form id="manualLookupForm" class="manual-form" autocomplete="off">
             <label>
               <span>Auto ID / รหัสจาก Gate In</span>
               <input
@@ -145,104 +98,81 @@
                 autocomplete="off"
                 autocapitalize="characters"
                 spellcheck="false"
-                placeholder="เสียบเครื่องสแกนหรือกรอก เช่น SK02369916991"
+                placeholder="พร้อมรับเครื่องสแกน เช่น SK02369916991"
               >
             </label>
 
             <div class="manual-actions">
-              <button id="lookupCodeButton" type="submit" class="button button--primary">
-                ตรวจสอบ
-              </button>
-
-              <button id="clearCodeButton" type="button" class="button button--ghost">
-                ยกเลิก
-              </button>
+              <button id="lookupCodeButton" type="submit" class="button button--primary">ค้นหา</button>
+              <button id="clearCodeButton" type="button" class="button button--ghost">ล้าง</button>
             </div>
           </form>
 
           <div class="scanner-actions">
-            <button id="startCameraButton" type="button" class="button button--success">
-              เปิดกล้อง
-            </button>
-
-            <button id="stopCameraButton" type="button" class="button button--ghost">
-              ปิดกล้อง
-            </button>
+            <button id="startCameraButton" type="button" class="button button--success">เปิดกล้อง</button>
+            <button id="stopCameraButton" type="button" class="button button--ghost">ปิดกล้อง</button>
           </div>
 
           <div id="scanMessage" class="scan-message" data-state="IDLE">
-            พร้อมสแกนรายการถัดไป ระบบจะค้นหาทันทีเมื่อพบรหัส
+            พร้อมสแกน ระบบจะค้นหาและบันทึกให้อัตโนมัติ
           </div>
         </section>
-      </aside>
 
-      <section class="inbound-right" aria-label="ข้อมูลและสถานะงานเอกสาร">
         <section id="lookupResultPanel" class="result-panel" hidden>
           <div class="result-panel__head">
             <div>
-              <small>RESULT</small>
-              <h2 id="resultTitle">พบข้อมูลรถ/ตู้</h2>
+              <small>LAST SCAN</small>
+              <h2 id="resultTitle">ผลการสแกนล่าสุด</h2>
             </div>
-
             <span id="resultStatusBadge">-</span>
           </div>
-
           <div id="resultBody" class="result-body"></div>
-
-          <div class="result-actions">
-            <button id="submitDocumentButton" type="button" class="button button--success" disabled>
-              บันทึกยื่นเอกสาร
-            </button>
-
-            <button id="returnDocumentButton" type="button" class="button button--warning" disabled>
-              รับเอกสารคืน
-            </button>
-
-            <button id="clearResultButton" type="button" class="button button--ghost">
-              ล้างผลลัพธ์
-            </button>
-          </div>
         </section>
+      </aside>
 
-        <section class="workflow-table-panel">
-          <div class="workflow-table-panel__head">
-            <div>
-              <small>WORKFLOW STATUS</small>
-              <h2>สถานะรถ/ตู้ล่าสุด</h2>
-            </div>
-
-            <span id="workflowTableCount">0 รายการ</span>
+      <section class="inbound-right" aria-label="ตารางสถานะรถและตู้">
+        <div class="table-toolbar">
+          <div>
+            <small>WORKFLOW TABLE</small>
+            <h2>สถานะงานเอกสาร</h2>
           </div>
 
-          <div class="workflow-tools">
-            <label>
-              <span>ค้นหา Auto ID / ทะเบียน / บริษัท / เลขนัดหมาย</span>
-              <input
-                id="workflowSearchInput"
-                type="search"
-                placeholder="พิมพ์เพื่อค้นหา"
-              >
-            </label>
-          </div>
+          <label>
+            <span class="sr-only">ค้นหา</span>
+            <input id="workflowSearchInput" type="search" autocomplete="off" placeholder="ค้นหา Auto ID / เลขนัดหมาย / บริษัท / พขร. / ทะเบียน / โทร">
+          </label>
+        </div>
 
-          <div class="workflow-table-wrap">
-            <table class="workflow-table">
-              <thead>
-                <tr>
-                  <th>Auto ID</th>
-                  <th>สถานะ</th>
-                  <th>อัปเดตล่าสุด</th>
-                  <th>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody id="workflowTableBody">
-                <tr>
-                  <td colspan="4" class="empty-cell">กำลังโหลดข้อมูลล่าสุด...</td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="workflow-table-wrap">
+          <table class="workflow-table">
+            <thead>
+              <tr>
+                <th>สถานะ</th>
+                <th>Auto ID</th>
+                <th>เลขนัดหมาย</th>
+                <th>ชื่อบริษัท</th>
+                <th>ชื่อ พขร.</th>
+                <th>ทะเบียน / จังหวัด</th>
+                <th>เบอร์โทร</th>
+                <th>เวลาล่าสุด</th>
+                <th>ดู</th>
+              </tr>
+            </thead>
+            <tbody id="workflowTableBody">
+              <tr>
+                <td colspan="9" class="table-empty">กำลังโหลดข้อมูล...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="selectedRecordPanel" class="selected-panel" hidden>
+          <div class="selected-panel__head">
+            <strong>รายละเอียดรายการ</strong>
+            <button id="closeSelectedPanel" type="button">ปิด</button>
           </div>
-        </section>
+          <div id="selectedRecordBody"></div>
+        </div>
       </section>
     </section>
   </main>
