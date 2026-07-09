@@ -1,6 +1,7 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
+ * ROUND 05 — Sync รับสินค้าเสร็จเข้า Inbound Workflow
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
@@ -206,6 +207,73 @@
       event.preventDefault();
       event.stopPropagation();
       void copyRecordMessage(copyButton.dataset.receivingCopyCard);
+    }
+  }
+
+
+
+  async function syncInboundWorkflowReceivingComplete(
+    item,
+    result
+  ) {
+    if (
+      !API ||
+      typeof API.completeInboundWorkflowReceiving !==
+        'function' ||
+      !item
+    ) {
+      return;
+    }
+
+    try {
+      await API.completeInboundWorkflowReceiving(
+        state.moduleId,
+        {
+          entryCode:
+            item.recordId,
+          recordId:
+            item.recordId,
+          sourceRowNumber:
+            item.sourceRowNumber,
+          expectedTimestampIn:
+            item.expectedTimestampIn ||
+            item.timestampIn,
+          expectedPrimaryValue:
+            item.expectedPrimaryValue ||
+            item.primaryValue,
+          note:
+            'Sync จากปุ่มรับสินค้าเสร็จหน้า Module',
+          clientRequestId:
+            result &&
+            result.requestId
+              ? result.requestId
+              : ''
+        }
+      );
+
+    } catch (error) {
+      console.warn(
+        'Sync รับสินค้าเสร็จเข้า Inbound Workflow ไม่สำเร็จ',
+        error
+      );
+
+      /*
+       * ไม่ย้อนรายการรับสินค้าเสร็จเดิม เพื่อไม่กระทบข้อมูลเดิม
+       * แต่แจ้งผู้ใช้ให้ Admin ตรวจสอบ Workflow ต่อ
+       */
+      if (
+        window.Swal &&
+        error &&
+        !String(error.code || '')
+          .includes('RECEIVING_ALREADY_COMPLETED')
+      ) {
+        await window.Swal.fire({
+          icon: 'warning',
+          title: 'บันทึกรับสินค้าเสร็จแล้ว แต่ยัง Sync Workflow ไม่ครบ',
+          text: error.message || String(error),
+          confirmButtonText: 'รับทราบ'
+        });
+      }
     }
   }
 
@@ -2245,6 +2313,11 @@
               item.primaryValue
           }
         );
+
+      await syncInboundWorkflowReceivingComplete(
+        item,
+        result
+      );
 
       if (
         result &&
