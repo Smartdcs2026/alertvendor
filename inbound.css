@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.css
- * ROUND 05 HOTFIX 04 — Operator Table + Focus Fix
+ * ROUND 05 HOTFIX 05 — Operator Table + Focus Fix
  ************************************************************/
 :root {
   --navy-950: #06283f;
@@ -739,4 +739,147 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   color: #66808e;
   font-size: 11px;
   font-weight: 850;
+}
+
+
+/************************************************************
+ * ROUND 05 HOTFIX 05 — SweetAlert detail + camera standby
+ ************************************************************/
+.selected-panel {
+  display: none !important;
+}
+
+.swal2-popup.inbound-detail-popup {
+  width: min(760px, calc(100vw - 24px)) !important;
+  border-radius: 18px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  font-family: inherit !important;
+  background: #f6fbfd !important;
+}
+
+.swal2-popup.inbound-detail-popup .swal2-html-container {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  text-align: left !important;
+}
+
+.inbound-detail-modal {
+  color: #12354a;
+}
+
+.inbound-detail-modal__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #05364f, #0c6680);
+}
+
+.inbound-detail-modal__header small {
+  display: block;
+  color: #80f0e8;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .09em;
+}
+
+.inbound-detail-modal__header h2 {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: 21px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbound-detail-modal__header p {
+  margin: 4px 0 0;
+  color: #d2e8ef;
+  font-size: 12px;
+}
+
+.inbound-detail-modal__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #073b59;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.inbound-detail-modal__primary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border-bottom: 1px solid #d7e8ef;
+}
+
+.inbound-detail-modal__primary .detail-box {
+  min-width: 0;
+  border: 1px solid #d8e6ed;
+  border-radius: 12px;
+  padding: 10px;
+  background: #f8fcfd;
+}
+
+.inbound-detail-modal__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(58vh, 430px);
+  overflow: auto;
+  padding: 12px 14px 14px;
+}
+
+.detail-box span {
+  display: block;
+  color: #64808d;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.detail-box strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: #0a3348;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.swal2-popup.inbound-detail-popup .swal2-actions {
+  margin: 0 !important;
+  padding: 10px 14px 14px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #dbe9ef !important;
+}
+
+.swal2-popup.inbound-detail-popup .swal2-confirm {
+  min-width: 120px !important;
+  min-height: 40px !important;
+  border-radius: 10px !important;
+  background: #073b59 !important;
+  font-weight: 900 !important;
+}
+
+@media (max-width: 760px) {
+  .inbound-detail-modal__header {
+    grid-template-columns: 1fr;
+  }
+  .inbound-detail-modal__primary,
+  .inbound-detail-modal__body {
+    grid-template-columns: 1fr;
+  }
 }
