@@ -1,9 +1,11 @@
 /************************************************************
  * inbound-scanner.js
- * ROUND 04 — Fast Native QR / Barcode Scanner
+ * ROUND 05 HOTFIX 01 — Native BarcodeDetector + ZXing Fallback
  *
- * ใช้ BarcodeDetector เป็นหลัก เพราะเร็วและเบาบนมือถือ
- * ถ้าเครื่องไม่รองรับ ให้ใช้ช่องกรอกรหัสแทนโดยไม่ทำให้ระบบล้ม
+ * แก้ปัญหา:
+ * - บางเครื่อง/Chrome Desktop ไม่มี BarcodeDetector
+ * - ให้ fallback ไปใช้ ZXing ถ้าโหลด library ได้
+ * - ถ้าไม่มีทั้งสองวิธี ให้ใช้ช่องกรอกรหัสเองโดยไม่ทำให้หน้าเสีย
  ************************************************************/
 (function (window) {
   'use strict';
@@ -16,10 +18,12 @@
       this.onScan = typeof config.onScan === 'function' ? config.onScan : function () {};
       this.onStatus = typeof config.onStatus === 'function' ? config.onStatus : function () {};
       this.onError = typeof config.onError === 'function' ? config.onError : function () {};
-      this.scanIntervalMs = Number(config.scanIntervalMs) || 220;
-      this.cooldownMs = Number(config.cooldownMs) || 1800;
+      this.scanIntervalMs = Number(config.scanIntervalMs) || 180;
+      this.cooldownMs = Number(config.cooldownMs) || 1600;
       this.stream = null;
       this.detector = null;
+      this.zxingReader = null;
+      this.engine = '';
       this.running = false;
       this.pausedUntil = 0;
       this.lastScanText = '';
@@ -32,7 +36,17 @@
         Boolean(this.video) &&
         Boolean(navigator.mediaDevices) &&
         typeof navigator.mediaDevices.getUserMedia === 'function' &&
-        typeof window.BarcodeDetector === 'function'
+        (
+          typeof window.BarcodeDetector === 'function' ||
+          this.hasZxingSupport()
+        )
+      );
+    }
+
+    hasZxingSupport() {
+      return Boolean(
+        window.ZXing &&
+        typeof window.ZXing.BrowserMultiFormatReader === 'function'
       );
     }
 
@@ -40,7 +54,8 @@
       if (this.running) {
         return {
           started: true,
-          reused: true
+          reused: true,
+          engine: this.engine || 'REUSED'
         };
       }
 
@@ -58,30 +73,46 @@
         );
       }
 
+      if (typeof window.BarcodeDetector === 'function') {
+        try {
+          return await this.startNativeDetector_();
+        } catch (error) {
+          console.warn('Native BarcodeDetector ใช้งานไม่ได้ จะลอง ZXing แทน', error);
+          this.stop();
+        }
+      }
+
+      if (this.hasZxingSupport()) {
+        try {
+          return await this.startZxingDetector_();
+        } catch (error) {
+          console.warn('ZXing ใช้งานไม่ได้', error);
+          this.stop();
+          throw createScannerError(
+            'ZXING_CAMERA_FAILED',
+            'เปิดกล้องสำหรับสแกนไม่ได้ กรุณาอนุญาตกล้องหรือกรอกรหัสเอง'
+          );
+        }
+      }
+
+      throw createScannerError(
+        'SCANNER_ENGINE_NOT_AVAILABLE',
+        'เครื่องนี้ไม่รองรับตัวอ่าน QR อัตโนมัติ กรุณากรอกรหัสเอง'
+      );
+    }
+
+    async startNativeDetector_() {
       try {
-        this.detector = await createDetector();
+        this.detector = await createNativeDetector();
       } catch (error) {
         throw createScannerError(
           'BARCODE_DETECTOR_NOT_SUPPORTED',
-          'เครื่องนี้ไม่รองรับตัวอ่าน QR อัตโนมัติ กรุณากรอกรหัสเอง'
+          'เครื่องนี้ไม่รองรับ BarcodeDetector'
         );
       }
 
       try {
-        this.stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: {
-              ideal: 'environment'
-            },
-            width: {
-              ideal: 1280
-            },
-            height: {
-              ideal: 720
-            }
-          }
-        });
+        this.stream = await navigator.mediaDevices.getUserMedia(cameraConstraints());
       } catch (error) {
         throw createScannerError(
           'CAMERA_OPEN_FAILED',
@@ -103,13 +134,56 @@
         );
       }
 
+      this.engine = 'BARCODE_DETECTOR';
       this.running = true;
       this.onStatus('CAMERA_READY', 'กล้องพร้อมสแกน');
-      this.scheduleLoop(120);
+      this.scheduleLoop(100);
 
       return {
         started: true,
-        reused: false
+        reused: false,
+        engine: this.engine
+      };
+    }
+
+    async startZxingDetector_() {
+      this.zxingReader = new window.ZXing.BrowserMultiFormatReader();
+      this.engine = 'ZXING';
+      this.running = true;
+      this.onStatus('CAMERA_READY', 'กล้องพร้อมสแกน');
+
+      const constraints = cameraConstraints();
+
+      await this.zxingReader.decodeFromConstraints(
+        constraints,
+        this.video,
+        (result, error) => {
+          if (!this.running) {
+            return;
+          }
+
+          if (Date.now() < this.pausedUntil) {
+            return;
+          }
+
+          if (result) {
+            const rawText = String(
+              typeof result.getText === 'function'
+                ? result.getText()
+                : result.text || ''
+            ).trim();
+
+            if (rawText) {
+              this.handleDetectedText_(rawText, result);
+            }
+          }
+        }
+      );
+
+      return {
+        started: true,
+        reused: false,
+        engine: this.engine
       };
     }
 
@@ -120,6 +194,16 @@
         window.clearTimeout(this.loopTimer);
         this.loopTimer = 0;
       }
+
+      if (this.zxingReader) {
+        try {
+          this.zxingReader.reset();
+        } catch (error) {
+          // no-op
+        }
+      }
+
+      this.zxingReader = null;
 
       if (this.video) {
         try {
@@ -141,6 +225,8 @@
       }
 
       this.stream = null;
+      this.detector = null;
+      this.engine = '';
       this.onStatus('CAMERA_STOPPED', 'ปิดกล้องแล้ว');
     }
 
@@ -153,7 +239,7 @@
     }
 
     scheduleLoop(delay) {
-      if (!this.running) {
+      if (!this.running || this.engine !== 'BARCODE_DETECTOR') {
         return;
       }
 
@@ -168,7 +254,7 @@
     }
 
     async detectLoop() {
-      if (!this.running) {
+      if (!this.running || this.engine !== 'BARCODE_DETECTOR') {
         return;
       }
 
@@ -188,17 +274,7 @@
         const rawText = first && first.rawValue ? String(first.rawValue).trim() : '';
 
         if (rawText) {
-          const now = Date.now();
-
-          if (
-            rawText !== this.lastScanText ||
-            now - this.lastScanAt > this.cooldownMs
-          ) {
-            this.lastScanText = rawText;
-            this.lastScanAt = now;
-            this.pause(this.cooldownMs);
-            this.onScan(rawText, first);
-          }
+          this.handleDetectedText_(rawText, first);
         }
       } catch (error) {
         this.onError(error);
@@ -206,9 +282,23 @@
 
       this.scheduleLoop(this.scanIntervalMs);
     }
+
+    handleDetectedText_(rawText, source) {
+      const now = Date.now();
+
+      if (
+        rawText !== this.lastScanText ||
+        now - this.lastScanAt > this.cooldownMs
+      ) {
+        this.lastScanText = rawText;
+        this.lastScanAt = now;
+        this.pause(this.cooldownMs);
+        this.onScan(rawText, source);
+      }
+    }
   }
 
-  async function createDetector() {
+  async function createNativeDetector() {
     if (typeof window.BarcodeDetector !== 'function') {
       throw new Error('BarcodeDetector unavailable');
     }
@@ -226,25 +316,40 @@
     ];
 
     if (typeof window.BarcodeDetector.getSupportedFormats === 'function') {
-      try {
-        const supported = await window.BarcodeDetector.getSupportedFormats();
-        const formats = requestedFormats.filter(function (format) {
-          return supported.includes(format);
-        });
+      const supported = await window.BarcodeDetector.getSupportedFormats();
+      const formats = requestedFormats.filter(function (format) {
+        return supported.includes(format);
+      });
 
-        return new window.BarcodeDetector(
-          formats.length > 0
-            ? {formats: formats}
-            : undefined
-        );
-      } catch (error) {
-        return new window.BarcodeDetector();
-      }
+      return new window.BarcodeDetector(
+        formats.length > 0
+          ? {formats: formats}
+          : undefined
+      );
     }
 
-    return new window.BarcodeDetector({
-      formats: requestedFormats
-    });
+    return new window.BarcodeDetector({formats: requestedFormats});
+  }
+
+  function cameraConstraints() {
+    return {
+      audio: false,
+      video: {
+        facingMode: {
+          ideal: 'environment'
+        },
+        width: {
+          ideal: 1280
+        },
+        height: {
+          ideal: 720
+        },
+        frameRate: {
+          ideal: 30,
+          max: 60
+        }
+      }
+    };
   }
 
   function createScannerError(code, message) {
