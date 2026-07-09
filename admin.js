@@ -73,7 +73,8 @@
 
     roles: {
       ADMIN: 'ผู้ดูแลระบบ',
-      USER: 'ผู้ใช้งาน'
+      USER: 'ผู้ใช้งานทั่วไป',
+      INBOUND: 'ห้อง Inbound'
     }
   };
 
@@ -2356,6 +2357,46 @@
     }
   }
 
+  function buildUserRoleOptions(selectedRole) {
+    const schemaRoles =
+      Array.isArray(state.schema?.enums?.userRoles) &&
+      state.schema.enums.userRoles.length > 0
+        ? state.schema.enums.userRoles
+        : ['USER', 'INBOUND', 'ADMIN'];
+
+    const cleanSelected =
+      String(selectedRole || 'USER')
+        .trim()
+        .toUpperCase();
+
+    return schemaRoles
+      .map((role) => {
+        const value =
+          String(role || '')
+            .trim()
+            .toUpperCase();
+
+        if (!value) {
+          return '';
+        }
+
+        const label =
+          LABELS.roles[value]
+            ? value + ' - ' + LABELS.roles[value]
+            : value;
+
+        return `
+          <option
+            value="${escapeHtml(value)}"
+            ${value === cleanSelected ? 'selected' : ''}
+          >
+            ${escapeHtml(label)}
+          </option>
+        `;
+      })
+      .join('');
+  }
+
   async function openUserDialog(user) {
     const isEdit = Boolean(user);
     const generatedPassword = generateTemporaryPassword();
@@ -2367,7 +2408,7 @@
         <div class="swal-form">
           <label class="swal-form-field"><span>ชื่อผู้ใช้</span><input id="userUsername" class="swal2-input" value="${escapeHtml(user?.username || '')}" ${isEdit ? 'disabled' : ''}></label>
           <label class="swal-form-field"><span>ชื่อแสดงผล</span><input id="userDisplayName" class="swal2-input" value="${escapeHtml(user?.displayName || '')}"></label>
-          <label class="swal-form-field"><span>สิทธิ์</span><select id="userRole" class="swal2-select"><option value="USER" ${user?.role !== 'ADMIN' ? 'selected' : ''}>USER</option><option value="ADMIN" ${user?.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option></select></label>
+          <label class="swal-form-field"><span>สิทธิ์</span><select id="userRole" class="swal2-select">${buildUserRoleOptions(user?.role || 'USER')}</select></label>
           ${!isEdit ? `<label class="swal-form-field"><span>รหัสผ่านชั่วคราว</span><input id="userTemporaryPassword" class="swal2-input" value="${escapeHtml(generatedPassword)}"></label>` : ''}
           <label class="swal-switch-row"><input id="userActive" type="checkbox" ${user?.active !== false ? 'checked' : ''}><span>เปิดใช้งานบัญชี</span></label>
           <label class="swal-switch-row"><input id="userMustChange" type="checkbox" ${user?.mustChangePassword !== false ? 'checked' : ''}><span>บังคับเปลี่ยนรหัสผ่าน</span></label>
