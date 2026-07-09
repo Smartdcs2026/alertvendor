@@ -3,6 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
+ * ROUND 03: เพิ่มการนำทางสำหรับสิทธิ์ INBOUND ไปหน้า inbound.html
  */
 (function (
   window,
@@ -387,6 +388,11 @@
       state.session =
         session;
 
+      if (isInboundRole(session)) {
+        redirectToInbound();
+        return;
+      }
+
       renderSession(
         session
       );
@@ -478,9 +484,9 @@
 
     setText(
       'roleDisplay',
-      user.role === 'ADMIN'
-        ? 'ผู้ดูแลระบบ'
-        : 'ผู้ใช้งาน'
+      getRoleLabel(
+        user.role
+      )
     );
 
     setText(
@@ -1708,6 +1714,63 @@
     );
   }
 
+  function getSessionUser(
+    session
+  ) {
+    if (
+      session &&
+      session.user &&
+      typeof session.user ===
+        'object'
+    ) {
+      return session.user;
+    }
+
+    return session || {};
+  }
+
+  function getSessionRole(
+    session
+  ) {
+    return String(
+      getSessionUser(
+        session
+      ).role ||
+      'USER'
+    )
+      .trim()
+      .toUpperCase();
+  }
+
+  function isInboundRole(
+    session
+  ) {
+    return getSessionRole(
+      session
+    ) === 'INBOUND';
+  }
+
+  function getRoleLabel(
+    role
+  ) {
+    const value =
+      String(
+        role || 'USER'
+      )
+        .trim()
+        .toUpperCase();
+
+    if (value === 'ADMIN') {
+      return 'ผู้ดูแลระบบ';
+    }
+
+    if (value === 'INBOUND') {
+      return 'Inbound';
+    }
+
+    return 'ผู้ใช้งาน';
+  }
+
   function redirectToLogin() {
     window.location.replace(
       CONFIG.LOGIN_URL ||
@@ -1715,7 +1778,19 @@
     );
   }
 
+  function redirectToInbound() {
+    window.location.replace(
+      CONFIG.INBOUND_URL ||
+      './inbound.html'
+    );
+  }
+
   function redirectToDashboard() {
+    if (isInboundRole(state.session)) {
+      redirectToInbound();
+      return;
+    }
+
     window.location.replace(
       CONFIG.DASHBOARD_URL ||
       './index.html'
