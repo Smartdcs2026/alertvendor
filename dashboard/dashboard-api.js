@@ -1,7 +1,7 @@
 /**
  * dashboard-api.js
  * API แบบอ่านอย่างเดียวสำหรับ Dashboard
- * ROUND 05 HOTFIX 13 — Isolated Session
+ * ROUND 05 HOTFIX 26 — Isolated Session
  */
 (function (window) {
   'use strict';
@@ -82,7 +82,7 @@
 
   function getAccessToken() {
     /*
-     * HOTFIX 13:
+     * HOTFIX 26:
      * Dashboard ต้องใช้ Token ของหน้าต่างนี้เท่านั้น
      * ไม่อ่าน localStorage เพื่อกันชื่อ/สิทธิ์ปะปนกับ PWA หรือแท็บอื่น
      */
