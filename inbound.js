@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 34 — Stable Hardware QR Scanner Input
+ * ROUND 06 PART 01 — Inbound SLA Alert Colors
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -45,7 +45,12 @@
     filteredTotal: 0,
     dashboardLoadedAt: '',
     dashboardCacheRestored: false,
-    dashboardRequestToken: 0
+    dashboardRequestToken: 0,
+    slaSummary: {
+      normal: 0,
+      warning: 0,
+      critical: 0
+    }
   };
 
   document.addEventListener('DOMContentLoaded', initialize);
@@ -963,19 +968,29 @@
       return;
     }
 
-    tbody.innerHTML = pageItems.map((item) => `
-      <tr data-auto-id="${escapeHtml(item.autoId)}">
+    tbody.innerHTML = pageItems.map((item) => {
+      const sla = calculateSlaState(item);
+      return `
+      <tr data-auto-id="${escapeHtml(item.autoId)}" data-sla="${escapeHtml(sla.level)}">
         <td><span class="workflow-cell-main">${escapeHtml(item.appointmentNumber || '-')}</span></td>
         <td><span class="workflow-cell-main">${escapeHtml(item.companyName || '-')}</span></td>
         <td><span class="workflow-cell-main">${escapeHtml(item.driverName || '-')}</span></td>
         <td><span class="workflow-cell-main">${escapeHtml(formatPlateWithProvince(item))}</span></td>
         <td><span class="workflow-cell-main">${escapeHtml(item.phone || '-')}</span></td>
-        <td><span class="status-pill" data-status="${escapeHtml(item.statusCode)}">${escapeHtml(item.statusName || statusName(item.statusCode))}</span></td>
-        <td><span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span></td>
+        <td>
+          <span class="status-pill" data-status="${escapeHtml(item.statusCode)}" data-sla="${escapeHtml(sla.level)}">
+            ${escapeHtml(item.statusName || statusName(item.statusCode))}
+          </span>
+          ${sla.enabled ? `<small class="sla-badge" data-sla="${escapeHtml(sla.level)}">${escapeHtml(sla.label)}</small>` : ''}
+        </td>
+        <td>
+          <span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span>
+          ${sla.enabled ? `<small class="sla-elapsed">${escapeHtml(sla.elapsedText)}</small>` : ''}
+        </td>
         <td class="workflow-auto-id"><strong>${escapeHtml(item.autoId || '-')}</strong></td>
         <td><button type="button" class="icon-button" data-open-detail title="ดูรายละเอียด">ดู</button></td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
 
     renderWorkflowPagination(
       startIndex + 1,
@@ -1649,12 +1664,100 @@
 
   function countSummary(items) {
     const list = Array.isArray(items) ? items : [];
+    const slaSummary = {
+      normal: 0,
+      warning: 0,
+      critical: 0
+    };
+
+    list.forEach((item) => {
+      const sla = calculateSlaState(item);
+      if (!sla.enabled) return;
+      if (sla.level === 'CRITICAL') slaSummary.critical += 1;
+      else if (sla.level === 'WARNING') slaSummary.warning += 1;
+      else slaSummary.normal += 1;
+    });
+
+    state.slaSummary = slaSummary;
+
     return {
       total: list.length,
       waitingReceiving: list.filter((item) => item.statusCode === 'DOCUMENT_SUBMITTED').length,
       receivingCompleted: list.filter((item) => item.statusCode === 'RECEIVING_COMPLETED').length,
       documentReturned: list.filter((item) => item.statusCode === 'DOCUMENT_RETURNED').length,
       cancelled: list.filter((item) => item.cancelled || item.statusCode === 'CANCELLED').length
+    };
+  }
+
+  function calculateSlaState(item) {
+    const statusCode = String(item && item.statusCode || '').trim().toUpperCase();
+    const rules = CONFIG.INBOUND_SLA_RULES || {};
+    const rule = rules[statusCode];
+
+    if (!rule || item.cancelled) {
+      return {
+        enabled: false,
+        level: 'NONE',
+        label: '',
+        elapsedMinutes: 0,
+        elapsedText: ''
+      };
+    }
+
+    const baseTime =
+      statusCode === 'DOCUMENT_SUBMITTED'
+        ? item.documentSubmittedAt || item.updatedAt || item.gateInAt
+        : statusCode === 'RECEIVING_COMPLETED'
+          ? item.receivingCompletedAt || item.updatedAt
+          : statusCode === 'DOCUMENT_RETURNED'
+            ? item.documentReturnedAt || item.updatedAt
+            : item.updatedAt;
+
+    const startedAt = dateToMs(baseTime);
+    if (!startedAt) {
+      return {
+        enabled: true,
+        level: 'NORMAL',
+        label: rule.label || 'อยู่ในขั้นตอน',
+        elapsedMinutes: 0,
+        elapsedText: '-'
+      };
+    }
+
+    const elapsedMinutes =
+      Math.max(
+        0,
+        Math.floor((Date.now() - startedAt) / 60000)
+      );
+
+    const warningMinutes =
+      Number(rule.warningMinutes) || 0;
+
+    const criticalMinutes =
+      Number(rule.criticalMinutes) || 0;
+
+    let level = 'NORMAL';
+
+    if (criticalMinutes && elapsedMinutes >= criticalMinutes) {
+      level = 'CRITICAL';
+    } else if (warningMinutes && elapsedMinutes >= warningMinutes) {
+      level = 'WARNING';
+    }
+
+    return {
+      enabled: true,
+      level,
+      label:
+        level === 'CRITICAL'
+          ? 'เกินเวลา'
+          : level === 'WARNING'
+            ? 'ใกล้เกินเวลา'
+            : rule.label || 'ปกติ',
+      elapsedMinutes,
+      elapsedText:
+        elapsedMinutes >= 60
+          ? Math.floor(elapsedMinutes / 60) + ' ชม. ' + (elapsedMinutes % 60) + ' นาที'
+          : elapsedMinutes + ' นาที'
     };
   }
 
