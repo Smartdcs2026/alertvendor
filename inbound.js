@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 25 — Fullscreen + Admin/Inbound Session Sanity Check
+ * ROUND 05 HOTFIX 26 — Fullscreen + Stable Auth Reset Compatible
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -77,17 +77,8 @@
         return;
       }
 
-      setConnection(role === 'ADMIN' ? 'ADMIN MODE' : 'INBOUND ONLINE', 'READY');
+      setConnection(role === 'ADMIN' ? 'ADMIN TEST MODE' : 'INBOUND ONLINE', 'READY');
       setText('inboundUser', (user.displayName || user.username || '-') + ' · ' + role);
-
-      /*
-       * ถ้าผู้ใช้เพิ่ง Login ADMIN ในอีกแท็บ แต่หน้านี้ยังแสดง INBOUND
-       * แสดงว่ายังถือ token เก่าของหน้าต่างนี้ ให้ logout/login ใหม่
-       * api.js Hotfix 25 จะช่วยเคลียร์แท็บเก่าอัตโนมัติผ่าน session signal
-       */
-      if (role === 'INBOUND') {
-        console.info('Inbound page is using INBOUND session token:', user.username || user.displayName || '-');
-      }
 
       await loadModules();
       restoreDashboardCache({silent: true});
