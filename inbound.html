@@ -6,15 +6,16 @@
   <meta name="theme-color" content="#073b59">
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
+  <!-- ROUND 05 HOTFIX 33: inbound dashboard limit fixed to safe 100 -->
 
-  <link rel="stylesheet" href="./inbound.css?v=20260710-r05-hotfix22-responsive-camera-scanner">
+  <link rel="stylesheet" href="./inbound.css?v=20260710-r05-hotfix33-inbound-limit-fix">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
-  <script src="./config.js?v=20260709-r05" defer></script>
-  <script src="./api.js?v=20260709-r05" defer></script>
+  <script src="./config.js?v=20260710-r05-hotfix33-inbound-limit-fix" defer></script>
+  <script src="./api.js?v=20260710-r05-hotfix33-inbound-limit-fix" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260710-r05-hotfix22-responsive-camera-scanner" defer></script>
-  <script src="./inbound.js?v=20260710-r05-hotfix22-responsive-camera-scanner" defer></script>
+  <script src="./inbound-scanner.js?v=20260710-r05-hotfix33-inbound-limit-fix" defer></script>
+  <script src="./inbound.js?v=20260710-r05-hotfix33-inbound-limit-fix" defer></script>
 
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
@@ -292,6 +293,53 @@
       }
     }
 
+  
+    /* Round 05 Hotfix 24 - Fullscreen button */
+    .module-actions {
+      align-items: stretch !important;
+    }
+
+    #inboundFullscreenButton,
+    .button--fullscreen {
+      border-color: rgba(18, 155, 160, .35) !important;
+      background: linear-gradient(135deg, #e8fffb, #f3fbff) !important;
+      color: #07556a !important;
+      font-weight: 900 !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-shell {
+      padding: 8px !important;
+      min-height: 100vh !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-topbar {
+      min-height: 70px !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-module-bar {
+      padding: 8px 10px !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-workspace {
+      min-height: calc(100vh - 168px) !important;
+    }
+
+    body.inbound-is-fullscreen .scanner-window {
+      height: clamp(190px, 28vh, 320px) !important;
+    }
+
+    body.inbound-is-fullscreen #inboundFullscreenButton {
+      background: linear-gradient(135deg, #fff1f1, #fffafa) !important;
+      border-color: rgba(239, 68, 68, .35) !important;
+      color: #991b1b !important;
+    }
+
+    @media (max-width: 760px) {
+      #inboundFullscreenButton {
+        min-height: 44px !important;
+      }
+    }
+
   </style>
 
 </head>
@@ -345,7 +393,8 @@
       </label>
 
       <div class="module-actions">
-        <button id="inboundRefreshButton" type="button">รีเฟรช</button>
+        <button id="inboundFullscreenButton" type="button" class="button--fullscreen" title="เปิดเต็มจอ">เต็มจอ</button>
+          <button id="inboundRefreshButton" type="button">รีเฟรช</button>
         <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
       </div>
     </section>
