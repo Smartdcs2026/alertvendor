@@ -3,7 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
- * ROUND 05 HOTFIX 13: Isolated Session + Role Guard
+ * ROUND 05 HOTFIX 25: Isolated Session + Strict Role Redirect
  */
 (function (
   window,
@@ -132,7 +132,7 @@
           }
         }
 
-        redirectToDashboard();
+        redirectAfterLoginByRole();
       }
 
     } catch (error) {
@@ -285,7 +285,7 @@
        * ไม่ต้องให้ผู้ใช้กดปุ่ม "ตกลง"
        */
       Swal.close();
-      redirectToDashboard();
+      redirectAfterLoginByRole();
       return;
 
     } catch (error) {
@@ -1804,10 +1804,25 @@
   }
 
   function redirectToDashboard() {
+    window.location.replace(
+      CONFIG.DASHBOARD_URL ||
+      './index.html'
+    );
+  }
+
+  function redirectAfterLoginByRole() {
+    /*
+     * Hotfix 25:
+     * ADMIN / USER ต้องกลับหน้าหลักเสมอ
+     * INBOUND เท่านั้นที่ไปหน้า inbound.html อัตโนมัติ
+     */
     if (isInboundRole(state.session)) {
       redirectToInbound();
       return;
     }
+
+    redirectToDashboard();
+  }
 
     window.location.replace(
       CONFIG.DASHBOARD_URL ||
