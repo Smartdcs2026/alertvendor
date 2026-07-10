@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 23 — Restore Native Scanner Input + Safe Global Capture
+ * ROUND 05 HOTFIX 24 — Fullscreen Button + Native Scanner Input
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -106,6 +106,7 @@
   function bindEvents() {
     byId('inboundLogoutButton')?.addEventListener('click', logout);
     byId('inboundRefreshButton')?.addEventListener('click', () => void loadWorkflowDashboard(false, {manual: true}));
+    byId('inboundFullscreenButton')?.addEventListener('click', () => void toggleInboundFullscreen());
     byId('startCameraButton')?.addEventListener('click', () => void startCamera({silent: false}));
     byId('stopCameraButton')?.addEventListener('click', stopCamera);
     byId('clearCodeButton')?.addEventListener('click', () => {
@@ -251,6 +252,73 @@
       refreshAutoPageSize();
       renderWorkflowTable();
     }, 140), {passive: true});
+
+    document.addEventListener('fullscreenchange', syncFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+    document.addEventListener('msfullscreenchange', syncFullscreenButton);
+  }
+
+  async function toggleInboundFullscreen() {
+    const root = document.documentElement;
+
+    try {
+      const fullscreenElement =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement ||
+        null;
+
+      if (fullscreenElement) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+        syncFullscreenButton();
+        return;
+      }
+
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+      else if (root.msRequestFullscreen) root.msRequestFullscreen();
+      else {
+        await showAlert(
+          'ไม่รองรับเต็มจอ',
+          'เบราว์เซอร์นี้ไม่อนุญาตให้เปิดโหมดเต็มจอจากหน้าเว็บ',
+          'info'
+        );
+        return;
+      }
+
+      syncFullscreenButton();
+      window.setTimeout(() => {
+        refreshAutoPageSize();
+        renderWorkflowTable();
+        focusCodeInput(false);
+      }, 160);
+
+    } catch (error) {
+      await showAlert(
+        'เปิดเต็มจอไม่สำเร็จ',
+        errorMessage(error) || 'กรุณากดปุ่มอีกครั้ง หรือใช้ปุ่ม F11 ของคีย์บอร์ด',
+        'warning'
+      );
+    }
+  }
+
+  function syncFullscreenButton() {
+    const isFullscreen = Boolean(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement
+    );
+
+    document.body.classList.toggle('inbound-is-fullscreen', isFullscreen);
+
+    const button = byId('inboundFullscreenButton');
+    if (button) {
+      button.textContent = isFullscreen ? 'ออกเต็มจอ' : 'เต็มจอ';
+      button.title = isFullscreen ? 'ออกจากเต็มจอ' : 'เปิดเต็มจอ';
+      button.setAttribute('aria-label', isFullscreen ? 'ออกจากเต็มจอ' : 'เปิดเต็มจอ');
+    }
   }
 
   async function loadModules() {
