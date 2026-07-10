@@ -3,7 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
- * ROUND 05 HOTFIX 28: Login Clock/Auth Repair + Explicit Role Routing
+ * ROUND 05 HOTFIX 31: Admin Inbound Shortcut
  */
 (function (
   window,
@@ -517,6 +517,22 @@
         'is-hidden',
         user.role !== 'ADMIN'
       );
+    }
+
+    const adminInboundButton =
+      document.getElementById(
+        'adminInboundButton'
+      );
+
+    if (adminInboundButton) {
+      adminInboundButton.classList.toggle(
+        'is-hidden',
+        user.role !== 'ADMIN'
+      );
+
+      adminInboundButton.href =
+        CONFIG.INBOUND_URL ||
+        'https://smartdcs2026.github.io/alertvendor/inbound.html';
     }
   }
 
