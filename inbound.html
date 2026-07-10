@@ -8,14 +8,14 @@
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
   <!-- ROUND 06 PART 02: scanner input restored; SLA remains active -->
 
-  <link rel="stylesheet" href="./inbound.css?v=20260710-r06-02-scanner-restore">
+  <link rel="stylesheet" href="./inbound.css?v=20260710-r06-03-scanner-buffer-sla-bar">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
-  <script src="./config.js?v=20260710-r06-02-scanner-restore" defer></script>
-  <script src="./api.js?v=20260710-r06-02-scanner-restore" defer></script>
+  <script src="./config.js?v=20260710-r06-03-scanner-buffer-sla-bar" defer></script>
+  <script src="./api.js?v=20260710-r06-03-scanner-buffer-sla-bar" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260710-r06-02-scanner-restore" defer></script>
-  <script src="./inbound.js?v=20260710-r06-02-scanner-restore" defer></script>
+  <script src="./inbound-scanner.js?v=20260710-r06-03-scanner-buffer-sla-bar" defer></script>
+  <script src="./inbound.js?v=20260710-r06-03-scanner-buffer-sla-bar" defer></script>
 
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
@@ -387,6 +387,67 @@
     .sla-elapsed {
       color: #64748b;
       font-weight: 700;
+    }
+
+  
+    /* Round 06 Part 03 - SLA progress bar, no full-row color */
+    .workflow-table tr[data-sla],
+    .workflow-table tr[data-sla="WARNING"],
+    .workflow-table tr[data-sla="CRITICAL"] {
+      background: transparent !important;
+    }
+
+    .workflow-table tr[data-sla="WARNING"] td:first-child {
+      box-shadow: inset 3px 0 0 #f59e0b;
+    }
+
+    .workflow-table tr[data-sla="CRITICAL"] td:first-child {
+      box-shadow: inset 3px 0 0 #ef4444;
+    }
+
+    .sla-cell {
+      display: grid;
+      gap: 4px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .sla-mini-progress {
+      display: block;
+      width: min(92px, 100%);
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e5e7eb;
+    }
+
+    .sla-mini-progress > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: #10b981;
+    }
+
+    .sla-mini-progress[data-sla="WARNING"] > i {
+      background: #f59e0b;
+    }
+
+    .sla-mini-progress[data-sla="CRITICAL"] > i {
+      background: #ef4444;
+    }
+
+    .sla-badge,
+    .sla-elapsed {
+      display: none !important;
+    }
+
+    .status-pill[data-sla="WARNING"],
+    .status-pill[data-sla="CRITICAL"] {
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
   </style>
