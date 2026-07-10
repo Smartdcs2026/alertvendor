@@ -7,14 +7,98 @@
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix09-table-page">
+  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix14-compact-toolbar">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260709-r05" defer></script>
   <script src="./api.js?v=20260709-r05" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260709-r05-hotfix09-table-page" defer></script>
-  <script src="./inbound.js?v=20260709-r05-hotfix09-table-page" defer></script>
+  <script src="./inbound-scanner.js?v=20260709-r05-hotfix14-compact-toolbar" defer></script>
+  <script src="./inbound.js?v=20260709-r05-hotfix14-compact-toolbar" defer></script>
+
+  <style>
+    /* Round 05 Hotfix 14 - Compact toolbar for Inbound */
+    .inbound-shell { gap: 10px; }
+    .inbound-topbar { padding-bottom: 10px; }
+    .inbound-brand p { margin-bottom: 0; }
+    .inbound-module-bar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      align-items: end;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 14px;
+    }
+    .inbound-module-bar > label {
+      display: grid;
+      gap: 4px;
+      margin: 0;
+    }
+    .inbound-module-bar > label > span {
+      font-size: 11px;
+      line-height: 1;
+      opacity: .8;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .inbound-module-bar select {
+      min-height: 40px;
+      padding: 8px 42px 8px 12px;
+      font-size: 15px;
+      border-radius: 12px;
+    }
+    .module-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+      justify-self: end;
+    }
+    .module-actions button {
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 12px;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    .module-actions #inboundRefreshButton::before { content: '↻ '; }
+    .module-actions #inboundLogoutButton::before { content: '⎋ '; }
+    .inbound-workspace {
+      min-height: calc(100vh - 255px);
+    }
+    @media (min-width: 1200px) {
+      .inbound-module-bar {
+        grid-template-columns: minmax(320px, 1fr) auto;
+      }
+    }
+    @media (max-width: 980px) {
+      .inbound-module-bar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+      .module-actions {
+        justify-self: stretch;
+        justify-content: flex-end;
+      }
+    }
+    @media (max-width: 680px) {
+      .inbound-module-bar {
+        padding: 8px 10px;
+      }
+      .module-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .module-actions button {
+        width: 100%;
+      }
+      .inbound-workspace {
+        min-height: auto;
+      }
+    }
+  </style>
+
 </head>
 
 <body class="inbound-page" data-page="inbound">
@@ -57,17 +141,17 @@
       </div>
     </header>
 
-    <section class="inbound-module-bar" aria-label="เลือกโมดูล">
-      <label>
-        <span>Module</span>
+    <section class="inbound-module-bar inbound-module-bar--compact" aria-label="เลือกโมดูลและเครื่องมือ">
+      <label for="inboundModuleSelect">
+        <span>Module ที่ใช้งาน</span>
         <select id="inboundModuleSelect">
           <option value="">กำลังโหลด Module...</option>
         </select>
       </label>
 
-      <div class="module-actions">
-        <button id="inboundRefreshButton" type="button">รีเฟรช</button>
-        <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
+      <div class="module-actions" role="group" aria-label="คำสั่งของหน้า Inbound">
+        <button id="inboundRefreshButton" type="button" title="รีเฟรชข้อมูล">รีเฟรช</button>
+        <button id="inboundLogoutButton" type="button" class="button--logout" title="ออกจากระบบ">ออกจากระบบ</button>
       </div>
     </section>
 
