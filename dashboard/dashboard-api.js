@@ -1,7 +1,6 @@
 /**
  * dashboard-api.js
- * API แบบอ่านอย่างเดียวสำหรับ Dashboard
- * ROUND 05 HOTFIX 26 — Isolated Session
+ * API แบบอ่านอย่างเดียวสำหรับ Dashboard - HOTFIX 30 Session Key v2
  */
 (function (window) {
   'use strict';
@@ -17,7 +16,7 @@
   const TOKEN_STORAGE_KEY =
     String(
       CONFIG.TOKEN_STORAGE_KEY ||
-      'alertvendor_access_token'
+      'alertvendor_access_token_v2'
     );
 
   class DashboardAPIError extends Error {
@@ -50,53 +49,46 @@
     }
   }
 
-  function readStorageToken(storage) {
+  function getAccessToken() {
     try {
       return String(
-        storage && storage.getItem(TOKEN_STORAGE_KEY) || ''
+        window.sessionStorage
+          .getItem(
+            TOKEN_STORAGE_KEY
+          ) || ''
       ).trim();
     } catch (error) {
       return '';
     }
   }
 
-  function writeStorageToken(storage, token) {
-    try {
-      if (storage && token) {
-        storage.setItem(TOKEN_STORAGE_KEY, token);
-      }
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
-  function removeStorageToken(storage) {
-    try {
-      if (storage) {
-        storage.removeItem(TOKEN_STORAGE_KEY);
-      }
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
-  function getAccessToken() {
-    /*
-     * HOTFIX 26:
-     * Dashboard ต้องใช้ Token ของหน้าต่างนี้เท่านั้น
-     * ไม่อ่าน localStorage เพื่อกันชื่อ/สิทธิ์ปะปนกับ PWA หรือแท็บอื่น
-     */
-    return readStorageToken(
-      window.sessionStorage
-    );
-  }
-
   function clearSession() {
-    removeStorageToken(window.localStorage);
-    removeStorageToken(window.sessionStorage);
-  }
+    try {
+      window.sessionStorage
+        .removeItem(
+          TOKEN_STORAGE_KEY
+        );
 
-  removeStorageToken(window.localStorage);
+      /*
+       * ล้าง key เก่าด้วย เพื่อกัน Dashboard หยิบ session คนละรุ่น
+       */
+      window.sessionStorage
+        .removeItem(
+          'alertvendor_access_token'
+        );
+
+      window.sessionStorage
+        .removeItem(
+          'alertvendor_access_token_v1'
+        );
+
+    } catch (error) {
+      console.warn(
+        'ล้าง Session ไม่สำเร็จ',
+        error
+      );
+    }
+  }
 
   function createRequestId() {
     if (
