@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 10 — Persistent dashboard reload after browser refresh
+ * ROUND 05 HOTFIX 13 — Inbound Role Guard + Isolated Session compatible
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -1399,6 +1399,7 @@
       if (API && typeof API.logout === 'function') await API.logout();
     } catch (error) {}
     try { window.sessionStorage.removeItem('alertvendor_access_token'); } catch (error) {}
+    try { window.localStorage.removeItem('alertvendor_access_token'); } catch (error) {}
     redirectToLogin();
   }
 
