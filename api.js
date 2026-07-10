@@ -1,6 +1,6 @@
 /**
  * api.js
- * ROUND 05 HOTFIX 25 — Auth Role Guard + Cross Window Session Reset
+ * ROUND 05 HOTFIX 26 — Stable Auth Reset + SessionStorage v2
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -135,6 +135,43 @@
     }
   }
 
+  function removeNamedStorageToken(
+    storage,
+    key
+  ) {
+    try {
+      if (storage && key) {
+        storage.removeItem(
+          String(key)
+        );
+      }
+
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  function clearLegacyAccessTokens() {
+    const legacyKeys = [
+      'alertvendor_access_token',
+      'alertvendor_access_token_v1'
+    ];
+
+    legacyKeys.forEach(
+      function (key) {
+        removeNamedStorageToken(
+          window.localStorage,
+          key
+        );
+
+        removeNamedStorageToken(
+          window.sessionStorage,
+          key
+        );
+      }
+    );
+  }
+
   function getAccessToken() {
     /*
      * HOTFIX 13:
@@ -160,9 +197,12 @@
     }
 
     /*
-     * ล้าง localStorage legacy ทุกครั้งก่อนตั้ง Token ใหม่
-     * เพื่อไม่ให้ Token ของหน้าต่าง/แอพอื่นถูกหยิบมาใช้ผิดสิทธิ์
+     * Hotfix 26:
+     * ล้าง Token legacy ทุกครั้งก่อนตั้ง Token ใหม่
+     * และใช้ Token key v2 เฉพาะ sessionStorage เท่านั้น
      */
+    clearLegacyAccessTokens();
+
     removeStorageToken(
       window.localStorage
     );
@@ -183,6 +223,8 @@
   }
 
   function clearAccessToken() {
+    clearLegacyAccessTokens();
+
     removeStorageToken(
       window.localStorage
     );
@@ -192,135 +234,13 @@
     );
   }
 
-  /************************************************************
-   * Cross-window session reset signal
-   *
-   * ใช้ localStorage เป็นสัญญาณเท่านั้น ไม่เก็บ Token
-   * เมื่อมีการ Login/Logout ในอีกแท็บหรือ PWA ให้แท็บเก่าเคลียร์ sessionStorage
-   * เพื่อกันกรณีผู้ใช้ Login ADMIN แล้วแท็บ Inbound เดิมยังถือ Token INBOUND อยู่
-   ************************************************************/
-
-  const SESSION_BROADCAST_KEY =
-    TOKEN_STORAGE_KEY + '_session_signal';
-
-  const CLIENT_INSTANCE_ID =
-    (
-      Date.now().toString(36) +
-      '-' +
-      Math.random().toString(36).slice(2, 10)
-    );
-
-  function broadcastSessionSignal(
-    action,
-    data
-  ) {
-    try {
-      if (!window.localStorage) {
-        return;
-      }
-
-      window.localStorage.setItem(
-        SESSION_BROADCAST_KEY,
-        JSON.stringify({
-          action:
-            String(action || '').toUpperCase(),
-
-          sender:
-            CLIENT_INSTANCE_ID,
-
-          at:
-            Date.now(),
-
-          username:
-            data &&
-            data.user &&
-            data.user.username
-              ? String(data.user.username)
-              : '',
-
-          role:
-            data &&
-            data.user &&
-            data.user.role
-              ? String(data.user.role)
-              : ''
-        })
-      );
-
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
-  function handleExternalSessionSignal(
-    event
-  ) {
-    try {
-      if (
-        !event ||
-        event.key !== SESSION_BROADCAST_KEY ||
-        !event.newValue
-      ) {
-        return;
-      }
-
-      const payload =
-        JSON.parse(event.newValue);
-
-      if (
-        !payload ||
-        payload.sender === CLIENT_INSTANCE_ID
-      ) {
-        return;
-      }
-
-      const action =
-        String(payload.action || '').toUpperCase();
-
-      if (
-        action !== 'LOGIN' &&
-        action !== 'LOGOUT'
-      ) {
-        return;
-      }
-
-      /*
-       * มี Login/Logout จากหน้าต่างอื่น:
-       * เคลียร์ token ของหน้าต่างนี้ทันที เพื่อไม่ให้ ADMIN/INBOUND ปะปนกัน
-       */
-      clearAccessToken();
-
-      const path =
-        String(window.location.pathname || '').toLowerCase();
-
-      if (path.indexOf('login') >= 0) {
-        return;
-      }
-
-      window.setTimeout(
-        function () {
-          window.location.replace(
-            CONFIG.LOGIN_URL ||
-            './login.html'
-          );
-        },
-        80
-      );
-
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
-  window.addEventListener(
-    'storage',
-    handleExternalSessionSignal
-  );
-
   /*
-   * ล้าง Token legacy ใน localStorage ทันทีที่โหลด api.js
-   * ป้องกันกรณีเปิด PWA ด้วย INBOUND แล้ว Chrome ทั่วไปหยิบ Token เดิมไปใช้
+   * Hotfix 26:
+   * ล้าง Token legacy ทันทีที่โหลด api.js
+   * แต่ไม่ล้าง Token v2 ใน sessionStorage ของหน้าต่างปัจจุบัน
    */
+  clearLegacyAccessTokens();
+
   removeStorageToken(
     window.localStorage
   );
@@ -921,7 +841,7 @@
         storageAvailable,
 
       storageMode:
-        'localStorage+sessionStorage',
+        'sessionStorage-v2-only',
 
       sessionTokenPresent:
         Boolean(
@@ -1016,11 +936,6 @@
           data
         );
 
-      broadcastSessionSignal(
-        'LOGIN',
-        data
-      );
-
       if (!token) {
         throw new VehicleAPIError(
           'ระบบเข้าสู่ระบบสำเร็จ แต่ไม่ได้รับ Session Token',
@@ -1071,10 +986,6 @@
          * Logout ฝั่ง Client ต้องลบ Token เสมอ
          */
         clearAccessToken();
-        broadcastSessionSignal(
-          'LOGOUT',
-          {}
-        );
       }
     },
 
