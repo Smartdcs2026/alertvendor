@@ -1,6 +1,6 @@
 /************************************************************
  * module-work-queue.js
- * ROUND 06 PART 09.1 — Mobile Work Queue Cleanup
+ * ROUND 06 PART 09.1A — Work Queue Fast Boot + Accurate Initial Count
  *
  * เป้าหมาย:
  * - หน้า Module เป็น "หน้างาน" ไม่ใช่หน้ารวมทุกสถานะ
@@ -21,7 +21,11 @@
       'ACTION',
     items: [],
     applyTimer: 0,
-    observer: null
+    observer: null,
+    bootTimer: 0,
+    bootStartedAt: 0,
+    lastCardCount: -1,
+    lastItemCount: -1
   };
 
   document.addEventListener(
@@ -39,8 +43,17 @@
     ensureQueueBar();
     bindEvents();
 
+    /*
+     * Round 06 Part 09.1A:
+     * หน้า Module โหลดหลายไฟล์และการ์ดถูกสร้างทีหลัง
+     * จึงต้อง Boot แบบ retry สั้น ๆ ไม่รอให้ผู้ใช้กดปุ่มก่อน
+     */
+    observeCards();
+    requestGuardRefresh();
+
     pullWorkflowItems();
-    scheduleApply(80);
+    scheduleApply(0);
+    startBootSync();
 
     window.addEventListener(
       'alertvendor:workflow-guard-updated',
@@ -50,24 +63,102 @@
             ? event.detail.items
             : [];
 
-        scheduleApply(60);
+        scheduleApply(0);
       }
     );
 
     document.addEventListener(
       'alertvendor:records-updated',
-      () => scheduleApply(120)
+      () => {
+        requestGuardRefresh();
+        scheduleApply(80);
+      }
     );
-
-    observeCards();
 
     window.setTimeout(
       () => {
+        requestGuardRefresh();
         pullWorkflowItems();
         scheduleApply(0);
       },
-      900
+      350
     );
+
+    window.setTimeout(
+      () => {
+        requestGuardRefresh();
+        pullWorkflowItems();
+        scheduleApply(0);
+      },
+      1200
+    );
+  }
+
+  function startBootSync() {
+    state.bootStartedAt =
+      Date.now();
+
+    window.clearInterval(
+      state.bootTimer
+    );
+
+    state.bootTimer =
+      window.setInterval(
+        () => {
+          pullWorkflowItems();
+          scheduleApply(0);
+
+          const cardCount =
+            document.querySelectorAll(
+              '.vehicle-card[data-record-id]'
+            ).length;
+
+          const itemCount =
+            state.items.length;
+
+          const stable =
+            cardCount > 0 &&
+            cardCount === state.lastCardCount &&
+            itemCount === state.lastItemCount;
+
+          state.lastCardCount =
+            cardCount;
+
+          state.lastItemCount =
+            itemCount;
+
+          if (
+            stable ||
+            Date.now() - state.bootStartedAt > 12000
+          ) {
+            window.clearInterval(
+              state.bootTimer
+            );
+
+            state.bootTimer = 0;
+          }
+        },
+        350
+      );
+  }
+
+  function requestGuardRefresh() {
+    const guard =
+      window.AlertVendorWorkflowGuard;
+
+    if (
+      guard &&
+      typeof guard.refresh === 'function'
+    ) {
+      try {
+        guard.refresh();
+      } catch (error) {
+        console.debug(
+          'Workflow Guard refresh ยังไม่พร้อม',
+          error
+        );
+      }
+    }
   }
 
   function bindEvents() {
@@ -243,6 +334,7 @@
   function observeCards() {
     const target =
       document.getElementById('vehicleList') ||
+      document.querySelector('.module-container') ||
       document.body;
 
     if (
@@ -252,9 +344,16 @@
       return;
     }
 
+    if (state.observer) {
+      state.observer.disconnect();
+    }
+
     state.observer =
       new MutationObserver(
-        () => scheduleApply(120)
+        () => {
+          pullWorkflowItems();
+          scheduleApply(60);
+        }
       );
 
     state.observer.observe(
@@ -266,6 +365,7 @@
         attributeFilter: [
           'data-workflow-guard',
           'data-workflow-auto-id',
+          'data-work-queue-group',
           'class',
           'disabled'
         ]
@@ -340,6 +440,11 @@
         card.textContent || ''
       );
 
+    const completeButton =
+      card.querySelector(
+        '[data-receiving-complete-record]'
+      );
+
     /*
      * ถ้า receiving.js ปรับการ์ดเป็นรับสินค้าเสร็จแล้ว
      * ให้ถือว่าเป็นงานติดตามทันที แม้ Workflow Dashboard ยัง refresh ไม่ทัน
@@ -356,6 +461,27 @@
     }
 
     if (status === 'DOCUMENT_SUBMITTED') {
+      return 'ACTION';
+    }
+
+    /*
+     * Fallback ตอนเปิดหน้าใหม่:
+     * บางครั้ง guard/dashboard ยังโหลดไม่เสร็จ แต่การ์ดถูกวาดแล้ว
+     * ให้ใช้ปุ่มและข้อความบนการ์ดช่วยจัดหมวดก่อน เพื่อไม่ให้ตัวเลขเป็น 0
+     * แล้ว guard จะปรับความถูกต้องซ้ำทันทีเมื่อข้อมูลมาครบ
+     */
+    if (
+      completeButton &&
+      completeButton.disabled !== true &&
+      completeButton.getAttribute('aria-disabled') !== 'true'
+    ) {
+      return 'ACTION';
+    }
+
+    if (
+      textValue.includes('รอรับสินค้าเสร็จ') &&
+      !textValue.includes('รอ INBOUND')
+    ) {
       return 'ACTION';
     }
 
@@ -783,6 +909,12 @@
     if (state.applyTimer) {
       window.clearTimeout(
         state.applyTimer
+      );
+    }
+
+    if (state.bootTimer) {
+      window.clearInterval(
+        state.bootTimer
       );
     }
 
