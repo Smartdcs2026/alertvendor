@@ -1,6 +1,7 @@
 /**
  * dashboard.js
  * ROUND 30 — Executive Control Room Dashboard
+ * HOTFIX 13 — Auth Role Guard
  */
 (function (window, document) {
   'use strict';
@@ -128,6 +129,18 @@
         !state.session ||
         !state.session.authenticated
       ) {
+        redirectToLogin();
+        return;
+      }
+
+      const dashboardRole = getDashboardSessionRole(state.session);
+
+      if (dashboardRole === 'INBOUND') {
+        redirectToInbound();
+        return;
+      }
+
+      if (dashboardRole !== 'ADMIN' && dashboardRole !== 'USER') {
         redirectToLogin();
         return;
       }
@@ -4087,6 +4100,27 @@
         ].includes(error.code)
       )
     );
+  }
+
+
+  function getDashboardSessionUser(session) {
+    if (session && session.user && typeof session.user === 'object') {
+      return session.user;
+    }
+
+    return session || {};
+  }
+
+  function getDashboardSessionRole(session) {
+    return String(
+      getDashboardSessionUser(session).role || 'USER'
+    )
+      .trim()
+      .toUpperCase();
+  }
+
+  function redirectToInbound() {
+    window.location.replace('../inbound.html');
   }
 
   function redirectToLogin() {
