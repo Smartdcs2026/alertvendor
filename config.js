@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 05 HOTFIX 26: Auth Reset Stable
+ * ROUND 05 HOTFIX 27: Canonical Login URL
  */
 (function (window) {
   'use strict';
@@ -18,14 +18,17 @@
     API_BASE:
       String(API_BASE || '').replace(/\/+$/, ''),
 
+    PUBLIC_BASE_URL:
+      'https://smartdcs2026.github.io/alertvendor',
+
     LOGIN_URL:
-      './login.html',
+      'https://smartdcs2026.github.io/alertvendor/login.html',
 
     DASHBOARD_URL:
-      './index.html',
+      'https://smartdcs2026.github.io/alertvendor/index.html',
 
     INBOUND_URL:
-      './inbound.html',
+      'https://smartdcs2026.github.io/alertvendor/inbound.html',
 
     TOKEN_STORAGE_KEY:
       'alertvendor_access_token_v2',
