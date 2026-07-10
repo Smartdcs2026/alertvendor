@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 32 — Canonical Inbound Data Source
+ * ROUND 05 HOTFIX 33 — Inbound Dashboard Limit Fix
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -11,7 +11,7 @@
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
   const INPUT_DEBOUNCE_MS = 45;
   const MIN_CODE_LENGTH = 8;
-  const DASHBOARD_LIMIT = 500;
+  const DASHBOARD_LIMIT = 100;
   const FOCUS_SUPPRESS_MS = 18000;
   const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V10_';
   const DASHBOARD_CACHE_MAX_ITEMS = 800;
@@ -699,7 +699,7 @@
       }
 
       const data = await API.getInboundWorkflowDashboard(state.moduleId, {
-        limit: DASHBOARD_LIMIT,
+        limit: Number(DASHBOARD_LIMIT) || 100,
         cacheBust: Date.now()
       });
 
