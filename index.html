@@ -26,7 +26,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260710-r05-hotfix29-restore-index-route"
+    href="./styles.css?v=20260710-r05-hotfix31-admin-inbound-button"
   >
 
   <script
@@ -35,19 +35,45 @@
   ></script>
 
   <script
-    src="./config.js?v=20260710-r05-hotfix29-restore-index-route"
+    src="./config.js?v=20260710-r05-hotfix31-admin-inbound-button"
     defer
   ></script>
 
   <script
-    src="./api.js?v=20260710-r05-hotfix29-restore-index-route"
+    src="./api.js?v=20260710-r05-hotfix31-admin-inbound-button"
     defer
   ></script>
 
   <script
-    src="./auth.js?v=20260710-r05-hotfix29-restore-index-route"
+    src="./auth.js?v=20260710-r05-hotfix31-admin-inbound-button"
     defer
   ></script>
+
+  <style>
+    /* Round 05 Hotfix 31 - Admin shortcut to Inbound */
+    .button--inbound {
+      color: #065f46;
+      border: 1px solid #99f6e4;
+      background: linear-gradient(135deg, #ecfdf5, #f0fdfa);
+      box-shadow: 0 8px 20px rgba(15, 118, 110, 0.10);
+    }
+
+    .button--inbound:hover {
+      box-shadow: 0 12px 28px rgba(15, 118, 110, 0.16);
+    }
+
+    @media (max-width: 720px) {
+      .header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      #adminInboundButton {
+        order: 2;
+      }
+    }
+  </style>
+
 </head>
 
 <body
@@ -93,6 +119,15 @@
           href="./admin.html"
         >
           จัดการระบบ
+        </a>
+
+        <a
+          id="adminInboundButton"
+          class="button button--inbound button--compact is-hidden"
+          href="https://smartdcs2026.github.io/alertvendor/inbound.html"
+          title="เปิดห้อง Inbound สำหรับผู้ดูแลระบบ"
+        >
+          ห้อง Inbound
         </a>
 
         <button
