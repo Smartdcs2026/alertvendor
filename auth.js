@@ -3,7 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
- * ROUND 03: เพิ่มการนำทางสำหรับสิทธิ์ INBOUND ไปหน้า inbound.html
+ * ROUND 05 HOTFIX 12: Persistent token + redirect แก้เปิดผ่านลิงก์แล้วค้างตรวจ Session
  */
 (function (
   window,
@@ -98,9 +98,13 @@
     }
 
     /*
-     * ถ้ามี Session อยู่แล้ว
-     * ให้เข้าสู่หน้าหลักโดยไม่ต้อง Login ซ้ำ
+     * ถ้ามี Token อยู่แล้วจึงตรวจ Session
+     * ถ้าไม่มี Token ไม่ต้องยิง API เพื่อเลี่ยงค้างที่หน้า Login/Index
      */
+    if (!API.hasSession || !API.hasSession()) {
+      return;
+    }
+
     try {
       const session =
         await API.me();
@@ -374,6 +378,11 @@
     );
 
     try {
+      if (API.hasSession && !API.hasSession()) {
+        redirectToLogin();
+        return;
+      }
+
       const session =
         await API.me();
 
@@ -428,22 +437,9 @@
           error
         )
       ) {
-        await Swal.fire({
-          icon:
-            'warning',
-
-          title:
-            'กรุณาเข้าสู่ระบบ',
-
-          text:
-            'Session หมดอายุหรือยังไม่ได้เข้าสู่ระบบ',
-
-          confirmButtonText:
-            'ไปหน้าเข้าสู่ระบบ',
-
-          allowOutsideClick:
-            false
-        });
+        if (API.clearSession) {
+          API.clearSession();
+        }
 
         redirectToLogin();
         return;
