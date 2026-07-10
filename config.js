@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 04: เพิ่มค่าใช้งานหน้า Inbound Scanner
+ * ROUND 05 HOTFIX 12: เพิ่ม TOKEN_STORAGE_KEY และใช้งาน Persistent Token
  */
 (function (window) {
   'use strict';
@@ -27,23 +27,14 @@
     INBOUND_URL:
       './inbound.html',
 
-    INBOUND_DEFAULT_MODULE_ID:
-      '',
+    TOKEN_STORAGE_KEY:
+      'alertvendor_access_token',
 
     API_TIMEOUT_MS:
       60000,
 
     AUTH_TIMEOUT_MS:
       45000,
-
-    SAVE_TIMEOUT_MS:
-      90000,
-
-    INBOUND_LOOKUP_TIMEOUT_MS:
-      60000,
-
-    INBOUND_SAVE_TIMEOUT_MS:
-      90000,
 
     TIMEZONE:
       'Asia/Bangkok',
