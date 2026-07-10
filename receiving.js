@@ -1,7 +1,7 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
- * ROUND 05 — Sync รับสินค้าเสร็จเข้า Inbound Workflow
+ * ROUND 06 PART 09 — Sync รับสินค้าเสร็จเข้า Inbound Workflow ด้วย Auto ID จริง
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
@@ -225,24 +225,68 @@
       return;
     }
 
+    const workflowIdentity =
+      resolveReceivingWorkflowIdentity(
+        item
+      );
+
+    const syncAutoId =
+      workflowIdentity.autoId || '';
+
     try {
       await API.completeInboundWorkflowReceiving(
         state.moduleId,
         {
+          /*
+           * Round 06 Part 09:
+           * ห้ามใช้ recordId เป็น entryCode หลักอีกต่อไป
+           * เพราะ recordId ของหน้า Module อาจเป็นเลขนัดหมาย/รหัสแถว
+           * ไม่ใช่ Auto ID จริงของ Gate In
+           */
           entryCode:
+            syncAutoId ||
+            item.entryCode ||
             item.recordId,
+
+          autoId:
+            syncAutoId,
+
+          qrText:
+            syncAutoId ||
+            item.qrText ||
+            item.recordId,
+
           recordId:
             item.recordId,
+
           sourceRowNumber:
             item.sourceRowNumber,
+
           expectedTimestampIn:
             item.expectedTimestampIn ||
             item.timestampIn,
+
+          expectedTimestampInEpochMs:
+            item.expectedTimestampInEpochMs ||
+            item.timestampInEpochMs,
+
           expectedPrimaryValue:
             item.expectedPrimaryValue ||
             item.primaryValue,
+
+          appointmentNumber:
+            workflowIdentity.appointmentNumber ||
+            '',
+
+          registration:
+            workflowIdentity.registration ||
+            '',
+
           note:
-            'Sync จากปุ่มรับสินค้าเสร็จหน้า Module',
+            syncAutoId
+              ? 'Sync จากปุ่มรับสินค้าเสร็จหน้า Module ด้วย Auto ID ' + syncAutoId
+              : 'Sync จากปุ่มรับสินค้าเสร็จหน้า Module',
+
           clientRequestId:
             result &&
             result.requestId
@@ -270,12 +314,333 @@
         await window.Swal.fire({
           icon: 'warning',
           title: 'บันทึกรับสินค้าเสร็จแล้ว แต่ยัง Sync Workflow ไม่ครบ',
-          text: error.message || String(error),
+          text:
+            syncAutoId
+              ? (
+                  'Auto ID: ' +
+                  syncAutoId +
+                  ' · ' +
+                  (error.message || String(error))
+                )
+              : (
+                  'ยังหา Auto ID จริงไม่ได้ · ' +
+                  (error.message || String(error))
+                ),
           confirmButtonText: 'รับทราบ'
         });
       }
     }
   }
+
+  function resolveReceivingWorkflowIdentity(
+    item
+  ) {
+    const source =
+      item &&
+      typeof item === 'object'
+        ? item
+        : {};
+
+    const directAutoId =
+      findAutoIdCandidate([
+        source.autoId,
+        source.entryCode,
+        source.qrText,
+        source.workflowAutoId,
+        source.inboundAutoId,
+        source.expectedAutoId
+      ]);
+
+    if (directAutoId) {
+      return {
+        autoId: directAutoId,
+        appointmentNumber:
+          text(source.appointmentNumber || ''),
+        registration:
+          text(source.registration || '')
+      };
+    }
+
+    const fromGuard =
+      lookupWorkflowGuardIdentity(
+        source
+      );
+
+    if (fromGuard.autoId) {
+      return fromGuard;
+    }
+
+    const fromDom =
+      lookupWorkflowIdentityFromDom(
+        source
+      );
+
+    if (fromDom.autoId) {
+      return fromDom;
+    }
+
+    const fromFields =
+      lookupWorkflowIdentityFromFields(
+        source
+      );
+
+    if (fromFields.autoId) {
+      return fromFields;
+    }
+
+    return {
+      autoId: '',
+      appointmentNumber: '',
+      registration: ''
+    };
+  }
+
+  function lookupWorkflowGuardIdentity(
+    item
+  ) {
+    const guard =
+      window.AlertVendorWorkflowGuard;
+
+    if (
+      guard &&
+      typeof guard.getIdentityForRecord ===
+        'function'
+    ) {
+      const identity =
+        guard.getIdentityForRecord(
+          item.recordId ||
+          item.sourceRowNumber ||
+          item.primaryValue ||
+          ''
+        );
+
+      if (
+        identity &&
+        identity.autoId
+      ) {
+        return {
+          autoId:
+            findAutoIdCandidate([
+              identity.autoId
+            ]),
+          appointmentNumber:
+            text(
+              identity.appointmentNumber ||
+              ''
+            ),
+          registration:
+            text(
+              identity.registration ||
+              ''
+            )
+        };
+      }
+    }
+
+    if (
+      guard &&
+      typeof guard.getAutoIdForRecord ===
+        'function'
+    ) {
+      const autoId =
+        findAutoIdCandidate([
+          guard.getAutoIdForRecord(
+            item.recordId ||
+            item.sourceRowNumber ||
+            item.primaryValue ||
+            ''
+          )
+        ]);
+
+      if (autoId) {
+        return {
+          autoId,
+          appointmentNumber: '',
+          registration: ''
+        };
+      }
+    }
+
+    return {
+      autoId: '',
+      appointmentNumber: '',
+      registration: ''
+    };
+  }
+
+  function lookupWorkflowIdentityFromDom(
+    item
+  ) {
+    const recordId =
+      String(
+        item.recordId ||
+        ''
+      ).trim();
+
+    const candidates = [];
+
+    if (recordId) {
+      candidates.push(
+        '.vehicle-card[data-record-id="' +
+        cssEscape(recordId) +
+        '"]'
+      );
+
+      candidates.push(
+        '[data-receiving-complete-record="' +
+        cssEscape(recordId) +
+        '"]'
+      );
+    }
+
+    for (
+      let index = 0;
+      index < candidates.length;
+      index += 1
+    ) {
+      const node =
+        document.querySelector(
+          candidates[index]
+        );
+
+      if (!node) continue;
+
+      const card =
+        node.closest &&
+        (
+          node.closest(
+            '.vehicle-card[data-record-id]'
+          ) ||
+          node
+        );
+
+      const autoId =
+        findAutoIdCandidate([
+          node.dataset && node.dataset.workflowAutoId,
+          node.dataset && node.dataset.autoId,
+          card && card.dataset && card.dataset.workflowAutoId,
+          card && card.dataset && card.dataset.autoId,
+          node.textContent,
+          card && card.textContent
+        ]);
+
+      if (autoId) {
+        return {
+          autoId,
+          appointmentNumber:
+            text(
+              (node.dataset && node.dataset.workflowAppointment) ||
+              (card && card.dataset && card.dataset.workflowAppointment) ||
+              ''
+            ),
+          registration:
+            text(
+              (node.dataset && node.dataset.workflowRegistration) ||
+              (card && card.dataset && card.dataset.workflowRegistration) ||
+              ''
+            )
+        };
+      }
+    }
+
+    return {
+      autoId: '',
+      appointmentNumber: '',
+      registration: ''
+    };
+  }
+
+  function lookupWorkflowIdentityFromFields(
+    item
+  ) {
+    const fields =
+      Array.isArray(
+        item && item.fields
+      )
+        ? item.fields
+        : [];
+
+    const joined =
+      fields
+        .map((field) => {
+          if (
+            field &&
+            typeof field === 'object'
+          ) {
+            return [
+              field.label,
+              field.name,
+              field.key,
+              field.value,
+              field.displayValue
+            ].join(' ');
+          }
+
+          return String(field || '');
+        })
+        .join(' ');
+
+    return {
+      autoId:
+        findAutoIdCandidate([
+          joined
+        ]),
+      appointmentNumber: '',
+      registration: ''
+    };
+  }
+
+  function findAutoIdCandidate(
+    values
+  ) {
+    const list =
+      Array.isArray(values)
+        ? values
+        : [values];
+
+    for (
+      let index = 0;
+      index < list.length;
+      index += 1
+    ) {
+      const value =
+        String(
+          list[index] ||
+          ''
+        ).trim();
+
+      if (!value) continue;
+
+      const direct =
+        value.match(
+          /\bSK\d{6,20}\b/i
+        );
+
+      if (direct) {
+        return direct[0]
+          .toUpperCase();
+      }
+    }
+
+    return '';
+  }
+
+  function cssEscape(value) {
+    if (
+      window.CSS &&
+      typeof window.CSS.escape ===
+        'function'
+    ) {
+      return window.CSS.escape(
+        String(value || '')
+      );
+    }
+
+    return String(value || '')
+      .replace(/"/g, '\\22 ')
+      .replace(/'/g, '\\27 ');
+  }
+
 
   async function loadReceivingFlow(options) {
     if (
@@ -2766,6 +3131,16 @@
       'online',
       handleReceivingOnline
     );
+  }
+
+
+  function text(value) {
+    return String(
+      value === undefined ||
+      value === null
+        ? ''
+        : value
+    ).trim();
   }
 
 })(window, document);
