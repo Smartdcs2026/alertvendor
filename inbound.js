@@ -1,14 +1,14 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 13 — Inbound Role Guard + Isolated Session compatible
+ * ROUND 05 HOTFIX 20 — Duplicate Scan Guard + Stage Idempotent UI
  ************************************************************/
 (function (window, document) {
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
-  const DUPLICATE_BLOCK_MS = 15000;
-  const HARD_BLOCK_AFTER_SAVE_MS = 22000;
+  const DUPLICATE_BLOCK_MS = 45000;
+  const HARD_BLOCK_AFTER_SAVE_MS = 120000;
   const INPUT_DEBOUNCE_MS = 35;
   const MIN_CODE_LENGTH = 8;
   const DASHBOARD_LIMIT = 500;
@@ -30,6 +30,7 @@
     statusFilter: 'ALL',
     inFlightCodes: new Set(),
     recentCodes: new Map(),
+    recentDuplicateNotices: new Map(),
     audioContext: null,
     audioUnlocked: false,
     suppressFocusUntil: 0,
@@ -354,7 +355,7 @@
 
     if (isDuplicateBlocked(cleanCode)) {
       beep('duplicate');
-      setScanMessage('กันการสแกนซ้ำ: ' + cleanCode, 'WARN');
+      setScanMessage('กันสแกนซ้ำ ไม่ยิงข้อมูลซ้ำ: ' + cleanCode, 'WARN');
       resetForNextScan();
       return;
     }
@@ -422,8 +423,15 @@
     upsertDashboardItemFromLookup(updated);
     renderDashboard();
     blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
-    beep('success');
-    setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + autoId, 'SUCCESS');
+
+    if (result && (result.duplicateStage || result.noWrite)) {
+      beep('duplicate');
+      setScanMessage(result.message || 'รายการนี้ยื่นเอกสารแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId, 'WARN');
+    } else {
+      beep('success');
+      setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + autoId, 'SUCCESS');
+    }
+
     void loadWorkflowDashboard(true);
   }
 
@@ -443,8 +451,15 @@
     upsertDashboardItemFromLookup(updated);
     renderDashboard();
     blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
-    beep('success');
-    setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + autoId, 'SUCCESS');
+
+    if (result && (result.duplicateStage || result.noWrite)) {
+      beep('duplicate');
+      setScanMessage(result.message || 'รายการนี้รับเอกสารคืนแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId, 'WARN');
+    } else {
+      beep('success');
+      setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + autoId, 'SUCCESS');
+    }
+
     void loadWorkflowDashboard(true);
   }
 
@@ -462,7 +477,7 @@
     }
 
     if (workflow.documentSubmittedAt && !workflow.receivingCompletedAt) {
-      return {type: 'NONE', level: 'WARN', message: 'รายการนี้ยื่นเอกสารแล้ว รอ User/Admin กดรับสินค้าเสร็จ: ' + record.autoId};
+      return {type: 'NONE', level: 'WARN', message: 'รายการนี้ยื่นเอกสารแล้ว ไม่บันทึกซ้ำ · รอ User/Admin กดรับสินค้าเสร็จ: ' + record.autoId};
     }
 
     if (workflow.receivingCompletedAt && !workflow.documentReturnedAt && status === 'RECEIVING_COMPLETED') {
@@ -470,7 +485,7 @@
     }
 
     if (workflow.documentReturnedAt || status === 'DOCUMENT_RETURNED') {
-      return {type: 'NONE', level: 'SUCCESS', message: 'รายการนี้รับเอกสารคืนแล้ว รอ Gate Out: ' + record.autoId};
+      return {type: 'NONE', level: 'SUCCESS', message: 'รายการนี้รับเอกสารคืนแล้ว ไม่บันทึกซ้ำ · รอ Gate Out: ' + record.autoId};
     }
 
     return {type: 'NONE', level: 'WARN', message: workflow.nextStepText || 'สถานะนี้ยังไม่พร้อมบันทึกขั้นตอนถัดไป'};
