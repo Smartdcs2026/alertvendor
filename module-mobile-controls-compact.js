@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-controls-compact.js
- * ROUND 06 PART 09.1E — Mobile Compact Search/Filter Drawer
+ * ROUND 06 PART 09.1G — Mobile Compact Search/Filter Drawer
  *
  * ลดพื้นที่ Search / Status / Sort / Calendar บนมือถือ
  ************************************************************/
