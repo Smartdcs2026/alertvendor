@@ -1,6 +1,6 @@
 /**
  * api.js
- * ROUND 05 HOTFIX 26 — Stable Auth Reset + SessionStorage v2
+ * ROUND 05 HOTFIX 28 — Stable Auth Reset + SessionStorage v2
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
