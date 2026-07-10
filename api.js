@@ -1,6 +1,6 @@
 /**
  * api.js
- * ROUND 05 HOTFIX 13 — Auth Role Guard + Isolated Session
+ * ROUND 05 HOTFIX 25 — Auth Role Guard + Cross Window Session Reset
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -191,6 +191,131 @@
       window.sessionStorage
     );
   }
+
+  /************************************************************
+   * Cross-window session reset signal
+   *
+   * ใช้ localStorage เป็นสัญญาณเท่านั้น ไม่เก็บ Token
+   * เมื่อมีการ Login/Logout ในอีกแท็บหรือ PWA ให้แท็บเก่าเคลียร์ sessionStorage
+   * เพื่อกันกรณีผู้ใช้ Login ADMIN แล้วแท็บ Inbound เดิมยังถือ Token INBOUND อยู่
+   ************************************************************/
+
+  const SESSION_BROADCAST_KEY =
+    TOKEN_STORAGE_KEY + '_session_signal';
+
+  const CLIENT_INSTANCE_ID =
+    (
+      Date.now().toString(36) +
+      '-' +
+      Math.random().toString(36).slice(2, 10)
+    );
+
+  function broadcastSessionSignal(
+    action,
+    data
+  ) {
+    try {
+      if (!window.localStorage) {
+        return;
+      }
+
+      window.localStorage.setItem(
+        SESSION_BROADCAST_KEY,
+        JSON.stringify({
+          action:
+            String(action || '').toUpperCase(),
+
+          sender:
+            CLIENT_INSTANCE_ID,
+
+          at:
+            Date.now(),
+
+          username:
+            data &&
+            data.user &&
+            data.user.username
+              ? String(data.user.username)
+              : '',
+
+          role:
+            data &&
+            data.user &&
+            data.user.role
+              ? String(data.user.role)
+              : ''
+        })
+      );
+
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  function handleExternalSessionSignal(
+    event
+  ) {
+    try {
+      if (
+        !event ||
+        event.key !== SESSION_BROADCAST_KEY ||
+        !event.newValue
+      ) {
+        return;
+      }
+
+      const payload =
+        JSON.parse(event.newValue);
+
+      if (
+        !payload ||
+        payload.sender === CLIENT_INSTANCE_ID
+      ) {
+        return;
+      }
+
+      const action =
+        String(payload.action || '').toUpperCase();
+
+      if (
+        action !== 'LOGIN' &&
+        action !== 'LOGOUT'
+      ) {
+        return;
+      }
+
+      /*
+       * มี Login/Logout จากหน้าต่างอื่น:
+       * เคลียร์ token ของหน้าต่างนี้ทันที เพื่อไม่ให้ ADMIN/INBOUND ปะปนกัน
+       */
+      clearAccessToken();
+
+      const path =
+        String(window.location.pathname || '').toLowerCase();
+
+      if (path.indexOf('login') >= 0) {
+        return;
+      }
+
+      window.setTimeout(
+        function () {
+          window.location.replace(
+            CONFIG.LOGIN_URL ||
+            './login.html'
+          );
+        },
+        80
+      );
+
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  window.addEventListener(
+    'storage',
+    handleExternalSessionSignal
+  );
 
   /*
    * ล้าง Token legacy ใน localStorage ทันทีที่โหลด api.js
@@ -891,6 +1016,11 @@
           data
         );
 
+      broadcastSessionSignal(
+        'LOGIN',
+        data
+      );
+
       if (!token) {
         throw new VehicleAPIError(
           'ระบบเข้าสู่ระบบสำเร็จ แต่ไม่ได้รับ Session Token',
@@ -941,6 +1071,10 @@
          * Logout ฝั่ง Client ต้องลบ Token เสมอ
          */
         clearAccessToken();
+        broadcastSessionSignal(
+          'LOGOUT',
+          {}
+        );
       }
     },
 
