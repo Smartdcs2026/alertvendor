@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 22 — Responsive Camera Restore + Hardware Scanner Buffer Fix
+ * ROUND 05 HOTFIX 23 — Restore Native Scanner Input + Safe Global Capture
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -9,7 +9,7 @@
   const API = window.VehicleAPI;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
-  const INPUT_DEBOUNCE_MS = 35;
+  const INPUT_DEBOUNCE_MS = 45;
   const MIN_CODE_LENGTH = 8;
   const DASHBOARD_LIMIT = 500;
   const FOCUS_SUPPRESS_MS = 18000;
@@ -137,21 +137,28 @@
       input.addEventListener('click', unlockAudio);
       input.addEventListener('keydown', (event) => {
         unlockAudio();
-        if (event.key === 'Enter') {
+
+        /*
+         * เครื่องสแกนส่วนใหญ่ทำงานเหมือน keyboard:
+         * ยิงตัวอักษรเข้าช่องกรอก แล้วปิดท้ายด้วย Enter หรือ Tab
+         * ดังนั้นถ้า focus อยู่ในช่อง Auto ID ให้ปล่อยให้ browser ใส่ข้อมูลเอง
+         * และประมวลผลตอน Enter/Tab หรือ input debounce
+         */
+        if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault();
+          window.clearTimeout(state.inputTimer);
           const code = getEntryCode();
-          if (code) void processCode(code, {source: 'KEYBOARD_ENTER', rawText: code});
+          if (code) void processCode(code, {source: 'KEYBOARD_SCANNER_TERMINATOR', rawText: code});
         }
       });
+
       input.addEventListener('input', () => {
         unlockAudio();
-        state.hardwareScanBuffer = String(input.value || '');
         window.clearTimeout(state.inputTimer);
         state.inputTimer = window.setTimeout(() => {
           const code = getEntryCode();
           if (looksLikeCompleteCode(code)) {
-            state.hardwareScanBuffer = '';
-            void processCode(code, {source: 'KEYBOARD_SCAN', rawText: code});
+            void processCode(code, {source: 'KEYBOARD_SCAN_NATIVE_INPUT', rawText: code});
           }
         }, INPUT_DEBOUNCE_MS);
       });
@@ -161,7 +168,6 @@
         window.setTimeout(() => {
           const code = getEntryCode();
           if (looksLikeCompleteCode(code)) {
-            state.hardwareScanBuffer = '';
             void processCode(code, {source: 'HARDWARE_SCANNER_PASTE', rawText: code});
           }
         }, 20);
@@ -1199,6 +1205,8 @@
   function clearInput() {
     state.hardwareScanBuffer = '';
     window.clearTimeout(state.hardwareScanTimer);
+    state.hardwareScanBuffer = '';
+    window.clearTimeout(state.hardwareScanTimer);
     const input = byId('entryCodeInput');
     if (input) input.value = '';
   }
@@ -1213,11 +1221,10 @@
     state.hardwareScannerBound = true;
 
     /*
-     * รองรับกล่องสแกน QR/Barcode แบบ Keyboard Wedge
-     * หลักใหม่:
-     * - จับตัวอักษรที่ระดับ document ก่อน เพื่อไม่พึ่ง focus อย่างเดียว
-     * - ถ้า focus อยู่ช่อง Auto ID ก็ยังรับเอง ไม่ปล่อยให้ browser แทรกจังหวะผิด
-     * - ถ้า focus อยู่ช่องค้นหา / select / SweetAlert จะไม่แย่งค่า
+     * Hotfix 23:
+     * - ถ้า focus อยู่ในช่อง Auto ID ให้ browser กรอกค่าตามปกติ ห้าม preventDefault
+     * - Global capture ใช้เฉพาะกรณี focus หลุดไปที่ body/พื้นที่ว่าง เพื่อรับเครื่องสแกนที่ยิงนอกช่อง
+     * - ไม่แย่งค่าจากช่องค้นหา, select, textarea, SweetAlert
      */
     document.addEventListener('keydown', (event) => {
       if (!shouldCaptureHardwareKey(event)) return;
@@ -1235,20 +1242,15 @@
         event.stopPropagation();
 
         window.clearTimeout(state.hardwareScanTimer);
-
-        const code = normalizeCode(
-          state.hardwareScanBuffer ||
-          input.value ||
-          ''
-        );
+        const code = normalizeCode(state.hardwareScanBuffer || input.value || '');
 
         state.hardwareScanBuffer = '';
         state.keyboardCaptureActive = false;
 
         if (code) {
-          setEntryCodeInput(code);
+          setEntryCodeInput(code, {focus: true});
           void processCode(code, {
-            source: 'HARDWARE_SCANNER_ENTER',
+            source: 'HARDWARE_SCANNER_GLOBAL_ENTER',
             rawText: code
           });
         }
@@ -1262,27 +1264,22 @@
 
         state.keyboardCaptureActive = true;
         state.hardwareScanBuffer += key;
-        setEntryCodeInput(state.hardwareScanBuffer);
+        setEntryCodeInput(state.hardwareScanBuffer, {focus: true});
 
         window.clearTimeout(state.hardwareScanTimer);
         state.hardwareScanTimer = window.setTimeout(() => {
-          const code = normalizeCode(
-            state.hardwareScanBuffer ||
-            input.value ||
-            ''
-          );
-
+          const code = normalizeCode(state.hardwareScanBuffer || input.value || '');
           state.hardwareScanBuffer = '';
           state.keyboardCaptureActive = false;
 
           if (looksLikeCompleteCode(code)) {
-            setEntryCodeInput(code);
+            setEntryCodeInput(code, {focus: true});
             void processCode(code, {
-              source: 'HARDWARE_SCANNER_AUTO',
+              source: 'HARDWARE_SCANNER_GLOBAL_AUTO',
               rawText: code
             });
           }
-        }, 80);
+        }, 90);
       }
     }, true);
 
@@ -1304,9 +1301,9 @@
       event.stopPropagation();
 
       state.hardwareScanBuffer = '';
-      setEntryCodeInput(code);
+      setEntryCodeInput(code, {focus: true});
       void processCode(code, {
-        source: 'HARDWARE_SCANNER_PASTE',
+        source: 'HARDWARE_SCANNER_GLOBAL_PASTE',
         rawText: code
       });
     }, true);
@@ -1322,17 +1319,19 @@
     const active = document.activeElement;
     const input = byId('entryCodeInput');
 
+    /*
+     * จุดสำคัญ:
+     * ถ้า focus อยู่ในช่อง Auto ID อยู่แล้ว ให้ปล่อยให้ช่องรับค่าตามปกติ
+     * นี่คือพฤติกรรมที่กล่องสแกนใช้งานได้ในรอบแรก ๆ
+     */
+    if (active === input) return false;
+
     if (active) {
       const tag = String(active.tagName || '').toUpperCase();
-
       if (active.closest && active.closest('.swal2-container')) return false;
       if (active.id === 'workflowSearchInput') return false;
       if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
-
-      /*
-       * ถ้าเป็น input อื่นที่ไม่ใช่ช่อง Auto ID อย่าแย่งค่า
-       */
-      if (tag === 'INPUT' && active !== input) return false;
+      if (tag === 'INPUT') return false;
     }
 
     return true;
@@ -1342,24 +1341,30 @@
     const active = document.activeElement;
     const input = byId('entryCodeInput');
 
+    /*
+     * ถ้า paste ลงช่อง Auto ID โดยตรง ให้ input handler ทำงานเอง
+     */
+    if (active === input) return false;
+
     if (active) {
       const tag = String(active.tagName || '').toUpperCase();
       if (active.closest && active.closest('.swal2-container')) return false;
       if (active.id === 'workflowSearchInput') return false;
       if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
-      if (tag === 'INPUT' && active !== input) return false;
+      if (tag === 'INPUT') return false;
     }
 
     return true;
   }
 
-  function setEntryCodeInput(value) {
+  function setEntryCodeInput(value, options) {
     const input = byId('entryCodeInput');
     if (!input) return;
 
     input.value = String(value || '');
 
-    if (document.activeElement !== input) {
+    const config = options && typeof options === 'object' ? options : {};
+    if (config.focus !== false && document.activeElement !== input) {
       try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
     }
 
@@ -1404,18 +1409,17 @@
     if (!shouldFocusCodeInput(force)) return;
     const input = byId('entryCodeInput');
     if (!input || input.disabled) return;
+
     try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
 
     /*
-     * ห้าม select ทุกครั้ง เพราะเครื่องสแกนแบบ Keyboard Wedge ยิงตัวอักษรเร็วมาก
-     * ถ้า focus/select แทรกระหว่างยิงรหัส จะทำให้ข้อมูลหายหรือช่องกรอกไม่รับค่า
+     * ห้าม select() อัตโนมัติ
+     * เพราะกล่องสแกนยิงรหัสเร็วมาก ถ้า select แทรกกลางจังหวะจะทำให้ข้อมูลหายหรือไม่เข้า
      */
-    if (force === true && !state.keyboardCaptureActive) {
-      try {
-        const length = String(input.value || '').length;
-        input.setSelectionRange(length, length);
-      } catch (error) {}
-    }
+    try {
+      const cursor = String(input.value || '').length;
+      input.setSelectionRange(cursor, cursor);
+    } catch (error) {}
   }
 
   function looksLikeCompleteCode(code) {
