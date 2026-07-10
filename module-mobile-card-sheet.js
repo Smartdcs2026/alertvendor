@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-card-sheet-v2.js
- * ROUND 06 PART 09.1D — Mobile Card Visible Fix
+ * ROUND 06 PART 09.1E — Mobile Card Visible + Clear Workflow Terms
  *
  * แก้เฉพาะ:
  * - มือถือขึ้นการ์ดเปล่า
@@ -273,7 +273,7 @@
       group === 'ACTION'
         ? 'ต้องทำ'
         : group === 'WAIT_INBOUND'
-          ? 'รอ Inbound'
+          ? 'รอยื่นเอกสาร'
           : group === 'TRACKING'
             ? 'ติดตาม'
             : (
@@ -509,6 +509,12 @@
         '[data-receiving-copy-card]'
       );
 
+    const group =
+      String(
+        card.dataset.workQueueGroup ||
+        ''
+      ).toUpperCase();
+
     const out = [];
 
     if (
@@ -520,8 +526,21 @@
         '<button type="button" class="mobile-v2-primary" data-mobile-v2-action="receive">บันทึกรับสินค้าเสร็จ</button>'
       );
     } else {
+      let passiveText =
+        'สถานะนี้ยังไม่มีปุ่มหลักที่ต้องกด';
+
+      if (group === 'WAIT_INBOUND') {
+        passiveText =
+          'ยังไม่ถึงขั้นตอนรับสินค้า: รอคนขับยื่นเอกสารที่ห้อง Inbound';
+      } else if (group === 'TRACKING') {
+        passiveText =
+          'คลังรับสินค้าเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound หรือออก Gate Out';
+      }
+
       out.push(
-        '<div class="mobile-v2-state">ยังไม่มีปุ่มหลักที่ต้องทำในสถานะนี้</div>'
+        '<div class="mobile-v2-state">' +
+        escapeHtml(passiveText) +
+        '</div>'
       );
     }
 
