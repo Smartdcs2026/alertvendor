@@ -7,212 +7,14 @@
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix18-balanced-topbar">
+  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix19-rollback-stable-layout">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260709-r05" defer></script>
   <script src="./api.js?v=20260709-r05" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260709-r05-hotfix18-balanced-topbar" defer></script>
-  <script src="./inbound.js?v=20260709-r05-hotfix18-balanced-topbar" defer></script>
-
-  <style>
-    /* Round 05 Hotfix 18 - Balanced top data bar */
-    .inbound-shell { gap: 10px !important; }
-    .inbound-topbar {
-      display: grid !important;
-      grid-template-columns: minmax(220px, 0.95fr) minmax(430px, 1.7fr) minmax(260px, 1.05fr) minmax(240px, 0.95fr) !important;
-      align-items: center !important;
-      gap: 10px !important;
-      padding: 10px 14px !important;
-      min-height: 78px !important;
-      border-radius: 20px !important;
-    }
-    .inbound-brand {
-      min-width: 0 !important;
-      padding-right: 4px !important;
-    }
-    .inbound-brand small {
-      display: block !important;
-      margin: 0 0 4px !important;
-      font-size: 10px !important;
-      line-height: 1 !important;
-      letter-spacing: .10em !important;
-      color: #7be7ea !important;
-    }
-    .inbound-brand h1 {
-      margin: 0 !important;
-      font-size: 34px !important;
-      line-height: .95 !important;
-      white-space: nowrap !important;
-    }
-    .inbound-brand p {
-      margin: 4px 0 0 !important;
-      font-size: 11px !important;
-      line-height: 1.2 !important;
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      opacity: .92 !important;
-    }
-
-    .status-strip {
-      min-width: 0 !important;
-      display: grid !important;
-      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-      gap: 8px !important;
-      align-items: stretch !important;
-    }
-    .status-strip button {
-      min-width: 0 !important;
-      min-height: 54px !important;
-      padding: 7px 8px !important;
-      border-radius: 14px !important;
-      display: grid !important;
-      align-content: center !important;
-      justify-items: center !important;
-    }
-    .status-strip button span {
-      display: block !important;
-      max-width: 100% !important;
-      font-size: 10px !important;
-      line-height: 1.05 !important;
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-    }
-    .status-strip button strong {
-      display: block !important;
-      margin-top: 3px !important;
-      font-size: 22px !important;
-      line-height: 1 !important;
-    }
-
-    .topbar-module-tools {
-      min-width: 0 !important;
-      display: grid !important;
-      grid-template-columns: minmax(0, 1fr) 40px 40px !important;
-      align-items: center !important;
-      gap: 8px !important;
-      padding: 8px 10px !important;
-      border: 1px solid rgba(129, 224, 229, .32) !important;
-      border-radius: 16px !important;
-      background: rgba(255,255,255,.06) !important;
-    }
-    .topbar-module-tools select {
-      width: 100% !important;
-      height: 40px !important;
-      min-height: 40px !important;
-      border: 1px solid rgba(182, 226, 237, .42) !important;
-      border-radius: 12px !important;
-      padding: 6px 32px 6px 12px !important;
-      color: #08324d !important;
-      background: rgba(255,255,255,.98) !important;
-      font-size: 14px !important;
-      font-weight: 800 !important;
-      box-shadow: none !important;
-    }
-    .topbar-module-tools button {
-      width: 40px !important;
-      min-width: 40px !important;
-      height: 40px !important;
-      min-height: 40px !important;
-      border-radius: 12px !important;
-      border: 1px solid rgba(182, 226, 237, .35) !important;
-      background: rgba(255,255,255,.10) !important;
-      color: #ffffff !important;
-      padding: 0 !important;
-      font-size: 0 !important;
-      display: inline-grid !important;
-      place-items: center !important;
-      box-shadow: none !important;
-    }
-    .topbar-module-tools button::before {
-      display: block !important;
-      font-size: 18px !important;
-      line-height: 1 !important;
-    }
-    .topbar-module-tools #inboundRefreshButton::before { content: '↻'; }
-    .topbar-module-tools #inboundLogoutButton {
-      border-color: rgba(255, 197, 197, .45) !important;
-      background: rgba(255, 99, 99, .14) !important;
-    }
-    .topbar-module-tools #inboundLogoutButton::before { content: '⎋'; }
-
-    .inbound-user-card {
-      min-width: 0 !important;
-      justify-self: stretch !important;
-      align-self: stretch !important;
-      display: grid !important;
-      align-content: center !important;
-      justify-items: end !important;
-      gap: 2px !important;
-      padding: 8px 12px !important;
-      border-radius: 16px !important;
-      background: rgba(255,255,255,.05) !important;
-    }
-    .inbound-user-card span {
-      font-size: 12px !important;
-      line-height: 1 !important;
-    }
-    .inbound-user-card strong {
-      font-size: 18px !important;
-      line-height: 1.08 !important;
-      white-space: nowrap !important;
-    }
-    .inbound-user-card small {
-      font-size: 12px !important;
-      line-height: 1.15 !important;
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      max-width: 100% !important;
-    }
-
-    .inbound-module-bar { display: none !important; }
-    .inbound-workspace { min-height: calc(100vh - 188px) !important; }
-
-    @media (max-width: 1440px) {
-      .inbound-topbar {
-        grid-template-columns: minmax(210px, .95fr) minmax(390px, 1.55fr) minmax(240px, 1fr) minmax(220px, .9fr) !important;
-        gap: 8px !important;
-      }
-      .status-strip button strong { font-size: 20px !important; }
-      .status-strip button span { font-size: 9px !important; }
-      .inbound-brand h1 { font-size: 30px !important; }
-    }
-
-    @media (max-width: 1180px) {
-      .inbound-topbar {
-        grid-template-columns: minmax(220px, 1fr) minmax(320px, 1.2fr) minmax(220px, 1fr) !important;
-        min-height: 0 !important;
-      }
-      .inbound-user-card {
-        grid-column: 3;
-      }
-      .status-strip {
-        grid-column: 1 / -1 !important;
-      }
-      .topbar-module-tools {
-        grid-column: 2;
-      }
-      .inbound-workspace { min-height: calc(100vh - 228px) !important; }
-    }
-
-    @media (max-width: 760px) {
-      .inbound-topbar {
-        grid-template-columns: 1fr !important;
-      }
-      .status-strip {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-      }
-      .topbar-module-tools, .inbound-user-card {
-        grid-column: auto !important;
-      }
-      .inbound-workspace { min-height: auto !important; }
-    }
-  </style>
-
+  <script src="./inbound-scanner.js?v=20260709-r05-hotfix19-rollback-stable-layout" defer></script>
+  <script src="./inbound.js?v=20260709-r05-hotfix19-rollback-stable-layout" defer></script>
 </head>
 
 <body class="inbound-page" data-page="inbound">
@@ -246,15 +48,6 @@
         <button type="button" data-status-filter="CANCELLED">
           <span>ยกเลิก</span><strong id="countCancelled">0</strong>
         </button>
-
-      <div class="topbar-module-tools" aria-label="เลือกโมดูลและคำสั่ง">
-        <select id="inboundModuleSelect" aria-label="เลือกโมดูล">
-          <option value="">กำลังโหลด Module...</option>
-        </select>
-        <button id="inboundRefreshButton" type="button" title="รีเฟรชข้อมูล" aria-label="รีเฟรชข้อมูล">รีเฟรช</button>
-        <button id="inboundLogoutButton" type="button" class="button--logout" title="ออกจากระบบ" aria-label="ออกจากระบบ">ออกจากระบบ</button>
-      </div>
-
       </div>
 
       <div class="inbound-user-card">
@@ -263,7 +56,22 @@
         <small id="inboundUser">-</small>
       </div>
     </header>
-<section class="inbound-workspace">
+
+    <section class="inbound-module-bar" aria-label="เลือกโมดูล">
+      <label>
+        <span>Module</span>
+        <select id="inboundModuleSelect">
+          <option value="">กำลังโหลด Module...</option>
+        </select>
+      </label>
+
+      <div class="module-actions">
+        <button id="inboundRefreshButton" type="button">รีเฟรช</button>
+        <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
+      </div>
+    </section>
+
+    <section class="inbound-workspace">
       <aside class="inbound-left" aria-label="พื้นที่สแกนและกรอกรหัส">
         <section class="scanner-card">
           <div class="scanner-card__head">
