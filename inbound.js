@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 06 PART 07 — Inbound Export Removed, Scanner Speed 250ms
+ * ROUND 06 PART 08 — Core Workflow Guard, Scanner Speed 250ms
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -690,12 +690,21 @@
       return {type: 'NONE', level: 'WARN', message: 'รายการนี้ยื่นเอกสารแล้ว ไม่บันทึกซ้ำ · รอ User/Admin กดรับสินค้าเสร็จ: ' + record.autoId};
     }
 
-    if (workflow.receivingCompletedAt && !workflow.documentReturnedAt && status === 'RECEIVING_COMPLETED') {
+    /*
+     * Round 06 Part 08:
+     * ใช้เวลาจริงของ Workflow เป็นหลัก ไม่ล็อกเฉพาะ statusCode
+     * เพราะบางรอบ Dashboard/Lookup อาจส่ง statusCode ช้ากว่า timestamp
+     */
+    if (workflow.receivingCompletedAt && !workflow.documentReturnedAt) {
       return {type: 'RETURN_DOCUMENT', level: 'BUSY', message: 'บันทึกรับเอกสารคืน'};
     }
 
     if (workflow.documentReturnedAt || status === 'DOCUMENT_RETURNED') {
       return {type: 'NONE', level: 'SUCCESS', message: 'รายการนี้รับเอกสารคืนแล้ว ไม่บันทึกซ้ำ · รอ Gate Out: ' + record.autoId};
+    }
+
+    if (status === 'GATE_OUT_COMPLETED') {
+      return {type: 'NONE', level: 'SUCCESS', message: 'รายการนี้ออก Gate Out แล้ว ปิดงานสมบูรณ์: ' + record.autoId};
     }
 
     return {type: 'NONE', level: 'WARN', message: workflow.nextStepText || 'สถานะนี้ยังไม่พร้อมบันทึกขั้นตอนถัดไป'};
