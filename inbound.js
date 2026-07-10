@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 20 — Duplicate Scan Guard + Stage Idempotent UI
+ * ROUND 05 HOTFIX 21 — Responsive Guard + Hardware Scanner Input Fix
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -150,6 +150,9 @@
         }, INPUT_DEBOUNCE_MS);
       });
     }
+
+
+    bindHardwareScannerCapture();
 
     byId('inboundModuleSelect')?.addEventListener('change', async (event) => {
       state.moduleId = String(event.target.value || '').trim();
@@ -1185,6 +1188,92 @@
     return normalizeCode(byId('entryCodeInput')?.value || '');
   }
 
+
+  function bindHardwareScannerCapture() {
+    if (state.hardwareScannerBound) return;
+    state.hardwareScannerBound = true;
+
+    /*
+     * รองรับกล่องสแกน QR/Barcode แบบเสียบคอมพ์ (Keyboard Wedge)
+     * แม้ focus หลุดจากช่อง Auto ID ระบบจะรับตัวอักษรกลับเข้าช่องสแกนให้เอง
+     */
+    document.addEventListener('keydown', (event) => {
+      if (!shouldCaptureHardwareKey(event)) return;
+
+      const input = byId('entryCodeInput');
+      if (!input || input.disabled) return;
+
+      unlockAudio();
+      state.keyboardCaptureActive = true;
+
+      if (document.activeElement !== input) {
+        try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        window.clearTimeout(state.hardwareScanTimer);
+        const code = getEntryCode();
+        state.keyboardCaptureActive = false;
+        if (code) void processCode(code, {source: 'HARDWARE_SCANNER_ENTER', rawText: code});
+        return;
+      }
+
+      if (event.key && event.key.length === 1) {
+        event.preventDefault();
+        appendToCodeInput(input, event.key);
+
+        window.clearTimeout(state.hardwareScanTimer);
+        state.hardwareScanTimer = window.setTimeout(() => {
+          const code = getEntryCode();
+          state.keyboardCaptureActive = false;
+          if (looksLikeCompleteCode(code)) {
+            void processCode(code, {source: 'HARDWARE_SCANNER_AUTO', rawText: code});
+          }
+        }, Math.max(45, INPUT_DEBOUNCE_MS + 20));
+      }
+    }, true);
+  }
+
+  function shouldCaptureHardwareKey(event) {
+    if (!event || event.ctrlKey || event.altKey || event.metaKey) return false;
+    if (event.isComposing) return false;
+    if (event.key !== 'Enter' && (!event.key || event.key.length !== 1)) return false;
+
+    const active = document.activeElement;
+    const input = byId('entryCodeInput');
+
+    if (active === input) return false;
+
+    if (active) {
+      const tag = String(active.tagName || '').toUpperCase();
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
+      if (active.id === 'workflowSearchInput') return false;
+      if (active.closest && active.closest('.swal2-container')) return false;
+
+      /*
+       * ถ้าอยู่ในช่อง input อื่นที่ไม่ใช่ Auto ID อย่าแย่งค่า
+       */
+      if (tag === 'INPUT') return false;
+    }
+
+    return true;
+  }
+
+  function appendToCodeInput(input, text) {
+    const value = String(input.value || '');
+    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : value.length;
+    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : value.length;
+    const next = value.slice(0, start) + text + value.slice(end);
+    input.value = next;
+
+    const cursor = start + String(text || '').length;
+    try { input.setSelectionRange(cursor, cursor); } catch (error) {}
+
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+
+
   function handlePointerIntent(event) {
     const target = event.target;
     if (!target) return;
@@ -1223,7 +1312,17 @@
     const input = byId('entryCodeInput');
     if (!input || input.disabled) return;
     try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
-    try { input.select(); } catch (error) {}
+
+    /*
+     * ห้าม select ทุกครั้ง เพราะเครื่องสแกนแบบ Keyboard Wedge ยิงตัวอักษรเร็วมาก
+     * ถ้า focus/select แทรกระหว่างยิงรหัส จะทำให้ข้อมูลหายหรือช่องกรอกไม่รับค่า
+     */
+    if (force === true && !state.keyboardCaptureActive) {
+      try {
+        const length = String(input.value || '').length;
+        input.setSelectionRange(length, length);
+      } catch (error) {}
+    }
   }
 
   function looksLikeCompleteCode(code) {
