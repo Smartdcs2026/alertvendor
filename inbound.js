@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 06 PART 02 — Scanner Input Restore + SLA Safe
+ * ROUND 06 PART 03 — Scanner Buffer Restore + SLA Progress Bar
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -35,6 +35,9 @@
     hardwareScanTimer: 0,
     hardwareScannerBound: false,
     keyboardCaptureActive: false,
+    scannerKeyBuffer: '',
+    scannerKeyTimer: 0,
+    scannerLastKeyAt: 0,
     audioContext: null,
     audioUnlocked: false,
     suppressFocusUntil: 0,
@@ -145,21 +148,30 @@
         unlockAudio();
 
         /*
-         * Round 06 Part 02:
-         * คืนพฤติกรรมกล่องสแกนแบบ Keyboard Wedge ให้เสถียร:
-         * - ตัวอักษรให้ลง input ตามปกติ
-         * - Enter/Tab คือสัญญาณจบรหัส
-         * - ไม่ใช้เงื่อนไขความยาวเข้มงวดตอนมี Enter/Tab
+         * Round 06 Part 03:
+         * กล่องสแกนแบบ Keyboard Wedge ให้ตัวอักษรลง input ตามปกติ
+         * ส่วน document capture จะเก็บ buffer คู่ขนานไว้
+         * Enter/Tab ใช้ buffer หรือค่าจาก input แล้วแต่ตัวไหนครบกว่า
          */
         if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault();
           event.stopPropagation();
 
           window.clearTimeout(state.inputTimer);
+          window.clearTimeout(state.scannerKeyTimer);
 
           window.setTimeout(() => {
-            const code = getEntryCode();
+            const code = normalizeCode(
+              chooseBetterScanCode(
+                state.scannerKeyBuffer,
+                getEntryCode()
+              )
+            );
+
+            clearScannerKeyBuffer();
+
             if (code) {
+              setEntryCodeInput(code, {focus: true});
               void processCode(code, {
                 source: event.key === 'Tab'
                   ? 'KEYBOARD_SCANNER_TAB'
@@ -176,8 +188,16 @@
 
         window.clearTimeout(state.inputTimer);
         state.inputTimer = window.setTimeout(() => {
-          const code = getEntryCode();
+          const code = normalizeCode(
+            chooseBetterScanCode(
+              state.scannerKeyBuffer,
+              getEntryCode()
+            )
+          );
+
           if (looksLikeCompleteCode(code)) {
+            clearScannerKeyBuffer();
+            setEntryCodeInput(code, {focus: true});
             void processCode(code, {source: 'KEYBOARD_SCAN_NATIVE_IDLE', rawText: code});
           }
         }, INPUT_DEBOUNCE_MS);
@@ -972,15 +992,14 @@
         <td><span class="workflow-cell-main">${escapeHtml(formatPlateWithProvince(item))}</span></td>
         <td><span class="workflow-cell-main">${escapeHtml(item.phone || '-')}</span></td>
         <td>
-          <span class="status-pill" data-status="${escapeHtml(item.statusCode)}" data-sla="${escapeHtml(sla.level)}">
-            ${escapeHtml(item.statusName || statusName(item.statusCode))}
-          </span>
-          ${sla.enabled ? `<small class="sla-badge" data-sla="${escapeHtml(sla.level)}">${escapeHtml(sla.label)}</small>` : ''}
+          <div class="sla-cell">
+            <span class="status-pill" data-status="${escapeHtml(item.statusCode)}" data-sla="${escapeHtml(sla.level)}">
+              ${escapeHtml(item.statusName || statusName(item.statusCode))}
+            </span>
+            ${sla.enabled ? `<span class="sla-mini-progress" data-sla="${escapeHtml(sla.level)}" title="${escapeHtml(sla.label + ' · ' + sla.elapsedText)}"><i style="width:${escapeHtml(String(sla.percent || 0))}%"></i></span>` : ''}
+          </div>
         </td>
-        <td>
-          <span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span>
-          ${sla.enabled ? `<small class="sla-elapsed">${escapeHtml(sla.elapsedText)}</small>` : ''}
-        </td>
+        <td><span class="workflow-cell-main">${escapeHtml(displayLatestTime(item) || '-')}</span></td>
         <td class="workflow-auto-id"><strong>${escapeHtml(item.autoId || '-')}</strong></td>
         <td><button type="button" class="icon-button" data-open-detail title="ดูรายละเอียด">ดู</button></td>
       </tr>`;
@@ -1391,10 +1410,7 @@
   }
 
   function clearInput() {
-    state.hardwareScanBuffer = '';
-    window.clearTimeout(state.hardwareScanTimer);
-    state.hardwareScanBuffer = '';
-    window.clearTimeout(state.hardwareScanTimer);
+    clearScannerKeyBuffer();
     const input = byId('entryCodeInput');
     if (input) input.value = '';
   }
@@ -1409,36 +1425,45 @@
     state.hardwareScannerBound = true;
 
     /*
-     * Hotfix 23:
-     * - ถ้า focus อยู่ในช่อง Auto ID ให้ browser กรอกค่าตามปกติ ห้าม preventDefault
-     * - Global capture ใช้เฉพาะกรณี focus หลุดไปที่ body/พื้นที่ว่าง เพื่อรับเครื่องสแกนที่ยิงนอกช่อง
-     * - ไม่แย่งค่าจากช่องค้นหา, select, textarea, SweetAlert
+     * Round 06 Part 03:
+     * ใช้ scanner buffer คู่ขนานกับ input เพื่อรองรับกล่องสแกนหลายรุ่น
+     * - ถ้า focus อยู่ในช่อง Auto ID: ไม่ preventDefault ตัวอักษร แต่เก็บ buffer ไว้ด้วย
+     * - ถ้า focus หลุดไปพื้นที่ว่าง: preventDefault แล้วเขียนลงช่อง Auto ID
+     * - Enter/Tab จะ finalize รหัสทันที
      */
     document.addEventListener('keydown', (event) => {
-      if (!shouldCaptureHardwareKey(event)) return;
+      if (!isScannerKeyCandidate(event)) return;
 
       const input = byId('entryCodeInput');
       if (!input || input.disabled) return;
+      if (isScannerBlockedTarget(document.activeElement, input)) return;
 
       unlockAudio();
 
       const key = String(event.key || '');
+      const active = document.activeElement;
+      const isInputFocused = active === input;
       const isTerminator = key === 'Enter' || key === 'Tab';
 
       if (isTerminator) {
         event.preventDefault();
         event.stopPropagation();
 
-        window.clearTimeout(state.hardwareScanTimer);
-        const code = normalizeCode(state.hardwareScanBuffer || input.value || '');
+        const code = normalizeCode(
+          chooseBetterScanCode(
+            state.scannerKeyBuffer,
+            input.value
+          )
+        );
 
-        state.hardwareScanBuffer = '';
-        state.keyboardCaptureActive = false;
+        clearScannerKeyBuffer();
 
         if (code) {
           setEntryCodeInput(code, {focus: true});
           void processCode(code, {
-            source: 'HARDWARE_SCANNER_GLOBAL_ENTER',
+            source: key === 'Tab'
+              ? 'SCANNER_BUFFER_TAB'
+              : 'SCANNER_BUFFER_ENTER',
             rawText: code
           });
         }
@@ -1447,32 +1472,39 @@
       }
 
       if (key.length === 1) {
-        event.preventDefault();
-        event.stopPropagation();
+        rememberScannerKey(key);
 
-        state.keyboardCaptureActive = true;
-        state.hardwareScanBuffer += key;
-        setEntryCodeInput(state.hardwareScanBuffer, {focus: true});
+        if (!isInputFocused) {
+          event.preventDefault();
+          event.stopPropagation();
+          setEntryCodeInput(state.scannerKeyBuffer, {focus: true});
+        }
 
-        window.clearTimeout(state.hardwareScanTimer);
-        state.hardwareScanTimer = window.setTimeout(() => {
-          const code = normalizeCode(state.hardwareScanBuffer || input.value || '');
-          state.hardwareScanBuffer = '';
-          state.keyboardCaptureActive = false;
+        window.clearTimeout(state.scannerKeyTimer);
+        state.scannerKeyTimer = window.setTimeout(() => {
+          const code = normalizeCode(
+            chooseBetterScanCode(
+              state.scannerKeyBuffer,
+              input.value
+            )
+          );
 
           if (looksLikeCompleteCode(code)) {
+            clearScannerKeyBuffer();
             setEntryCodeInput(code, {focus: true});
             void processCode(code, {
-              source: 'HARDWARE_SCANNER_GLOBAL_AUTO',
+              source: 'SCANNER_BUFFER_IDLE',
               rawText: code
             });
           }
-        }, 450);
+        }, INPUT_DEBOUNCE_MS);
       }
     }, true);
 
     document.addEventListener('paste', (event) => {
-      if (!shouldCaptureHardwarePaste(event)) return;
+      const input = byId('entryCodeInput');
+      if (!input || input.disabled) return;
+      if (isScannerBlockedTarget(document.activeElement, input)) return;
 
       const text = String(
         event.clipboardData &&
@@ -1488,76 +1520,69 @@
       event.preventDefault();
       event.stopPropagation();
 
-      state.hardwareScanBuffer = '';
+      clearScannerKeyBuffer();
       setEntryCodeInput(code, {focus: true});
       void processCode(code, {
-        source: 'HARDWARE_SCANNER_GLOBAL_PASTE',
+        source: 'SCANNER_BUFFER_PASTE',
         rawText: code
       });
     }, true);
   }
 
-  function shouldCaptureHardwareKey(event) {
+  function isScannerKeyCandidate(event) {
     if (!event || event.ctrlKey || event.altKey || event.metaKey) return false;
     if (event.isComposing) return false;
 
     const key = String(event.key || '');
-    if (key !== 'Enter' && key !== 'Tab' && key.length !== 1) return false;
-
-    const active = document.activeElement;
-    const input = byId('entryCodeInput');
-
-    /*
-     * จุดสำคัญ:
-     * ถ้า focus อยู่ในช่อง Auto ID อยู่แล้ว ให้ปล่อยให้ช่องรับค่าตามปกติ
-     * นี่คือพฤติกรรมที่กล่องสแกนใช้งานได้ในรอบแรก ๆ
-     */
-    if (active === input) return false;
-
-    if (active) {
-      const tag = String(active.tagName || '').toUpperCase();
-      if (active.closest && active.closest('.swal2-container')) return false;
-      if (active.id === 'workflowSearchInput') return false;
-      if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
-      if (tag === 'INPUT') return false;
-    }
-
-    return true;
+    return key === 'Enter' || key === 'Tab' || key.length === 1;
   }
 
-  function shouldCaptureHardwarePaste(event) {
-    const active = document.activeElement;
-    const input = byId('entryCodeInput');
-
-    /*
-     * ถ้า paste ลงช่อง Auto ID โดยตรง ให้ input handler ทำงานเอง
-     */
+  function isScannerBlockedTarget(active, input) {
+    if (!active) return false;
     if (active === input) return false;
 
-    if (active) {
-      const tag = String(active.tagName || '').toUpperCase();
-      if (active.closest && active.closest('.swal2-container')) return false;
-      if (active.id === 'workflowSearchInput') return false;
-      if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
-      if (tag === 'INPUT') return false;
-    }
+    const tag = String(active.tagName || '').toUpperCase();
+    if (active.closest && active.closest('.swal2-container')) return true;
+    if (active.id === 'workflowSearchInput') return true;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
 
-    return true;
+    /*
+     * อย่าแย่งข้อมูลจาก input อื่น แต่ถ้าเป็นปุ่ม/พื้นที่ว่างให้ scanner ใช้งานได้
+     */
+    if (tag === 'INPUT') return true;
+
+    return false;
   }
 
-  function setEntryCodeInput(value, options) {
-    const input = byId('entryCodeInput');
-    if (!input) return;
+  function rememberScannerKey(key) {
+    const now = Date.now();
 
-    input.value = String(value || '');
-
-    const config = options && typeof options === 'object' ? options : {};
-    if (config.focus !== false && document.activeElement !== input) {
-      try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
+    /*
+     * ถ้าห่างเกิน 800ms ให้ถือว่าเป็นการเริ่มยิงรหัสใหม่
+     */
+    if (now - state.scannerLastKeyAt > 800) {
+      state.scannerKeyBuffer = '';
     }
 
-    const cursor = input.value.length;
-    try { input.setSelectionRange(cursor, cursor); } catch (error) {}
+    state.scannerLastKeyAt = now;
+    state.scannerKeyBuffer += String(key || '');
+  }
+
+  function clearScannerKeyBuffer() {
+    state.scannerKeyBuffer = '';
+    state.hardwareScanBuffer = '';
+    state.keyboardCaptureActive = false;
+    window.clearTimeout(state.scannerKeyTimer);
+    window.clearTimeout(state.hardwareScanTimer);
+  }
+
+  function chooseBetterScanCode(bufferValue, inputValue) {
+    const buffer = normalizeCode(bufferValue || '');
+    const input = normalizeCode(inputValue || '');
+
+    if (buffer.length > input.length) return buffer;
+    if (input.length > buffer.length) return input;
+    return input || buffer;
   }
 
   function handlePointerIntent(event) {
@@ -1694,7 +1719,8 @@
         level: 'NONE',
         label: '',
         elapsedMinutes: 0,
-        elapsedText: ''
+        elapsedText: '',
+        percent: 0
       };
     }
 
@@ -1714,7 +1740,8 @@
         level: 'NORMAL',
         label: rule.label || 'อยู่ในขั้นตอน',
         elapsedMinutes: 0,
-        elapsedText: '-'
+        elapsedText: '-',
+        percent: 0
       };
     }
 
@@ -1738,6 +1765,13 @@
       level = 'WARNING';
     }
 
+    const basePercent =
+      criticalMinutes
+        ? Math.min(100, Math.round((elapsedMinutes / criticalMinutes) * 100))
+        : warningMinutes
+          ? Math.min(100, Math.round((elapsedMinutes / warningMinutes) * 100))
+          : 0;
+
     return {
       enabled: true,
       level,
@@ -1751,7 +1785,9 @@
       elapsedText:
         elapsedMinutes >= 60
           ? Math.floor(elapsedMinutes / 60) + ' ชม. ' + (elapsedMinutes % 60) + ' นาที'
-          : elapsedMinutes + ' นาที'
+          : elapsedMinutes + ' นาที',
+      percent:
+        Math.max(4, basePercent)
     };
   }
 
