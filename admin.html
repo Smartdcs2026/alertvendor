@@ -33,17 +33,17 @@
   ></script>
 
   <script
-    src="./config.js"
+    src="./config.js?v=20260710-r06-07-admin-inbound-export-only"
     defer
   ></script>
 
   <script
-    src="./api.js?v=20260703-r59-module-loading-fix"
+    src="./api.js?v=20260710-r06-07-admin-inbound-export-only"
     defer
   ></script>
 
   <script
-    src="./admin.js?v=20260630-r27-module-feature"
+    src="./admin.js?v=20260710-r06-07-admin-inbound-export-only"
     defer
   ></script>
 
@@ -51,6 +51,61 @@
     src="./admin-shift-panel.js?v=20260703-r59-module-loading-fix"
     defer
   ></script>
+
+  <style>
+    /* Round 06 Part 07 - Admin Inbound Export */
+    .admin-export-controls {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.2fr) minmax(170px, .8fr) minmax(240px, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .admin-export-summary {
+      padding: 10px 12px;
+      border: 1px solid #dbe7ee;
+      border-radius: 12px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: .9rem;
+      font-weight: 700;
+    }
+
+    .admin-export-preview {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .admin-export-row {
+      display: grid;
+      grid-template-columns: 1.1fr 1.2fr 1fr .9fr;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid #e5edf4;
+      border-radius: 12px;
+      background: #ffffff;
+      font-size: .82rem;
+    }
+
+    .admin-export-row strong {
+      color: #0f3d5e;
+    }
+
+    .admin-export-row small {
+      color: #64748b;
+    }
+
+    @media (max-width: 760px) {
+      .admin-export-controls,
+      .admin-export-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
 </head>
 
 <body
@@ -186,6 +241,14 @@
         data-admin-tab="shifts"
       >
         กะทำงาน
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="exports"
+      >
+        ส่งออก
       </button>
 
       <button
@@ -822,6 +885,111 @@
             </tbody>
           </table>
         </div>
+      </article>
+    </section>
+
+    <section
+      id="adminPanelExports"
+      class="admin-panel is-hidden"
+      data-admin-panel="exports"
+    >
+      <div class="admin-section-heading">
+        <div>
+          <p class="eyebrow">
+            INBOUND EXPORT
+          </p>
+
+          <h2>
+            ส่งออกข้อมูล Inbound
+          </h2>
+
+          <p>
+            ข้อมูลส่วนนี้เป็นข้อมูลสำคัญ จึงอนุญาตเฉพาะสิทธิ์ผู้ดูแลระบบเท่านั้น
+          </p>
+        </div>
+
+        <button
+          id="adminInboundExportRefreshButton"
+          class="button button--secondary"
+          type="button"
+        >
+          โหลดข้อมูล
+        </button>
+      </div>
+
+      <article class="admin-card admin-inbound-export-card">
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">
+              EXPORT CONTROL
+            </p>
+
+            <h3>
+              รายการ Inbound Workflow
+            </h3>
+          </div>
+
+          <button
+            id="adminInboundExportButton"
+            class="button button--primary"
+            type="button"
+          >
+            ส่งออก CSV
+          </button>
+        </div>
+
+        <div class="admin-export-controls">
+          <label class="form-field">
+            <span class="form-label">
+              แหล่งข้อมูล Inbound
+            </span>
+
+            <select id="adminInboundExportModuleSelect">
+              <option value="">
+                กำลังโหลด Module...
+              </option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">
+              สถานะ
+            </span>
+
+            <select id="adminInboundExportStatusFilter">
+              <option value="ALL">ทั้งหมด</option>
+              <option value="DOCUMENT_SUBMITTED">รอรับสินค้า</option>
+              <option value="RECEIVING_COMPLETED">รอรับเอกสารคืน</option>
+              <option value="DOCUMENT_RETURNED">คืนเอกสารแล้ว</option>
+              <option value="CANCELLED">ยกเลิก</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">
+              ค้นหา
+            </span>
+
+            <input
+              id="adminInboundExportSearchInput"
+              type="search"
+              placeholder="Auto ID / บริษัท / ทะเบียน / คนขับ"
+              autocomplete="off"
+            >
+          </label>
+        </div>
+
+        <div
+          id="adminInboundExportSummary"
+          class="admin-export-summary"
+        >
+          ยังไม่ได้โหลดข้อมูล
+        </div>
+
+        <div
+          id="adminInboundExportPreview"
+          class="admin-export-preview"
+        ></div>
       </article>
     </section>
 
@@ -1693,5 +1861,11 @@
     ระบบหลังบ้านใช้เขตเวลา Asia/Bangkok และรูปแบบวันที่
     dd/MM/yyyy HH:mm:ss
   </footer>
+
+  <script
+    src="./admin-inbound-export.js?v=20260710-r06-07-admin-inbound-export-only"
+    defer
+  ></script>
+
 </body>
 </html>
