@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-card-sheet-v2.js
- * ROUND 06 PART 09.1F — Mobile Compact Lock
+ * ROUND 06 PART 09.1G — Stable Mobile Compact Render
  *
  * แก้เฉพาะ:
  * - มือถือขึ้นการ์ดเปล่า
@@ -16,8 +16,8 @@
   const state = {
     timer: 0,
     bootTimer: 0,
-    lockTimer: 0,
-    observer: null
+    observer: null,
+    lastViewportMobile: null
   };
 
   document.addEventListener(
@@ -35,7 +35,6 @@
     () => {
       window.clearTimeout(state.timer);
       window.clearInterval(state.bootTimer);
-      window.clearInterval(state.lockTimer);
       if (state.observer) {
         state.observer.disconnect();
       }
@@ -44,7 +43,17 @@
 
   window.addEventListener(
     'resize',
-    () => scheduleHydrate(80)
+    () => {
+      const mobile =
+        isMobile();
+
+      if (
+        state.lastViewportMobile !==
+        mobile
+      ) {
+        scheduleHydrate(80);
+      }
+    }
   );
 
   function init() {
@@ -52,7 +61,6 @@
     bindCardClick();
     observe();
     startBootHydration();
-    startMobileCompactLock();
     scheduleHydrate(0);
     scheduleHydrate(120);
     scheduleHydrate(400);
@@ -86,7 +94,7 @@
           count += 1;
           hydrateCards();
 
-          if (count >= 30) {
+          if (count >= 12) {
             window.clearInterval(
               state.bootTimer
             );
@@ -110,10 +118,7 @@
 
     state.observer =
       new MutationObserver(
-        () => {
-          ensureMobileBodyClass();
-          hydrateCards();
-        }
+        () => scheduleHydrate(120)
       );
 
     state.observer.observe(
@@ -146,23 +151,6 @@
   }
 
 
-  function startMobileCompactLock() {
-    window.clearInterval(
-      state.lockTimer
-    );
-
-    state.lockTimer =
-      window.setInterval(
-        () => {
-          ensureMobileBodyClass();
-
-          if (isMobile()) {
-            hydrateCards();
-          }
-        },
-        900
-      );
-  }
 
   function ensureMobileBodyClass() {
     document.body.classList.toggle(
@@ -172,7 +160,18 @@
   }
 
   function hydrateCards() {
-    ensureMobileBodyClass();
+    const mobile =
+      isMobile();
+
+    if (
+      state.lastViewportMobile !==
+      mobile
+    ) {
+      state.lastViewportMobile =
+        mobile;
+
+      ensureMobileBodyClass();
+    }
 
     const cards =
       Array.from(
@@ -183,13 +182,21 @@
 
     cards.forEach(
       (card) => {
-        if (!isMobile()) {
-          card.removeAttribute(
-            'data-mobile-ready'
-          );
-          card.removeAttribute(
-            'data-mobile-status'
-          );
+        if (!mobile) {
+          if (
+            card.dataset.mobileReady
+          ) {
+            card.removeAttribute(
+              'data-mobile-ready'
+            );
+            card.removeAttribute(
+              'data-mobile-status'
+            );
+            card.removeAttribute(
+              'data-mobile-signature'
+            );
+          }
+
           return;
         }
 
@@ -202,10 +209,30 @@
     const data =
       extractCardData(card);
 
+    const signature =
+      [
+        data.company,
+        data.appointment,
+        data.time,
+        data.badge,
+        data.queue,
+        data.level
+      ].join('|');
+
     let shell =
       card.querySelector(
         ':scope > .mobile-compact-card'
       );
+
+    if (
+      shell &&
+      card.dataset.mobileSignature ===
+        signature &&
+      card.dataset.mobileReady ===
+        'true'
+    ) {
+      return;
+    }
 
     if (!shell) {
       shell =
@@ -220,7 +247,7 @@
       );
     }
 
-    shell.innerHTML = `
+    const html = `
       <div class="mobile-v2-top">
         <span>${escapeHtml(data.badge)}</span>
         <strong>${escapeHtml(data.time)}</strong>
@@ -241,10 +268,23 @@
       </div>
     `;
 
-    shell.setAttribute(
-      'aria-hidden',
-      'true'
-    );
+    if (
+      shell.innerHTML !== html
+    ) {
+      shell.innerHTML =
+        html;
+    }
+
+    if (
+      shell.getAttribute(
+        'aria-hidden'
+      ) !== 'true'
+    ) {
+      shell.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+    }
 
     card.dataset.mobileReady =
       'true';
@@ -257,6 +297,9 @@
 
     card.dataset.mobileAppointment =
       data.appointment;
+
+    card.dataset.mobileSignature =
+      signature;
   }
 
   function extractCardData(card) {
