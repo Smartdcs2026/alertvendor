@@ -1,6 +1,6 @@
 /**
  * api.js
- * ROUND 05 HOTFIX 28 — Stable Auth Reset + SessionStorage v2
+ * ROUND 05 HOTFIX 33 — Stable Auth + Inbound Dashboard Limit Clamp
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -1716,6 +1716,29 @@
           ? options
           : {};
 
+      /*
+       * Hotfix 33:
+       * Worker / Backend ไม่รับ limit ที่สูงเกินหรือไม่ใช่ตัวเลข
+       * จำกัดเป็น 1-100 เพื่อไม่ให้เกิด error:
+       * "ค่าพารามิเตอร์ limit ไม่ถูกต้อง"
+       */
+      const requestedLimit =
+        Number(
+          config.limit ||
+          100
+        );
+
+      const safeLimit =
+        Math.min(
+          Math.max(
+            Number.isFinite(requestedLimit)
+              ? Math.floor(requestedLimit)
+              : 100,
+            1
+          ),
+          100
+        );
+
       const response =
         await request(
           '/api/workflow/modules/' +
@@ -1729,8 +1752,7 @@
 
             query: {
               limit:
-                config.limit ||
-                30
+                safeLimit
             }
           }
         );
