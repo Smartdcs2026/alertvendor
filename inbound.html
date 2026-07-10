@@ -7,208 +7,120 @@
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix15-topbar-module">
+  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix16-clean-topbar">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260709-r05" defer></script>
   <script src="./api.js?v=20260709-r05" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260709-r05-hotfix15-topbar-module" defer></script>
-  <script src="./inbound.js?v=20260709-r05-hotfix15-topbar-module" defer></script>
+  <script src="./inbound-scanner.js?v=20260709-r05-hotfix16-clean-topbar" defer></script>
+  <script src="./inbound.js?v=20260709-r05-hotfix16-clean-topbar" defer></script>
 
   <style>
-    /* Round 05 Hotfix 14 - Compact toolbar for Inbound */
-    .inbound-shell { gap: 10px; }
-    .inbound-topbar { padding-bottom: 10px; }
-    .inbound-brand p { margin-bottom: 0; }
-    .inbound-module-bar {
-      display: grid;
-      grid-template-columns: minmax(260px, 1fr) auto;
-      align-items: end;
-      gap: 10px;
-      padding: 8px 12px;
-      border-radius: 14px;
+    /* Round 05 Hotfix 16 - Clean single-line topbar */
+    :root {
+      --inbound-topbar-height: 92px;
     }
-    .inbound-module-bar > label {
-      display: grid;
-      gap: 4px;
-      margin: 0;
-    }
-    .inbound-module-bar > label > span {
-      font-size: 11px;
-      line-height: 1;
-      opacity: .8;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
-    .inbound-module-bar select {
-      min-height: 40px;
-      padding: 8px 42px 8px 12px;
-      font-size: 15px;
-      border-radius: 12px;
-    }
-    .module-actions {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: nowrap;
-      justify-self: end;
-    }
-    .module-actions button {
-      min-height: 40px;
-      padding: 0 14px;
-      border-radius: 12px;
-      white-space: nowrap;
-      font-weight: 700;
-    }
-    .module-actions #inboundRefreshButton::before { content: '↻ '; }
-    .module-actions #inboundLogoutButton::before { content: '⎋ '; }
-    .inbound-workspace {
-      min-height: calc(100vh - 255px);
-    }
-    @media (min-width: 1200px) {
-      .inbound-module-bar {
-        grid-template-columns: minmax(320px, 1fr) auto;
-      }
-    }
-    @media (max-width: 980px) {
-      .inbound-module-bar {
-        grid-template-columns: 1fr;
-        align-items: stretch;
-      }
-      .module-actions {
-        justify-self: stretch;
-        justify-content: flex-end;
-      }
-    }
-    @media (max-width: 680px) {
-      .inbound-module-bar {
-        padding: 8px 10px;
-      }
-      .module-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-      }
-      .module-actions button {
-        width: 100%;
-      }
-      .inbound-workspace {
-        min-height: auto;
-      }
-    }
-  </style>
 
+    .inbound-shell {
+      gap: 10px !important;
+    }
 
-  <style>
-    /* Round 05 Hotfix 15 - Move Module tools into top bar */
     .inbound-topbar {
       display: grid !important;
-      grid-template-columns: minmax(240px, 1.2fr) minmax(360px, 2fr) minmax(260px, 1.1fr) minmax(220px, .95fr) !important;
+      grid-template-columns: minmax(235px, .95fr) minmax(210px, .75fr) minmax(520px, 1.95fr) minmax(245px, .9fr) !important;
       align-items: center !important;
       gap: 10px !important;
       padding: 10px 12px !important;
+      min-height: var(--inbound-topbar-height) !important;
     }
 
     .inbound-brand {
       min-width: 0 !important;
     }
 
+    .inbound-brand small {
+      font-size: 10px !important;
+      letter-spacing: .08em !important;
+    }
+
     .inbound-brand h1 {
-      margin-bottom: 1px !important;
-      line-height: 1.05 !important;
+      margin: 2px 0 0 !important;
+      font-size: clamp(28px, 2.45vw, 40px) !important;
+      line-height: .98 !important;
+      white-space: nowrap !important;
     }
 
     .inbound-brand p {
-      margin: 0 !important;
+      margin: 5px 0 0 !important;
+      max-width: 100% !important;
       white-space: nowrap !important;
       overflow: hidden !important;
       text-overflow: ellipsis !important;
-    }
-
-    .status-strip {
-      min-width: 0 !important;
-      display: grid !important;
-      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-      gap: 6px !important;
-    }
-
-    .status-strip button {
-      min-width: 0 !important;
-      min-height: 42px !important;
-      padding: 5px 7px !important;
-      border-radius: 12px !important;
-    }
-
-    .status-strip button span {
       font-size: 11px !important;
-      line-height: 1.1 !important;
-    }
-
-    .status-strip button strong {
-      font-size: 18px !important;
-      line-height: 1 !important;
+      opacity: .9 !important;
     }
 
     .topbar-module-tools {
-      min-width: 0;
-      display: grid;
-      grid-template-columns: minmax(150px, 1fr) auto auto;
-      align-items: center;
-      gap: 6px;
-      padding: 7px;
-      border: 1px solid rgba(130, 225, 229, .35);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, .07);
+      min-width: 0 !important;
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 36px 36px !important;
+      align-items: end !important;
+      gap: 6px !important;
     }
 
     .topbar-module-tools label {
-      min-width: 0;
-      display: grid;
-      gap: 2px;
-      margin: 0;
+      min-width: 0 !important;
+      display: grid !important;
+      gap: 4px !important;
+      margin: 0 !important;
     }
 
     .topbar-module-tools label span {
-      color: #86e7eb;
-      font-size: 9px;
-      font-weight: 900;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      line-height: 1;
+      display: block !important;
+      color: #7ee7e9 !important;
+      font-size: 9px !important;
+      font-weight: 900 !important;
+      letter-spacing: .10em !important;
+      line-height: 1 !important;
+      text-transform: uppercase !important;
     }
 
     .topbar-module-tools select {
-      width: 100%;
-      min-width: 0;
-      height: 34px;
-      border: 1px solid rgba(184, 224, 235, .42);
-      border-radius: 10px;
-      padding: 5px 30px 5px 9px;
-      color: #082f49;
-      background: #ffffff;
-      font-size: 13px;
-      font-weight: 800;
+      width: 100% !important;
+      height: 36px !important;
+      min-height: 36px !important;
+      border: 1px solid rgba(177, 224, 235, .45) !important;
+      border-radius: 10px !important;
+      padding: 5px 30px 5px 10px !important;
+      color: #073b59 !important;
+      background: rgba(255, 255, 255, .96) !important;
+      font-size: 13px !important;
+      font-weight: 850 !important;
+      box-shadow: none !important;
     }
 
     .topbar-module-tools button {
-      width: 36px;
-      height: 34px;
-      min-width: 36px;
-      border-radius: 10px;
-      padding: 0;
-      border: 1px solid rgba(184, 224, 235, .42);
-      color: #ffffff;
-      background: rgba(255, 255, 255, .10);
-      font-size: 0;
-      cursor: pointer;
+      width: 36px !important;
+      height: 36px !important;
+      min-width: 36px !important;
+      min-height: 36px !important;
+      display: inline-grid !important;
+      place-items: center !important;
+      border: 1px solid rgba(177, 224, 235, .40) !important;
+      border-radius: 10px !important;
+      padding: 0 !important;
+      color: #ffffff !important;
+      background: rgba(255, 255, 255, .10) !important;
+      font-size: 0 !important;
+      box-shadow: none !important;
+      cursor: pointer !important;
     }
 
     .topbar-module-tools button::before {
-      display: block;
-      font-size: 17px;
-      line-height: 32px;
-      text-align: center;
+      display: block !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
     }
 
     .topbar-module-tools #inboundRefreshButton::before {
@@ -216,24 +128,73 @@
     }
 
     .topbar-module-tools #inboundLogoutButton {
-      border-color: rgba(255, 190, 190, .55);
-      background: rgba(255, 99, 99, .12);
+      border-color: rgba(255, 195, 195, .55) !important;
+      color: #ffd8d8 !important;
+      background: rgba(255, 75, 75, .12) !important;
     }
 
     .topbar-module-tools #inboundLogoutButton::before {
       content: '⎋';
     }
 
+    .status-strip {
+      min-width: 0 !important;
+      display: grid !important;
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      gap: 6px !important;
+      align-items: stretch !important;
+    }
+
+    .status-strip button {
+      min-width: 0 !important;
+      min-height: 45px !important;
+      border-radius: 12px !important;
+      padding: 5px 7px !important;
+    }
+
+    .status-strip button span {
+      display: block !important;
+      font-size: 10px !important;
+      line-height: 1.08 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    .status-strip button strong {
+      display: block !important;
+      margin-top: 2px !important;
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
     .inbound-user-card {
       min-width: 0 !important;
       justify-self: stretch !important;
-      padding: 7px 10px !important;
-      border-radius: 14px !important;
+      align-self: stretch !important;
+      display: grid !important;
+      align-content: center !important;
+      gap: 2px !important;
+      padding: 9px 11px !important;
+      border-radius: 13px !important;
+    }
+
+    .inbound-user-card span {
+      font-size: 11px !important;
+      line-height: 1 !important;
     }
 
     .inbound-user-card strong {
-      font-size: 16px !important;
+      font-size: 17px !important;
       line-height: 1.1 !important;
+      white-space: nowrap !important;
+    }
+
+    .inbound-user-card small {
+      font-size: 11px !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
     }
 
     .inbound-module-bar {
@@ -241,27 +202,44 @@
     }
 
     .inbound-workspace {
-      min-height: calc(100vh - 185px) !important;
+      min-height: calc(100vh - 180px) !important;
     }
 
-    @media (max-width: 1320px) {
+    @media (max-width: 1420px) {
       .inbound-topbar {
-        grid-template-columns: minmax(220px, 1fr) minmax(340px, 1.5fr) minmax(240px, 1fr) !important;
+        grid-template-columns: minmax(220px, .9fr) minmax(190px, .7fr) minmax(430px, 1.7fr) minmax(220px, .85fr) !important;
+        gap: 8px !important;
+      }
+
+      .status-strip button strong {
+        font-size: 19px !important;
+      }
+
+      .status-strip button span {
+        font-size: 9px !important;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .inbound-topbar {
+        grid-template-columns: minmax(220px, 1fr) minmax(360px, 1.55fr) minmax(220px, .95fr) !important;
       }
 
       .topbar-module-tools {
-        grid-column: 1 / -1;
-        grid-template-columns: minmax(240px, 1fr) 42px 42px;
+        grid-column: 1 / -1 !important;
+        grid-row: 2 !important;
+        grid-template-columns: minmax(260px, 1fr) 42px 42px !important;
       }
 
       .inbound-workspace {
-        min-height: calc(100vh - 225px) !important;
+        min-height: calc(100vh - 220px) !important;
       }
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 760px) {
       .inbound-topbar {
         grid-template-columns: 1fr !important;
+        min-height: 0 !important;
       }
 
       .status-strip {
@@ -269,7 +247,7 @@
       }
 
       .topbar-module-tools {
-        grid-template-columns: minmax(0, 1fr) 42px 42px;
+        grid-template-columns: minmax(0, 1fr) 42px 42px !important;
       }
 
       .inbound-workspace {
@@ -293,6 +271,19 @@
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
         <p>สแกนหรือยิงรหัสแล้วบันทึกอัตโนมัติ · กดดูรายละเอียดใน SweetAlert และยกเลิกสถานะล่าสุดได้เมื่อจำเป็น</p>
+
+      <div class="topbar-module-tools" aria-label="เลือกโมดูลและคำสั่ง">
+        <label for="inboundModuleSelect">
+          <span>Module</span>
+          <select id="inboundModuleSelect">
+            <option value="">กำลังโหลด Module...</option>
+          </select>
+        </label>
+
+        <button id="inboundRefreshButton" type="button" title="รีเฟรชข้อมูล" aria-label="รีเฟรชข้อมูล">รีเฟรช</button>
+        <button id="inboundLogoutButton" type="button" class="button--logout" title="ออกจากระบบ" aria-label="ออกจากระบบ">ออกจากระบบ</button>
+      </div>
+
       </div>
 
       <div class="status-strip" aria-label="จำนวนตามสถานะ">
@@ -311,19 +302,6 @@
         <button type="button" data-status-filter="CANCELLED">
           <span>ยกเลิก</span><strong id="countCancelled">0</strong>
         </button>
-
-      <div class="topbar-module-tools" aria-label="เลือกโมดูลและคำสั่ง">
-        <label for="inboundModuleSelect">
-          <span>Module</span>
-          <select id="inboundModuleSelect">
-            <option value="">กำลังโหลด Module...</option>
-          </select>
-        </label>
-
-        <button id="inboundRefreshButton" type="button" title="รีเฟรชข้อมูล" aria-label="รีเฟรชข้อมูล">รีเฟรช</button>
-        <button id="inboundLogoutButton" type="button" class="button--logout" title="ออกจากระบบ" aria-label="ออกจากระบบ">ออกจากระบบ</button>
-      </div>
-
       </div>
 
       <div class="inbound-user-card">
