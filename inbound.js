@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 33 — Inbound Dashboard Limit Fix
+ * ROUND 05 HOTFIX 34 — Stable Hardware QR Scanner Input
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -9,8 +9,8 @@
   const API = window.VehicleAPI;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
-  const INPUT_DEBOUNCE_MS = 45;
-  const MIN_CODE_LENGTH = 8;
+  const INPUT_DEBOUNCE_MS = 320;
+  const MIN_CODE_LENGTH = 12;
   const DASHBOARD_LIMIT = 100;
   const FOCUS_SUPPRESS_MS = 18000;
   const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V10_';
@@ -140,26 +140,46 @@
         unlockAudio();
 
         /*
-         * เครื่องสแกนส่วนใหญ่ทำงานเหมือน keyboard:
-         * ยิงตัวอักษรเข้าช่องกรอก แล้วปิดท้ายด้วย Enter หรือ Tab
-         * ดังนั้นถ้า focus อยู่ในช่อง Auto ID ให้ปล่อยให้ browser ใส่ข้อมูลเอง
-         * และประมวลผลตอน Enter/Tab หรือ input debounce
+         * Hotfix 34:
+         * เครื่องสแกน QR/Barcode แบบ Keyboard Wedge จะยิงตัวอักษรลง input ก่อน
+         * และมักปิดท้ายด้วย Enter หรือ Tab
+         * ให้ input รับตัวอักษรตามธรรมชาติ ห้ามดักระหว่างยิง
          */
         if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault();
+          event.stopPropagation();
+
           window.clearTimeout(state.inputTimer);
-          const code = getEntryCode();
-          if (code) void processCode(code, {source: 'KEYBOARD_SCANNER_TERMINATOR', rawText: code});
+
+          /*
+           * หน่วง 0 ms เพื่อให้ browser commit ค่าใน input ให้ครบก่อนอ่าน
+           */
+          window.setTimeout(() => {
+            const code = getEntryCode();
+            if (code) {
+              void processCode(code, {
+                source: event.key === 'Tab'
+                  ? 'KEYBOARD_SCANNER_TAB'
+                  : 'KEYBOARD_SCANNER_ENTER',
+                rawText: code
+              });
+            }
+          }, 0);
         }
       });
 
       input.addEventListener('input', () => {
         unlockAudio();
+
+        /*
+         * อย่า process เร็วเกินไป เพราะ scanner บางรุ่นยิงตัวอักษรช้ากว่า 45ms
+         * ถ้า process ตอนรหัสยังไม่ครบ จะ clear input แล้วทำให้ดูเหมือนสแกนไม่เข้า
+         */
         window.clearTimeout(state.inputTimer);
         state.inputTimer = window.setTimeout(() => {
           const code = getEntryCode();
           if (looksLikeCompleteCode(code)) {
-            void processCode(code, {source: 'KEYBOARD_SCAN_NATIVE_INPUT', rawText: code});
+            void processCode(code, {source: 'KEYBOARD_SCAN_NATIVE_IDLE', rawText: code});
           }
         }, INPUT_DEBOUNCE_MS);
       });
@@ -1438,7 +1458,7 @@
               rawText: code
             });
           }
-        }, 90);
+        }, 220);
       }
     }, true);
 
@@ -1584,8 +1604,17 @@
   function looksLikeCompleteCode(code) {
     const value = normalizeCode(code);
     if (value.length < MIN_CODE_LENGTH) return false;
-    if (/^SK\d{8,14}$/i.test(value)) return true;
-    return value.length >= 10 && /^[A-Z0-9_-]+$/i.test(value);
+
+    /*
+     * Auto ID หน้างานที่พบใช้รูปแบบ SK + ตัวเลขหลายหลัก เช่น SK02042159476
+     * ไม่ควรรีบ process ตอนยังได้แค่บางส่วนของรหัส
+     */
+    if (/^SK\d{10,14}$/i.test(value)) return true;
+
+    /*
+     * กรณี QR/Barcode รูปแบบอื่น ให้รอความยาวอย่างน้อย 12 ตัวอักษร
+     */
+    return value.length >= 12 && /^[A-Z0-9_-]+$/i.test(value);
   }
 
   function normalizeCode(value) {
