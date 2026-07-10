@@ -1,12 +1,12 @@
 /************************************************************
  * module-work-queue.js
- * ROUND 06 PART 09.1B — Work Queue Fast Boot + Mobile Compact Card Ready
+ * ROUND 06 PART 09.1E — No Flicker Queue + Clear Workflow Terms
  *
  * เป้าหมาย:
  * - หน้า Module เป็น "หน้างาน" ไม่ใช่หน้ารวมทุกสถานะ
  * - ค่าเริ่มต้นแสดงเฉพาะงานที่ User/Admin ต้องทำตอนนี้
  * - งานที่รับสินค้าเสร็จแล้วถูกย้ายไป "ติดตาม"
- * - งานที่ยังรอ Inbound ยื่นเอกสาร แยกออกจากงานที่ต้องกด
+ * - งานที่ยังรอคนขับยื่นเอกสารที่ห้อง Inbound แยกออกจากงานที่ต้องกด
  * - ไม่แตะ Backend / Scanner / Receiving Save Logic
  ************************************************************/
 (function (window, document) {
@@ -25,7 +25,9 @@
     bootTimer: 0,
     bootStartedAt: 0,
     lastCardCount: -1,
-    lastItemCount: -1
+    lastItemCount: -1,
+    guardReady: false,
+    queueCountsReady: false
   };
 
   document.addEventListener(
@@ -58,6 +60,9 @@
     window.addEventListener(
       'alertvendor:workflow-guard-updated',
       (event) => {
+        state.guardReady =
+          true;
+
         state.items =
           Array.isArray(event.detail && event.detail.items)
             ? event.detail.items
@@ -98,6 +103,13 @@
     state.bootStartedAt =
       Date.now();
 
+    state.queueCountsReady =
+      false;
+
+    setQueueLoading(
+      true
+    );
+
     window.clearInterval(
       state.bootTimer
     );
@@ -127,10 +139,33 @@
           state.lastItemCount =
             itemCount;
 
+          const waitedMs =
+            Date.now() - state.bootStartedAt;
+
+          /*
+           * ไม่ปล่อยตัวเลขขึ้น ๆ ลง ๆ ตอนเปิดหน้า
+           * รอให้ guard พร้อมหรือรอช่วงสั้น ๆ ก่อนค่อยแสดงตัวเลขครั้งแรก
+           */
           if (
-            stable ||
-            Date.now() - state.bootStartedAt > 12000
+            (
+              state.guardReady &&
+              stable
+            ) ||
+            waitedMs > 2500 ||
+            (
+              cardCount === 0 &&
+              waitedMs > 1200
+            )
           ) {
+            state.queueCountsReady =
+              true;
+
+            setQueueLoading(
+              false
+            );
+
+            scheduleApply(0);
+
             window.clearInterval(
               state.bootTimer
             );
@@ -293,24 +328,24 @@
       <div class="module-work-queue-title">
         <small>WORK QUEUE</small>
         <strong id="workQueueModeTitle">งานที่ต้องทำตอนนี้</strong>
-        <span id="workQueueModeHint">แสดงเฉพาะรายการที่พร้อมให้กดรับสินค้าเสร็จ</span>
+        <span id="workQueueModeHint">เอกสารถูกยื่นแล้ว และรอคลังรับสินค้าให้เสร็จ</span>
       </div>
 
       <div class="module-work-queue-actions" role="group" aria-label="ตัวกรองงาน">
         <button type="button" data-work-queue-mode="ACTION">
-          ต้องทำ <strong id="workQueueActionCount">0</strong>
+          รอคลังรับ <strong id="workQueueActionCount">...</strong>
         </button>
 
         <button type="button" data-work-queue-mode="WAIT_INBOUND">
-          รอ Inbound <strong id="workQueueWaitInboundCount">0</strong>
+          รอยื่นเอกสาร <strong id="workQueueWaitInboundCount">...</strong>
         </button>
 
         <button type="button" data-work-queue-mode="TRACKING">
-          ติดตาม <strong id="workQueueTrackingCount">0</strong>
+          ติดตาม <strong id="workQueueTrackingCount">...</strong>
         </button>
 
         <button type="button" data-work-queue-mode="ALL">
-          ทั้งหมด <strong id="workQueueAllCount">0</strong>
+          ทั้งหมด <strong id="workQueueAllCount">...</strong>
         </button>
       </div>
     `;
@@ -609,13 +644,13 @@
 
     if (group === 'ACTION') {
       badge.textContent =
-        'งานที่ต้องทำ: กดรับสินค้าเสร็จ';
+        'รอคลังรับสินค้าเสร็จ';
     } else if (group === 'WAIT_INBOUND') {
       badge.textContent =
-        'รอ Inbound ยื่นเอกสารก่อน';
+        'รอคนขับยื่นเอกสารที่ห้อง Inbound';
     } else {
       badge.textContent =
-        'รับสินค้าเสร็จแล้ว: รอ Inbound / Gate Out';
+        'รับสินค้าเสร็จแล้ว: รอรับเอกสารคืนหรือ Gate Out';
     }
 
     badge.dataset.workQueueGroup =
@@ -623,6 +658,20 @@
   }
 
   function updateQueueBar(counters) {
+    if (
+      state.queueCountsReady !== true
+    ) {
+      setQueueLoading(
+        true
+      );
+
+      return;
+    }
+
+    setQueueLoading(
+      false
+    );
+
     setText(
       'workQueueActionCount',
       counters.ACTION || 0
@@ -674,27 +723,74 @@
     if (title) {
       title.textContent =
         state.mode === 'ACTION'
-          ? 'งานที่ต้องทำตอนนี้'
+          ? 'รอคลังรับสินค้า'
           : state.mode === 'WAIT_INBOUND'
-            ? 'รายการที่รอ Inbound'
+            ? 'รอยื่นเอกสารที่ Inbound'
             : state.mode === 'TRACKING'
-              ? 'รายการติดตามหลังรับสินค้า'
+              ? 'ติดตามหลังรับสินค้า'
               : 'รายการทั้งหมด';
     }
 
     if (hint) {
       hint.textContent =
         state.mode === 'ACTION'
-          ? 'แสดงเฉพาะรายการที่พร้อมให้กดรับสินค้าเสร็จ'
+          ? 'คนขับยื่นเอกสารแล้ว เหลือรอคลังรับสินค้าให้เสร็จ'
           : state.mode === 'WAIT_INBOUND'
-            ? 'ยังไม่ใช่งานของ User/Admin จนกว่า Inbound จะยื่นเอกสาร'
+            ? 'รถ/ตู้เข้าพื้นที่แล้ว แต่ยังไม่พบการยื่นเอกสารที่ห้อง Inbound'
             : state.mode === 'TRACKING'
-              ? 'User/Admin ทำหน้าที่แล้ว เหลือ Inbound รับเอกสารคืนหรือรอ Gate Out'
-              : 'ใช้ตรวจสอบภาพรวมเท่านั้น ไม่ใช่หน้างานหลัก';
+              ? 'คลังรับสินค้าเสร็จแล้ว เหลือรับเอกสารคืนที่ Inbound หรือออก Gate Out'
+              : 'ภาพรวมทุกขั้นตอนของรายการที่ยังเกี่ยวข้อง';
+    }
+  }
+
+  function setQueueLoading(isLoading) {
+    const bar =
+      byId('moduleWorkQueueBar');
+
+    if (bar) {
+      bar.classList.toggle(
+        'is-counts-loading',
+        Boolean(isLoading)
+      );
+    }
+
+    if (!isLoading) {
+      return;
+    }
+
+    [
+      'workQueueActionCount',
+      'workQueueWaitInboundCount',
+      'workQueueTrackingCount',
+      'workQueueAllCount'
+    ].forEach((id) => {
+      setText(id, '...');
+    });
+
+    const title =
+      byId('workQueueModeTitle');
+
+    const hint =
+      byId('workQueueModeHint');
+
+    if (title) {
+      title.textContent =
+        'กำลังจัดคิวงาน';
+    }
+
+    if (hint) {
+      hint.textContent =
+        'รอข้อมูล Workflow ให้ครบก่อนแสดงตัวเลข เพื่อไม่ให้ตัวเลขกระพริบ';
     }
   }
 
   function updateLegacyListCount(counters) {
+    if (
+      state.queueCountsReady !== true
+    ) {
+      return;
+    }
+
     const count =
       state.mode === 'ALL'
         ? counters.ALL
@@ -811,6 +907,28 @@
       .module-work-queue-actions button.is-active strong {
         background: rgba(255,255,255,.2);
         color: #ffffff;
+      }
+
+      .module-work-queue-bar.is-counts-loading
+      .module-work-queue-actions strong {
+        min-width: 34px;
+        color: transparent;
+        position: relative;
+      }
+
+      .module-work-queue-bar.is-counts-loading
+      .module-work-queue-actions strong::after {
+        content: "";
+        position: absolute;
+        inset: 7px;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, .22);
+        animation: workQueuePulse 1s ease-in-out infinite;
+      }
+
+      @keyframes workQueuePulse {
+        0%, 100% { opacity: .35; }
+        50% { opacity: 1; }
       }
 
       .module-work-queue-hidden {
