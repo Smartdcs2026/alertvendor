@@ -8,14 +8,14 @@
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
   <!-- ROUND 05 HOTFIX 34: stable hardware QR scanner input -->
 
-  <link rel="stylesheet" href="./inbound.css?v=20260710-r05-hotfix34-scanner-input-stable">
+  <link rel="stylesheet" href="./inbound.css?v=20260710-r06-01-inbound-sla-alerts">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
-  <script src="./config.js?v=20260710-r05-hotfix34-scanner-input-stable" defer></script>
-  <script src="./api.js?v=20260710-r05-hotfix34-scanner-input-stable" defer></script>
+  <script src="./config.js?v=20260710-r06-01-inbound-sla-alerts" defer></script>
+  <script src="./api.js?v=20260710-r06-01-inbound-sla-alerts" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260710-r05-hotfix34-scanner-input-stable" defer></script>
-  <script src="./inbound.js?v=20260710-r05-hotfix34-scanner-input-stable" defer></script>
+  <script src="./inbound-scanner.js?v=20260710-r06-01-inbound-sla-alerts" defer></script>
+  <script src="./inbound.js?v=20260710-r06-01-inbound-sla-alerts" defer></script>
 
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
@@ -338,6 +338,55 @@
       #inboundFullscreenButton {
         min-height: 44px !important;
       }
+    }
+
+  
+    /* Round 06 Part 01 - SLA status colors */
+    .workflow-table tr[data-sla="WARNING"] {
+      background: #fff9e8 !important;
+    }
+
+    .workflow-table tr[data-sla="CRITICAL"] {
+      background: #fff1f2 !important;
+    }
+
+    .status-pill[data-sla="WARNING"] {
+      border: 1px solid #f59e0b !important;
+      background: #fef3c7 !important;
+      color: #92400e !important;
+    }
+
+    .status-pill[data-sla="CRITICAL"] {
+      border: 1px solid #ef4444 !important;
+      background: #fee2e2 !important;
+      color: #991b1b !important;
+    }
+
+    .sla-badge,
+    .sla-elapsed {
+      display: block;
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.15;
+      opacity: .92;
+    }
+
+    .sla-badge[data-sla="NORMAL"] {
+      color: #047857;
+    }
+
+    .sla-badge[data-sla="WARNING"] {
+      color: #b45309;
+    }
+
+    .sla-badge[data-sla="CRITICAL"] {
+      color: #b91c1c;
+    }
+
+    .sla-elapsed {
+      color: #64748b;
+      font-weight: 700;
     }
 
   </style>
