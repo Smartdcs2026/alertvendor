@@ -1,6 +1,7 @@
 /**
  * dashboard-api.js
  * API แบบอ่านอย่างเดียวสำหรับ Dashboard
+ * ROUND 05 HOTFIX 13 — Isolated Session
  */
 (function (window) {
   'use strict';
@@ -80,26 +81,22 @@
   }
 
   function getAccessToken() {
-    const localToken = readStorageToken(window.localStorage);
-
-    if (localToken) {
-      writeStorageToken(window.sessionStorage, localToken);
-      return localToken;
-    }
-
-    const sessionToken = readStorageToken(window.sessionStorage);
-
-    if (sessionToken) {
-      writeStorageToken(window.localStorage, sessionToken);
-    }
-
-    return sessionToken;
+    /*
+     * HOTFIX 13:
+     * Dashboard ต้องใช้ Token ของหน้าต่างนี้เท่านั้น
+     * ไม่อ่าน localStorage เพื่อกันชื่อ/สิทธิ์ปะปนกับ PWA หรือแท็บอื่น
+     */
+    return readStorageToken(
+      window.sessionStorage
+    );
   }
 
   function clearSession() {
     removeStorageToken(window.localStorage);
     removeStorageToken(window.sessionStorage);
   }
+
+  removeStorageToken(window.localStorage);
 
   function createRequestId() {
     if (
