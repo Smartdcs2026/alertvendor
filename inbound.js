@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 06 PART 04 — Restore Round05 Stable Scanner Logic + SLA Progress Bar
+ * ROUND 06 PART 05 — Scanner Speed Tune 250ms
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -9,7 +9,7 @@
   const API = window.VehicleAPI;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
-  const INPUT_DEBOUNCE_MS = 320;
+  const INPUT_DEBOUNCE_MS = 250;
   const MIN_CODE_LENGTH = 12;
   const DASHBOARD_LIMIT = 100;
   const FOCUS_SUPPRESS_MS = 18000;
