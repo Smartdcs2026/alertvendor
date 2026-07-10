@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 05 HOTFIX 33: Inbound Canonical Source + Limit Fix
+ * ROUND 06 PART 01: Inbound SLA Alert Rules
  */
 (function (window) {
   'use strict';
@@ -45,6 +45,33 @@
         'VENDOR',
         'ทั่วไป'
       ],
+
+    /*
+     * Round 06 Part 01:
+     * SLA / Alert rules สำหรับหน้า Inbound
+     * warningMinutes = เริ่มเตือน
+     * criticalMinutes = วิกฤต/ควรเร่งดำเนินการ
+     */
+    INBOUND_SLA_RULES:
+      {
+        DOCUMENT_SUBMITTED: {
+          warningMinutes: 60,
+          criticalMinutes: 120,
+          label: 'รอรับสินค้า'
+        },
+
+        RECEIVING_COMPLETED: {
+          warningMinutes: 15,
+          criticalMinutes: 30,
+          label: 'รอรับเอกสารคืน'
+        },
+
+        DOCUMENT_RETURNED: {
+          warningMinutes: 30,
+          criticalMinutes: 60,
+          label: 'รอ Gate Out'
+        }
+      },
 
     TOKEN_STORAGE_KEY:
       'alertvendor_access_token_v2',
