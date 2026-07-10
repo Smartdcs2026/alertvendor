@@ -2,257 +2,522 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#073b59">
+  <meta name="color-scheme" content="light">
+  <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  >
+  <link rel="stylesheet" href="./inbound.css?v=20260710-r05-hotfix24-fullscreen-button">
 
-  <meta
-    name="theme-color"
-    content="#0f3d5e"
-  >
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+  <script src="./config.js?v=20260709-r05" defer></script>
+  <script src="./api.js?v=20260709-r05" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
+  <script src="./inbound-scanner.js?v=20260710-r05-hotfix24-fullscreen-button" defer></script>
+  <script src="./inbound.js?v=20260710-r05-hotfix24-fullscreen-button" defer></script>
 
-  <title>
-    หน้าหลัก | ระบบติดตามสถานะรถและตู้สินค้า
-  </title>
+  <style>
+    /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
+    html,
+    body {
+      width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
+    }
 
-  <link
-    rel="manifest"
-    href="./manifest.webmanifest"
-  >
+    .inbound-shell {
+      max-width: none !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      overflow-x: hidden !important;
+    }
 
-  <link
-    rel="stylesheet"
-    href="./styles.css"
-  >
+    .inbound-topbar,
+    .inbound-module-bar,
+    .inbound-workspace,
+    .inbound-left,
+    .inbound-right,
+    .scanner-card,
+    .workflow-table-wrap {
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+    }
 
-  <script
-    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
-    defer
-  ></script>
+    .inbound-workspace {
+      display: grid !important;
+      grid-template-columns: minmax(300px, 25.5vw) minmax(0, 1fr) !important;
+      align-items: stretch !important;
+      gap: 10px !important;
+      overflow: hidden !important;
+    }
 
-  <script
-    src="./config.js"
-    defer
-  ></script>
+    .inbound-left {
+      position: relative !important;
+      z-index: 1 !important;
+      overflow: hidden !important;
+    }
 
-  <script
-    src="./api.js"
-    defer
-  ></script>
+    .inbound-right {
+      position: relative !important;
+      z-index: 0 !important;
+      overflow: hidden !important;
+      max-width: 100% !important;
+    }
 
-  <script
-    src="./auth.js"
-    defer
-  ></script>
+    .scanner-card {
+      overflow: hidden !important;
+    }
+
+    .scanner-window {
+      max-width: 100% !important;
+      overflow: hidden !important;
+    }
+
+    .manual-form input#entryCodeInput {
+      pointer-events: auto !important;
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      caret-color: #073b59 !important;
+    }
+
+    .workflow-table-wrap {
+      position: relative !important;
+      z-index: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: auto !important;
+      overscroll-behavior: contain !important;
+    }
+
+    .workflow-table {
+      min-width: 1080px !important;
+      width: max-content !important;
+    }
+
+    .workflow-table thead th {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 3 !important;
+      background: #eef7fb !important;
+    }
+
+    .table-toolbar {
+      position: relative !important;
+      z-index: 4 !important;
+    }
+
+    .table-pagination {
+      position: relative !important;
+      z-index: 4 !important;
+    }
+
+    /* Prevent any detail/result area from surfacing and pushing the scanner in narrow windows */
+    @media (max-width: 1180px) {
+      .inbound-workspace {
+        grid-template-columns: minmax(290px, 34vw) minmax(0, 1fr) !important;
+      }
+
+      .workflow-table {
+        min-width: 1020px !important;
+      }
+
+      #lookupResultPanel {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 860px) {
+      body {
+        overflow-y: auto !important;
+      }
+
+      .inbound-workspace {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        overflow: visible !important;
+      }
+
+      .inbound-left,
+      .inbound-right {
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      .workflow-table-wrap {
+        max-height: 48vh !important;
+      }
+
+      .workflow-table {
+        min-width: 960px !important;
+      }
+
+      .inbound-topbar {
+        overflow: hidden !important;
+      }
+    }
+  
+    /* Round 05 Hotfix 22 - keep camera visible and prevent table overlay */
+    .inbound-workspace {
+      overflow: visible !important;
+      align-items: start !important;
+    }
+
+    .inbound-left {
+      position: relative !important;
+      z-index: 10 !important;
+      overflow: visible !important;
+      min-height: 0 !important;
+    }
+
+    .inbound-right {
+      position: relative !important;
+      z-index: 1 !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+    }
+
+    .scanner-card,
+    .scanner-window,
+    .manual-form,
+    .scanner-actions {
+      position: relative !important;
+      z-index: 11 !important;
+      visibility: visible !important;
+    }
+
+    .scanner-window {
+      display: block !important;
+      width: 100% !important;
+      height: clamp(180px, 24vh, 285px) !important;
+      min-height: 180px !important;
+      max-height: 300px !important;
+      overflow: hidden !important;
+      flex: 0 0 auto !important;
+    }
+
+    .scanner-window video,
+    #inboundVideo {
+      display: block !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 180px !important;
+      object-fit: cover !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    #lookupResultPanel,
+    #selectedRecordPanel {
+      display: none !important;
+    }
+
+    @media (max-width: 1120px) {
+      .inbound-workspace {
+        grid-template-columns: minmax(320px, 38vw) minmax(0, 1fr) !important;
+        overflow: visible !important;
+      }
+
+      .scanner-window {
+        height: 210px !important;
+        min-height: 210px !important;
+      }
+
+      .workflow-table-wrap {
+        max-height: calc(100vh - 330px) !important;
+        overflow: auto !important;
+      }
+
+      .workflow-table {
+        min-width: 980px !important;
+      }
+    }
+
+    @media (max-width: 760px) {
+      html,
+      body {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+
+      .inbound-workspace {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        overflow: visible !important;
+      }
+
+      .inbound-left {
+        order: 1 !important;
+        width: 100% !important;
+        overflow: visible !important;
+      }
+
+      .inbound-right {
+        order: 2 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      .scanner-card {
+        width: 100% !important;
+        overflow: visible !important;
+      }
+
+      .scanner-window {
+        display: block !important;
+        height: 220px !important;
+        min-height: 220px !important;
+      }
+
+      .scanner-window video,
+      #inboundVideo {
+        min-height: 220px !important;
+      }
+
+      .workflow-table-wrap {
+        max-height: 46vh !important;
+        overflow: auto !important;
+      }
+    }
+
+    @media (max-height: 720px) and (min-width: 761px) {
+      .scanner-window {
+        height: 175px !important;
+        min-height: 175px !important;
+      }
+
+      .scanner-window video,
+      #inboundVideo {
+        min-height: 175px !important;
+      }
+    }
+
+  
+    /* Round 05 Hotfix 24 - Fullscreen button */
+    .module-actions {
+      align-items: stretch !important;
+    }
+
+    #inboundFullscreenButton,
+    .button--fullscreen {
+      border-color: rgba(18, 155, 160, .35) !important;
+      background: linear-gradient(135deg, #e8fffb, #f3fbff) !important;
+      color: #07556a !important;
+      font-weight: 900 !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-shell {
+      padding: 8px !important;
+      min-height: 100vh !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-topbar {
+      min-height: 70px !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-module-bar {
+      padding: 8px 10px !important;
+    }
+
+    body.inbound-is-fullscreen .inbound-workspace {
+      min-height: calc(100vh - 168px) !important;
+    }
+
+    body.inbound-is-fullscreen .scanner-window {
+      height: clamp(190px, 28vh, 320px) !important;
+    }
+
+    body.inbound-is-fullscreen #inboundFullscreenButton {
+      background: linear-gradient(135deg, #fff1f1, #fffafa) !important;
+      border-color: rgba(239, 68, 68, .35) !important;
+      color: #991b1b !important;
+    }
+
+    @media (max-width: 760px) {
+      #inboundFullscreenButton {
+        min-height: 44px !important;
+      }
+    }
+
+  </style>
+
 </head>
 
-<body
-  data-page="dashboard"
-  class="dashboard-page"
->
-  <div
-    id="pageLoading"
-    class="page-loading"
-  >
-    <div class="spinner"></div>
-
-    <span>
-      กำลังตรวจสอบการเข้าสู่ระบบ
-    </span>
+<body class="inbound-page" data-page="inbound">
+  <div id="inboundLoading" class="inbound-loading" role="status" aria-live="polite">
+    <div class="inbound-spinner"></div>
+    <strong>กำลังเตรียมห้อง Inbound</strong>
+    <span>ตรวจสิทธิ์ โหลดข้อมูล และเตรียมช่องสแกน</span>
   </div>
 
-  <header class="app-header">
-    <div class="app-header__content">
-      <div class="app-brand">
-        <div
-          class="app-brand__icon"
-          aria-hidden="true"
-        >
-          รถ
-        </div>
-
-        <div>
-          <p>
-            VEHICLE STATUS
-          </p>
-
-          <h1>
-            ระบบติดตามสถานะรถและตู้สินค้า
-          </h1>
-        </div>
+  <main class="inbound-shell">
+    <header class="inbound-topbar" aria-label="แถบสถานะห้อง Inbound">
+      <div class="inbound-brand">
+        <small>INBOUND DOCUMENT CONTROL</small>
+        <h1>ห้อง Inbound</h1>
+        <p>สแกนหรือยิงรหัสแล้วบันทึกอัตโนมัติ · กดดูรายละเอียดใน SweetAlert และยกเลิกสถานะล่าสุดได้เมื่อจำเป็น</p>
       </div>
 
-      <div class="header-actions">
-        <a
-          id="adminButton"
-          class="button button--admin button--compact is-hidden"
-          href="./admin.html"
-        >
-          จัดการระบบ
-        </a>
-
-        <button
-          id="changePasswordButton"
-          class="button button--secondary button--compact"
-          type="button"
-        >
-          เปลี่ยนรหัสผ่าน
+      <div class="status-strip" aria-label="จำนวนตามสถานะ">
+        <button type="button" data-status-filter="ALL" class="is-active">
+          <span>ทั้งหมด</span><strong id="countTotalWorkflow">0</strong>
         </button>
-
-        <button
-          id="logoutButton"
-          class="button button--danger-ghost button--compact"
-          type="button"
-        >
-          ออกจากระบบ
+        <button type="button" data-status-filter="DOCUMENT_SUBMITTED">
+          <span>รอรับสินค้า</span><strong id="countWaitingReceiving">0</strong>
+        </button>
+        <button type="button" data-status-filter="RECEIVING_COMPLETED">
+          <span>รอรับเอกสารคืน</span><strong id="countReceivingCompleted">0</strong>
+        </button>
+        <button type="button" data-status-filter="DOCUMENT_RETURNED">
+          <span>คืนเอกสารแล้ว</span><strong id="countDocumentReturned">0</strong>
+        </button>
+        <button type="button" data-status-filter="CANCELLED">
+          <span>ยกเลิก</span><strong id="countCancelled">0</strong>
         </button>
       </div>
-    </div>
-  </header>
 
-  <main class="dashboard-container">
-    <section class="welcome-panel">
-      <div>
-        <p class="eyebrow">
-          ยินดีต้อนรับ
-        </p>
-
-        <h2 id="displayName">
-          กำลังโหลด...
-        </h2>
-
-        <div class="user-detail-row">
-          <span>
-            ชื่อผู้ใช้:
-            <strong id="usernameDisplay">
-              -
-            </strong>
-          </span>
-
-          <span
-            id="roleBadge"
-            class="role-badge"
-            data-role="USER"
-          >
-            <strong id="roleDisplay">
-              -
-            </strong>
-          </span>
-        </div>
+      <div class="inbound-user-card">
+        <span id="inboundConnection" data-state="LOADING">กำลังตรวจสอบ</span>
+        <strong id="inboundDateTime">--/--/---- --:--:--</strong>
+        <small id="inboundUser">-</small>
       </div>
+    </header>
 
-      <div class="welcome-time">
-        <span>
-          วันที่และเวลาปัจจุบัน
-        </span>
+    <section class="inbound-module-bar" aria-label="เลือกโมดูล">
+      <label>
+        <span>Module</span>
+        <select id="inboundModuleSelect">
+          <option value="">กำลังโหลด Module...</option>
+        </select>
+      </label>
 
-        <strong id="currentDateTime">
-          --/--/---- --:--:--
-        </strong>
-
-        <small>
-          Session หมดอายุ:
-          <span id="sessionExpiry">
-            -
-          </span>
-        </small>
+      <div class="module-actions">
+        <button id="inboundFullscreenButton" type="button" class="button--fullscreen" title="เปิดเต็มจอ">เต็มจอ</button>
+          <button id="inboundRefreshButton" type="button">รีเฟรช</button>
+        <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
       </div>
     </section>
 
-    <section
-      class="summary-grid"
-      aria-label="สรุประบบ"
-    >
-      <article class="summary-card">
-        <span class="summary-card__label">
-          โมดูลที่เข้าถึงได้
-        </span>
+    <section class="inbound-workspace">
+      <aside class="inbound-left" aria-label="พื้นที่สแกนและกรอกรหัส">
+        <section class="scanner-card">
+          <div class="scanner-card__head">
+            <div>
+              <small>SCAN AUTO ID</small>
+              <h2>ช่องรับรหัส</h2>
+            </div>
+            <span id="scannerStatus" data-state="IDLE">พร้อมรับรหัส</span>
+          </div>
 
-        <strong
-          id="moduleCount"
-          class="summary-card__value"
-        >
-          0
-        </strong>
+          <div class="scanner-window">
+            <video id="inboundVideo" playsinline muted></video>
+            <div class="scanner-frame" aria-hidden="true"></div>
+            <div class="scanner-hint">วาง QR / Barcode ในกรอบ</div>
+          </div>
 
-        <span class="summary-card__unit">
-          ระบบ
-        </span>
-      </article>
+          <form id="manualLookupForm" class="manual-form" autocomplete="off">
+            <label>
+              <span>Auto ID / รหัสจาก Gate In</span>
+              <input
+                id="entryCodeInput"
+                type="text"
+                inputmode="latin"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                placeholder="ยิงเครื่องสแกนหรือกรอก Auto ID แล้วกด Enter"
+              >
+            </label>
 
-      <article class="summary-card">
-        <span class="summary-card__label">
-          สถานะการเชื่อมต่อ
-        </span>
+            <div class="manual-actions">
+              <button id="lookupCodeButton" type="submit" class="button button--primary">ค้นหา</button>
+              <button id="clearCodeButton" type="button" class="button button--ghost">ล้าง</button>
+            </div>
+          </form>
 
-        <strong class="summary-card__status">
-          พร้อมใช้งาน
-        </strong>
+          <div class="scanner-actions">
+            <button id="startCameraButton" type="button" class="button button--success">เปิดกล้อง</button>
+            <button id="stopCameraButton" type="button" class="button button--ghost">ปิดกล้อง</button>
+          </div>
 
-        <span class="connection-indicator">
-          <span></span>
-          เชื่อมต่อแล้ว
-        </span>
-      </article>
-    </section>
+          <div id="scanMessage" class="scan-message" data-state="IDLE">
+            พร้อมสแกน ระบบจะค้นหาและบันทึกให้อัตโนมัติ
+          </div>
+        </section>
 
-    <section class="module-section">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">
-            ระบบที่เปิดใช้งาน
-          </p>
+        <section id="lookupResultPanel" class="result-panel" hidden>
+          <div class="result-panel__head">
+            <div>
+              <small>LAST SCAN</small>
+              <h2 id="resultTitle">ผลการสแกนล่าสุด</h2>
+            </div>
+            <span id="resultStatusBadge">-</span>
+          </div>
+          <div id="resultBody" class="result-body"></div>
+        </section>
+      </aside>
 
-          <h2>
-            เลือกหน้าติดตามสถานะ
-          </h2>
+      <section class="inbound-right" aria-label="ตารางสถานะรถและตู้">
+        <div class="table-toolbar">
+          <div>
+            <small>WORKFLOW TABLE</small>
+            <h2>สถานะงานเอกสาร</h2>
+          </div>
+
+          <label>
+            <span class="sr-only">ค้นหา</span>
+            <input id="workflowSearchInput" type="search" autocomplete="off" placeholder="ค้นหาเลขนัดหมาย / บริษัท / พขร. / ทะเบียน / โทร / Auto ID">
+          </label>
         </div>
 
-        <button
-          id="refreshModulesButton"
-          class="button button--secondary button--compact"
-          type="button"
-        >
-          รีเฟรช
-        </button>
-      </div>
+        <div class="workflow-table-wrap" id="workflowTableWrap">
+          <table class="workflow-table">
+            <thead>
+              <tr>
+                <th>เลขนัดหมาย</th>
+                <th>ชื่อบริษัท</th>
+                <th>ชื่อ พขร.</th>
+                <th>ทะเบียนรถ / จังหวัด</th>
+                <th>เบอร์โทร</th>
+                <th>สถานะ</th>
+                <th>เวลาล่าสุด</th>
+                <th>Auto ID</th>
+                <th>ดู</th>
+              </tr>
+            </thead>
+            <tbody id="workflowTableBody">
+              <tr>
+                <td colspan="9" class="table-empty">กำลังโหลดข้อมูล...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div
-        id="moduleLoading"
-        class="inline-loading"
-      >
-        <div class="spinner spinner--small"></div>
+        <footer class="table-pagination" aria-label="แบ่งหน้าตารางงานเอกสาร">
+          <div class="table-pagination__summary" id="workflowTablePageSummary">
+            แสดง 0 รายการ
+          </div>
 
-        <span>
-          กำลังโหลดรายการระบบ
-        </span>
-      </div>
+          <div class="table-pagination__controls">
+            <label>
+              <span>แถวต่อหน้า</span>
+              <select id="workflowPageSizeSelect">
+                <option value="AUTO" selected>อัตโนมัติตามจอ</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
 
-      <div
-        id="moduleEmpty"
-        class="empty-state is-hidden"
-      >
-        <strong>
-          ยังไม่มีโมดูลที่เปิดใช้งาน
-        </strong>
+            <button id="workflowPrevPage" type="button">ก่อนหน้า</button>
+            <strong id="workflowPageIndicator">หน้า 1 / 1</strong>
+            <button id="workflowNextPage" type="button">ถัดไป</button>
+          </div>
+        </footer>
 
-        <span>
-          ผู้ดูแลระบบสามารถเปิดโมดูลได้จากการตั้งค่าหลังบ้าน
-        </span>
-      </div>
-
-      <div
-        id="moduleList"
-        class="module-grid"
-      ></div>
+        <!-- รายละเอียดรายการจะแสดงผ่าน SweetAlert เท่านั้น เพื่อคงทุกอย่างไว้ในหน้าหลักและไม่เพิ่มพื้นที่ด้านล่าง -->
+      </section>
     </section>
   </main>
-
-  <footer class="app-footer">
-    ระบบใช้เขตเวลา Asia/Bangkok และรูปแบบวันที่
-    dd/MM/yyyy HH:mm:ss
-  </footer>
 </body>
 </html>
