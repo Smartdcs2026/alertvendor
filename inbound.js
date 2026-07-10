@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOTFIX 26 — Fullscreen + Stable Auth Reset Compatible
+ * ROUND 05 HOTFIX 32 — Canonical Inbound Data Source
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -77,7 +77,7 @@
         return;
       }
 
-      setConnection(role === 'ADMIN' ? 'ADMIN TEST MODE' : 'INBOUND ONLINE', 'READY');
+      setConnection(role === 'ADMIN' ? 'ADMIN MODE' : 'INBOUND ONLINE', 'READY');
       setText('inboundUser', (user.displayName || user.username || '-') + ' · ' + role);
 
       await loadModules();
@@ -179,6 +179,17 @@
     bindHardwareScannerCapture();
 
     byId('inboundModuleSelect')?.addEventListener('change', async (event) => {
+      if (CONFIG.INBOUND_FORCE_CANONICAL_MODULE) {
+        const canonical = findCanonicalInboundModule();
+        if (canonical) {
+          state.moduleId = canonical.moduleId;
+          event.target.value = canonical.moduleId;
+        }
+        setScanMessage('หน้า Inbound ใช้แหล่งข้อมูลเดียวกับหน้างานจริงเท่านั้น', 'WARN');
+        focusCodeInput(true);
+        return;
+      }
+
       state.moduleId = String(event.target.value || '').trim();
       clearCurrentResult();
       restoreDashboardCache({replace: true, silent: true});
@@ -340,8 +351,26 @@
       .filter((item) => item.moduleId);
 
     const params = new URLSearchParams(window.location.search);
-    const selected = params.get('module') || params.get('id') || CONFIG.INBOUND_DEFAULT_MODULE_ID || (state.modules[0] && state.modules[0].moduleId) || '';
-    state.moduleId = selected;
+    const requested = String(params.get('module') || params.get('id') || '').trim();
+    const canonical = findCanonicalInboundModule();
+
+    /*
+     * Hotfix 32:
+     * หน้า Inbound ต้องใช้แหล่งข้อมูลเดียวกันทั้ง ADMIN และ INBOUND
+     * จึงบังคับ default เป็นโมดูลหน้างานจริง ไม่ให้ ADMIN ไปเริ่มที่ Makro
+     */
+    if (CONFIG.INBOUND_FORCE_CANONICAL_MODULE && canonical) {
+      state.moduleId = canonical.moduleId;
+    } else if (requested && moduleExists(requested)) {
+      state.moduleId = requested;
+    } else if (CONFIG.INBOUND_DEFAULT_MODULE_ID && moduleExists(CONFIG.INBOUND_DEFAULT_MODULE_ID)) {
+      state.moduleId = CONFIG.INBOUND_DEFAULT_MODULE_ID;
+    } else if (canonical) {
+      state.moduleId = canonical.moduleId;
+    } else {
+      state.moduleId = (state.modules[0] && state.modules[0].moduleId) || '';
+    }
+
     renderModuleSelect();
   }
 
@@ -352,12 +381,74 @@
       select.innerHTML = '<option value="">ไม่พบ Module</option>';
       return;
     }
+
     select.innerHTML = state.modules.map((module) => `
       <option value="${escapeHtml(module.moduleId)}" ${module.moduleId === state.moduleId ? 'selected' : ''}>
         ${escapeHtml(module.name || module.moduleId)}
       </option>
     `).join('');
+
     if (!state.moduleId) state.moduleId = select.value;
+
+    if (CONFIG.INBOUND_FORCE_CANONICAL_MODULE) {
+      select.disabled = true;
+      select.title = 'ล็อกแหล่งข้อมูลเดียวกับหน้างาน Inbound';
+    } else {
+      select.disabled = false;
+      select.title = '';
+    }
+  }
+
+  function moduleExists(moduleId) {
+    const id = String(moduleId || '').trim();
+    return state.modules.some((module) => module.moduleId === id);
+  }
+
+  function findCanonicalInboundModule() {
+    if (!state.modules.length) {
+      return null;
+    }
+
+    const exactName =
+      normalizeSearchText(CONFIG.INBOUND_CANONICAL_MODULE_NAME || '');
+
+    if (exactName) {
+      const exact = state.modules.find((module) => (
+        normalizeSearchText(module.name) === exactName ||
+        normalizeSearchText(module.moduleId) === exactName
+      ));
+
+      if (exact) return exact;
+    }
+
+    const keywords =
+      Array.isArray(CONFIG.INBOUND_CANONICAL_MODULE_KEYWORDS)
+        ? CONFIG.INBOUND_CANONICAL_MODULE_KEYWORDS
+        : [];
+
+    const cleanKeywords = keywords
+      .map((keyword) => normalizeSearchText(keyword))
+      .filter(Boolean);
+
+    if (cleanKeywords.length) {
+      const matched = state.modules.find((module) => {
+        const haystack = normalizeSearchText(
+          (module.name || '') + ' ' + (module.moduleId || '')
+        );
+        return cleanKeywords.every((keyword) => haystack.includes(keyword));
+      });
+
+      if (matched) return matched;
+    }
+
+    return state.modules[0] || null;
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
   }
 
   function createScanner() {
