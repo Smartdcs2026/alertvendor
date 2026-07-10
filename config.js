@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 05 HOTFIX 32: Inbound Canonical Source
+ * ROUND 05 HOTFIX 33: Inbound Canonical Source + Limit Fix
  */
 (function (window) {
   'use strict';
