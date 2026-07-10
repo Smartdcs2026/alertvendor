@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 05 HOTFIX 12: เพิ่ม TOKEN_STORAGE_KEY และใช้งาน Persistent Token
+ * ROUND 05 HOTFIX 13: Isolated Session + Role Guard
  */
 (function (window) {
   'use strict';
@@ -29,6 +29,9 @@
 
     TOKEN_STORAGE_KEY:
       'alertvendor_access_token',
+
+    SESSION_POLICY:
+      'WINDOW_ISOLATED',
 
     API_TIMEOUT_MS:
       60000,
