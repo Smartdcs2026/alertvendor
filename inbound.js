@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 06 PART 03 — Scanner Buffer Restore + SLA Progress Bar
+ * ROUND 06 PART 04 — Restore Round05 Stable Scanner Logic + SLA Progress Bar
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -9,8 +9,8 @@
   const API = window.VehicleAPI;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
-  const INPUT_DEBOUNCE_MS = 450;
-  const MIN_CODE_LENGTH = 6;
+  const INPUT_DEBOUNCE_MS = 320;
+  const MIN_CODE_LENGTH = 12;
   const DASHBOARD_LIMIT = 100;
   const FOCUS_SUPPRESS_MS = 18000;
   const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V10_';
@@ -35,9 +35,6 @@
     hardwareScanTimer: 0,
     hardwareScannerBound: false,
     keyboardCaptureActive: false,
-    scannerKeyBuffer: '',
-    scannerKeyTimer: 0,
-    scannerLastKeyAt: 0,
     audioContext: null,
     audioUnlocked: false,
     suppressFocusUntil: 0,
@@ -95,7 +92,7 @@
       focusCodeInput();
 
       // คอมพิวเตอร์ที่เสียบเครื่องสแกนจะพร้อมรับรหัสทันที
-      setScanMessage('พร้อมรับรหัสจากกล้อง / กล่องสแกน QR / การกรอกมือ', 'SUCCESS');
+      setScanMessage('พร้อมรับรหัส สแกนแล้วระบบจะค้นหาและบันทึกขั้นตอนให้อัตโนมัติ', 'SUCCESS');
 
       // พยายามเปิดกล้องแบบเงียบ หาก Browser ไม่ยอมก็ยังใช้ช่องกรอก/เครื่องสแกนได้
       window.setTimeout(() => {
@@ -148,30 +145,23 @@
         unlockAudio();
 
         /*
-         * Round 06 Part 03:
-         * กล่องสแกนแบบ Keyboard Wedge ให้ตัวอักษรลง input ตามปกติ
-         * ส่วน document capture จะเก็บ buffer คู่ขนานไว้
-         * Enter/Tab ใช้ buffer หรือค่าจาก input แล้วแต่ตัวไหนครบกว่า
+         * Hotfix 34:
+         * เครื่องสแกน QR/Barcode แบบ Keyboard Wedge จะยิงตัวอักษรลง input ก่อน
+         * และมักปิดท้ายด้วย Enter หรือ Tab
+         * ให้ input รับตัวอักษรตามธรรมชาติ ห้ามดักระหว่างยิง
          */
         if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault();
           event.stopPropagation();
 
           window.clearTimeout(state.inputTimer);
-          window.clearTimeout(state.scannerKeyTimer);
 
+          /*
+           * หน่วง 0 ms เพื่อให้ browser commit ค่าใน input ให้ครบก่อนอ่าน
+           */
           window.setTimeout(() => {
-            const code = normalizeCode(
-              chooseBetterScanCode(
-                state.scannerKeyBuffer,
-                getEntryCode()
-              )
-            );
-
-            clearScannerKeyBuffer();
-
+            const code = getEntryCode();
             if (code) {
-              setEntryCodeInput(code, {focus: true});
               void processCode(code, {
                 source: event.key === 'Tab'
                   ? 'KEYBOARD_SCANNER_TAB'
@@ -186,18 +176,14 @@
       input.addEventListener('input', () => {
         unlockAudio();
 
+        /*
+         * อย่า process เร็วเกินไป เพราะ scanner บางรุ่นยิงตัวอักษรช้ากว่า 45ms
+         * ถ้า process ตอนรหัสยังไม่ครบ จะ clear input แล้วทำให้ดูเหมือนสแกนไม่เข้า
+         */
         window.clearTimeout(state.inputTimer);
         state.inputTimer = window.setTimeout(() => {
-          const code = normalizeCode(
-            chooseBetterScanCode(
-              state.scannerKeyBuffer,
-              getEntryCode()
-            )
-          );
-
+          const code = getEntryCode();
           if (looksLikeCompleteCode(code)) {
-            clearScannerKeyBuffer();
-            setEntryCodeInput(code, {focus: true});
             void processCode(code, {source: 'KEYBOARD_SCAN_NATIVE_IDLE', rawText: code});
           }
         }, INPUT_DEBOUNCE_MS);
@@ -1410,7 +1396,10 @@
   }
 
   function clearInput() {
-    clearScannerKeyBuffer();
+    state.hardwareScanBuffer = '';
+    window.clearTimeout(state.hardwareScanTimer);
+    state.hardwareScanBuffer = '';
+    window.clearTimeout(state.hardwareScanTimer);
     const input = byId('entryCodeInput');
     if (input) input.value = '';
   }
@@ -1425,45 +1414,36 @@
     state.hardwareScannerBound = true;
 
     /*
-     * Round 06 Part 03:
-     * ใช้ scanner buffer คู่ขนานกับ input เพื่อรองรับกล่องสแกนหลายรุ่น
-     * - ถ้า focus อยู่ในช่อง Auto ID: ไม่ preventDefault ตัวอักษร แต่เก็บ buffer ไว้ด้วย
-     * - ถ้า focus หลุดไปพื้นที่ว่าง: preventDefault แล้วเขียนลงช่อง Auto ID
-     * - Enter/Tab จะ finalize รหัสทันที
+     * Hotfix 23:
+     * - ถ้า focus อยู่ในช่อง Auto ID ให้ browser กรอกค่าตามปกติ ห้าม preventDefault
+     * - Global capture ใช้เฉพาะกรณี focus หลุดไปที่ body/พื้นที่ว่าง เพื่อรับเครื่องสแกนที่ยิงนอกช่อง
+     * - ไม่แย่งค่าจากช่องค้นหา, select, textarea, SweetAlert
      */
     document.addEventListener('keydown', (event) => {
-      if (!isScannerKeyCandidate(event)) return;
+      if (!shouldCaptureHardwareKey(event)) return;
 
       const input = byId('entryCodeInput');
       if (!input || input.disabled) return;
-      if (isScannerBlockedTarget(document.activeElement, input)) return;
 
       unlockAudio();
 
       const key = String(event.key || '');
-      const active = document.activeElement;
-      const isInputFocused = active === input;
       const isTerminator = key === 'Enter' || key === 'Tab';
 
       if (isTerminator) {
         event.preventDefault();
         event.stopPropagation();
 
-        const code = normalizeCode(
-          chooseBetterScanCode(
-            state.scannerKeyBuffer,
-            input.value
-          )
-        );
+        window.clearTimeout(state.hardwareScanTimer);
+        const code = normalizeCode(state.hardwareScanBuffer || input.value || '');
 
-        clearScannerKeyBuffer();
+        state.hardwareScanBuffer = '';
+        state.keyboardCaptureActive = false;
 
         if (code) {
           setEntryCodeInput(code, {focus: true});
           void processCode(code, {
-            source: key === 'Tab'
-              ? 'SCANNER_BUFFER_TAB'
-              : 'SCANNER_BUFFER_ENTER',
+            source: 'HARDWARE_SCANNER_GLOBAL_ENTER',
             rawText: code
           });
         }
@@ -1472,39 +1452,32 @@
       }
 
       if (key.length === 1) {
-        rememberScannerKey(key);
+        event.preventDefault();
+        event.stopPropagation();
 
-        if (!isInputFocused) {
-          event.preventDefault();
-          event.stopPropagation();
-          setEntryCodeInput(state.scannerKeyBuffer, {focus: true});
-        }
+        state.keyboardCaptureActive = true;
+        state.hardwareScanBuffer += key;
+        setEntryCodeInput(state.hardwareScanBuffer, {focus: true});
 
-        window.clearTimeout(state.scannerKeyTimer);
-        state.scannerKeyTimer = window.setTimeout(() => {
-          const code = normalizeCode(
-            chooseBetterScanCode(
-              state.scannerKeyBuffer,
-              input.value
-            )
-          );
+        window.clearTimeout(state.hardwareScanTimer);
+        state.hardwareScanTimer = window.setTimeout(() => {
+          const code = normalizeCode(state.hardwareScanBuffer || input.value || '');
+          state.hardwareScanBuffer = '';
+          state.keyboardCaptureActive = false;
 
           if (looksLikeCompleteCode(code)) {
-            clearScannerKeyBuffer();
             setEntryCodeInput(code, {focus: true});
             void processCode(code, {
-              source: 'SCANNER_BUFFER_IDLE',
+              source: 'HARDWARE_SCANNER_GLOBAL_AUTO',
               rawText: code
             });
           }
-        }, INPUT_DEBOUNCE_MS);
+        }, 220);
       }
     }, true);
 
     document.addEventListener('paste', (event) => {
-      const input = byId('entryCodeInput');
-      if (!input || input.disabled) return;
-      if (isScannerBlockedTarget(document.activeElement, input)) return;
+      if (!shouldCaptureHardwarePaste(event)) return;
 
       const text = String(
         event.clipboardData &&
@@ -1520,69 +1493,76 @@
       event.preventDefault();
       event.stopPropagation();
 
-      clearScannerKeyBuffer();
+      state.hardwareScanBuffer = '';
       setEntryCodeInput(code, {focus: true});
       void processCode(code, {
-        source: 'SCANNER_BUFFER_PASTE',
+        source: 'HARDWARE_SCANNER_GLOBAL_PASTE',
         rawText: code
       });
     }, true);
   }
 
-  function isScannerKeyCandidate(event) {
+  function shouldCaptureHardwareKey(event) {
     if (!event || event.ctrlKey || event.altKey || event.metaKey) return false;
     if (event.isComposing) return false;
 
     const key = String(event.key || '');
-    return key === 'Enter' || key === 'Tab' || key.length === 1;
-  }
+    if (key !== 'Enter' && key !== 'Tab' && key.length !== 1) return false;
 
-  function isScannerBlockedTarget(active, input) {
-    if (!active) return false;
+    const active = document.activeElement;
+    const input = byId('entryCodeInput');
+
+    /*
+     * จุดสำคัญ:
+     * ถ้า focus อยู่ในช่อง Auto ID อยู่แล้ว ให้ปล่อยให้ช่องรับค่าตามปกติ
+     * นี่คือพฤติกรรมที่กล่องสแกนใช้งานได้ในรอบแรก ๆ
+     */
     if (active === input) return false;
 
-    const tag = String(active.tagName || '').toUpperCase();
-    if (active.closest && active.closest('.swal2-container')) return true;
-    if (active.id === 'workflowSearchInput') return true;
-    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
-
-    /*
-     * อย่าแย่งข้อมูลจาก input อื่น แต่ถ้าเป็นปุ่ม/พื้นที่ว่างให้ scanner ใช้งานได้
-     */
-    if (tag === 'INPUT') return true;
-
-    return false;
-  }
-
-  function rememberScannerKey(key) {
-    const now = Date.now();
-
-    /*
-     * ถ้าห่างเกิน 800ms ให้ถือว่าเป็นการเริ่มยิงรหัสใหม่
-     */
-    if (now - state.scannerLastKeyAt > 800) {
-      state.scannerKeyBuffer = '';
+    if (active) {
+      const tag = String(active.tagName || '').toUpperCase();
+      if (active.closest && active.closest('.swal2-container')) return false;
+      if (active.id === 'workflowSearchInput') return false;
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
+      if (tag === 'INPUT') return false;
     }
 
-    state.scannerLastKeyAt = now;
-    state.scannerKeyBuffer += String(key || '');
+    return true;
   }
 
-  function clearScannerKeyBuffer() {
-    state.scannerKeyBuffer = '';
-    state.hardwareScanBuffer = '';
-    state.keyboardCaptureActive = false;
-    window.clearTimeout(state.scannerKeyTimer);
-    window.clearTimeout(state.hardwareScanTimer);
+  function shouldCaptureHardwarePaste(event) {
+    const active = document.activeElement;
+    const input = byId('entryCodeInput');
+
+    /*
+     * ถ้า paste ลงช่อง Auto ID โดยตรง ให้ input handler ทำงานเอง
+     */
+    if (active === input) return false;
+
+    if (active) {
+      const tag = String(active.tagName || '').toUpperCase();
+      if (active.closest && active.closest('.swal2-container')) return false;
+      if (active.id === 'workflowSearchInput') return false;
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
+      if (tag === 'INPUT') return false;
+    }
+
+    return true;
   }
 
-  function chooseBetterScanCode(bufferValue, inputValue) {
-    const buffer = normalizeCode(bufferValue || '');
-    const input = normalizeCode(inputValue || '');
+  function setEntryCodeInput(value, options) {
+    const input = byId('entryCodeInput');
+    if (!input) return;
 
-    if (buffer.length > input.length) return buffer;
-    if (input.length > buffer.length) return input;
-    return input || buffer;
+    input.value = String(value || '');
+
+    const config = options && typeof options === 'object' ? options : {};
+    if (config.focus !== false && document.activeElement !== input) {
+      try { input.focus({preventScroll: true}); } catch (error) { input.focus(); }
+    }
+
+    const cursor = input.value.length;
+    try { input.setSelectionRange(cursor, cursor); } catch (error) {}
   }
 
   function handlePointerIntent(event) {
@@ -1640,15 +1620,15 @@
     if (value.length < MIN_CODE_LENGTH) return false;
 
     /*
-     * Round 06 Part 02:
-     * QR/Barcode จากหน้างานอาจเป็นได้ทั้ง Auto ID รูปแบบ SK...
-     * หรือรหัสสั้น/เลขนัดหมายจาก Gate In
-     * ห้ามล็อกไว้ที่ความยาว 12 ตัวอักษร เพราะจะทำให้กล่องสแกนบางชุดดูเหมือนไม่ทำงาน
+     * Auto ID หน้างานที่พบใช้รูปแบบ SK + ตัวเลขหลายหลัก เช่น SK02042159476
+     * ไม่ควรรีบ process ตอนยังได้แค่บางส่วนของรหัส
      */
-    if (/^SK\d{6,20}$/i.test(value)) return true;
-    if (/^\d{6,20}$/.test(value)) return true;
+    if (/^SK\d{10,14}$/i.test(value)) return true;
 
-    return /^[A-Z0-9_-]{6,40}$/i.test(value);
+    /*
+     * กรณี QR/Barcode รูปแบบอื่น ให้รอความยาวอย่างน้อย 12 ตัวอักษร
+     */
+    return value.length >= 12 && /^[A-Z0-9_-]+$/i.test(value);
   }
 
   function normalizeCode(value) {
