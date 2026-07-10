@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-card-sheet.js
- * ROUND 06 PART 09.1B — Mobile Compact Card + Detail Action Sheet
+ * ROUND 06 PART 09.1C — Mobile Compact Card Blank Fix + Safe Hide
  *
  * เป้าหมาย:
  * - มือถือแสดง 2 การ์ดต่อแถว
@@ -40,6 +40,8 @@
     scheduleEnhance(0);
     scheduleEnhance(500);
     scheduleEnhance(1500);
+    window.addEventListener('load', () => scheduleEnhance(0));
+    startBootHydrationWindow();
 
     window.addEventListener(
       'alertvendor:workflow-guard-updated',
@@ -94,11 +96,23 @@
     );
   }
 
+
+  function startBootHydrationWindow() {
+    let attempts = 0;
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      enhanceVisibleCards();
+      if (attempts >= 20) {
+        window.clearInterval(interval);
+      }
+    }, 700);
+  }
+
   function observeCards() {
     const target =
+      document.body ||
       document.getElementById('vehicleList') ||
-      document.querySelector('.module-container') ||
-      document.body;
+      document.querySelector('.module-container');
 
     if (
       !target ||
@@ -156,6 +170,11 @@
   function enhanceCard(card) {
     if (!card) return;
 
+    if (!isMobile()) {
+      delete card.dataset.mobileReady;
+      return;
+    }
+
     let shell =
       card.querySelector(
         '.mobile-compact-card'
@@ -203,6 +222,9 @@
 
     card.dataset.mobileActionState =
       data.actionState;
+
+    card.dataset.mobileReady =
+      'true';
   }
 
   function extractCardData(card) {
@@ -755,22 +777,22 @@
           background: linear-gradient(135deg, #fff7ed, #ffffff) !important;
         }
 
-        .vehicle-card .mobile-compact-card {
+        .vehicle-card[data-mobile-ready="true"] .mobile-compact-card {
           display: grid !important;
           gap: 6px !important;
           height: 100% !important;
         }
 
-        .vehicle-card .vehicle-card__rail,
-        .vehicle-card .vehicle-card__rank,
-        .vehicle-card .vehicle-card__header,
-        .vehicle-card .vehicle-progress,
-        .vehicle-card .vehicle-card__priority-text,
-        .vehicle-card .vehicle-detail-grid,
-        .vehicle-card .vehicle-card__footer,
-        .vehicle-card .receiving-card-stage,
-        .vehicle-card .workflow-guard-note,
-        .vehicle-card .work-queue-card-badge {
+        .vehicle-card[data-mobile-ready="true"] .vehicle-card__rail,
+        .vehicle-card[data-mobile-ready="true"] .vehicle-card__rank,
+        .vehicle-card[data-mobile-ready="true"] .vehicle-card__header,
+        .vehicle-card[data-mobile-ready="true"] .vehicle-progress,
+        .vehicle-card[data-mobile-ready="true"] .vehicle-card__priority-text,
+        .vehicle-card[data-mobile-ready="true"] .vehicle-detail-grid,
+        .vehicle-card[data-mobile-ready="true"] .vehicle-card__footer,
+        .vehicle-card[data-mobile-ready="true"] .receiving-card-stage,
+        .vehicle-card[data-mobile-ready="true"] .workflow-guard-note,
+        .vehicle-card[data-mobile-ready="true"] .work-queue-card-badge {
           display: none !important;
         }
 
