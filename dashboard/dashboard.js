@@ -1,7 +1,6 @@
 /**
  * dashboard.js
- * ROUND 30 — Executive Control Room Dashboard
- * HOTFIX 26 — Auth Role Guard
+ * ROUND 05 HOTFIX 30 — Executive Control Room Dashboard Session Fix
  */
 (function (window, document) {
   'use strict';
@@ -133,14 +132,12 @@
         return;
       }
 
-      const dashboardRole = getDashboardSessionRole(state.session);
+      if (!isDashboardAllowedRole(state.session)) {
+        if (getSessionRole(state.session) === 'INBOUND') {
+          redirectToInbound();
+          return;
+        }
 
-      if (dashboardRole === 'INBOUND') {
-        redirectToInbound();
-        return;
-      }
-
-      if (dashboardRole !== 'ADMIN' && dashboardRole !== 'USER') {
         redirectToLogin();
         return;
       }
@@ -4102,25 +4099,39 @@
     );
   }
 
+  function getSessionRole(session) {
+    const user =
+      session &&
+      session.user &&
+      typeof session.user === 'object'
+        ? session.user
+        : session || {};
 
-  function getDashboardSessionUser(session) {
-    if (session && session.user && typeof session.user === 'object') {
-      return session.user;
-    }
-
-    return session || {};
-  }
-
-  function getDashboardSessionRole(session) {
     return String(
-      getDashboardSessionUser(session).role || 'USER'
+      user.role ||
+      'USER'
     )
       .trim()
       .toUpperCase();
   }
 
+  function isDashboardAllowedRole(session) {
+    const role =
+      getSessionRole(session);
+
+    return (
+      role === 'USER' ||
+      role === 'ADMIN'
+    );
+  }
+
   function redirectToInbound() {
-    window.location.replace('../inbound.html');
+    window.location.replace(
+      String(
+        CONFIG.INBOUND_URL ||
+        '../inbound.html'
+      )
+    );
   }
 
   function redirectToLogin() {
