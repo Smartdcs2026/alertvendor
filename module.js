@@ -16,6 +16,7 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
+ * - HOTFIX 13: กันสิทธิ์ INBOUND เข้า Module
  */
 (function (window, document) {
   'use strict';
@@ -124,6 +125,18 @@
       }
 
       state.session = session;
+
+      const moduleRole = getModuleSessionRole(session);
+
+      if (moduleRole === 'INBOUND') {
+        redirectToInbound();
+        return;
+      }
+
+      if (moduleRole !== 'ADMIN' && moduleRole !== 'USER') {
+        redirectToLogin();
+        return;
+      }
 
       if (
         session.user &&
@@ -6264,6 +6277,30 @@
       url.searchParams.get('id') ||
       ''
     ).trim();
+  }
+
+
+  function getModuleSessionUser(session) {
+    if (session && session.user && typeof session.user === 'object') {
+      return session.user;
+    }
+
+    return session || {};
+  }
+
+  function getModuleSessionRole(session) {
+    return String(
+      getModuleSessionUser(session).role || 'USER'
+    )
+      .trim()
+      .toUpperCase();
+  }
+
+  function redirectToInbound() {
+    window.location.replace(
+      CONFIG.INBOUND_URL ||
+      './inbound.html'
+    );
   }
 
   function redirectToDashboard() {
