@@ -1,12 +1,13 @@
 /**
  * api.js
- * ROUND 05 — เพิ่ม API รับสินค้าเสร็จเข้า Workflow + รับเอกสารคืน
+ * ROUND 05 HOTFIX 13 — Auth Role Guard + Isolated Session
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
- * - เก็บ Signed Session Token ใน localStorage + sessionStorage
+ * - เก็บ Signed Session Token ใน sessionStorage ของหน้าต่างนั้นเท่านั้น
+ * - ไม่ใช้ localStorage เป็น Active Token เพื่อกัน Session ปะปนระหว่าง PWA / Chrome / แท็บอื่น
  * - ส่งผ่าน Authorization: Bearer <token>
- * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
+ * - Logout/Login จะล้าง Token เก่าทั้ง sessionStorage และ localStorage legacy
  * - รองรับ Receiving Flow, Inbound Workflow, รับเอกสารคืน, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
  */
 (function (window) {
@@ -135,40 +136,14 @@
   }
 
   function getAccessToken() {
-    const localToken =
-      readStorageToken(
-        window.localStorage
-      );
-
-    if (localToken) {
-      const sessionToken =
-        readStorageToken(
-          window.sessionStorage
-        );
-
-      if (sessionToken !== localToken) {
-        writeStorageToken(
-          window.sessionStorage,
-          localToken
-        );
-      }
-
-      return localToken;
-    }
-
-    const sessionToken =
-      readStorageToken(
-        window.sessionStorage
-      );
-
-    if (sessionToken) {
-      writeStorageToken(
-        window.localStorage,
-        sessionToken
-      );
-    }
-
-    return sessionToken;
+    /*
+     * HOTFIX 13:
+     * ใช้เฉพาะ sessionStorage ของหน้าต่าง/แอพปัจจุบัน
+     * เพื่อป้องกัน PWA กับ Chrome หรือหลายแท็บใช้ Token คนละสิทธิ์ปะปนกัน
+     */
+    return readStorageToken(
+      window.sessionStorage
+    );
   }
 
   function setAccessToken(
@@ -184,11 +159,13 @@
       return;
     }
 
-    const savedLocal =
-      writeStorageToken(
-        window.localStorage,
-        cleanToken
-      );
+    /*
+     * ล้าง localStorage legacy ทุกครั้งก่อนตั้ง Token ใหม่
+     * เพื่อไม่ให้ Token ของหน้าต่าง/แอพอื่นถูกหยิบมาใช้ผิดสิทธิ์
+     */
+    removeStorageToken(
+      window.localStorage
+    );
 
     const savedSession =
       writeStorageToken(
@@ -196,7 +173,7 @@
         cleanToken
       );
 
-    if (!savedLocal && !savedSession) {
+    if (!savedSession) {
       throw new VehicleAPIError(
         'เบราว์เซอร์ไม่อนุญาตให้บันทึก Session',
         'TOKEN_STORAGE_FAILED',
@@ -214,6 +191,14 @@
       window.sessionStorage
     );
   }
+
+  /*
+   * ล้าง Token legacy ใน localStorage ทันทีที่โหลด api.js
+   * ป้องกันกรณีเปิด PWA ด้วย INBOUND แล้ว Chrome ทั่วไปหยิบ Token เดิมไปใช้
+   */
+  removeStorageToken(
+    window.localStorage
+  );
 
   function updateTokenFromData(
     data
