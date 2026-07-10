@@ -16,7 +16,7 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
- * - HOTFIX 13: กันสิทธิ์ INBOUND เข้า Module
+ * - HOTFIX 26: กันสิทธิ์ INBOUND เข้า Module + Auth Reset Stable
  */
 (function (window, document) {
   'use strict';
