@@ -73,7 +73,7 @@
 
   <link
   rel="stylesheet"
-  href="./styles.css?v=20260628-login-icon-fix2"
+  href="./styles.css?v=20260710-r05-hotfix28-login-auth-repair"
 >
 
   <script
@@ -82,19 +82,81 @@
   ></script>
 
   <script
-    src="./config.js"
+    src="./config.js?v=20260710-r05-hotfix28-login-auth-repair"
     defer
   ></script>
 
   <script
-    src="./api.js"
+    src="./api.js?v=20260710-r05-hotfix28-login-auth-repair"
     defer
   ></script>
 
   <script
-    src="./auth.js"
+    src="./auth.js?v=20260710-r05-hotfix28-login-auth-repair"
     defer
   ></script>
+
+  <style>
+    /* Round 05 Hotfix 28 - Login logo center + clock visibility */
+    .login-card {
+      text-align: center;
+    }
+
+    .login-app-icon {
+      width: 122px;
+      height: 122px;
+      margin: 0 auto 8px;
+      display: grid;
+      place-items: center;
+    }
+
+    .login-app-icon img {
+      display: block;
+      width: 112px;
+      height: 112px;
+      margin: 0 auto;
+      object-fit: contain;
+    }
+
+    .login-header {
+      text-align: center;
+    }
+
+    .date-time-panel {
+      text-align: left;
+    }
+
+    .date-time-panel strong {
+      min-width: 155px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 480px) {
+      .login-app-icon {
+        width: 110px;
+        height: 110px;
+      }
+
+      .login-app-icon img {
+        width: 104px;
+        height: 104px;
+      }
+
+      .date-time-panel {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .date-time-panel strong {
+        width: 100%;
+        min-width: 0;
+        text-align: left;
+      }
+    }
+  </style>
+
 </head>
 
 <body
@@ -145,6 +207,8 @@
       <form
         id="loginForm"
         class="login-form"
+        method="post"
+        action="./login.html"
         autocomplete="on"
         novalidate
       >
@@ -216,6 +280,78 @@
       กรุณาเปิดใช้งาน JavaScript เพื่อใช้งานระบบ
     </div>
   </noscript>
+
+  <script>
+    /*
+     * Round 05 Hotfix 28
+     * Clock fallback สำหรับหน้า Login
+     * ทำงานแยกจาก auth.js เพื่อให้วันที่เวลาไม่หาย แม้ไฟล์ auth cache/โหลดช้า
+     */
+    (function () {
+      'use strict';
+
+      function pad(value) {
+        return String(value).padStart(2, '0');
+      }
+
+      function formatBangkokDateTime(date) {
+        try {
+          var formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Bangkok',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23'
+          });
+
+          var parts = {};
+          formatter.formatToParts(date).forEach(function (part) {
+            parts[part.type] = part.value;
+          });
+
+          return parts.day + '/' + parts.month + '/' + parts.year + ' ' +
+            parts.hour + ':' + parts.minute + ':' + parts.second;
+
+        } catch (error) {
+          var now = new Date();
+          return pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' +
+            now.getFullYear() + ' ' + pad(now.getHours()) + ':' +
+            pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+        }
+      }
+
+      function updateLoginClock() {
+        var el = document.getElementById('currentDateTime');
+        if (!el) return;
+        el.textContent = formatBangkokDateTime(new Date());
+      }
+
+      function cleanEmptyLoginQuery() {
+        try {
+          var url = new URL(window.location.href);
+          if (
+            url.pathname.toLowerCase().indexOf('/login.html') >= 0 &&
+            (
+              url.searchParams.has('username') ||
+              url.searchParams.has('password')
+            )
+          ) {
+            window.history.replaceState(null, document.title, url.origin + url.pathname);
+          }
+        } catch (error) {}
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        cleanEmptyLoginQuery();
+        updateLoginClock();
+        window.setInterval(updateLoginClock, 1000);
+      });
+    })();
+  </script>
+
 </body>
 </html>
 
