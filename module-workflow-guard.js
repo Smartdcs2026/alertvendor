@@ -1,6 +1,6 @@
 /************************************************************
  * module-workflow-guard.js
- * ROUND 06 PART 08 — Core Workflow Guard
+ * ROUND 06 PART 09 — Core Workflow Guard + Auto ID Bridge
  *
  * เป้าหมาย:
  * - ไม่แตะ receiving.js เดิมที่ใช้งานได้
@@ -152,8 +152,32 @@
       const guard =
         evaluateCardGuard(card);
 
+      const workflowItem =
+        findWorkflowItemForCard(card);
+
+      const workflowAutoId =
+        workflowItem &&
+        workflowItem.autoId
+          ? workflowItem.autoId
+          : '';
+
       card.dataset.workflowGuard =
         guard.status || 'UNKNOWN';
+
+      card.dataset.workflowAutoId =
+        workflowAutoId;
+
+      card.dataset.workflowAppointment =
+        workflowItem &&
+        workflowItem.appointmentNumber
+          ? workflowItem.appointmentNumber
+          : '';
+
+      card.dataset.workflowRegistration =
+        workflowItem &&
+        workflowItem.registration
+          ? workflowItem.registration
+          : '';
 
       const button =
         card.querySelector(
@@ -161,6 +185,15 @@
         );
 
       if (button) {
+        button.dataset.workflowAutoId =
+          workflowAutoId;
+
+        button.dataset.workflowAppointment =
+          card.dataset.workflowAppointment || '';
+
+        button.dataset.workflowRegistration =
+          card.dataset.workflowRegistration || '';
+
         button.disabled =
           !guard.ready;
 
@@ -661,6 +694,83 @@
         ? ''
         : value
     ).trim();
+  }
+
+  window.AlertVendorWorkflowGuard = {
+    refresh:
+      () => refreshWorkflowGuard(false),
+
+    getAutoIdForRecord:
+      (recordId) => {
+        const identity =
+          getIdentityForRecord(recordId);
+
+        return identity.autoId || '';
+      },
+
+    getIdentityForRecord:
+      getIdentityForRecord
+  };
+
+  function getIdentityForRecord(recordId) {
+    const clean =
+      normalizeSearchText(recordId);
+
+    if (!clean) {
+      return {
+        autoId: '',
+        appointmentNumber: '',
+        registration: '',
+        statusCode: ''
+      };
+    }
+
+    const direct =
+      state.items.find((item) => {
+        return (
+          equalsToken(item.autoId, clean) ||
+          equalsToken(item.appointmentNumber, clean) ||
+          equalsToken(item.registration, clean) ||
+          equalsToken(item.phone, clean)
+        );
+      });
+
+    const item =
+      direct ||
+      state.items.find((entry) => {
+        const textValue =
+          normalizeSearchText(
+            [
+              entry.autoId,
+              entry.appointmentNumber,
+              entry.registration,
+              entry.phone
+            ].join(' ')
+          );
+
+        return textValue.includes(clean);
+      }) ||
+      null;
+
+    if (!item) {
+      return {
+        autoId: '',
+        appointmentNumber: '',
+        registration: '',
+        statusCode: ''
+      };
+    }
+
+    return {
+      autoId:
+        item.autoId || '',
+      appointmentNumber:
+        item.appointmentNumber || '',
+      registration:
+        item.registration || '',
+      statusCode:
+        item.statusCode || ''
+    };
   }
 
   function destroy() {
