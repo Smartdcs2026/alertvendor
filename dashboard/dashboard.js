@@ -1,7 +1,7 @@
 /**
  * dashboard.js
  * ROUND 30 — Executive Control Room Dashboard
- * HOTFIX 13 — Auth Role Guard
+ * HOTFIX 26 — Auth Role Guard
  */
 (function (window, document) {
   'use strict';
