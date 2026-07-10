@@ -4,7 +4,7 @@
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
- * - เก็บ Signed Session Token ใน sessionStorage
+ * - เก็บ Signed Session Token ใน localStorage + sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
  * - รองรับ Receiving Flow, Inbound Workflow, รับเอกสารคืน, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
@@ -21,7 +21,10 @@
     ).replace(/\/+$/, '');
 
   const TOKEN_STORAGE_KEY =
-    'alertvendor_access_token';
+    String(
+      CONFIG.TOKEN_STORAGE_KEY ||
+      'alertvendor_access_token'
+    );
 
   const inFlightGetRequests =
     new Map();
@@ -76,23 +79,96 @@
    * Token Storage
    ************************************************************/
 
-  function getAccessToken() {
+  function readStorageToken(
+    storage
+  ) {
     try {
+      if (!storage) {
+        return '';
+      }
+
       return String(
-        window.sessionStorage
-          .getItem(
-            TOKEN_STORAGE_KEY
-          ) || ''
+        storage.getItem(
+          TOKEN_STORAGE_KEY
+        ) || ''
       ).trim();
 
     } catch (error) {
-      console.warn(
-        'ไม่สามารถอ่าน Session Token ได้',
-        error
-      );
-
       return '';
     }
+  }
+
+  function writeStorageToken(
+    storage,
+    token
+  ) {
+    try {
+      if (!storage) {
+        return false;
+      }
+
+      storage.setItem(
+        TOKEN_STORAGE_KEY,
+        token
+      );
+
+      return true;
+
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function removeStorageToken(
+    storage
+  ) {
+    try {
+      if (storage) {
+        storage.removeItem(
+          TOKEN_STORAGE_KEY
+        );
+      }
+
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  function getAccessToken() {
+    const localToken =
+      readStorageToken(
+        window.localStorage
+      );
+
+    if (localToken) {
+      const sessionToken =
+        readStorageToken(
+          window.sessionStorage
+        );
+
+      if (sessionToken !== localToken) {
+        writeStorageToken(
+          window.sessionStorage,
+          localToken
+        );
+      }
+
+      return localToken;
+    }
+
+    const sessionToken =
+      readStorageToken(
+        window.sessionStorage
+      );
+
+    if (sessionToken) {
+      writeStorageToken(
+        window.localStorage,
+        sessionToken
+      );
+    }
+
+    return sessionToken;
   }
 
   function setAccessToken(
@@ -108,42 +184,35 @@
       return;
     }
 
-    try {
-      window.sessionStorage
-        .setItem(
-          TOKEN_STORAGE_KEY,
-          cleanToken
-        );
+    const savedLocal =
+      writeStorageToken(
+        window.localStorage,
+        cleanToken
+      );
 
-    } catch (error) {
+    const savedSession =
+      writeStorageToken(
+        window.sessionStorage,
+        cleanToken
+      );
+
+    if (!savedLocal && !savedSession) {
       throw new VehicleAPIError(
         'เบราว์เซอร์ไม่อนุญาตให้บันทึก Session',
-        'SESSION_STORAGE_FAILED',
-        0,
-        {
-          originalMessage:
-            error &&
-            error.message
-              ? error.message
-              : String(error)
-        }
+        'TOKEN_STORAGE_FAILED',
+        0
       );
     }
   }
 
   function clearAccessToken() {
-    try {
-      window.sessionStorage
-        .removeItem(
-          TOKEN_STORAGE_KEY
-        );
+    removeStorageToken(
+      window.localStorage
+    );
 
-    } catch (error) {
-      console.warn(
-        'ไม่สามารถล้าง Session Token ได้',
-        error
-      );
-    }
+    removeStorageToken(
+      window.sessionStorage
+    );
   }
 
   function updateTokenFromData(
@@ -740,6 +809,9 @@
 
       storageAvailable:
         storageAvailable,
+
+      storageMode:
+        'localStorage+sessionStorage',
 
       sessionTokenPresent:
         Boolean(
