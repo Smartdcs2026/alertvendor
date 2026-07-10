@@ -7,14 +7,14 @@
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <link rel="stylesheet" href="./inbound.css?v=20260710-r05-hotfix21-responsive-scan-input">
+  <link rel="stylesheet" href="./inbound.css?v=20260710-r05-hotfix22-responsive-camera-scanner">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260709-r05" defer></script>
   <script src="./api.js?v=20260709-r05" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260710-r05-hotfix21-responsive-scan-input" defer></script>
-  <script src="./inbound.js?v=20260710-r05-hotfix21-responsive-scan-input" defer></script>
+  <script src="./inbound-scanner.js?v=20260710-r05-hotfix22-responsive-camera-scanner" defer></script>
+  <script src="./inbound.js?v=20260710-r05-hotfix22-responsive-camera-scanner" defer></script>
 
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
@@ -155,6 +155,143 @@
         overflow: hidden !important;
       }
     }
+  
+    /* Round 05 Hotfix 22 - keep camera visible and prevent table overlay */
+    .inbound-workspace {
+      overflow: visible !important;
+      align-items: start !important;
+    }
+
+    .inbound-left {
+      position: relative !important;
+      z-index: 10 !important;
+      overflow: visible !important;
+      min-height: 0 !important;
+    }
+
+    .inbound-right {
+      position: relative !important;
+      z-index: 1 !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+    }
+
+    .scanner-card,
+    .scanner-window,
+    .manual-form,
+    .scanner-actions {
+      position: relative !important;
+      z-index: 11 !important;
+      visibility: visible !important;
+    }
+
+    .scanner-window {
+      display: block !important;
+      width: 100% !important;
+      height: clamp(180px, 24vh, 285px) !important;
+      min-height: 180px !important;
+      max-height: 300px !important;
+      overflow: hidden !important;
+      flex: 0 0 auto !important;
+    }
+
+    .scanner-window video,
+    #inboundVideo {
+      display: block !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 180px !important;
+      object-fit: cover !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    #lookupResultPanel,
+    #selectedRecordPanel {
+      display: none !important;
+    }
+
+    @media (max-width: 1120px) {
+      .inbound-workspace {
+        grid-template-columns: minmax(320px, 38vw) minmax(0, 1fr) !important;
+        overflow: visible !important;
+      }
+
+      .scanner-window {
+        height: 210px !important;
+        min-height: 210px !important;
+      }
+
+      .workflow-table-wrap {
+        max-height: calc(100vh - 330px) !important;
+        overflow: auto !important;
+      }
+
+      .workflow-table {
+        min-width: 980px !important;
+      }
+    }
+
+    @media (max-width: 760px) {
+      html,
+      body {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+
+      .inbound-workspace {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        overflow: visible !important;
+      }
+
+      .inbound-left {
+        order: 1 !important;
+        width: 100% !important;
+        overflow: visible !important;
+      }
+
+      .inbound-right {
+        order: 2 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      .scanner-card {
+        width: 100% !important;
+        overflow: visible !important;
+      }
+
+      .scanner-window {
+        display: block !important;
+        height: 220px !important;
+        min-height: 220px !important;
+      }
+
+      .scanner-window video,
+      #inboundVideo {
+        min-height: 220px !important;
+      }
+
+      .workflow-table-wrap {
+        max-height: 46vh !important;
+        overflow: auto !important;
+      }
+    }
+
+    @media (max-height: 720px) and (min-width: 761px) {
+      .scanner-window {
+        height: 175px !important;
+        min-height: 175px !important;
+      }
+
+      .scanner-window video,
+      #inboundVideo {
+        min-height: 175px !important;
+      }
+    }
+
   </style>
 
 </head>
