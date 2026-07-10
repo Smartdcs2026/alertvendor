@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 06 PART 01 — Inbound SLA Alert Colors
+ * ROUND 06 PART 02 — Scanner Input Restore + SLA Safe
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -9,8 +9,8 @@
   const API = window.VehicleAPI;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
-  const INPUT_DEBOUNCE_MS = 320;
-  const MIN_CODE_LENGTH = 12;
+  const INPUT_DEBOUNCE_MS = 450;
+  const MIN_CODE_LENGTH = 6;
   const DASHBOARD_LIMIT = 100;
   const FOCUS_SUPPRESS_MS = 18000;
   const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V10_';
@@ -92,7 +92,7 @@
       focusCodeInput();
 
       // คอมพิวเตอร์ที่เสียบเครื่องสแกนจะพร้อมรับรหัสทันที
-      setScanMessage('พร้อมรับรหัส สแกนแล้วระบบจะค้นหาและบันทึกขั้นตอนให้อัตโนมัติ', 'SUCCESS');
+      setScanMessage('พร้อมรับรหัสจากกล้อง / กล่องสแกน QR / การกรอกมือ', 'SUCCESS');
 
       // พยายามเปิดกล้องแบบเงียบ หาก Browser ไม่ยอมก็ยังใช้ช่องกรอก/เครื่องสแกนได้
       window.setTimeout(() => {
@@ -145,10 +145,11 @@
         unlockAudio();
 
         /*
-         * Hotfix 34:
-         * เครื่องสแกน QR/Barcode แบบ Keyboard Wedge จะยิงตัวอักษรลง input ก่อน
-         * และมักปิดท้ายด้วย Enter หรือ Tab
-         * ให้ input รับตัวอักษรตามธรรมชาติ ห้ามดักระหว่างยิง
+         * Round 06 Part 02:
+         * คืนพฤติกรรมกล่องสแกนแบบ Keyboard Wedge ให้เสถียร:
+         * - ตัวอักษรให้ลง input ตามปกติ
+         * - Enter/Tab คือสัญญาณจบรหัส
+         * - ไม่ใช้เงื่อนไขความยาวเข้มงวดตอนมี Enter/Tab
          */
         if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault();
@@ -156,9 +157,6 @@
 
           window.clearTimeout(state.inputTimer);
 
-          /*
-           * หน่วง 0 ms เพื่อให้ browser commit ค่าใน input ให้ครบก่อนอ่าน
-           */
           window.setTimeout(() => {
             const code = getEntryCode();
             if (code) {
@@ -176,10 +174,6 @@
       input.addEventListener('input', () => {
         unlockAudio();
 
-        /*
-         * อย่า process เร็วเกินไป เพราะ scanner บางรุ่นยิงตัวอักษรช้ากว่า 45ms
-         * ถ้า process ตอนรหัสยังไม่ครบ จะ clear input แล้วทำให้ดูเหมือนสแกนไม่เข้า
-         */
         window.clearTimeout(state.inputTimer);
         state.inputTimer = window.setTimeout(() => {
           const code = getEntryCode();
@@ -1473,7 +1467,7 @@
               rawText: code
             });
           }
-        }, 220);
+        }, 450);
       }
     }, true);
 
@@ -1621,15 +1615,15 @@
     if (value.length < MIN_CODE_LENGTH) return false;
 
     /*
-     * Auto ID หน้างานที่พบใช้รูปแบบ SK + ตัวเลขหลายหลัก เช่น SK02042159476
-     * ไม่ควรรีบ process ตอนยังได้แค่บางส่วนของรหัส
+     * Round 06 Part 02:
+     * QR/Barcode จากหน้างานอาจเป็นได้ทั้ง Auto ID รูปแบบ SK...
+     * หรือรหัสสั้น/เลขนัดหมายจาก Gate In
+     * ห้ามล็อกไว้ที่ความยาว 12 ตัวอักษร เพราะจะทำให้กล่องสแกนบางชุดดูเหมือนไม่ทำงาน
      */
-    if (/^SK\d{10,14}$/i.test(value)) return true;
+    if (/^SK\d{6,20}$/i.test(value)) return true;
+    if (/^\d{6,20}$/.test(value)) return true;
 
-    /*
-     * กรณี QR/Barcode รูปแบบอื่น ให้รอความยาวอย่างน้อย 12 ตัวอักษร
-     */
-    return value.length >= 12 && /^[A-Z0-9_-]+$/i.test(value);
+    return /^[A-Z0-9_-]{6,40}$/i.test(value);
   }
 
   function normalizeCode(value) {
