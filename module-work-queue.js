@@ -1,6 +1,6 @@
 /************************************************************
  * module-work-queue.js
- * ROUND 06 PART 09.1E — No Flicker Queue + Clear Workflow Terms
+ * ROUND 06 PART 09.1G — Stable Queue Render No Flicker
  *
  * เป้าหมาย:
  * - หน้า Module เป็น "หน้างาน" ไม่ใช่หน้ารวมทุกสถานะ
@@ -27,7 +27,10 @@
     lastCardCount: -1,
     lastItemCount: -1,
     guardReady: false,
-    queueCountsReady: false
+    queueCountsReady: false,
+    queueLoading: false,
+    lastQueueSignature: '',
+    lastVisibleSignature: ''
   };
 
   document.addEventListener(
@@ -400,8 +403,7 @@
         attributeFilter: [
           'data-workflow-guard',
           'data-workflow-auto-id',
-          'data-work-queue-group',
-          'class',
+          'data-status',
           'disabled'
         ]
       }
@@ -437,6 +439,8 @@
       ALL: cards.length
     };
 
+    const visibleParts = [];
+
     cards.forEach((card) => {
       const group =
         getCardQueueGroup(card);
@@ -448,19 +452,61 @@
         state.mode === 'ALL' ||
         state.mode === group;
 
-      card.classList.toggle(
-        'module-work-queue-hidden',
-        !visible
+      visibleParts.push(
+        String(card.dataset.recordId || '') +
+        ':' +
+        group +
+        ':' +
+        (visible ? '1' : '0')
       );
 
-      card.dataset.workQueueGroup =
-        group;
+      if (
+        card.classList.contains(
+          'module-work-queue-hidden'
+        ) === visible
+      ) {
+        card.classList.toggle(
+          'module-work-queue-hidden',
+          !visible
+        );
+      }
+
+      if (
+        card.dataset.workQueueGroup !==
+        group
+      ) {
+        card.dataset.workQueueGroup =
+          group;
+      }
 
       decorateCardQueueState(
         card,
         group
       );
     });
+
+    const visibleSignature =
+      visibleParts.join('|');
+
+    if (
+      state.lastVisibleSignature !==
+      visibleSignature
+    ) {
+      state.lastVisibleSignature =
+        visibleSignature;
+
+      window.dispatchEvent(
+        new CustomEvent(
+          'alertvendor:work-queue-rendered',
+          {
+            detail: {
+              mode: state.mode,
+              counters
+            }
+          }
+        )
+      );
+    }
 
     updateQueueBar(counters);
     updateLegacyListCount(counters);
@@ -642,19 +688,32 @@
       );
     }
 
+    let textValue =
+      'รับสินค้าเสร็จแล้ว: รอรับเอกสารคืนหรือ Gate Out';
+
     if (group === 'ACTION') {
-      badge.textContent =
+      textValue =
         'รอคลังรับสินค้าเสร็จ';
     } else if (group === 'WAIT_INBOUND') {
-      badge.textContent =
+      textValue =
         'รอคนขับยื่นเอกสารที่ห้อง Inbound';
-    } else {
-      badge.textContent =
-        'รับสินค้าเสร็จแล้ว: รอรับเอกสารคืนหรือ Gate Out';
     }
 
-    badge.dataset.workQueueGroup =
-      group;
+    if (
+      badge.textContent !==
+      textValue
+    ) {
+      badge.textContent =
+        textValue;
+    }
+
+    if (
+      badge.dataset.workQueueGroup !==
+      group
+    ) {
+      badge.dataset.workQueueGroup =
+        group;
+    }
   }
 
   function updateQueueBar(counters) {
@@ -667,6 +726,26 @@
 
       return;
     }
+
+    const signature =
+      [
+        state.mode,
+        counters.ACTION || 0,
+        counters.WAIT_INBOUND || 0,
+        counters.TRACKING || 0,
+        counters.ALL || 0
+      ].join('|');
+
+    if (
+      state.lastQueueSignature ===
+      signature &&
+      state.queueLoading !== true
+    ) {
+      return;
+    }
+
+    state.lastQueueSignature =
+      signature;
 
     setQueueLoading(
       false
@@ -703,15 +782,30 @@
             ''
           ).toUpperCase() === state.mode;
 
-        button.classList.toggle(
-          'is-active',
-          active
-        );
+        if (
+          button.classList.contains(
+            'is-active'
+          ) !== active
+        ) {
+          button.classList.toggle(
+            'is-active',
+            active
+          );
+        }
 
-        button.setAttribute(
-          'aria-pressed',
-          active ? 'true' : 'false'
-        );
+        const aria =
+          active ? 'true' : 'false';
+
+        if (
+          button.getAttribute(
+            'aria-pressed'
+          ) !== aria
+        ) {
+          button.setAttribute(
+            'aria-pressed',
+            aria
+          );
+        }
       });
 
     const title =
@@ -720,41 +814,66 @@
     const hint =
       byId('workQueueModeHint');
 
-    if (title) {
+    const titleText =
+      state.mode === 'ACTION'
+        ? 'รอคลังรับสินค้า'
+        : state.mode === 'WAIT_INBOUND'
+          ? 'รอยื่นเอกสารที่ Inbound'
+          : state.mode === 'TRACKING'
+            ? 'ติดตามหลังรับสินค้า'
+            : 'รายการทั้งหมด';
+
+    const hintText =
+      state.mode === 'ACTION'
+        ? 'คนขับยื่นเอกสารแล้ว เหลือรอคลังรับสินค้าให้เสร็จ'
+        : state.mode === 'WAIT_INBOUND'
+          ? 'รถ/ตู้เข้าพื้นที่แล้ว แต่ยังไม่พบการยื่นเอกสารที่ห้อง Inbound'
+          : state.mode === 'TRACKING'
+            ? 'คลังรับสินค้าเสร็จแล้ว เหลือรับเอกสารคืนที่ Inbound หรือออก Gate Out'
+            : 'ภาพรวมทุกขั้นตอนของรายการที่ยังเกี่ยวข้อง';
+
+    if (
+      title &&
+      title.textContent !== titleText
+    ) {
       title.textContent =
-        state.mode === 'ACTION'
-          ? 'รอคลังรับสินค้า'
-          : state.mode === 'WAIT_INBOUND'
-            ? 'รอยื่นเอกสารที่ Inbound'
-            : state.mode === 'TRACKING'
-              ? 'ติดตามหลังรับสินค้า'
-              : 'รายการทั้งหมด';
+        titleText;
     }
 
-    if (hint) {
+    if (
+      hint &&
+      hint.textContent !== hintText
+    ) {
       hint.textContent =
-        state.mode === 'ACTION'
-          ? 'คนขับยื่นเอกสารแล้ว เหลือรอคลังรับสินค้าให้เสร็จ'
-          : state.mode === 'WAIT_INBOUND'
-            ? 'รถ/ตู้เข้าพื้นที่แล้ว แต่ยังไม่พบการยื่นเอกสารที่ห้อง Inbound'
-            : state.mode === 'TRACKING'
-              ? 'คลังรับสินค้าเสร็จแล้ว เหลือรับเอกสารคืนที่ Inbound หรือออก Gate Out'
-              : 'ภาพรวมทุกขั้นตอนของรายการที่ยังเกี่ยวข้อง';
+        hintText;
     }
   }
 
   function setQueueLoading(isLoading) {
+    const next =
+      Boolean(isLoading);
+
+    if (
+      state.queueLoading ===
+      next
+    ) {
+      return;
+    }
+
+    state.queueLoading =
+      next;
+
     const bar =
       byId('moduleWorkQueueBar');
 
     if (bar) {
       bar.classList.toggle(
         'is-counts-loading',
-        Boolean(isLoading)
+        next
       );
     }
 
-    if (!isLoading) {
+    if (!next) {
       return;
     }
 
@@ -764,7 +883,16 @@
       'workQueueTrackingCount',
       'workQueueAllCount'
     ].forEach((id) => {
-      setText(id, '...');
+      const element =
+        byId(id);
+
+      if (
+        element &&
+        element.textContent !== '...'
+      ) {
+        element.textContent =
+          '...';
+      }
     });
 
     const title =
@@ -773,12 +901,20 @@
     const hint =
       byId('workQueueModeHint');
 
-    if (title) {
+    if (
+      title &&
+      title.textContent !==
+        'กำลังจัดคิวงาน'
+    ) {
       title.textContent =
         'กำลังจัดคิวงาน';
     }
 
-    if (hint) {
+    if (
+      hint &&
+      hint.textContent !==
+        'รอข้อมูล Workflow ให้ครบก่อนแสดงตัวเลข เพื่อไม่ให้ตัวเลขกระพริบ'
+    ) {
       hint.textContent =
         'รอข้อมูล Workflow ให้ครบก่อนแสดงตัวเลข เพื่อไม่ให้ตัวเลขกระพริบ';
     }
