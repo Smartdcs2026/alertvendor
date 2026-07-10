@@ -7,140 +7,208 @@
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
 
-  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix17-thin-top-strip">
+  <link rel="stylesheet" href="./inbound.css?v=20260709-r05-hotfix18-balanced-topbar">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260709-r05" defer></script>
   <script src="./api.js?v=20260709-r05" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260709-r05-hotfix17-thin-top-strip" defer></script>
-  <script src="./inbound.js?v=20260709-r05-hotfix17-thin-top-strip" defer></script>
+  <script src="./inbound-scanner.js?v=20260709-r05-hotfix18-balanced-topbar" defer></script>
+  <script src="./inbound.js?v=20260709-r05-hotfix18-balanced-topbar" defer></script>
 
   <style>
-    /* Round 05 Hotfix 17 - Everything in one thin top strip */
-    .inbound-shell { gap: 8px !important; }
+    /* Round 05 Hotfix 18 - Balanced top data bar */
+    .inbound-shell { gap: 10px !important; }
     .inbound-topbar {
       display: grid !important;
-      grid-template-columns: minmax(180px, .72fr) minmax(260px, .95fr) minmax(420px, 1.55fr) minmax(220px, .82fr) !important;
+      grid-template-columns: minmax(220px, 0.95fr) minmax(430px, 1.7fr) minmax(260px, 1.05fr) minmax(240px, 0.95fr) !important;
       align-items: center !important;
-      gap: 8px !important;
-      padding: 7px 12px !important;
-      min-height: 64px !important;
+      gap: 10px !important;
+      padding: 10px 14px !important;
+      min-height: 78px !important;
+      border-radius: 20px !important;
     }
-    .inbound-brand { min-width: 0 !important; }
+    .inbound-brand {
+      min-width: 0 !important;
+      padding-right: 4px !important;
+    }
     .inbound-brand small {
       display: block !important;
-      margin: 0 !important;
-      font-size: 9px !important;
+      margin: 0 0 4px !important;
+      font-size: 10px !important;
       line-height: 1 !important;
-      letter-spacing: .08em !important;
+      letter-spacing: .10em !important;
+      color: #7be7ea !important;
     }
     .inbound-brand h1 {
-      margin: 2px 0 0 !important;
-      font-size: 24px !important;
-      line-height: 1 !important;
+      margin: 0 !important;
+      font-size: 34px !important;
+      line-height: .95 !important;
       white-space: nowrap !important;
     }
     .inbound-brand p {
-      display: none !important;
+      margin: 4px 0 0 !important;
+      font-size: 11px !important;
+      line-height: 1.2 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      opacity: .92 !important;
     }
-    .topstrip-module-tools {
+
+    .status-strip {
       min-width: 0 !important;
       display: grid !important;
-      grid-template-columns: minmax(0,1fr) 34px 34px !important;
-      align-items: center !important;
-      gap: 6px !important;
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      gap: 8px !important;
+      align-items: stretch !important;
     }
-    .topstrip-module-tools select {
+    .status-strip button {
+      min-width: 0 !important;
+      min-height: 54px !important;
+      padding: 7px 8px !important;
+      border-radius: 14px !important;
+      display: grid !important;
+      align-content: center !important;
+      justify-items: center !important;
+    }
+    .status-strip button span {
+      display: block !important;
+      max-width: 100% !important;
+      font-size: 10px !important;
+      line-height: 1.05 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .status-strip button strong {
+      display: block !important;
+      margin-top: 3px !important;
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
+    .topbar-module-tools {
+      min-width: 0 !important;
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 40px 40px !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 8px 10px !important;
+      border: 1px solid rgba(129, 224, 229, .32) !important;
+      border-radius: 16px !important;
+      background: rgba(255,255,255,.06) !important;
+    }
+    .topbar-module-tools select {
       width: 100% !important;
-      height: 34px !important;
-      min-height: 34px !important;
-      border: 1px solid rgba(177,224,235,.45) !important;
-      border-radius: 10px !important;
-      padding: 4px 28px 4px 10px !important;
-      font-size: 13px !important;
-      font-weight: 800 !important;
+      height: 40px !important;
+      min-height: 40px !important;
+      border: 1px solid rgba(182, 226, 237, .42) !important;
+      border-radius: 12px !important;
+      padding: 6px 32px 6px 12px !important;
       color: #08324d !important;
-      background: rgba(255,255,255,.97) !important;
+      background: rgba(255,255,255,.98) !important;
+      font-size: 14px !important;
+      font-weight: 800 !important;
       box-shadow: none !important;
     }
-    .topstrip-module-tools button {
-      width: 34px !important;
-      min-width: 34px !important;
-      height: 34px !important;
-      min-height: 34px !important;
-      border-radius: 10px !important;
-      border: 1px solid rgba(177,224,235,.36) !important;
-      background: rgba(255,255,255,.08) !important;
-      color: #fff !important;
+    .topbar-module-tools button {
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+      border-radius: 12px !important;
+      border: 1px solid rgba(182, 226, 237, .35) !important;
+      background: rgba(255,255,255,.10) !important;
+      color: #ffffff !important;
       padding: 0 !important;
       font-size: 0 !important;
       display: inline-grid !important;
       place-items: center !important;
       box-shadow: none !important;
     }
-    .topstrip-module-tools button::before {
+    .topbar-module-tools button::before {
       display: block !important;
-      font-size: 16px !important;
-      line-height: 1 !important;
-    }
-    .topstrip-module-tools #inboundRefreshButton::before { content: '↻'; }
-    .topstrip-module-tools #inboundLogoutButton { background: rgba(255,91,91,.12) !important; border-color: rgba(255,202,202,.45) !important; }
-    .topstrip-module-tools #inboundLogoutButton::before { content: '⎋'; }
-    .status-strip {
-      min-width: 0 !important;
-      display: grid !important;
-      grid-template-columns: repeat(5, minmax(0,1fr)) !important;
-      gap: 6px !important;
-      align-items: center !important;
-    }
-    .status-strip button {
-      min-width: 0 !important;
-      min-height: 38px !important;
-      border-radius: 10px !important;
-      padding: 4px 5px !important;
-    }
-    .status-strip button span {
-      font-size: 9px !important;
-      line-height: 1 !important;
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-    }
-    .status-strip button strong {
-      margin-top: 2px !important;
       font-size: 18px !important;
       line-height: 1 !important;
     }
+    .topbar-module-tools #inboundRefreshButton::before { content: '↻'; }
+    .topbar-module-tools #inboundLogoutButton {
+      border-color: rgba(255, 197, 197, .45) !important;
+      background: rgba(255, 99, 99, .14) !important;
+    }
+    .topbar-module-tools #inboundLogoutButton::before { content: '⎋'; }
+
     .inbound-user-card {
       min-width: 0 !important;
+      justify-self: stretch !important;
       align-self: stretch !important;
       display: grid !important;
       align-content: center !important;
-      gap: 1px !important;
-      padding: 6px 10px !important;
-      border-radius: 12px !important;
+      justify-items: end !important;
+      gap: 2px !important;
+      padding: 8px 12px !important;
+      border-radius: 16px !important;
+      background: rgba(255,255,255,.05) !important;
     }
-    .inbound-user-card span { font-size: 10px !important; line-height: 1 !important; }
-    .inbound-user-card strong { font-size: 15px !important; line-height: 1.05 !important; white-space: nowrap !important; }
-    .inbound-user-card small { font-size: 11px !important; line-height: 1.1 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+    .inbound-user-card span {
+      font-size: 12px !important;
+      line-height: 1 !important;
+    }
+    .inbound-user-card strong {
+      font-size: 18px !important;
+      line-height: 1.08 !important;
+      white-space: nowrap !important;
+    }
+    .inbound-user-card small {
+      font-size: 12px !important;
+      line-height: 1.15 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      max-width: 100% !important;
+    }
+
     .inbound-module-bar { display: none !important; }
-    .inbound-workspace { min-height: calc(100vh - 152px) !important; }
-    @media (max-width: 1400px) {
-      .inbound-topbar { grid-template-columns: minmax(170px,.7fr) minmax(240px,.95fr) minmax(380px,1.45fr) minmax(205px,.8fr) !important; }
-      .status-strip button strong { font-size: 16px !important; }
-    }
-    @media (max-width: 1120px) {
+    .inbound-workspace { min-height: calc(100vh - 188px) !important; }
+
+    @media (max-width: 1440px) {
       .inbound-topbar {
-        grid-template-columns: minmax(170px,.8fr) minmax(250px,1fr) minmax(220px,.9fr) !important;
+        grid-template-columns: minmax(210px, .95fr) minmax(390px, 1.55fr) minmax(240px, 1fr) minmax(220px, .9fr) !important;
+        gap: 8px !important;
+      }
+      .status-strip button strong { font-size: 20px !important; }
+      .status-strip button span { font-size: 9px !important; }
+      .inbound-brand h1 { font-size: 30px !important; }
+    }
+
+    @media (max-width: 1180px) {
+      .inbound-topbar {
+        grid-template-columns: minmax(220px, 1fr) minmax(320px, 1.2fr) minmax(220px, 1fr) !important;
         min-height: 0 !important;
       }
-      .status-strip { grid-column: 1 / -1 !important; }
-      .inbound-workspace { min-height: calc(100vh - 194px) !important; }
+      .inbound-user-card {
+        grid-column: 3;
+      }
+      .status-strip {
+        grid-column: 1 / -1 !important;
+      }
+      .topbar-module-tools {
+        grid-column: 2;
+      }
+      .inbound-workspace { min-height: calc(100vh - 228px) !important; }
     }
+
     @media (max-width: 760px) {
-      .inbound-topbar { grid-template-columns: 1fr !important; }
-      .status-strip { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+      .inbound-topbar {
+        grid-template-columns: 1fr !important;
+      }
+      .status-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .topbar-module-tools, .inbound-user-card {
+        grid-column: auto !important;
+      }
       .inbound-workspace { min-height: auto !important; }
     }
   </style>
@@ -160,15 +228,6 @@
         <small>INBOUND DOCUMENT CONTROL</small>
         <h1>ห้อง Inbound</h1>
         <p>สแกนหรือยิงรหัสแล้วบันทึกอัตโนมัติ · กดดูรายละเอียดใน SweetAlert และยกเลิกสถานะล่าสุดได้เมื่อจำเป็น</p>
-
-      <div class="topstrip-module-tools" aria-label="เลือกโมดูลและคำสั่ง">
-        <select id="inboundModuleSelect" aria-label="เลือกโมดูล">
-          <option value="">กำลังโหลด Module...</option>
-        </select>
-        <button id="inboundRefreshButton" type="button" title="รีเฟรชข้อมูล" aria-label="รีเฟรชข้อมูล">รีเฟรช</button>
-        <button id="inboundLogoutButton" type="button" class="button--logout" title="ออกจากระบบ" aria-label="ออกจากระบบ">ออกจากระบบ</button>
-      </div>
-
       </div>
 
       <div class="status-strip" aria-label="จำนวนตามสถานะ">
@@ -187,6 +246,15 @@
         <button type="button" data-status-filter="CANCELLED">
           <span>ยกเลิก</span><strong id="countCancelled">0</strong>
         </button>
+
+      <div class="topbar-module-tools" aria-label="เลือกโมดูลและคำสั่ง">
+        <select id="inboundModuleSelect" aria-label="เลือกโมดูล">
+          <option value="">กำลังโหลด Module...</option>
+        </select>
+        <button id="inboundRefreshButton" type="button" title="รีเฟรชข้อมูล" aria-label="รีเฟรชข้อมูล">รีเฟรช</button>
+        <button id="inboundLogoutButton" type="button" class="button--logout" title="ออกจากระบบ" aria-label="ออกจากระบบ">ออกจากระบบ</button>
+      </div>
+
       </div>
 
       <div class="inbound-user-card">
