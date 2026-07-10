@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-card-sheet-v2.js
- * ROUND 06 PART 09.1E — Mobile Card Visible + Clear Workflow Terms
+ * ROUND 06 PART 09.1F — Mobile Compact Lock
  *
  * แก้เฉพาะ:
  * - มือถือขึ้นการ์ดเปล่า
@@ -16,6 +16,7 @@
   const state = {
     timer: 0,
     bootTimer: 0,
+    lockTimer: 0,
     observer: null
   };
 
@@ -30,6 +31,18 @@
   );
 
   window.addEventListener(
+    'beforeunload',
+    () => {
+      window.clearTimeout(state.timer);
+      window.clearInterval(state.bootTimer);
+      window.clearInterval(state.lockTimer);
+      if (state.observer) {
+        state.observer.disconnect();
+      }
+    }
+  );
+
+  window.addEventListener(
     'resize',
     () => scheduleHydrate(80)
   );
@@ -39,7 +52,9 @@
     bindCardClick();
     observe();
     startBootHydration();
+    startMobileCompactLock();
     scheduleHydrate(0);
+    scheduleHydrate(120);
     scheduleHydrate(400);
     scheduleHydrate(1200);
 
@@ -95,7 +110,10 @@
 
     state.observer =
       new MutationObserver(
-        () => scheduleHydrate(80)
+        () => {
+          ensureMobileBodyClass();
+          hydrateCards();
+        }
       );
 
     state.observer.observe(
@@ -127,7 +145,35 @@
       );
   }
 
+
+  function startMobileCompactLock() {
+    window.clearInterval(
+      state.lockTimer
+    );
+
+    state.lockTimer =
+      window.setInterval(
+        () => {
+          ensureMobileBodyClass();
+
+          if (isMobile()) {
+            hydrateCards();
+          }
+        },
+        900
+      );
+  }
+
+  function ensureMobileBodyClass() {
+    document.body.classList.toggle(
+      'mobile-compact-cards-active',
+      isMobile()
+    );
+  }
+
   function hydrateCards() {
+    ensureMobileBodyClass();
+
     const cards =
       Array.from(
         document.querySelectorAll(
@@ -140,6 +186,9 @@
         if (!isMobile()) {
           card.removeAttribute(
             'data-mobile-ready'
+          );
+          card.removeAttribute(
+            'data-mobile-status'
           );
           return;
         }
@@ -730,7 +779,7 @@
         display: none;
       }
 
-      @media (max-width: 760px) {
+      @media (max-width: 900px) {
         #vehicleList,
         .vehicle-grid,
         .vehicle-list {
@@ -770,12 +819,14 @@
           background: linear-gradient(135deg, #fff7ed, #ffffff) !important;
         }
 
+        body.mobile-compact-cards-active
         .vehicle-card[data-mobile-ready="true"] > :not(.mobile-compact-card) {
           display: none !important;
           visibility: hidden !important;
           opacity: 0 !important;
         }
 
+        body.mobile-compact-cards-active
         .vehicle-card[data-mobile-ready="true"] > .mobile-compact-card {
           display: grid !important;
           visibility: visible !important;
@@ -785,7 +836,9 @@
           min-height: 118px !important;
         }
 
+        body.mobile-compact-cards-active
         .vehicle-card[data-mobile-ready="true"] > .mobile-compact-card,
+        body.mobile-compact-cards-active
         .vehicle-card[data-mobile-ready="true"] > .mobile-compact-card * {
           box-sizing: border-box !important;
           visibility: visible !important;
@@ -866,6 +919,41 @@
         .mobile-v2-status {
           margin-top: auto !important;
           text-align: center !important;
+        }
+
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-card__rail,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-card__rank,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-card__header,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-progress,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-card__priority-text,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-detail-grid,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .vehicle-card__footer,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .receiving-card-stage,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .workflow-guard-note,
+        body.mobile-compact-cards-active
+        .vehicle-card[data-mobile-ready="true"]
+        .work-queue-card-badge {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
         }
 
         .mobile-v2-popup {
