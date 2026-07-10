@@ -3,7 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
- * ROUND 05 HOTFIX 25: Isolated Session + Strict Role Redirect
+ * ROUND 05 HOTFIX 26: Stable Auth Reset + Explicit Role Routing
  */
 (function (
   window,
@@ -1811,17 +1811,31 @@
   }
 
   function redirectAfterLoginByRole() {
+    const role =
+      getSessionRole(
+        state.session
+      );
+
     /*
-     * Hotfix 25:
-     * ADMIN / USER ต้องกลับหน้าหลักเสมอ
-     * INBOUND เท่านั้นที่ไปหน้า inbound.html อัตโนมัติ
+     * Hotfix 26 routing:
+     * - INBOUND เท่านั้น -> inbound.html
+     * - ADMIN / USER -> index.html
+     * - อื่น ๆ -> login.html
      */
-    if (isInboundRole(state.session)) {
+    if (role === 'INBOUND') {
       redirectToInbound();
       return;
     }
 
-    redirectToDashboard();
+    if (
+      role === 'ADMIN' ||
+      role === 'USER'
+    ) {
+      redirectToDashboard();
+      return;
+    }
+
+    redirectToLogin();
   }
 
     window.location.replace(
