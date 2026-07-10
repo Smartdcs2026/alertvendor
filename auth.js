@@ -3,7 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
- * ROUND 05 HOTFIX 26: Stable Auth Reset + Explicit Role Routing
+ * ROUND 05 HOTFIX 28: Login Clock/Auth Repair + Explicit Role Routing
  */
 (function (
   window,
@@ -1816,12 +1816,6 @@
         state.session
       );
 
-    /*
-     * Hotfix 26 routing:
-     * - INBOUND เท่านั้น -> inbound.html
-     * - ADMIN / USER -> index.html
-     * - อื่น ๆ -> login.html
-     */
     if (role === 'INBOUND') {
       redirectToInbound();
       return;
@@ -1836,12 +1830,6 @@
     }
 
     redirectToLogin();
-  }
-
-    window.location.replace(
-      CONFIG.DASHBOARD_URL ||
-      './index.html'
-    );
   }
 
   function escapeHtml(
