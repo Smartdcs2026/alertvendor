@@ -3,7 +3,7 @@
  * ระบบ Login, Session, เปลี่ยนรหัสผ่าน และ Logout
  *
  * ใช้ SweetAlert2 สำหรับการแจ้งเตือนทุกจุด
- * ROUND 05 HOTFIX 12: Persistent token + redirect แก้เปิดผ่านลิงก์แล้วค้างตรวจ Session
+ * ROUND 05 HOTFIX 13: Isolated Session + Role Guard
  */
 (function (
   window,
@@ -399,6 +399,12 @@
 
       if (isInboundRole(session)) {
         redirectToInbound();
+        return;
+      }
+
+      if (!isUserRole(session) && !isAdminRole(session)) {
+        API.clearSession && API.clearSession();
+        redirectToLogin();
         return;
       }
 
@@ -1744,6 +1750,22 @@
     return getSessionRole(
       session
     ) === 'INBOUND';
+  }
+
+  function isAdminRole(
+    session
+  ) {
+    return getSessionRole(
+      session
+    ) === 'ADMIN';
+  }
+
+  function isUserRole(
+    session
+  ) {
+    return getSessionRole(
+      session
+    ) === 'USER';
   }
 
   function getRoleLabel(
