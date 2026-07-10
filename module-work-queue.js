@@ -1,6 +1,6 @@
 /************************************************************
  * module-work-queue.js
- * ROUND 06 PART 09.1A — Work Queue Fast Boot + Accurate Initial Count
+ * ROUND 06 PART 09.1B — Work Queue Fast Boot + Mobile Compact Card Ready
  *
  * เป้าหมาย:
  * - หน้า Module เป็น "หน้างาน" ไม่ใช่หน้ารวมทุกสถานะ
