@@ -49,31 +49,56 @@
     }
   }
 
-  function getAccessToken() {
+  function readStorageToken(storage) {
     try {
       return String(
-        window.sessionStorage
-          .getItem(
-            TOKEN_STORAGE_KEY
-          ) || ''
+        storage && storage.getItem(TOKEN_STORAGE_KEY) || ''
       ).trim();
     } catch (error) {
       return '';
     }
   }
 
-  function clearSession() {
+  function writeStorageToken(storage, token) {
     try {
-      window.sessionStorage
-        .removeItem(
-          TOKEN_STORAGE_KEY
-        );
+      if (storage && token) {
+        storage.setItem(TOKEN_STORAGE_KEY, token);
+      }
     } catch (error) {
-      console.warn(
-        'ล้าง Session ไม่สำเร็จ',
-        error
-      );
+      /* ignore */
     }
+  }
+
+  function removeStorageToken(storage) {
+    try {
+      if (storage) {
+        storage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  function getAccessToken() {
+    const localToken = readStorageToken(window.localStorage);
+
+    if (localToken) {
+      writeStorageToken(window.sessionStorage, localToken);
+      return localToken;
+    }
+
+    const sessionToken = readStorageToken(window.sessionStorage);
+
+    if (sessionToken) {
+      writeStorageToken(window.localStorage, sessionToken);
+    }
+
+    return sessionToken;
+  }
+
+  function clearSession() {
+    removeStorageToken(window.localStorage);
+    removeStorageToken(window.sessionStorage);
   }
 
   function createRequestId() {
