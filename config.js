@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 05 HOTFIX 13: Isolated Session + Role Guard
+ * ROUND 05 HOTFIX 26: Auth Reset Stable
  */
 (function (window) {
   'use strict';
@@ -28,7 +28,7 @@
       './inbound.html',
 
     TOKEN_STORAGE_KEY:
-      'alertvendor_access_token',
+      'alertvendor_access_token_v2',
 
     SESSION_POLICY:
       'WINDOW_ISOLATED',
