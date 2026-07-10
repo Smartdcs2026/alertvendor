@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 05 HOTFIX 27: Canonical Login URL
+ * ROUND 05 HOTFIX 28: Canonical Login URL + Login Repair
  */
 (function (window) {
   'use strict';
