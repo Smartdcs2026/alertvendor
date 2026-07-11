@@ -598,37 +598,28 @@
   }
 
   function findWorkflowItemForCard(card) {
-    const recordId =
-      String(
-        card.dataset.recordId ||
-        ''
-      ).trim();
+    const cardAutoId =
+      extractAutoIdFromCard(card);
 
-    const textValue =
-      normalizeSearchText(
-        card.textContent ||
-        ''
+    if (!cardAutoId) {
+      return null;
+    }
+
+    const cleanAutoId =
+      normalizeAutoId(
+        cardAutoId
       );
 
-    const byRecordId =
+    return (
       state.items.find((item) => {
         return (
-          equalsToken(item.autoId, recordId) ||
-          equalsToken(item.appointmentNumber, recordId) ||
-          equalsToken(item.registration, recordId)
+          normalizeAutoId(
+            item.autoId
+          ) === cleanAutoId
         );
-      });
-
-    if (byRecordId) return byRecordId;
-
-    return state.items.find((item) => {
-      return (
-        containsToken(textValue, item.autoId) ||
-        containsToken(textValue, item.appointmentNumber) ||
-        containsToken(textValue, item.registration) ||
-        containsToken(textValue, item.phone)
-      );
-    }) || null;
+      }) ||
+      null
+    );
   }
 
   function normalizeDashboardItems(data) {
@@ -673,9 +664,14 @@
         normalizeWorkflowItem(item);
 
       const key =
-        normalized.autoId ||
-        normalized.appointmentNumber;
+        normalizeAutoId(
+          normalized.autoId
+        );
 
+      /*
+       * ใช้ Auto ID เท่านั้นเป็น key
+       * ห้าม fallback ไปเลขนัดหมาย เพราะเลขนัดหมายซ้ำได้
+       */
       if (!key) return;
 
       const existing =
@@ -994,10 +990,12 @@
   };
 
   function getIdentityForRecord(recordId) {
-    const clean =
-      normalizeSearchText(recordId);
+    const cleanAutoId =
+      normalizeAutoId(
+        recordId
+      );
 
-    if (!clean) {
+    if (!cleanAutoId) {
       return {
         autoId: '',
         appointmentNumber: '',
@@ -1006,30 +1004,13 @@
       };
     }
 
-    const direct =
-      state.items.find((item) => {
-        return (
-          equalsToken(item.autoId, clean) ||
-          equalsToken(item.appointmentNumber, clean) ||
-          equalsToken(item.registration, clean) ||
-          equalsToken(item.phone, clean)
-        );
-      });
-
     const item =
-      direct ||
       state.items.find((entry) => {
-        const textValue =
-          normalizeSearchText(
-            [
-              entry.autoId,
-              entry.appointmentNumber,
-              entry.registration,
-              entry.phone
-            ].join(' ')
-          );
-
-        return textValue.includes(clean);
+        return (
+          normalizeAutoId(
+            entry.autoId
+          ) === cleanAutoId
+        );
       }) ||
       null;
 
@@ -1043,16 +1024,67 @@
     }
 
     return {
-      autoId:
-        item.autoId || '',
-      appointmentNumber:
-        item.appointmentNumber || '',
-      registration:
-        item.registration || '',
-      statusCode:
-        item.statusCode || ''
+      autoId: item.autoId || '',
+      appointmentNumber: item.appointmentNumber || '',
+      registration: item.registration || '',
+      statusCode: item.statusCode || ''
     };
   }
+
+
+  function extractAutoIdFromCard(card) {
+    if (!card) {
+      return '';
+    }
+
+    return findAutoIdCandidate([
+      card.dataset && card.dataset.autoId,
+      card.dataset && card.dataset.workflowAutoId,
+      card.dataset && card.dataset.recordId
+    ]);
+  }
+
+
+  function findAutoIdCandidate(values) {
+    const list =
+      Array.isArray(values)
+        ? values
+        : [values];
+
+    for (
+      let index = 0;
+      index < list.length;
+      index += 1
+    ) {
+      const value =
+        String(
+          list[index] ||
+          ''
+        ).trim();
+
+      if (!value) continue;
+
+      const match =
+        value.match(
+          /\bSK\d{6,20}\b/i
+        );
+
+      if (match) {
+        return match[0]
+          .toUpperCase();
+      }
+    }
+
+    return '';
+  }
+
+
+  function normalizeAutoId(value) {
+    return findAutoIdCandidate([
+      value
+    ]);
+  }
+
 
   function destroy() {
     if (state.timer) {
