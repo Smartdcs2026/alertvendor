@@ -319,6 +319,12 @@
       );
 
     document.addEventListener(
+      'click',
+      handleFocusReceivingFilterSync,
+      true
+    );
+
+    document.addEventListener(
       'alertvendor:receiving-completed',
       () => {
         void loadRecords({
@@ -2106,6 +2112,89 @@
       ? '+' + number
       : String(number);
   }
+
+
+  function handleFocusReceivingFilterSync(event) {
+    const button =
+      event.target &&
+      event.target.closest
+        ? event.target.closest(
+            '[data-focus-receiving]'
+          )
+        : null;
+
+    if (!button) {
+      return;
+    }
+
+    const receivingFilter =
+      String(
+        button.dataset.focusReceiving ||
+        ''
+      ).toUpperCase();
+
+    if (
+      ![
+        'WAITING_RECEIVING',
+        'WAITING_GATE_OUT'
+      ].includes(
+        receivingFilter
+      )
+    ) {
+      return;
+    }
+
+    /*
+     * ปุ่มด้านบน "รอรับสินค้าเสร็จ / รับเสร็จรอ Gate Out"
+     * เป็น filter คนละระบบกับ select ของ Module
+     * ต้อง sync ให้ module.js แสดงข้อมูลกลุ่มเดียวกัน
+     */
+    if (
+      receivingFilter === 'WAITING_GATE_OUT'
+    ) {
+      state.vendorQueueFilter =
+        'FOLLOW_UP';
+    } else {
+      state.vendorQueueFilter =
+        'ACTIVE';
+    }
+
+    state.statusFilter =
+      'ALL';
+
+    const queueSelect =
+      document.getElementById(
+        'vendorQueueFilter'
+      );
+
+    if (queueSelect) {
+      queueSelect.value =
+        state.vendorQueueFilter;
+    }
+
+    const statusSelect =
+      document.getElementById(
+        'statusFilter'
+      );
+
+    if (statusSelect) {
+      statusSelect.value =
+        'ALL';
+    }
+
+    /*
+     * รอให้ module-focus / receiving.js ปรับ active class ของปุ่มบนก่อน
+     * แล้ว module.js ค่อย render card ตามคิวเดียวกัน
+     */
+    window.setTimeout(
+      () => {
+        refreshVendorShiftWindow();
+        applyFiltersAndRender();
+      },
+      80
+    );
+  }
+
 
   async function loadVendorShiftConfig(options) {
     const config =
