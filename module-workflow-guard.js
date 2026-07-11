@@ -164,6 +164,12 @@
       card.dataset.workflowGuard =
         guard.status || 'UNKNOWN';
 
+      card.dataset.vendorStage =
+        guard.stage || 'UNKNOWN';
+
+      card.dataset.vendorStageLabel =
+        guard.label || '';
+
       card.dataset.workflowAutoId =
         workflowAutoId;
 
@@ -217,12 +223,142 @@
     });
   }
 
+
+  function hasGateOutEvidence(card) {
+    if (!card) {
+      return false;
+    }
+
+    const directFlag =
+      String(
+        card.dataset.hasTimestampOut ||
+        ''
+      ).toLowerCase();
+
+    if (directFlag === 'true') {
+      return true;
+    }
+
+    const timestampOut =
+      text(
+        card.dataset.timestampOut ||
+        ''
+      );
+
+    if (
+      timestampOut &&
+      ![
+        '-',
+        '--',
+        'null',
+        'undefined',
+        'ยังไม่มีข้อมูล',
+        'ไม่มีข้อมูล'
+      ].includes(
+        timestampOut.toLowerCase()
+      )
+    ) {
+      return true;
+    }
+
+    const inArea =
+      String(
+        card.dataset.isCurrentlyInArea ||
+        ''
+      ).toLowerCase();
+
+    return inArea === 'false';
+  }
+
+
+  function getVendorStageMeta(
+    status,
+    hasGateOut
+  ) {
+    if (hasGateOut) {
+      return {
+        key: 'CLOSED',
+        label: 'ปิดงานแล้ว',
+        message: 'ปิดงานแล้ว: มี Timestamp Out / ออก Gate Out แล้ว'
+      };
+    }
+
+    if (status === 'DOCUMENT_SUBMITTED') {
+      return {
+        key: 'READY_TO_RECEIVE',
+        label: 'รอตรวจรับสินค้า',
+        message: 'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ'
+      };
+    }
+
+    if (status === 'RECEIVING_COMPLETED') {
+      return {
+        key: 'WAIT_DOCUMENT_RETURN',
+        label: 'รอรับเอกสารคืน',
+        message: 'ตรวจรับเสร็จแล้ว: รอรับเอกสารคืนที่ห้อง Inbound'
+      };
+    }
+
+    if (status === 'DOCUMENT_RETURNED') {
+      return {
+        key: 'WAIT_GATE_OUT',
+        label: 'รอออก Gate Out',
+        message: 'รับเอกสารคืนแล้ว: รอออก Gate Out'
+      };
+    }
+
+    if (status === 'GATE_OUT_COMPLETED') {
+      return {
+        key: 'CLOSED',
+        label: 'ปิดงานแล้ว',
+        message: 'ปิดงานแล้ว: ออก Gate Out แล้ว'
+      };
+    }
+
+    if (status === 'CANCELLED') {
+      return {
+        key: 'CANCELLED',
+        label: 'ยกเลิก',
+        message: 'รายการนี้ถูกยกเลิกแล้ว'
+      };
+    }
+
+    return {
+      key: 'WAIT_DOCUMENT_SUBMIT',
+      label: 'รอยื่นก่อนรับ',
+      message: 'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
+    };
+  }
+
+
+
   function evaluateCardGuard(card) {
     if (!card) {
       return {
         ready: false,
         status: 'UNKNOWN',
+        stage: 'UNKNOWN',
+        label: 'ไม่พบข้อมูล',
         message: 'ไม่พบข้อมูลการ์ด'
+      };
+    }
+
+    const hasGateOut =
+      hasGateOutEvidence(card);
+
+    if (hasGateOut) {
+      const meta =
+        getVendorStageMeta(
+          'GATE_OUT_COMPLETED',
+          true
+        );
+
+      return {
+        ready: false,
+        status: 'GATE_OUT_COMPLETED',
+        stage: meta.key,
+        label: meta.label,
+        message: meta.message
       };
     }
 
@@ -230,67 +366,41 @@
       findWorkflowItemForCard(card);
 
     if (!item) {
+      const meta =
+        getVendorStageMeta(
+          'WAITING_DOCUMENT',
+          false
+        );
+
       return {
         ready: false,
-        status: 'UNKNOWN',
-        message:
-          'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
+        status: 'WAITING_DOCUMENT',
+        stage: meta.key,
+        label: meta.label,
+        message: meta.message
       };
     }
 
     const status =
       String(item.statusCode || '').toUpperCase();
 
-    if (status === 'DOCUMENT_SUBMITTED') {
-      return {
-        ready: true,
+    const meta =
+      getVendorStageMeta(
         status,
-        message:
-          'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ'
-      };
-    }
-
-    if (status === 'RECEIVING_COMPLETED') {
-      return {
-        ready: false,
-        status,
-        message:
-          'ตรวจรับเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound'
-      };
-    }
-
-    if (status === 'DOCUMENT_RETURNED') {
-      return {
-        ready: false,
-        status,
-        message:
-          'รับเอกสารคืนแล้ว: รอออก Gate Out'
-      };
-    }
-
-    if (status === 'GATE_OUT_COMPLETED') {
-      return {
-        ready: false,
-        status,
-        message:
-          'ปิดงานแล้ว: ออก Gate Out แล้ว'
-      };
-    }
-
-    if (status === 'CANCELLED') {
-      return {
-        ready: false,
-        status,
-        message:
-          'รายการนี้ถูกยกเลิกแล้ว'
-      };
-    }
+        false
+      );
 
     return {
-      ready: false,
-      status: status || 'WAITING_DOCUMENT',
+      ready:
+        status === 'DOCUMENT_SUBMITTED',
+      status:
+        status || 'WAITING_DOCUMENT',
+      stage:
+        meta.key,
+      label:
+        meta.label,
       message:
-        'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
+        meta.message
     };
   }
 
@@ -301,18 +411,6 @@
       card.querySelector(
         '.workflow-guard-note'
       );
-
-    if (guard.ready) {
-      if (note) note.remove();
-      card.classList.remove(
-        'workflow-guard-blocked'
-      );
-      return;
-    }
-
-    card.classList.add(
-      'workflow-guard-blocked'
-    );
 
     if (!note) {
       note =
@@ -330,9 +428,34 @@
       target.appendChild(note);
     }
 
-    note.textContent =
-      guard.message ||
-      'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ';
+    card.classList.toggle(
+      'workflow-guard-blocked',
+      !guard.ready
+    );
+
+    card.classList.toggle(
+      'workflow-guard-ready',
+      guard.ready
+    );
+
+    card.classList.toggle(
+      'workflow-guard-closed',
+      guard.stage === 'CLOSED'
+    );
+
+    note.dataset.vendorStage =
+      guard.stage || 'UNKNOWN';
+
+    note.innerHTML =
+      '<strong>' +
+      escapeHtml(guard.label || 'ขั้นตอน') +
+      '</strong>' +
+      '<span>' +
+      escapeHtml(
+        guard.message ||
+        'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
+      ) +
+      '</span>';
   }
 
   function findWorkflowItemForCard(card) {
@@ -686,6 +809,21 @@
       ? ms
       : 0;
   }
+
+  function escapeHtml(value) {
+    return String(
+      value === undefined ||
+      value === null
+        ? ''
+        : value
+    )
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
 
   function text(value) {
     return String(
