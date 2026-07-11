@@ -5053,7 +5053,7 @@
       );
 
     article.className =
-      'vehicle-card vehicle-followup-row';
+      'vehicle-followup-row';
 
     article.dataset.status =
       record.statusCode ||
@@ -6135,128 +6135,116 @@
 
       .vehicle-grid[data-vendor-view="FOLLOW_UP"] {
         grid-template-columns: 1fr !important;
-        gap: 10px !important;
+        gap: 8px !important;
       }
 
-      .vehicle-followup-row {
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-followup-row {
         display: grid !important;
-        grid-template-columns: minmax(220px, .9fr) minmax(280px, 1fr) minmax(360px, 1.35fr) minmax(180px, .75fr);
-        gap: 12px;
+        grid-template-columns: minmax(230px, .9fr) minmax(340px, 1.25fr) minmax(210px, .75fr);
+        gap: 10px;
         align-items: stretch;
-        min-height: auto !important;
-        padding: 12px 14px 12px 18px !important;
+        min-height: 0 !important;
+        padding: 10px 12px 10px 16px !important;
         background: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
-        border-left: 7px solid #0f766e !important;
-        border-radius: 16px !important;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, .06) !important;
+        border-left: 6px solid #0f766e !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, .055) !important;
+        cursor: pointer;
       }
 
-      .vehicle-followup-row .vehicle-card__rail {
-        display: none !important;
-      }
-
-      .followup-identity,
-      .followup-message,
-      .vehicle-followup-row .receiving-card-stage,
+      .vehicle-followup-row .followup-identity,
+      .vehicle-followup-row .followup-message,
       .vehicle-followup-row .followup-footer {
         min-width: 0;
-        border-radius: 13px;
+        border-radius: 11px;
       }
 
-      .followup-identity {
+      .vehicle-followup-row .followup-identity {
         display: grid;
         align-content: center;
         gap: 2px;
       }
 
-      .followup-eyebrow {
+      .vehicle-followup-row .followup-eyebrow {
         color: #0f766e;
-        font-size: .68rem;
+        font-size: .66rem;
         font-weight: 1000;
         letter-spacing: .02em;
       }
 
-      .followup-appt {
+      .vehicle-followup-row .followup-appt {
         color: #0f172a;
-        font-size: 1.15rem;
+        font-size: 1.08rem;
         font-weight: 1000;
-        line-height: 1.1;
+        line-height: 1.08;
       }
 
-      .followup-company {
+      .vehicle-followup-row .followup-company {
         color: #334155;
-        font-size: .86rem;
+        font-size: .82rem;
         font-weight: 900;
-        line-height: 1.2;
+        line-height: 1.18;
         overflow-wrap: anywhere;
       }
 
-      .followup-message {
+      .vehicle-followup-row .vehicle-card__status-line {
+        margin-top: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .vehicle-followup-row .followup-stage-badge {
+        font-size: .66rem;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #ccfbf1 !important;
+        color: #0f766e !important;
+      }
+
+      .vehicle-followup-row .vehicle-card__timer {
+        font-size: .88rem;
+        color: #0f172a;
+      }
+
+      .vehicle-followup-row .followup-message {
         display: grid;
         align-content: center;
         gap: 3px;
-        padding: 10px 12px;
+        padding: 9px 11px;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
       }
 
-      .followup-message strong {
+      .vehicle-followup-row .followup-message strong {
         color: #92400e;
-        font-size: .94rem;
+        font-size: .88rem;
         font-weight: 1000;
       }
 
-      .followup-message span {
+      .vehicle-followup-row .followup-message span {
         color: #475569;
-        font-size: .78rem;
+        font-size: .76rem;
         font-weight: 850;
-        line-height: 1.3;
+        line-height: 1.28;
       }
 
-      .vehicle-followup-row .receiving-card-stage {
-        margin: 0 !important;
-        padding: 10px !important;
-        background: #ecfdf5 !important;
-        border: 1px solid #bbf7d0 !important;
-      }
-
-      .vehicle-followup-row .receiving-card-stage__head {
-        margin-bottom: 7px !important;
-      }
-
-      .vehicle-followup-row .receiving-stage-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 7px !important;
-      }
-
-      .vehicle-followup-row .receiving-stage-grid > div {
-        padding: 8px !important;
-      }
-
-      .vehicle-followup-row .receiving-card-stage__actions {
-        margin-top: 8px !important;
-      }
-
-      .vehicle-followup-row [data-receiving-complete-record] {
-        display: none !important;
-      }
-
-      .vehicle-followup-row .receiving-copy-button {
-        width: 100%;
-        min-height: 34px;
-      }
-
-      .followup-footer {
+      .vehicle-followup-row .followup-footer {
         display: grid !important;
         align-content: center;
-        padding: 10px 12px !important;
+        padding: 9px 11px !important;
         background: #fff7ed;
         border: 1px solid #fed7aa;
       }
 
-      .followup-footer .button--checkout {
-        display: none !important;
+      .vehicle-followup-row .vehicle-in-time span {
+        font-size: .68rem;
+      }
+
+      .vehicle-followup-row .vehicle-in-time strong {
+        font-size: .78rem;
       }
 
       .vehicle-card__company-name {
@@ -6329,18 +6317,19 @@
           grid-column: 1 / -1 !important;
         }
 
-        body.module-page .vehicle-followup-row {
+        body.module-page .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-followup-row {
           grid-template-columns: 1fr !important;
-          gap: 8px !important;
-          padding: 11px !important;
+          gap: 7px !important;
+          padding: 10px !important;
         }
 
-        body.module-page .followup-appt {
-          font-size: 1.05rem !important;
+        body.module-page .vehicle-followup-row .followup-appt {
+          font-size: 1.02rem !important;
         }
 
-        body.module-page .vehicle-followup-row .receiving-stage-grid {
-          grid-template-columns: 1fr !important;
+        body.module-page .vehicle-followup-row .followup-message,
+        body.module-page .vehicle-followup-row .followup-footer {
+          padding: 8px 9px !important;
         }
 
         body.module-page .vehicle-card {
