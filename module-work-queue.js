@@ -1,6 +1,6 @@
 /************************************************************
  * module-work-queue.js
- * ROUND 06 PART 09.1I — Receiving Wording
+ * ROUND 06 PART 09.1J — Gate Out Wins Closed State
  *
  * เป้าหมาย:
  * - หน้า Module เป็น "หน้างาน" ไม่ใช่หน้ารวมทุกสถานะ
@@ -255,6 +255,7 @@
         'ACTION',
         'WAIT_INBOUND',
         'TRACKING',
+        'CLOSED',
         'ALL'
       ].includes(clean)
         ? clean
@@ -340,11 +341,15 @@
         </button>
 
         <button type="button" data-work-queue-mode="WAIT_INBOUND">
-          รอยื่นเอกสาร <strong id="workQueueWaitInboundCount">...</strong>
+          รอยื่นก่อนรับ <strong id="workQueueWaitInboundCount">...</strong>
         </button>
 
         <button type="button" data-work-queue-mode="TRACKING">
-          ติดตาม <strong id="workQueueTrackingCount">...</strong>
+          รอเอกสารคืน/ออก <strong id="workQueueTrackingCount">...</strong>
+        </button>
+
+        <button type="button" data-work-queue-mode="CLOSED">
+          ปิดงาน <strong id="workQueueClosedCount">...</strong>
         </button>
 
         <button type="button" data-work-queue-mode="ALL">
@@ -436,6 +441,7 @@
       ACTION: 0,
       WAIT_INBOUND: 0,
       TRACKING: 0,
+      CLOSED: 0,
       ALL: cards.length
     };
 
@@ -522,11 +528,21 @@
       getCardWorkflowStatus(card);
 
     /*
+     * GATE OUT WINS:
+     * ถ้ามี Timestamp Out หรือ Workflow ปิด Gate Out แล้ว
+     * ให้ถือว่าปิดงานทันที ไม่ค้างในรอยื่น/รอตรวจรับ/ติดตาม
+     */
+    if (
+      hasGateOutEvidence(card) ||
+      status === 'GATE_OUT_COMPLETED' ||
+      status === 'CANCELLED'
+    ) {
+      return 'CLOSED';
+    }
+
+    /*
      * STRICT WORKFLOW RULE:
-     * งาน "รอคลังรับสินค้า" ต้องเกิดหลังจาก Inbound บันทึกยื่นเอกสารแล้วเท่านั้น
-     *
-     * ห้ามใช้ fallback จากปุ่ม receiving เพราะบางจังหวะ receiving.js
-     * อาจวาดปุ่มมาก่อน Workflow Guard โหลดครบ ทำให้ Gate In ถูกจัดเข้ากลุ่มกดรับสินค้า
+     * งาน "รอตรวจรับสินค้า" ต้องเกิดหลังจาก Inbound บันทึกยื่นเอกสารแล้วเท่านั้น
      */
     if (status === 'DOCUMENT_SUBMITTED') {
       return 'ACTION';
@@ -534,14 +550,70 @@
 
     if (
       status === 'RECEIVING_COMPLETED' ||
-      status === 'DOCUMENT_RETURNED' ||
-      status === 'GATE_OUT_COMPLETED' ||
-      status === 'CANCELLED'
+      status === 'DOCUMENT_RETURNED'
     ) {
       return 'TRACKING';
     }
 
     return 'WAIT_INBOUND';
+  }
+
+  function hasGateOutEvidence(card) {
+    const hasTimestampOut =
+      String(
+        card.dataset.hasTimestampOut ||
+        ''
+      ).toLowerCase() === 'true';
+
+    if (hasTimestampOut) {
+      return true;
+    }
+
+    const timestampOut =
+      String(
+        card.dataset.timestampOut ||
+        ''
+      ).trim();
+
+    if (
+      timestampOut &&
+      ![
+        '-',
+        '--',
+        'null',
+        'undefined',
+        'ยังไม่มีข้อมูล',
+        'ไม่มีข้อมูล'
+      ].includes(
+        timestampOut.toLowerCase()
+      )
+    ) {
+      return true;
+    }
+
+    const currentlyInArea =
+      String(
+        card.dataset.isCurrentlyInArea ||
+        ''
+      ).toLowerCase();
+
+    if (
+      currentlyInArea === 'false' &&
+      String(card.dataset.canCheckout || '').toLowerCase() !== 'true'
+    ) {
+      return true;
+    }
+
+    const textValue =
+      normalizeSearchText(
+        card.textContent || ''
+      );
+
+    return (
+      textValue.includes('ออก GATE OUT แล้ว') ||
+      textValue.includes('ออกจากพื้นที่แล้ว') ||
+      textValue.includes('บันทึกออกพื้นที่แล้ว')
+    );
   }
 
   function getCardWorkflowStatus(card) {
@@ -699,14 +771,17 @@
     }
 
     let textValue =
-      'รับสินค้าเสร็จแล้ว: รอรับเอกสารคืนหรือ Gate Out';
+      'ตรวจรับเสร็จแล้ว: รอรับเอกสารคืนหรือ Gate Out';
 
     if (group === 'ACTION') {
       textValue =
         'รอตรวจรับสินค้า';
     } else if (group === 'WAIT_INBOUND') {
       textValue =
-        'รอคนขับยื่นเอกสารที่ห้อง Inbound';
+        'รอคนขับยื่นเอกสารก่อนตรวจรับ';
+    } else if (group === 'CLOSED') {
+      textValue =
+        'ปิดงานแล้ว: มีเวลาออก / Gate Out';
     }
 
     if (
@@ -743,6 +818,7 @@
         counters.ACTION || 0,
         counters.WAIT_INBOUND || 0,
         counters.TRACKING || 0,
+        counters.CLOSED || 0,
         counters.ALL || 0
       ].join('|');
 
@@ -774,6 +850,11 @@
     setText(
       'workQueueTrackingCount',
       counters.TRACKING || 0
+    );
+
+    setText(
+      'workQueueClosedCount',
+      counters.CLOSED || 0
     );
 
     setText(
@@ -828,19 +909,23 @@
       state.mode === 'ACTION'
         ? 'รอตรวจรับสินค้า'
         : state.mode === 'WAIT_INBOUND'
-          ? 'รอยื่นเอกสารที่ Inbound'
+          ? 'รอยื่นก่อนรับ'
           : state.mode === 'TRACKING'
-            ? 'ติดตามหลังรับสินค้า'
-            : 'รายการทั้งหมด';
+            ? 'รอเอกสารคืน / รอออก'
+            : state.mode === 'CLOSED'
+              ? 'ปิดงานแล้ว'
+              : 'รายการทั้งหมด';
 
     const hintText =
       state.mode === 'ACTION'
         ? 'ยื่นเอกสารแล้ว รอคลังตรวจรับสินค้าให้เสร็จ'
         : state.mode === 'WAIT_INBOUND'
-          ? 'รถ/ตู้เข้าพื้นที่แล้ว แต่ยังไม่พบการยื่นเอกสารที่ห้อง Inbound'
+          ? 'รถ/ตู้เข้า Gate In แล้ว แต่ยังไม่พบการยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับสินค้า'
           : state.mode === 'TRACKING'
-            ? 'คลังรับสินค้าเสร็จแล้ว เหลือรับเอกสารคืนที่ Inbound หรือออก Gate Out'
-            : 'ภาพรวมทุกขั้นตอนของรายการที่ยังเกี่ยวข้อง';
+            ? 'ตรวจรับสินค้าเสร็จแล้ว เหลือรับเอกสารคืนที่ Inbound หรือออก Gate Out'
+            : state.mode === 'CLOSED'
+              ? 'มี Timestamp Out หรือ Gate Out แล้ว จึงถือว่าปิดงาน'
+              : 'ภาพรวมทุกขั้นตอนของรายการที่ยังเกี่ยวข้อง';
 
     if (
       title &&
@@ -891,6 +976,7 @@
       'workQueueActionCount',
       'workQueueWaitInboundCount',
       'workQueueTrackingCount',
+      'workQueueClosedCount',
       'workQueueAllCount'
     ].forEach((id) => {
       const element =
@@ -1016,7 +1102,7 @@
 
       .module-work-queue-actions {
         display: grid;
-        grid-template-columns: repeat(4, minmax(110px, 1fr));
+        grid-template-columns: repeat(5, minmax(105px, 1fr));
         gap: 8px;
       }
 
@@ -1103,6 +1189,11 @@
       .work-queue-card-badge[data-work-queue-group="TRACKING"] {
         background: #eff6ff;
         color: #1d4ed8;
+      }
+
+      .work-queue-card-badge[data-work-queue-group="CLOSED"] {
+        background: #f1f5f9;
+        color: #475569;
       }
 
       .vehicle-card.is-receive-action-locked
