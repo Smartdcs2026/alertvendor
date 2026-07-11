@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-card-sheet-v2.js
- * ROUND 06 PART 09.1I — Receiving Wording
+ * ROUND 06 PART 09.1J — Gate Out Closed State
  *
  * แก้เฉพาะ:
  * - มือถือขึ้นการ์ดเปล่า
@@ -363,19 +363,21 @@
 
     const queue =
       group === 'ACTION'
-        ? 'ต้องทำ'
+        ? 'รอตรวจรับ'
         : group === 'WAIT_INBOUND'
-          ? 'รอยื่นเอกสาร'
+          ? 'รอยื่นก่อนรับ'
           : group === 'TRACKING'
-            ? 'ติดตาม'
-            : (
-                getText(
-                  card.querySelector(
-                    '.vehicle-status-badge'
-                  )
-                ) ||
-                'รายละเอียด'
-              );
+            ? 'รอเอกสารคืน/ออก'
+            : group === 'CLOSED'
+              ? 'ปิดงาน'
+              : (
+                  getText(
+                    card.querySelector(
+                      '.vehicle-status-badge'
+                    )
+                  ) ||
+                  'รายละเอียด'
+                );
 
     const allText =
       normalize(
@@ -410,6 +412,10 @@
       statusCode.includes('DOCUMENT_RETURNED')
     ) {
       level = 'TRACKING';
+    } else if (
+      group === 'CLOSED'
+    ) {
+      level = 'CLOSED';
     } else if (
       group === 'WAIT_INBOUND'
     ) {
@@ -630,6 +636,9 @@
       } else if (group === 'TRACKING') {
         passiveText =
           'ตรวจรับสินค้าเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound หรือออก Gate Out';
+      } else if (group === 'CLOSED') {
+        passiveText =
+          'ปิดงานแล้ว: มีเวลาออก / Gate Out แล้ว';
       }
 
       out.push(
@@ -863,6 +872,11 @@
         .vehicle-card[data-mobile-status="WAIT"] {
           border-color: rgba(249, 115, 22, .44) !important;
           background: linear-gradient(135deg, #fff7ed, #ffffff) !important;
+        }
+
+        .vehicle-card[data-mobile-status="CLOSED"] {
+          border-color: rgba(100, 116, 139, .36) !important;
+          background: linear-gradient(135deg, #f8fafc, #ffffff) !important;
         }
 
         body.mobile-compact-cards-active
