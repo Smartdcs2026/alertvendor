@@ -2114,6 +2114,7 @@
       );
 
     const canShowCompleteButton =
+      item.canCompleteReceiving &&
       !hasReceiving &&
       !hasGateOut;
 
@@ -2974,6 +2975,10 @@
         confirmButtonText: 'ตกลง',
         returnFocus: false
       });
+
+      if (button) {
+        button.remove();
+      }
 
       state.refreshPending = true;
 
