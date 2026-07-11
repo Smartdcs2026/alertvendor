@@ -2145,9 +2145,8 @@
     }
 
     /*
-     * ปุ่มด้านบน "รอรับสินค้าเสร็จ / รับเสร็จรอ Gate Out"
-     * เป็น filter คนละระบบกับ select ของ Module
-     * ต้อง sync ให้ module.js แสดงข้อมูลกลุ่มเดียวกัน
+     * หน้า Module ใช้แถบสถานะด้านบนเป็นตัวกรองหลัก
+     * ไม่ใช้ dropdown คิวงานซ้ำอีก
      */
     if (
       receivingFilter === 'WAITING_GATE_OUT'
@@ -2162,16 +2161,6 @@
     state.statusFilter =
       'ALL';
 
-    const queueSelect =
-      document.getElementById(
-        'vendorQueueFilter'
-      );
-
-    if (queueSelect) {
-      queueSelect.value =
-        state.vendorQueueFilter;
-    }
-
     const statusSelect =
       document.getElementById(
         'statusFilter'
@@ -2182,10 +2171,6 @@
         'ALL';
     }
 
-    /*
-     * รอให้ module-focus / receiving.js ปรับ active class ของปุ่มบนก่อน
-     * แล้ว module.js ค่อย render card ตามคิวเดียวกัน
-     */
     window.setTimeout(
       () => {
         refreshVendorShiftWindow();
@@ -2270,6 +2255,7 @@
       );
 
     if (!select) {
+      updateVendorQueueContext();
       return;
     }
 
@@ -2641,13 +2627,13 @@
 
     const labels = {
       ACTIVE:
-        'คิวหลัก: รอยื่นก่อนรับ + รอตรวจรับสินค้า · แถบสรุปด้านบนคือภาพรวมทั้งหมด',
+        'ตัวกรองหลัก: แถบสถานะด้านบน · คิวหลักก่อนตรวจรับ',
       CURRENT_SHIFT:
-        'เฉพาะกะปัจจุบันก่อนตรวจรับ · แถบสรุปด้านบนคือภาพรวมทั้งหมด',
+        'กะปัจจุบันก่อนตรวจรับ',
       CARRY_OVER:
-        'ค้างข้ามกะก่อนตรวจรับ · แถบสรุปด้านบนคือภาพรวมทั้งหมด',
+        'ค้างข้ามกะก่อนตรวจรับ',
       FOLLOW_UP:
-        'หลังตรวจรับ: รอเอกสารคืน / รอออก Gate Out',
+        'หลังตรวจรับ: ตรวจรับเสร็จแล้ว รอเอกสารคืน / รอ Gate Out',
       CLOSED:
         'ปิดงานแล้ว',
       ALL:
@@ -4423,6 +4409,10 @@
       return;
     }
 
+    container.dataset.vendorView =
+      state.vendorQueueFilter ||
+      'ACTIVE';
+
     state.cardNodes.clear();
     container.innerHTML = '';
 
@@ -5785,6 +5775,35 @@
         font-weight: 800;
       }
 
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card {
+        display: grid !important;
+        grid-template-columns: minmax(170px, .95fr) minmax(220px, 1.15fr) minmax(260px, 1.4fr);
+        gap: 10px;
+        align-items: stretch;
+        padding: 12px !important;
+      }
+
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__rank,
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-progress,
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-detail-grid,
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__priority-text {
+        display: none !important;
+      }
+
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__header,
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .receiving-card-stage,
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__footer {
+        min-width: 0;
+      }
+
+      .vehicle-grid[data-vendor-view="FOLLOW_UP"] [data-receiving-complete-record] {
+        display: none !important;
+      }
+
       .vehicle-card__company-name {
         margin: 2px 0 0;
         color: #334155;
@@ -5853,6 +5872,10 @@
 
         body.module-page .vehicle-tool-button {
           grid-column: 1 / -1 !important;
+        }
+
+        body.module-page .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card {
+          grid-template-columns: 1fr !important;
         }
 
         body.module-page .vehicle-card {
