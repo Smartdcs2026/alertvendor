@@ -156,10 +156,41 @@
         ? normalized
         : 'WAITING_RECEIVING';
 
+    syncModuleQueueSelectFromReceivingFilter();
     syncReceivingFilterUi();
     renderPriorityList();
     applyReceivingFilter();
   }
+
+
+  function syncModuleQueueSelectFromReceivingFilter() {
+    const queueSelect =
+      document.getElementById(
+        'vendorQueueFilter'
+      );
+
+    if (!queueSelect) {
+      return;
+    }
+
+    if (
+      state.stageFilter ===
+      'WAITING_GATE_OUT'
+    ) {
+      queueSelect.value =
+        'FOLLOW_UP';
+      return;
+    }
+
+    if (
+      state.stageFilter ===
+      'WAITING_RECEIVING'
+    ) {
+      queueSelect.value =
+        'ACTIVE';
+    }
+  }
+
 
   function handleReceivingCardClick(event) {
     if (!state.enabled) return;
@@ -3105,6 +3136,7 @@
         card.classList.remove('is-receiving-filter-hidden');
         card.removeAttribute('aria-hidden');
       });
+      syncModuleResultCountFromReceivingFilter();
       return;
     }
 
@@ -3118,6 +3150,53 @@
       card.classList.toggle('is-receiving-filter-hidden', !visible);
       card.setAttribute('aria-hidden', String(!visible));
     });
+
+    syncModuleResultCountFromReceivingFilter();
+  }
+
+
+  function syncModuleResultCountFromReceivingFilter() {
+    const result =
+      document.getElementById('resultCount');
+
+    if (!result) {
+      return;
+    }
+
+    const cards =
+      Array.from(
+        document.querySelectorAll(
+          '.vehicle-card[data-record-id]'
+        )
+      );
+
+    const visibleCount =
+      cards.filter(
+        (card) =>
+          !card.classList.contains(
+            'is-receiving-filter-hidden'
+          ) &&
+          card.getAttribute('aria-hidden') !== 'true'
+      ).length;
+
+    const labels = {
+      WAITING_RECEIVING:
+        'รอรับสินค้าเสร็จ',
+      WAITING_GATE_OUT:
+        'รับเสร็จรอ Gate Out',
+      ALL:
+        'ทั้งหมด'
+    };
+
+    if (
+      labels[state.stageFilter]
+    ) {
+      result.textContent =
+        labels[state.stageFilter] +
+        ' ' +
+        visibleCount +
+        ' รายการ';
+    }
   }
 
 
