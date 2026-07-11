@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-card-sheet-v2.js
- * ROUND 06 PART 09.1G — Stable Mobile Compact Render
+ * ROUND 06 PART 09.1I — Receiving Wording
  *
  * แก้เฉพาะ:
  * - มือถือขึ้นการ์ดเปล่า
@@ -607,15 +607,18 @@
         ''
       ).toUpperCase();
 
-    const out = [];
-
-    if (
+    const receiveAllowed =
+      group === 'ACTION' &&
       receive &&
       receive.disabled !== true &&
-      receive.getAttribute('aria-disabled') !== 'true'
-    ) {
+      receive.getAttribute('aria-disabled') !== 'true' &&
+      receive.getAttribute('data-workflow-queue-locked') !== 'true';
+
+    const out = [];
+
+    if (receiveAllowed) {
       out.push(
-        '<button type="button" class="mobile-v2-primary" data-mobile-v2-action="receive">บันทึกรับสินค้าเสร็จ</button>'
+        '<button type="button" class="mobile-v2-primary" data-mobile-v2-action="receive">บันทึกตรวจรับเสร็จ</button>'
       );
     } else {
       let passiveText =
@@ -623,10 +626,10 @@
 
       if (group === 'WAIT_INBOUND') {
         passiveText =
-          'ยังไม่ถึงขั้นตอนรับสินค้า: รอคนขับยื่นเอกสารที่ห้อง Inbound';
+          'ยังไม่ถึงขั้นตอนตรวจรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อน';
       } else if (group === 'TRACKING') {
         passiveText =
-          'คลังรับสินค้าเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound หรือออก Gate Out';
+          'ตรวจรับสินค้าเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound หรือออก Gate Out';
       }
 
       out.push(
