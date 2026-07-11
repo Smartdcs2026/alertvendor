@@ -191,9 +191,17 @@
         );
 
       /*
-       * ROUND 06 PART 09.2E1
-       * ปุ่มเดิมถูกสร้างจาก Receiving Flow เท่านั้น
-       * แต่เงื่อนไขพร้อมตรวจรับต้องยึด Inbound Workflow
+       * ROUND 06 PART 09.2E3
+       * ปุ่มตรวจรับต้องมีเฉพาะขั้นตอน READY_TO_RECEIVE เท่านั้น
+       * ถ้าตรวจรับเสร็จแล้ว / รอเอกสารคืน / รอ Gate Out / ปิดงาน
+       * ต้องถอดปุ่มออก ไม่ใช่แค่ disable เพราะจะทำให้ผู้ใช้สับสน
+       */
+      if (!guard.ready) {
+        removeReceivingActionButtons(card);
+        button = null;
+      }
+
+      /*
        * ถ้า Workflow = DOCUMENT_SUBMITTED แล้วแต่ Receiving Flow ไม่วาดปุ่ม
        * ให้ Workflow Guard สร้างปุ่มให้เอง
        */
@@ -258,6 +266,21 @@
     });
   }
 
+
+
+  function removeReceivingActionButtons(card) {
+    if (!card) {
+      return;
+    }
+
+    card
+      .querySelectorAll(
+        '[data-receiving-complete-record]'
+      )
+      .forEach((button) => {
+        button.remove();
+      });
+  }
 
 
   function ensureWorkflowReadyReceivingButton(
