@@ -163,7 +163,11 @@
 
   function handleReceivingCardClick(event) {
     if (!state.enabled) return;
-    const completeButton = event.target.closest('[data-receiving-complete-record]');
+
+    const completeButton =
+      event.target.closest(
+        '[data-receiving-complete-record]'
+      );
 
     if (completeButton) {
       event.preventDefault();
@@ -174,6 +178,23 @@
         state.dialogOpen ||
         state.savingRecordId
       ) {
+        return;
+      }
+
+      const permission =
+        getReceivingButtonPermission(
+          completeButton
+        );
+
+      if (!permission.allowed) {
+        void showMessage({
+          icon: 'info',
+          title: 'ยังไม่ถึงขั้นตอนตรวจรับ',
+          text:
+            permission.message ||
+            'ต้องรอ Inbound บันทึกรับเอกสารก่อน จึงจะบันทึกตรวจรับเสร็จได้',
+          confirmButtonText: 'รับทราบ'
+        });
         return;
       }
 
@@ -202,12 +223,97 @@
       return;
     }
 
-    const copyButton = event.target.closest('[data-receiving-copy-card]');
+    const copyButton =
+      event.target.closest(
+        '[data-receiving-copy-card]'
+      );
+
     if (copyButton) {
       event.preventDefault();
       event.stopPropagation();
-      void copyRecordMessage(copyButton.dataset.receivingCopyCard);
+      void copyRecordMessage(
+        copyButton.dataset
+          .receivingCopyCard
+      );
     }
+  }
+
+
+  function getReceivingButtonPermission(button) {
+    if (!button) {
+      return {
+        allowed: false,
+        message: 'ไม่พบปุ่มบันทึกตรวจรับ'
+      };
+    }
+
+    const card =
+      button.closest(
+        '.vehicle-card[data-record-id]'
+      );
+
+    const allowedByGuard =
+      String(
+        button.dataset.receivingAllowed ||
+        ''
+      ).toLowerCase();
+
+    const ariaDisabled =
+      String(
+        button.getAttribute(
+          'aria-disabled'
+        ) || ''
+      ).toLowerCase();
+
+    if (
+      button.disabled ||
+      ariaDisabled === 'true' ||
+      allowedByGuard === 'false'
+    ) {
+      return {
+        allowed: false,
+        message:
+          button.dataset.receivingBlockMessage ||
+          'ต้องรอ Inbound บันทึกรับเอกสารก่อน จึงจะบันทึกตรวจรับเสร็จได้'
+      };
+    }
+
+    if (
+      card &&
+      (
+        String(card.dataset.hasTimestampOut || '').toLowerCase() === 'true' ||
+        String(card.dataset.vendorStage || '').toUpperCase() === 'CLOSED'
+      )
+    ) {
+      return {
+        allowed: false,
+        message:
+          'รายการนี้ปิดงานแล้ว มี Timestamp Out / Gate Out แล้ว'
+      };
+    }
+
+    const workflowStatus =
+      String(
+        button.closest('.vehicle-card')?.dataset.workflowGuard ||
+        ''
+      ).toUpperCase();
+
+    if (
+      workflowStatus &&
+      workflowStatus !== 'DOCUMENT_SUBMITTED'
+    ) {
+      return {
+        allowed: false,
+        message:
+          button.dataset.receivingBlockMessage ||
+          'Inbound ยังไม่ได้บันทึกรับเอกสาร จึงยังบันทึกตรวจรับเสร็จไม่ได้'
+      };
+    }
+
+    return {
+      allowed: true,
+      message: ''
+    };
   }
 
 
@@ -2157,6 +2263,11 @@
 
     return `
       <div class="receiving-review-dialog">
+        <section class="receiving-review-step">
+          <strong>ขั้นตอนที่กำลังบันทึก</strong>
+          <span>Inbound บันทึกรับเอกสารแล้ว → คลัง/User/Admin ยืนยันตรวจรับเสร็จ</span>
+        </section>
+
         <section class="receiving-review-identity">
           <small>รายการที่กำลังบันทึก</small>
 
@@ -2524,15 +2635,58 @@
       return;
     }
 
+    const permission =
+      getReceivingButtonPermission(
+        button
+      );
+
+    if (!permission.allowed) {
+      await showMessage({
+        icon: 'info',
+        title: 'ยังไม่ถึงขั้นตอนตรวจรับ',
+        text:
+          permission.message,
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+
     if (
-      !item ||
+      !item
+    ) {
+      await showMessage({
+        icon: 'warning',
+        title: 'ไม่พบข้อมูลรายการ',
+        text:
+          'กรุณารีเฟรชข้อมูล แล้วลองใหม่อีกครั้ง',
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+
+    if (
       !item.canCompleteReceiving
     ) {
       await showMessage({
         icon: 'info',
         title: 'ไม่สามารถบันทึกได้',
         text:
-          'รายการนี้บันทึกตรวจรับเสร็จแล้ว หรือมีเวลาออกแล้ว'
+          'รายการนี้ตรวจรับเสร็จแล้ว หรือมีเวลาออก / Gate Out แล้ว',
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+
+    if (
+      item.gateOutSource &&
+      item.gateOutSource !== 'PENDING'
+    ) {
+      await showMessage({
+        icon: 'info',
+        title: 'รายการนี้ปิดงานแล้ว',
+        text:
+          'พบข้อมูล Gate Out แล้ว จึงไม่สามารถบันทึกตรวจรับย้อนหลังจากปุ่มนี้ได้',
+        confirmButtonText: 'รับทราบ'
       });
       return;
     }
@@ -2572,7 +2726,7 @@
         await window.Swal.fire({
           icon: 'question',
           title:
-            'ตรวจสอบข้อมูลก่อนบันทึก',
+            'ยืนยันบันทึกตรวจรับเสร็จ',
           html:
             buildReceivingReviewHtml(
               item,
@@ -2583,7 +2737,7 @@
             760,
           showCancelButton: true,
           confirmButtonText:
-            'ตรวจสอบแล้ว ยืนยันบันทึก',
+            'ยืนยันบันทึกตรวจรับเสร็จ',
           cancelButtonText:
             'ย้อนกลับ',
           reverseButtons: true,
@@ -2754,7 +2908,7 @@
             : 'บันทึกตรวจรับเสร็จแล้ว',
         html: `
           <div class="receiving-success-dialog">
-            <span>วันเวลารับสินค้าเสร็จ</span>
+            <span>วันเวลาตรวจรับเสร็จ</span>
 
             <strong>
               ${escapeHtml(
@@ -2766,7 +2920,7 @@
               )}
             </strong>
 
-            <span>Gate In → รับสินค้าเสร็จ</span>
+            <span>Gate In → ตรวจรับเสร็จ</span>
 
             <strong>
               ${escapeHtml(
