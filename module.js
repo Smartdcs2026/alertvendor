@@ -37,6 +37,11 @@
     filteredRecords: [],
     searchText: '',
     statusFilter: 'ALL',
+    vendorQueueFilter: 'ACTIVE',
+    shiftConfig: null,
+    shiftEnabled: false,
+    currentShiftWindow: null,
+    shiftConfigLoaded: false,
     serverOffsetMs: 0,
     clockTimer: null,
     durationTimer: null,
@@ -147,6 +152,10 @@
       state.module = await API.getModule(state.moduleId);
       renderModuleHeader();
 
+      await loadVendorShiftConfig({
+        silent: true
+      });
+
       await Promise.all([
         loadRecords({
           silentError: false,
@@ -204,6 +213,11 @@
     const statusFilter =
       document.getElementById(
         'statusFilter'
+      );
+
+    const vendorQueueFilter =
+      document.getElementById(
+        'vendorQueueFilter'
       );
 
     const movementScopeGroup =
@@ -283,6 +297,21 @@
               'ALL'
             ).toUpperCase();
 
+          applyFiltersAndRender();
+        }
+      );
+
+    vendorQueueFilter &&
+      vendorQueueFilter.addEventListener(
+        'change',
+        () => {
+          state.vendorQueueFilter =
+            String(
+              vendorQueueFilter.value ||
+              'ACTIVE'
+            ).toUpperCase();
+
+          refreshVendorShiftWindow();
           applyFiltersAndRender();
         }
       );
@@ -702,6 +731,8 @@
 
       state.records =
         nextRecords;
+
+      refreshVendorShiftWindow();
 
       recalculateAllRecords();
 
@@ -2056,6 +2087,502 @@
       ? '+' + number
       : String(number);
   }
+
+  async function loadVendorShiftConfig(options) {
+    const config =
+      options &&
+      typeof options === 'object'
+        ? options
+        : {};
+
+    state.shiftConfigLoaded =
+      false;
+
+    state.shiftEnabled =
+      false;
+
+    state.shiftConfig =
+      null;
+
+    state.currentShiftWindow =
+      null;
+
+    if (
+      !API ||
+      typeof API.getShiftConfig !==
+        'function'
+    ) {
+      renderVendorShiftFilter();
+      return;
+    }
+
+    try {
+      const result =
+        await API.getShiftConfig(
+          state.moduleId
+        );
+
+      state.shiftConfig =
+        result || null;
+
+      state.shiftEnabled =
+        Boolean(
+          result &&
+          result.enabled === true
+        );
+
+      refreshVendorShiftWindow();
+
+    } catch (error) {
+      state.shiftEnabled =
+        false;
+
+      state.shiftConfig =
+        null;
+
+      if (!config.silent) {
+        console.warn(
+          'โหลดข้อมูลกะไม่สำเร็จ',
+          error
+        );
+      }
+    } finally {
+      state.shiftConfigLoaded =
+        true;
+
+      renderVendorShiftFilter();
+    }
+  }
+
+
+  function renderVendorShiftFilter() {
+    const select =
+      document.getElementById(
+        'vendorQueueFilter'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    if (
+      !state.shiftEnabled
+    ) {
+      select.value =
+        'ACTIVE';
+
+      state.vendorQueueFilter =
+        'ACTIVE';
+
+      select.disabled =
+        true;
+
+      setText(
+        'vendorQueueContext',
+        'ระบบกะปิด: แสดงงานที่ยังไม่ปิด'
+      );
+
+      return;
+    }
+
+    select.disabled =
+      false;
+
+    if (
+      ![
+        'ACTIVE',
+        'CURRENT_SHIFT',
+        'CARRY_OVER',
+        'CLOSED',
+        'ALL'
+      ].includes(
+        state.vendorQueueFilter
+      )
+    ) {
+      state.vendorQueueFilter =
+        'ACTIVE';
+    }
+
+    select.value =
+      state.vendorQueueFilter;
+
+    updateVendorQueueContext();
+  }
+
+
+  function refreshVendorShiftWindow() {
+    if (
+      !state.shiftEnabled ||
+      !state.shiftConfig
+    ) {
+      state.currentShiftWindow =
+        null;
+      return;
+    }
+
+    state.currentShiftWindow =
+      resolveCurrentShiftWindow(
+        state.shiftConfig,
+        getCurrentServerTimeMs()
+      );
+  }
+
+
+  function resolveCurrentShiftWindow(
+    config,
+    nowMs
+  ) {
+    const shifts =
+      Array.isArray(
+        config &&
+        config.shifts
+      )
+        ? config.shifts.filter(
+            (shift) =>
+              shift &&
+              shift.active !== false
+          )
+        : [];
+
+    if (!shifts.length) {
+      return null;
+    }
+
+    const nowParts =
+      getBangkokDateParts(nowMs);
+
+    const todayIso =
+      nowParts.year +
+      '-' +
+      nowParts.month +
+      '-' +
+      nowParts.day;
+
+    const nowMinutes =
+      Number(nowParts.hour) * 60 +
+      Number(nowParts.minute);
+
+    for (
+      const shift of shifts
+    ) {
+      const startMin =
+        timeTextToMinutes(
+          shift.start ||
+          shift.startTime ||
+          '00:00'
+        );
+
+      const endMin =
+        timeTextToMinutes(
+          shift.end ||
+          shift.endTime ||
+          '00:00'
+        );
+
+      if (
+        startMin === null ||
+        endMin === null
+      ) {
+        continue;
+      }
+
+      if (endMin > startMin) {
+        if (
+          nowMinutes >= startMin &&
+          nowMinutes < endMin
+        ) {
+          return buildShiftWindow(
+            shift,
+            todayIso,
+            todayIso,
+            startMin,
+            endMin
+          );
+        }
+
+        continue;
+      }
+
+      /*
+       * กะข้ามวัน เช่น 20:00-08:00
+       */
+      if (nowMinutes >= startMin) {
+        return buildShiftWindow(
+          shift,
+          todayIso,
+          addIsoDays(todayIso, 1),
+          startMin,
+          endMin
+        );
+      }
+
+      if (nowMinutes < endMin) {
+        return buildShiftWindow(
+          shift,
+          addIsoDays(todayIso, -1),
+          todayIso,
+          startMin,
+          endMin
+        );
+      }
+    }
+
+    return null;
+  }
+
+
+  function buildShiftWindow(
+    shift,
+    startDateIso,
+    endDateIso,
+    startMin,
+    endMin
+  ) {
+    const startMs =
+      isoDateAndMinutesToMs(
+        startDateIso,
+        startMin
+      );
+
+    const endMs =
+      isoDateAndMinutesToMs(
+        endDateIso,
+        endMin
+      );
+
+    return {
+      code:
+        String(
+          shift.code || ''
+        ),
+      name:
+        String(
+          shift.name ||
+          shift.code ||
+          'กะปัจจุบัน'
+        ),
+      startMs,
+      endMs,
+      startLabel:
+        minutesToTimeText(startMin),
+      endLabel:
+        minutesToTimeText(endMin)
+    };
+  }
+
+
+  function recordMatchesVendorQueue(
+    record
+  ) {
+    const mode =
+      state.vendorQueueFilter ||
+      'ACTIVE';
+
+    const closed =
+      isVendorRecordClosed(record);
+
+    if (mode === 'ALL') {
+      return true;
+    }
+
+    if (mode === 'CLOSED') {
+      return closed;
+    }
+
+    if (closed) {
+      return false;
+    }
+
+    if (
+      !state.shiftEnabled ||
+      !state.currentShiftWindow
+    ) {
+      return true;
+    }
+
+    const timestampMs =
+      getRecordTimestampInMs(record);
+
+    if (!timestampMs) {
+      return mode === 'ACTIVE';
+    }
+
+    const inCurrentShift =
+      timestampMs >=
+        state.currentShiftWindow.startMs &&
+      timestampMs <
+        state.currentShiftWindow.endMs;
+
+    const carryOver =
+      timestampMs <
+      state.currentShiftWindow.startMs;
+
+    if (mode === 'CURRENT_SHIFT') {
+      return inCurrentShift;
+    }
+
+    if (mode === 'CARRY_OVER') {
+      return carryOver;
+    }
+
+    /*
+     * ค่าเริ่มต้น:
+     * กะปัจจุบัน + งานค้างข้ามกะที่ยังไม่ปิด
+     */
+    return (
+      inCurrentShift ||
+      carryOver
+    );
+  }
+
+
+  function isVendorRecordClosed(record) {
+    return (
+      record &&
+      (
+        record.statusCode === 'CLOSED' ||
+        recordHasTimestampOut(record)
+      )
+    );
+  }
+
+
+  function updateVendorQueueContext() {
+    const element =
+      document.getElementById(
+        'vendorQueueContext'
+      );
+
+    if (!element) {
+      return;
+    }
+
+    const mode =
+      state.vendorQueueFilter ||
+      'ACTIVE';
+
+    const shift =
+      state.currentShiftWindow;
+
+    const shiftText =
+      shift
+        ? (
+            ' · ' +
+            shift.name +
+            ' ' +
+            shift.startLabel +
+            '-' +
+            shift.endLabel
+          )
+        : '';
+
+    const labels = {
+      ACTIVE:
+        'งานปัจจุบัน: กะนี้ + งานค้างที่ยังไม่ปิด',
+      CURRENT_SHIFT:
+        'เฉพาะกะปัจจุบัน',
+      CARRY_OVER:
+        'งานค้างข้ามกะที่ยังไม่ปิด',
+      CLOSED:
+        'ปิดงานแล้ว',
+      ALL:
+        'ทั้งหมด'
+    };
+
+    element.textContent =
+      (
+        labels[mode] ||
+        labels.ACTIVE
+      ) +
+      (
+        state.shiftEnabled
+          ? shiftText
+          : ' · ระบบกะปิด'
+      );
+  }
+
+
+  function timeTextToMinutes(value) {
+    const match =
+      String(value || '')
+        .trim()
+        .match(/^(\d{1,2}):(\d{2})$/);
+
+    if (!match) {
+      return null;
+    }
+
+    const hour =
+      Number(match[1]);
+
+    const minute =
+      Number(match[2]);
+
+    if (
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      return null;
+    }
+
+    return hour * 60 + minute;
+  }
+
+
+  function minutesToTimeText(total) {
+    const value =
+      Math.max(
+        0,
+        Number(total) || 0
+      );
+
+    const hour =
+      String(
+        Math.floor(value / 60) % 24
+      ).padStart(2, '0');
+
+    const minute =
+      String(
+        value % 60
+      ).padStart(2, '0');
+
+    return hour + ':' + minute;
+  }
+
+
+  function isoDateAndMinutesToMs(
+    isoDate,
+    minutes
+  ) {
+    return new Date(
+      isoDate +
+      'T' +
+      minutesToTimeText(minutes) +
+      ':00+07:00'
+    ).getTime();
+  }
+
+
+  function addIsoDays(isoDate, days) {
+    const date =
+      new Date(
+        isoDate + 'T00:00:00+07:00'
+      );
+
+    date.setUTCDate(
+      date.getUTCDate() +
+      Number(days || 0)
+    );
+
+    return date
+      .toISOString()
+      .slice(0, 10);
+  }
+
+
+
   function renderSummary() {
     const summary =
       buildLocalSummary(
@@ -2190,6 +2717,14 @@
             return false;
           }
 
+          if (
+            !recordMatchesVendorQueue(
+              record
+            )
+          ) {
+            return false;
+          }
+
           if (!searchText) {
             return true;
           }
@@ -2232,6 +2767,8 @@
       state.filteredRecords.length +
       ' รายการ'
     );
+
+    updateVendorQueueContext();
 
     updateActiveFilterText();
   }
@@ -4590,6 +5127,18 @@
         color: #334155;
       }
 
+      .vendor-queue-filter select {
+        font-weight: 900;
+      }
+
+      #vendorQueueContext {
+        display: block;
+        margin-top: 2px;
+        color: #64748b;
+        font-size: .76rem;
+        font-weight: 800;
+      }
+
       .vehicle-card__company-name {
         margin: 2px 0 0;
         color: #334155;
@@ -4641,6 +5190,25 @@
       }
 
       @media (max-width: 760px) {
+        body.module-page .vehicle-tools {
+          grid-template-columns: 1fr 1fr !important;
+          gap: 7px !important;
+        }
+
+        body.module-page .vehicle-search {
+          grid-column: 1 / -1 !important;
+        }
+
+        body.module-page .vendor-queue-filter,
+        body.module-page .vehicle-filter,
+        body.module-page .vehicle-sort {
+          min-width: 0 !important;
+        }
+
+        body.module-page .vehicle-tool-button {
+          grid-column: 1 / -1 !important;
+        }
+
         body.module-page .vehicle-card {
           padding: 10px 9px 9px 13px !important;
         }
