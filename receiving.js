@@ -1996,6 +1996,18 @@
         item.receivingCompleteEpochMs ||
         item.receivingCompleteAt
       );
+
+    const hasGateOut =
+      Boolean(
+        item.gateOutSource ||
+        item.gateOutAt ||
+        item.gateOutEpochMs
+      );
+
+    const canShowCompleteButton =
+      item.canCompleteReceiving &&
+      !hasGateOut;
+
     const stageOneLabel = hasReceiving
       ? 'เข้า → ตรวจรับเสร็จ'
       : 'เข้า → รอตรวจรับ';
@@ -2052,7 +2064,7 @@
       </div>
 
       <div class="receiving-card-stage__actions">
-        ${item.canCompleteReceiving
+        ${canShowCompleteButton
           ? `
             <button
               type="button"
