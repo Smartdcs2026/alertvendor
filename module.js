@@ -4439,10 +4439,15 @@
     records.forEach(
       (record, index) => {
         const result =
-          createVehicleCard(
-            record,
-            index
-          );
+          state.vendorQueueFilter === 'FOLLOW_UP'
+            ? createFollowUpVehicleRow(
+                record,
+                index
+              )
+            : createVehicleCard(
+                record,
+                index
+              );
 
         fragment.appendChild(
           result.element
@@ -5037,6 +5042,359 @@
           )
       );
   }
+
+  function createFollowUpVehicleRow(
+    record,
+    index
+  ) {
+    const article =
+      document.createElement(
+        'article'
+      );
+
+    article.className =
+      'vehicle-card vehicle-followup-row';
+
+    article.dataset.status =
+      record.statusCode ||
+      'INCOMPLETE';
+
+    article.dataset.recordId =
+      record.recordId || '';
+
+    const hasTimestampOut =
+      recordHasTimestampOut(record);
+
+    article.dataset.hasTimestampOut =
+      hasTimestampOut
+        ? 'true'
+        : 'false';
+
+    article.dataset.timestampOut =
+      record.timestampOut ||
+      record.timestampOutDisplay ||
+      '';
+
+    article.dataset.isCurrentlyInArea =
+      record.isCurrentlyInArea === true
+        ? 'true'
+        : 'false';
+
+    article.dataset.operationalState =
+      hasTimestampOut
+        ? 'CLOSED'
+        : (
+            record.vendorOperationalStage ||
+            'FOLLOW_UP'
+          );
+
+    article.dataset.vendorStage =
+      record.vendorOperationalStage ||
+      'FOLLOW_UP';
+
+    article.dataset.vendorStageLabel =
+      record.vendorOperationalLabel ||
+      'หลังตรวจรับ';
+
+    const vendorIdentity =
+      getVendorCoreIdentity(record);
+
+    article.dataset.appointmentNumber =
+      vendorIdentity.appointmentNumber || '';
+
+    article.dataset.companyName =
+      vendorIdentity.companyName || '';
+
+    article.tabIndex =
+      0;
+
+    article.setAttribute(
+      'role',
+      'button'
+    );
+
+    article.setAttribute(
+      'aria-label',
+      'ดูรายละเอียดหลังตรวจรับ ' +
+      (
+        vendorIdentity.appointmentNumber ||
+        record.primaryValue ||
+        'รายการรถ'
+      )
+    );
+
+    const statusRail =
+      document.createElement(
+        'div'
+      );
+
+    statusRail.className =
+      'vehicle-card__rail';
+
+    const identity =
+      document.createElement(
+        'section'
+      );
+
+    identity.className =
+      'followup-identity';
+
+    const eyebrow =
+      document.createElement(
+        'span'
+      );
+
+    eyebrow.className =
+      'followup-eyebrow';
+
+    eyebrow.textContent =
+      'หลังตรวจรับ #' +
+      (index + 1);
+
+    const appt =
+      document.createElement(
+        'strong'
+      );
+
+    appt.className =
+      'followup-appt';
+
+    appt.textContent =
+      vendorIdentity.appointmentNumber ||
+      record.primaryValue ||
+      'ไม่พบเลขนัดหมาย';
+
+    const company =
+      document.createElement(
+        'span'
+      );
+
+    company.className =
+      'followup-company';
+
+    company.textContent =
+      vendorIdentity.companyName ||
+      'ไม่พบชื่อบริษัท';
+
+    const statusLine =
+      document.createElement(
+        'div'
+      );
+
+    statusLine.className =
+      'vehicle-card__status-line';
+
+    const statusBadge =
+      document.createElement(
+        'span'
+      );
+
+    statusBadge.className =
+      'vehicle-status-badge followup-stage-badge';
+
+    statusBadge.dataset.status =
+      record.statusCode ||
+      'INCOMPLETE';
+
+    statusBadge.textContent =
+      record.vendorOperationalLabel ||
+      'หลังตรวจรับ';
+
+    const timer =
+      document.createElement(
+        'strong'
+      );
+
+    timer.className =
+      'vehicle-card__timer';
+
+    timer.textContent =
+      record.durationDisplay ||
+      '--:--:--';
+
+    statusLine.appendChild(
+      statusBadge
+    );
+
+    statusLine.appendChild(
+      timer
+    );
+
+    identity.appendChild(
+      eyebrow
+    );
+
+    identity.appendChild(
+      appt
+    );
+
+    identity.appendChild(
+      company
+    );
+
+    identity.appendChild(
+      statusLine
+    );
+
+    const message =
+      document.createElement(
+        'section'
+      );
+
+    message.className =
+      'followup-message';
+
+    const messageTitle =
+      document.createElement(
+        'strong'
+      );
+
+    messageTitle.textContent =
+      record.vendorOperationalLabel ||
+      'หลังตรวจรับ';
+
+    const messageText =
+      document.createElement(
+        'span'
+      );
+
+    messageText.textContent =
+      record.vendorOperationalMessage ||
+      'ตรวจรับเสร็จแล้ว รอเอกสารคืน / รอ Gate Out';
+
+    message.appendChild(
+      messageTitle
+    );
+
+    message.appendChild(
+      messageText
+    );
+
+    const footer =
+      document.createElement(
+        'div'
+      );
+
+    footer.className =
+      'vehicle-card__footer followup-footer';
+
+    const inTime =
+      document.createElement(
+        'div'
+      );
+
+    inTime.className =
+      'vehicle-in-time';
+
+    const inTimeLabel =
+      document.createElement(
+        'span'
+      );
+
+    inTimeLabel.textContent =
+      'เวลาเข้าพื้นที่';
+
+    const inTimeValue =
+      document.createElement(
+        'strong'
+      );
+
+    inTimeValue.textContent =
+      record.timestampIn ||
+      'ไม่พบข้อมูล';
+
+    inTime.appendChild(
+      inTimeLabel
+    );
+
+    inTime.appendChild(
+      inTimeValue
+    );
+
+    footer.appendChild(
+      inTime
+    );
+
+    const priorityText =
+      document.createElement(
+        'p'
+      );
+
+    priorityText.className =
+      'vehicle-card__priority-text followup-priority-text';
+
+    priorityText.textContent =
+      record.priorityText ||
+      '';
+
+    const progressFill =
+      document.createElement(
+        'div'
+      );
+
+    article.appendChild(
+      statusRail
+    );
+
+    article.appendChild(
+      identity
+    );
+
+    article.appendChild(
+      message
+    );
+
+    article.appendChild(
+      footer
+    );
+
+    const openDetails =
+      (event) => {
+        if (
+          event &&
+          event.target.closest(
+            'button, a, input, select'
+          )
+        ) {
+          return;
+        }
+
+        openRecordDetail(
+          record
+        );
+      };
+
+    article.addEventListener(
+      'click',
+      openDetails
+    );
+
+    article.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          openRecordDetail(record);
+        }
+      }
+    );
+
+    return {
+      element: article,
+      nodes: {
+        card: article,
+        timer,
+        statusBadge,
+        progressFill,
+        priorityText
+      }
+    };
+  }
+
+
   function createVehicleCard(
     record,
     index
@@ -5777,30 +6135,127 @@
 
       .vehicle-grid[data-vendor-view="FOLLOW_UP"] {
         grid-template-columns: 1fr !important;
+        gap: 10px !important;
       }
 
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card {
+      .vehicle-followup-row {
         display: grid !important;
-        grid-template-columns: minmax(170px, .95fr) minmax(220px, 1.15fr) minmax(260px, 1.4fr);
-        gap: 10px;
+        grid-template-columns: minmax(220px, .9fr) minmax(280px, 1fr) minmax(360px, 1.35fr) minmax(180px, .75fr);
+        gap: 12px;
         align-items: stretch;
-        padding: 12px !important;
+        min-height: auto !important;
+        padding: 12px 14px 12px 18px !important;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-left: 7px solid #0f766e !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .06) !important;
       }
 
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__rank,
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-progress,
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-detail-grid,
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__priority-text {
+      .vehicle-followup-row .vehicle-card__rail {
         display: none !important;
       }
 
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__header,
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .receiving-card-stage,
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card__footer {
+      .followup-identity,
+      .followup-message,
+      .vehicle-followup-row .receiving-card-stage,
+      .vehicle-followup-row .followup-footer {
         min-width: 0;
+        border-radius: 13px;
       }
 
-      .vehicle-grid[data-vendor-view="FOLLOW_UP"] [data-receiving-complete-record] {
+      .followup-identity {
+        display: grid;
+        align-content: center;
+        gap: 2px;
+      }
+
+      .followup-eyebrow {
+        color: #0f766e;
+        font-size: .68rem;
+        font-weight: 1000;
+        letter-spacing: .02em;
+      }
+
+      .followup-appt {
+        color: #0f172a;
+        font-size: 1.15rem;
+        font-weight: 1000;
+        line-height: 1.1;
+      }
+
+      .followup-company {
+        color: #334155;
+        font-size: .86rem;
+        font-weight: 900;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+      }
+
+      .followup-message {
+        display: grid;
+        align-content: center;
+        gap: 3px;
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .followup-message strong {
+        color: #92400e;
+        font-size: .94rem;
+        font-weight: 1000;
+      }
+
+      .followup-message span {
+        color: #475569;
+        font-size: .78rem;
+        font-weight: 850;
+        line-height: 1.3;
+      }
+
+      .vehicle-followup-row .receiving-card-stage {
+        margin: 0 !important;
+        padding: 10px !important;
+        background: #ecfdf5 !important;
+        border: 1px solid #bbf7d0 !important;
+      }
+
+      .vehicle-followup-row .receiving-card-stage__head {
+        margin-bottom: 7px !important;
+      }
+
+      .vehicle-followup-row .receiving-stage-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 7px !important;
+      }
+
+      .vehicle-followup-row .receiving-stage-grid > div {
+        padding: 8px !important;
+      }
+
+      .vehicle-followup-row .receiving-card-stage__actions {
+        margin-top: 8px !important;
+      }
+
+      .vehicle-followup-row [data-receiving-complete-record] {
+        display: none !important;
+      }
+
+      .vehicle-followup-row .receiving-copy-button {
+        width: 100%;
+        min-height: 34px;
+      }
+
+      .followup-footer {
+        display: grid !important;
+        align-content: center;
+        padding: 10px 12px !important;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+      }
+
+      .followup-footer .button--checkout {
         display: none !important;
       }
 
@@ -5874,7 +6329,17 @@
           grid-column: 1 / -1 !important;
         }
 
-        body.module-page .vehicle-grid[data-vendor-view="FOLLOW_UP"] .vehicle-card {
+        body.module-page .vehicle-followup-row {
+          grid-template-columns: 1fr !important;
+          gap: 8px !important;
+          padding: 11px !important;
+        }
+
+        body.module-page .followup-appt {
+          font-size: 1.05rem !important;
+        }
+
+        body.module-page .vehicle-followup-row .receiving-stage-grid {
           grid-template-columns: 1fr !important;
         }
 
