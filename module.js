@@ -843,6 +843,16 @@
               record.timestampInEpochMs
             ) || 0,
 
+          timestampOut:
+            record.timestampOut ||
+            record.timestampOutDisplay ||
+            '',
+
+          timestampOutEpochMs:
+            Number(
+              record.timestampOutEpochMs
+            ) || 0,
+
           isCurrentlyInArea:
             Boolean(
               record.isCurrentlyInArea
@@ -904,6 +914,48 @@
   }
 
   function updateRecordComputedState(record, nowMs) {
+    /*
+     * ROUND 06 PART 09.2C
+     * Timestamp Out / Gate Out ชนะทุกสถานะ:
+     * ถ้ามีเวลาออกแล้ว ให้ปิดงานทันที แม้ Workflow บางขั้นตอนจะตกหล่น
+     */
+    if (
+      record &&
+      recordHasTimestampOut(record)
+    ) {
+      record.statusCode =
+        'CLOSED';
+
+      record.statusLabel =
+        getStatusLabel('CLOSED');
+
+      record.statusColor =
+        getStatusColor('CLOSED');
+
+      record.priorityText =
+        'ปิดงานแล้ว: มี Timestamp Out / ออก Gate Out แล้ว';
+
+      record.isOverdue =
+        false;
+
+      record.isExpired36H =
+        false;
+
+      record.isNearAutoClose =
+        false;
+
+      record.progressPercent =
+        100;
+
+      record.warningMarkerPercent =
+        100;
+
+      record.autoCloseRemainingSeconds =
+        0;
+
+      return;
+    }
+
     if (
       !record ||
       !record.isCurrentlyInArea ||
@@ -3886,6 +3938,29 @@
     article.dataset.recordId =
       record.recordId || '';
 
+    const hasTimestampOut =
+      recordHasTimestampOut(record);
+
+    article.dataset.hasTimestampOut =
+      hasTimestampOut
+        ? 'true'
+        : 'false';
+
+    article.dataset.timestampOut =
+      record.timestampOut ||
+      record.timestampOutDisplay ||
+      '';
+
+    article.dataset.isCurrentlyInArea =
+      record.isCurrentlyInArea === true
+        ? 'true'
+        : 'false';
+
+    article.dataset.operationalState =
+      hasTimestampOut
+        ? 'CLOSED'
+        : '';
+
     const vendorIdentity =
       getVendorCoreIdentity(record);
 
@@ -3899,6 +3974,12 @@
       record.isNearAutoClose
         ? 'TRUE'
         : 'FALSE';
+
+    article.classList.toggle(
+      'vehicle-card--closed',
+      hasTimestampOut ||
+      record.statusCode === 'CLOSED'
+    );
 
     article.tabIndex =
       0;
@@ -4227,7 +4308,8 @@
 
     if (
       record.canCheckout &&
-      isAdmin()
+      isAdmin() &&
+      !hasTimestampOut
     ) {
       const checkoutButton =
         document.createElement(
@@ -4449,6 +4531,65 @@
       'vendorModuleStableStyle';
 
     style.textContent = `
+      .vehicle-card--closed {
+        border-color: #cbd5e1 !important;
+        background: linear-gradient(135deg, #f8fafc, #ffffff) !important;
+      }
+
+      .vehicle-card--closed .vehicle-card__rail {
+        background: #94a3b8 !important;
+      }
+
+      .vehicle-card--closed .vehicle-status-badge {
+        background: #e2e8f0 !important;
+        color: #475569 !important;
+      }
+
+      .vehicle-card--closed .vehicle-progress__fill {
+        background: #94a3b8 !important;
+      }
+
+      .workflow-guard-note {
+        display: grid;
+        gap: 2px;
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: .76rem;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .workflow-guard-note strong {
+        display: block;
+        color: #7c2d12;
+        font-size: .78rem;
+        font-weight: 1000;
+      }
+
+      .workflow-guard-note span {
+        display: block;
+      }
+
+      .workflow-guard-ready .workflow-guard-note {
+        background: #ecfdf5;
+        color: #047857;
+      }
+
+      .workflow-guard-ready .workflow-guard-note strong {
+        color: #065f46;
+      }
+
+      .workflow-guard-closed .workflow-guard-note {
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      .workflow-guard-closed .workflow-guard-note strong {
+        color: #334155;
+      }
+
       .vehicle-card__company-name {
         margin: 2px 0 0;
         color: #334155;
@@ -6500,6 +6641,7 @@
       NORMAL: 'ปกติ',
       WARNING: 'ใกล้เกินเวลา',
       OVERDUE: 'เกินเวลา',
+      CLOSED: 'ปิดงาน',
       INCOMPLETE: 'ข้อมูลไม่สมบูรณ์'
     };
 
@@ -6514,6 +6656,7 @@
       NORMAL: 'GREEN',
       WARNING: 'ORANGE',
       OVERDUE: 'RED',
+      CLOSED: 'GRAY',
       INCOMPLETE: 'GRAY'
     };
 
