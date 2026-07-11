@@ -1,11 +1,11 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
- * ROUND 06 PART 09 — Sync รับสินค้าเสร็จเข้า Inbound Workflow ด้วย Auto ID จริง
+ * ROUND 06 PART 09 — Sync ตรวจรับเสร็จเข้า Inbound Workflow ด้วย Auto ID จริง
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
- * - เพิ่มปุ่มบันทึกรับสินค้าเสร็จบนการ์ด
+ * - เพิ่มปุ่มบันทึกตรวจรับเสร็จบนการ์ด
  * - แสดงเวลา 2 ช่วง
  * - Admin เปิด/ปิด Feature แยกตาม Module
  * - Silent Refresh แบบ Near Real-time โดยไม่แสดง Loading/Toast
@@ -284,8 +284,8 @@
 
           note:
             syncAutoId
-              ? 'Sync จากปุ่มรับสินค้าเสร็จหน้า Module ด้วย Auto ID ' + syncAutoId
-              : 'Sync จากปุ่มรับสินค้าเสร็จหน้า Module',
+              ? 'Sync จากปุ่มตรวจรับเสร็จหน้า Module ด้วย Auto ID ' + syncAutoId
+              : 'Sync จากปุ่มตรวจรับเสร็จหน้า Module',
 
           clientRequestId:
             result &&
@@ -297,7 +297,7 @@
 
     } catch (error) {
       console.warn(
-        'Sync รับสินค้าเสร็จเข้า Inbound Workflow ไม่สำเร็จ',
+        'Sync ตรวจรับเสร็จเข้า Inbound Workflow ไม่สำเร็จ',
         error
       );
 
@@ -313,7 +313,7 @@
       ) {
         await window.Swal.fire({
           icon: 'warning',
-          title: 'บันทึกรับสินค้าเสร็จแล้ว แต่ยัง Sync Workflow ไม่ครบ',
+          title: 'บันทึกตรวจรับเสร็จแล้ว แต่ยัง Sync Workflow ไม่ครบ',
           text:
             syncAutoId
               ? (
@@ -998,7 +998,7 @@
         stageLabel:
           hasReceiving
             ? 'รับสินค้าเสร็จ รอ Gate Out'
-            : 'รอรับสินค้าเสร็จ',
+            : 'รอตรวจรับสินค้า',
         isExited:
           false,
         hasRealGateOut:
@@ -1657,7 +1657,7 @@
 
     const labels = {
       ALL: 'ทั้งหมด',
-      WAITING_RECEIVING: 'รอรับสินค้าเสร็จ',
+      WAITING_RECEIVING: 'รอตรวจรับสินค้า',
       WAITING_GATE_OUT: 'รับสินค้าเสร็จ รอ Gate Out'
     };
     const count = state.stageFilter === 'WAITING_RECEIVING'
@@ -1997,16 +1997,16 @@
         item.receivingCompleteAt
       );
     const stageOneLabel = hasReceiving
-      ? 'เข้า → รับสินค้าเสร็จ'
-      : 'เข้า → รอรับสินค้า';
+      ? 'เข้า → ตรวจรับเสร็จ'
+      : 'เข้า → รอตรวจรับ';
     const stageTwoLabel = hasReceiving
-      ? 'รับเสร็จ → Gate Out'
-      : 'เริ่มหลังรับสินค้าเสร็จ';
+      ? 'ตรวจรับเสร็จ → Gate Out'
+      : 'เริ่มหลังตรวจรับเสร็จ';
 
     return `
       <div class="receiving-card-stage__head">
         <div>
-          <small>RECEIVING FLOW</small>
+          <small>ขั้นตอนตรวจรับ</small>
           <strong>${escapeHtml(item.stageLabel || '-')}</strong>
         </div>
 
@@ -2046,7 +2046,7 @@
                 ? 'ระบบเคลียร์ ไม่ใช่ Gate Out จริง'
                 : hasReceiving
                   ? 'กำลังรอสแกน Gate Out'
-                  : 'เริ่มนับหลังบันทึกรับสินค้าเสร็จ'}
+                  : 'เริ่มนับหลังบันทึกตรวจรับเสร็จ'}
           </small>
         </div>
       </div>
@@ -2059,7 +2059,7 @@
               class="receiving-complete-button"
               data-receiving-complete-record="${escapeHtml(item.recordId || '')}"
             >
-              บันทึกรับสินค้าเสร็จ
+              บันทึกตรวจรับเสร็จ
             </button>
           `
           : ''}
@@ -2077,7 +2077,7 @@
 
 
   /**
-   * สร้างข้อมูลตรวจทานก่อนบันทึกรับสินค้าเสร็จ
+   * สร้างข้อมูลตรวจทานก่อนบันทึกตรวจรับเสร็จ
    * แสดงข้อมูลทุกช่องที่ API ส่งมาใน item.fields
    */
   function buildReceivingReviewHtml(
@@ -2159,7 +2159,7 @@
           <span>
             ${escapeHtml(
               item.stageLabel ||
-              'รอรับสินค้าเสร็จ'
+              'รอตรวจรับสินค้า'
             )}
           </span>
 
@@ -2520,7 +2520,7 @@
         icon: 'info',
         title: 'ไม่สามารถบันทึกได้',
         text:
-          'รายการนี้บันทึกรับสินค้าเสร็จแล้ว หรือมีเวลาออกแล้ว'
+          'รายการนี้บันทึกตรวจรับเสร็จแล้ว หรือมีเวลาออกแล้ว'
       });
       return;
     }
@@ -2739,7 +2739,7 @@
           result &&
           result.alreadyCompleted
             ? 'รายการนี้บันทึกแล้ว'
-            : 'บันทึกรับสินค้าเสร็จแล้ว',
+            : 'บันทึกตรวจรับเสร็จแล้ว',
         html: `
           <div class="receiving-success-dialog">
             <span>วันเวลารับสินค้าเสร็จ</span>
@@ -2776,7 +2776,7 @@
     } catch (error) {
       await showApiError(
         error,
-        'บันทึกรับสินค้าเสร็จไม่สำเร็จ'
+        'บันทึกตรวจรับเสร็จไม่สำเร็จ'
       );
 
     } finally {
@@ -2952,11 +2952,11 @@
       'รายการ: ' + (item.primaryValue || '-'),
       'เวลาเข้า: ' + (item.timestampIn || '-'),
       'สถานะ: ' + (item.stageLabel || '-'),
-      'ช่วงเข้า → รับสินค้าเสร็จ: ' + (
+      'ช่วงเข้า → ตรวจรับเสร็จ: ' + (
         item.arrivalToReceivingDisplay || formatDuration(item.currentStageSeconds) || '-'
       ),
       'รับสินค้าเสร็จ: ' + (item.receivingCompleteAt || 'ยังไม่บันทึก'),
-      'ช่วงรับเสร็จ → Gate Out: ' + (
+      'ช่วงตรวจรับเสร็จ → Gate Out: ' + (
         item.receivingToGateOutDisplay || 'ยังไม่เริ่ม'
       ),
       'Gate Out: ' + (item.timestampOut || 'ยังไม่มีการสแกน Gate Out'),
