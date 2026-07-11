@@ -91,18 +91,18 @@
   ></script>
 
   <script
-    src="./module.js?v=20260711-r06-09-2e1-workflow-ready-button-sync"
+    src="./module.js?v=20260711-r06-09-2e2-professional-main-queue"
     defer
   ></script>
 
   <script
-    src="./receiving.js?v=20260711-r06-09-2e1-workflow-ready-button-sync"
+    src="./receiving.js?v=20260711-r06-09-2e2-professional-main-queue"
     defer
   ></script>
 
   
   <script
-    src="./module-workflow-guard.js?v=20260711-r06-09-2e1-workflow-ready-button-sync"
+    src="./module-workflow-guard.js?v=20260711-r06-09-2e2-professional-main-queue"
     defer
   ></script>
 
@@ -417,15 +417,19 @@
 
         <select id="vendorQueueFilter">
           <option value="ACTIVE">
-            งานปัจจุบัน
+            งานหลักก่อนตรวจรับ
           </option>
 
           <option value="CURRENT_SHIFT">
-            กะปัจจุบัน
+            กะปัจจุบันก่อนตรวจรับ
           </option>
 
           <option value="CARRY_OVER">
-            ค้างข้ามกะ
+            ค้างข้ามกะก่อนตรวจรับ
+          </option>
+
+          <option value="FOLLOW_UP">
+            หลังตรวจรับ
           </option>
 
           <option value="CLOSED">
