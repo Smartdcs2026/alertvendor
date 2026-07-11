@@ -1,6 +1,6 @@
 /************************************************************
  * module-mobile-controls-compact.js
- * ROUND 06 PART 09.1G — Mobile Compact Search/Filter Drawer
+ * ROUND 06 PART 09.1H — Stable Mobile Search/Filter Drawer
  *
  * ลดพื้นที่ Search / Status / Sort / Calendar บนมือถือ
  ************************************************************/
@@ -12,6 +12,7 @@
 
   const state = {
     open: false,
+    userToggled: false,
     observer: null,
     timer: 0
   };
@@ -109,6 +110,9 @@
         .addEventListener(
           'click',
           () => {
+            state.userToggled =
+              true;
+
             state.open =
               !state.open;
 
@@ -119,12 +123,15 @@
 
     if (!isMobile()) {
       state.open = true;
-    }
-
-    if (
-      hasActiveInput(tools)
+    } else if (
+      state.userToggled !== true
     ) {
-      state.open = true;
+      /*
+       * มือถือค่าเริ่มต้นต้องปิดแผงเสมอ
+       * ไม่ auto-open จาก sort default เช่น LONGEST
+       */
+      state.open =
+        false;
     }
 
     applyState();
@@ -158,7 +165,8 @@
           'ALL',
           'ทั้งหมด',
           'ทุกสถานะ',
-          'DURATION_DESC'
+          'DURATION_DESC',
+          'LONGEST'
         ].includes(value.toUpperCase())
       );
     });
@@ -208,7 +216,7 @@
         display: none;
       }
 
-      @media (max-width: 760px) {
+      @media (max-width: 900px) {
         .mobile-tools-toggle-bar {
           display: block;
           width: calc(100% - 18px);
@@ -244,10 +252,26 @@
         }
 
         body:not(.mobile-tools-open)
-        .vehicle-tools {
+        section.vehicle-tools,
+        body.module-page:not(.mobile-tools-open)
+        section.vehicle-tools,
+        body.module-page.module-card-focus:not(.mobile-tools-open)
+        section.vehicle-tools {
           display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          overflow: hidden !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          border: 0 !important;
+          pointer-events: none !important;
         }
 
+        body.mobile-tools-open
+        section.vehicle-tools,
         body.mobile-tools-open
         .vehicle-tools {
           display: grid !important;
@@ -260,10 +284,25 @@
         }
 
         body.mobile-tools-open
+        section.vehicle-tools
+        .vehicle-search,
+        body.mobile-tools-open
         .vehicle-search {
           grid-column: 1 / -1 !important;
         }
 
+        body.mobile-tools-open
+        section.vehicle-tools
+        .vehicle-search input,
+        body.mobile-tools-open
+        section.vehicle-tools
+        .vehicle-filter select,
+        body.mobile-tools-open
+        section.vehicle-tools
+        .vehicle-sort select,
+        body.mobile-tools-open
+        section.vehicle-tools
+        .vehicle-tool-button,
         body.mobile-tools-open
         .vehicle-search input,
         body.mobile-tools-open
