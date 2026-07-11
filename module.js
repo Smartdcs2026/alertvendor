@@ -3600,34 +3600,6 @@
     article.dataset.recordId =
       record.recordId || '';
 
-    /*
-     * ROUND 06 PART 09.1J
-     * ให้ Frontend Queue ตรวจพบรายการที่ออก Gate Out แล้วได้แน่นอน
-     * แม้ Workflow บางขั้นตอน เช่น รับเอกสารคืน Inbound จะตกหล่น
-     */
-    const cardHasTimestampOut =
-      recordHasTimestampOut(record);
-
-    article.dataset.hasTimestampOut =
-      cardHasTimestampOut
-        ? 'true'
-        : 'false';
-
-    article.dataset.timestampOut =
-      record.timestampOut ||
-      record.timestampOutDisplay ||
-      '';
-
-    article.dataset.isCurrentlyInArea =
-      record.isCurrentlyInArea === true
-        ? 'true'
-        : 'false';
-
-    article.dataset.canCheckout =
-      record.canCheckout === true
-        ? 'true'
-        : 'false';
-
     article.dataset.nearAutoClose =
       record.isNearAutoClose
         ? 'TRUE'
