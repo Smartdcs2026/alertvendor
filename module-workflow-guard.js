@@ -209,7 +209,7 @@
 
         button.title =
           guard.ready
-            ? 'บันทึกรับสินค้าเสร็จ'
+            ? 'บันทึกตรวจรับเสร็จ'
             : guard.message;
       }
 
@@ -234,7 +234,7 @@
         ready: false,
         status: 'UNKNOWN',
         message:
-          'รอ Inbound ยื่นเอกสารก่อน'
+          'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
       };
     }
 
@@ -246,7 +246,7 @@
         ready: true,
         status,
         message:
-          'พร้อมบันทึกรับสินค้าเสร็จ'
+          'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ'
       };
     }
 
@@ -255,7 +255,7 @@
         ready: false,
         status,
         message:
-          'รายการนี้รับสินค้าเสร็จแล้ว รอ Inbound รับเอกสารคืน'
+          'ตรวจรับเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound'
       };
     }
 
@@ -264,7 +264,7 @@
         ready: false,
         status,
         message:
-          'รายการนี้คืนเอกสารแล้ว รอ Gate Out'
+          'รับเอกสารคืนแล้ว: รอออก Gate Out'
       };
     }
 
@@ -273,7 +273,7 @@
         ready: false,
         status,
         message:
-          'รายการนี้ออก Gate Out แล้ว ปิดงานสมบูรณ์'
+          'ปิดงานแล้ว: ออก Gate Out แล้ว'
       };
     }
 
@@ -290,7 +290,7 @@
       ready: false,
       status: status || 'WAITING_DOCUMENT',
       message:
-        'รอ Inbound ยื่นเอกสารก่อน'
+        'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
     };
   }
 
@@ -332,7 +332,7 @@
 
     note.textContent =
       guard.message ||
-      'รอ Inbound ยื่นเอกสารก่อน';
+      'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ';
   }
 
   function findWorkflowItemForCard(card) {
@@ -512,7 +512,7 @@
     const message =
       guard &&
       guard.message ||
-      'รอ Inbound ยื่นเอกสารก่อน';
+      'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ';
 
     if (window.Swal) {
       window.Swal.fire({
