@@ -1,6 +1,6 @@
 /************************************************************
  * module-work-queue.js
- * ROUND 06 PART 09.1G — Stable Queue Render No Flicker
+ * ROUND 06 PART 09.1I — Receiving Wording
  *
  * เป้าหมาย:
  * - หน้า Module เป็น "หน้างาน" ไม่ใช่หน้ารวมทุกสถานะ
@@ -336,7 +336,7 @@
 
       <div class="module-work-queue-actions" role="group" aria-label="ตัวกรองงาน">
         <button type="button" data-work-queue-mode="ACTION">
-          รอคลังรับ <strong id="workQueueActionCount">...</strong>
+          รอตรวจรับ <strong id="workQueueActionCount">...</strong>
         </button>
 
         <button type="button" data-work-queue-mode="WAIT_INBOUND">
@@ -479,6 +479,11 @@
           group;
       }
 
+      applyReceiveActionLock(
+        card,
+        group
+      );
+
       decorateCardQueueState(
         card,
         group
@@ -516,54 +521,24 @@
     const status =
       getCardWorkflowStatus(card);
 
-    const textValue =
-      normalizeSearchText(
-        card.textContent || ''
-      );
-
-    const completeButton =
-      card.querySelector(
-        '[data-receiving-complete-record]'
-      );
-
     /*
-     * ถ้า receiving.js ปรับการ์ดเป็นรับสินค้าเสร็จแล้ว
-     * ให้ถือว่าเป็นงานติดตามทันที แม้ Workflow Dashboard ยัง refresh ไม่ทัน
+     * STRICT WORKFLOW RULE:
+     * งาน "รอคลังรับสินค้า" ต้องเกิดหลังจาก Inbound บันทึกยื่นเอกสารแล้วเท่านั้น
+     *
+     * ห้ามใช้ fallback จากปุ่ม receiving เพราะบางจังหวะ receiving.js
+     * อาจวาดปุ่มมาก่อน Workflow Guard โหลดครบ ทำให้ Gate In ถูกจัดเข้ากลุ่มกดรับสินค้า
      */
-    if (
-      status === 'RECEIVING_COMPLETED' ||
-      status === 'DOCUMENT_RETURNED' ||
-      status === 'GATE_OUT_COMPLETED' ||
-      textValue.includes('รับสินค้าเสร็จ รอ GATE OUT') ||
-      textValue.includes('รับสินค้าเสร็จ รอ INBOUND') ||
-      textValue.includes('บันทึกแล้ว')
-    ) {
-      return 'TRACKING';
-    }
-
     if (status === 'DOCUMENT_SUBMITTED') {
       return 'ACTION';
     }
 
-    /*
-     * Fallback ตอนเปิดหน้าใหม่:
-     * บางครั้ง guard/dashboard ยังโหลดไม่เสร็จ แต่การ์ดถูกวาดแล้ว
-     * ให้ใช้ปุ่มและข้อความบนการ์ดช่วยจัดหมวดก่อน เพื่อไม่ให้ตัวเลขเป็น 0
-     * แล้ว guard จะปรับความถูกต้องซ้ำทันทีเมื่อข้อมูลมาครบ
-     */
     if (
-      completeButton &&
-      completeButton.disabled !== true &&
-      completeButton.getAttribute('aria-disabled') !== 'true'
+      status === 'RECEIVING_COMPLETED' ||
+      status === 'DOCUMENT_RETURNED' ||
+      status === 'GATE_OUT_COMPLETED' ||
+      status === 'CANCELLED'
     ) {
-      return 'ACTION';
-    }
-
-    if (
-      textValue.includes('รอรับสินค้าเสร็จ') &&
-      !textValue.includes('รอ INBOUND')
-    ) {
-      return 'ACTION';
+      return 'TRACKING';
     }
 
     return 'WAIT_INBOUND';
@@ -664,6 +639,41 @@
     }) || null;
   }
 
+
+  function applyReceiveActionLock(card, group) {
+    const allowed =
+      group === 'ACTION';
+
+    card.classList.toggle(
+      'is-receive-action-locked',
+      !allowed
+    );
+
+    card.dataset.receiveActionAllowed =
+      allowed ? 'true' : 'false';
+
+    card
+      .querySelectorAll(
+        '[data-receiving-complete-record]'
+      )
+      .forEach((button) => {
+        button.setAttribute(
+          'data-workflow-queue-locked',
+          allowed ? 'false' : 'true'
+        );
+
+        if (!allowed) {
+          button.setAttribute(
+            'aria-disabled',
+            'true'
+          );
+
+          button.title =
+            'ยังไม่ถึงขั้นตอนตรวจรับ: ต้องรอคนขับยื่นเอกสารที่ห้อง Inbound ก่อน';
+        }
+      });
+  }
+
   function decorateCardQueueState(card, group) {
     let badge =
       card.querySelector(
@@ -693,7 +703,7 @@
 
     if (group === 'ACTION') {
       textValue =
-        'รอคลังรับสินค้าเสร็จ';
+        'รอตรวจรับสินค้า';
     } else if (group === 'WAIT_INBOUND') {
       textValue =
         'รอคนขับยื่นเอกสารที่ห้อง Inbound';
@@ -816,7 +826,7 @@
 
     const titleText =
       state.mode === 'ACTION'
-        ? 'รอคลังรับสินค้า'
+        ? 'รอตรวจรับสินค้า'
         : state.mode === 'WAIT_INBOUND'
           ? 'รอยื่นเอกสารที่ Inbound'
           : state.mode === 'TRACKING'
@@ -825,7 +835,7 @@
 
     const hintText =
       state.mode === 'ACTION'
-        ? 'คนขับยื่นเอกสารแล้ว เหลือรอคลังรับสินค้าให้เสร็จ'
+        ? 'ยื่นเอกสารแล้ว รอคลังตรวจรับสินค้าให้เสร็จ'
         : state.mode === 'WAIT_INBOUND'
           ? 'รถ/ตู้เข้าพื้นที่แล้ว แต่ยังไม่พบการยื่นเอกสารที่ห้อง Inbound'
           : state.mode === 'TRACKING'
@@ -1093,6 +1103,12 @@
       .work-queue-card-badge[data-work-queue-group="TRACKING"] {
         background: #eff6ff;
         color: #1d4ed8;
+      }
+
+      .vehicle-card.is-receive-action-locked
+      [data-receiving-complete-record] {
+        display: none !important;
+        pointer-events: none !important;
       }
 
       @media (max-width: 760px) {
