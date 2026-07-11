@@ -5127,6 +5127,45 @@
         color: #334155;
       }
 
+      .receiving-complete-button.is-disabled-by-workflow,
+      .receiving-complete-button[aria-disabled="true"] {
+        opacity: .58 !important;
+        cursor: not-allowed !important;
+        filter: grayscale(.2);
+      }
+
+      .receiving-review-step {
+        display: grid;
+        gap: 3px;
+        margin-bottom: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #ecfdf5;
+        color: #065f46;
+        text-align: left;
+      }
+
+      .receiving-review-step strong {
+        font-size: .86rem;
+        font-weight: 1000;
+      }
+
+      .receiving-review-step span {
+        font-size: .78rem;
+        font-weight: 850;
+        line-height: 1.3;
+      }
+
+      .checkout-preview-warning {
+        margin-bottom: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
       .vendor-queue-filter select {
         font-weight: 900;
       }
@@ -6379,6 +6418,19 @@
   }
 
   async function handleCheckout(record, button) {
+    if (
+      recordHasTimestampOut(record) ||
+      record.statusCode === 'CLOSED'
+    ) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'รายการนี้ปิดงานแล้ว',
+        text: 'พบ Timestamp Out / Gate Out แล้ว จึงไม่ต้องบันทึกออกพื้นที่ซ้ำ',
+        confirmButtonText: 'ตกลง'
+      });
+      return;
+    }
+
     if (!isAdmin()) {
       await Swal.fire({
         icon: 'error',
@@ -6415,13 +6467,13 @@
       const confirmation =
         await Swal.fire({
           icon: 'question',
-          title: 'ยืนยันออกจากพื้นที่',
+          title: 'Admin: ยืนยันบันทึกออก Gate Out',
           html: createCheckoutPreviewHtml(
             preview.record ||
             record
           ),
           showCancelButton: true,
-          confirmButtonText: 'ยืนยันบันทึกออก',
+          confirmButtonText: 'ยืนยันบันทึกออก Gate Out',
           cancelButtonText: 'ยกเลิก',
           reverseButtons: true,
           allowOutsideClick: false
@@ -6543,6 +6595,10 @@
 
     return `
       <div class="checkout-preview">
+        <div class="checkout-preview-warning">
+          ตรวจสอบให้แน่ใจว่ารถ/ตู้ออกจากพื้นที่จริง ก่อนบันทึก Gate Out
+        </div>
+
         <div class="checkout-preview-primary">
           ${escapeHtml(record.primaryValue || '-')}
         </div>
