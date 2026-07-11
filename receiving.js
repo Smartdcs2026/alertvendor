@@ -266,9 +266,12 @@
       ).toLowerCase();
 
     if (
-      button.disabled ||
-      ariaDisabled === 'true' ||
-      allowedByGuard === 'false'
+      allowedByGuard !== 'true' &&
+      (
+        button.disabled ||
+        ariaDisabled === 'true' ||
+        allowedByGuard === 'false'
+      )
     ) {
       return {
         allowed: false,
@@ -2111,7 +2114,7 @@
       );
 
     const canShowCompleteButton =
-      item.canCompleteReceiving &&
+      !hasReceiving &&
       !hasGateOut;
 
     const stageOneLabel = hasReceiving
@@ -2176,6 +2179,9 @@
               type="button"
               class="receiving-complete-button"
               data-receiving-complete-record="${escapeHtml(item.recordId || '')}"
+              data-receiving-allowed="${item.canCompleteReceiving ? 'true' : 'false'}"
+              aria-disabled="${item.canCompleteReceiving ? 'false' : 'true'}"
+              ${item.canCompleteReceiving ? '' : 'disabled'}
             >
               บันทึกตรวจรับเสร็จ
             </button>
@@ -2664,8 +2670,40 @@
       return;
     }
 
+    const workflowReadyOverride =
+      permission.allowed === true &&
+      String(
+        button &&
+        button.dataset &&
+        button.dataset.receivingAllowed ||
+        ''
+      ).toLowerCase() === 'true';
+
     if (
-      !item.canCompleteReceiving
+      !item.canCompleteReceiving &&
+      !workflowReadyOverride
+    ) {
+      await showMessage({
+        icon: 'info',
+        title: 'ไม่สามารถบันทึกได้',
+        text:
+          'รายการนี้ตรวจรับเสร็จแล้ว หรือมีเวลาออก / Gate Out แล้ว',
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+
+    if (
+      !item.canCompleteReceiving &&
+      workflowReadyOverride &&
+      (
+        item.receivingCompleteAt ||
+        item.receivingCompleteEpochMs ||
+        (
+          item.gateOutSource &&
+          item.gateOutSource !== 'PENDING'
+        )
+      )
     ) {
       await showMessage({
         icon: 'info',
