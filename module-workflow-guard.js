@@ -200,6 +200,23 @@
         button.dataset.workflowRegistration =
           card.dataset.workflowRegistration || '';
 
+        button.dataset.vendorStage =
+          guard.stage || 'UNKNOWN';
+
+        button.dataset.vendorStageLabel =
+          guard.label || '';
+
+        button.dataset.receivingAllowed =
+          guard.ready ? 'true' : 'false';
+
+        button.dataset.receivingBlockMessage =
+          guard.ready
+            ? ''
+            : (
+                guard.message ||
+                'ยังไม่ถึงขั้นตอนตรวจรับ'
+              );
+
         button.disabled =
           !guard.ready;
 
