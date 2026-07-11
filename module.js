@@ -2494,6 +2494,33 @@
   }
 
 
+  function getVendorQueueResultLabel() {
+    const mode =
+      state.vendorQueueFilter ||
+      'ACTIVE';
+
+    const labels = {
+      ACTIVE:
+        'งานหลักก่อนตรวจรับ',
+      CURRENT_SHIFT:
+        'กะปัจจุบันก่อนตรวจรับ',
+      CARRY_OVER:
+        'ค้างข้ามกะก่อนตรวจรับ',
+      FOLLOW_UP:
+        'หลังตรวจรับ',
+      CLOSED:
+        'ปิดงาน',
+      ALL:
+        'ทั้งหมด'
+    };
+
+    return (
+      labels[mode] ||
+      labels.ACTIVE
+    );
+  }
+
+
   function updateVendorQueueContext() {
     const element =
       document.getElementById(
@@ -2525,11 +2552,11 @@
 
     const labels = {
       ACTIVE:
-        'งานหลักก่อนตรวจรับ: รอยื่นก่อนรับ + รอตรวจรับสินค้า',
+        'คิวหลัก: รอยื่นก่อนรับ + รอตรวจรับสินค้า · แถบสรุปด้านบนคือภาพรวมทั้งหมด',
       CURRENT_SHIFT:
-        'กะปัจจุบันก่อนตรวจรับ',
+        'เฉพาะกะปัจจุบันก่อนตรวจรับ · แถบสรุปด้านบนคือภาพรวมทั้งหมด',
       CARRY_OVER:
-        'ค้างข้ามกะก่อนตรวจรับ',
+        'ค้างข้ามกะก่อนตรวจรับ · แถบสรุปด้านบนคือภาพรวมทั้งหมด',
       FOLLOW_UP:
         'หลังตรวจรับ: รอเอกสารคืน / รอออก Gate Out',
       CLOSED:
@@ -3237,6 +3264,8 @@
 
     setText(
       'resultCount',
+      getVendorQueueResultLabel() +
+      ' ' +
       state.filteredRecords.length +
       ' รายการ'
     );
@@ -5652,6 +5681,11 @@
 
       .vendor-queue-filter select {
         font-weight: 900;
+      }
+
+      #resultCount {
+        color: #0f172a;
+        font-weight: 1000;
       }
 
       #vendorQueueContext {
