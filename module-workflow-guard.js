@@ -185,10 +185,28 @@
           ? workflowItem.registration
           : '';
 
-      const button =
+      let button =
         card.querySelector(
           '[data-receiving-complete-record]'
         );
+
+      /*
+       * ROUND 06 PART 09.2E1
+       * ปุ่มเดิมถูกสร้างจาก Receiving Flow เท่านั้น
+       * แต่เงื่อนไขพร้อมตรวจรับต้องยึด Inbound Workflow
+       * ถ้า Workflow = DOCUMENT_SUBMITTED แล้วแต่ Receiving Flow ไม่วาดปุ่ม
+       * ให้ Workflow Guard สร้างปุ่มให้เอง
+       */
+      if (
+        !button &&
+        guard.ready
+      ) {
+        button =
+          ensureWorkflowReadyReceivingButton(
+            card,
+            workflowItem
+          );
+      }
 
       if (button) {
         button.dataset.workflowAutoId =
@@ -238,6 +256,87 @@
 
       updateGuardNote(card, guard);
     });
+  }
+
+
+
+  function ensureWorkflowReadyReceivingButton(
+    card,
+    workflowItem
+  ) {
+    if (!card) {
+      return null;
+    }
+
+    const recordId =
+      String(
+        card.dataset.recordId ||
+        ''
+      ).trim();
+
+    if (!recordId) {
+      return null;
+    }
+
+    let actions =
+      card.querySelector(
+        '.receiving-card-stage__actions'
+      );
+
+    if (!actions) {
+      const stage =
+        card.querySelector(
+          '.receiving-card-stage'
+        );
+
+      if (stage) {
+        actions =
+          document.createElement('div');
+
+        actions.className =
+          'receiving-card-stage__actions';
+
+        stage.appendChild(actions);
+      }
+    }
+
+    if (!actions) {
+      /*
+       * ถ้า Receiving Flow ยังไม่สร้าง Stage เลย
+       * ไม่ฝืนสร้างปุ่มลอย เพราะ receiving.js อาจยังไม่มี item
+       */
+      return null;
+    }
+
+    const button =
+      document.createElement('button');
+
+    button.type =
+      'button';
+
+    button.className =
+      'receiving-complete-button is-created-by-workflow-guard';
+
+    button.dataset.receivingCompleteRecord =
+      recordId;
+
+    button.textContent =
+      'บันทึกตรวจรับเสร็จ';
+
+    if (
+      workflowItem &&
+      workflowItem.autoId
+    ) {
+      button.dataset.workflowAutoId =
+        workflowItem.autoId;
+    }
+
+    actions.insertBefore(
+      button,
+      actions.firstChild
+    );
+
+    return button;
   }
 
 
@@ -734,6 +833,10 @@
         opacity: .58 !important;
         filter: grayscale(.15);
         cursor: not-allowed !important;
+      }
+
+      .receiving-complete-button.is-created-by-workflow-guard {
+        box-shadow: 0 0 0 2px rgba(22, 163, 74, .12) inset;
       }
 
       .workflow-guard-shake {
