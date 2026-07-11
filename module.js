@@ -42,6 +42,8 @@
     shiftEnabled: false,
     currentShiftWindow: null,
     shiftConfigLoaded: false,
+    vendorWorkflowItems: [],
+    vendorWorkflowLoaded: false,
     serverOffsetMs: 0,
     clockTimer: null,
     durationTimer: null,
@@ -315,6 +317,17 @@
           applyFiltersAndRender();
         }
       );
+
+    document.addEventListener(
+      'alertvendor:receiving-completed',
+      () => {
+        void loadRecords({
+          silentError: true,
+          showSuccessToast: false,
+          forceRender: true
+        });
+      }
+    );
 
     movementScopeGroup &&
       movementScopeGroup.addEventListener(
@@ -735,6 +748,12 @@
       refreshVendorShiftWindow();
 
       recalculateAllRecords();
+
+      await loadVendorWorkflowSnapshot({
+        silent: true
+      });
+
+      annotateVendorWorkflowStages();
 
       /*
        * สำเนารายการ Active ทั้งหมดหลังคำนวณสถานะ
@@ -2193,6 +2212,7 @@
         'ACTIVE',
         'CURRENT_SHIFT',
         'CARRY_OVER',
+        'FOLLOW_UP',
         'CLOSED',
         'ALL'
       ].includes(
@@ -2393,45 +2413,72 @@
       return false;
     }
 
-    if (
-      !state.shiftEnabled ||
-      !state.currentShiftWindow
-    ) {
-      return true;
-    }
-
     const timestampMs =
       getRecordTimestampInMs(record);
 
-    if (!timestampMs) {
-      return mode === 'ACTIVE';
-    }
-
-    const inCurrentShift =
-      timestampMs >=
-        state.currentShiftWindow.startMs &&
-      timestampMs <
-        state.currentShiftWindow.endMs;
+    const shiftActive =
+      !state.shiftEnabled ||
+      !state.currentShiftWindow ||
+      !timestampMs ||
+      (
+        timestampMs >=
+          state.currentShiftWindow.startMs &&
+        timestampMs <
+          state.currentShiftWindow.endMs
+      );
 
     const carryOver =
-      timestampMs <
-      state.currentShiftWindow.startMs;
+      Boolean(
+        state.shiftEnabled &&
+        state.currentShiftWindow &&
+        timestampMs &&
+        timestampMs <
+          state.currentShiftWindow.startMs
+      );
+
+    const inActiveWindow =
+      !state.shiftEnabled ||
+      !state.currentShiftWindow ||
+      shiftActive ||
+      carryOver;
+
+    const beforeOrReady =
+      recordIsBeforeOrReadyReceiving(
+        record
+      );
+
+    const afterReceiving =
+      recordIsAfterReceiving(
+        record
+      );
+
+    if (mode === 'FOLLOW_UP') {
+      return afterReceiving;
+    }
 
     if (mode === 'CURRENT_SHIFT') {
-      return inCurrentShift;
+      return (
+        shiftActive &&
+        beforeOrReady
+      );
     }
 
     if (mode === 'CARRY_OVER') {
-      return carryOver;
+      return (
+        carryOver &&
+        beforeOrReady
+      );
     }
 
     /*
-     * ค่าเริ่มต้น:
-     * กะปัจจุบัน + งานค้างข้ามกะที่ยังไม่ปิด
+     * ค่าเริ่มต้นแบบมืออาชีพ:
+     * แสดงเฉพาะงานหลักก่อนตรวจรับ
+     * คือ รอยื่นก่อนรับ + รอตรวจรับสินค้า
+     * ส่วนที่ตรวจรับแล้วให้ไปดูที่ "หลังตรวจรับ"
      */
     return (
-      inCurrentShift ||
-      carryOver
+      inActiveWindow &&
+      beforeOrReady
     );
   }
 
@@ -2478,11 +2525,13 @@
 
     const labels = {
       ACTIVE:
-        'งานปัจจุบัน: กะนี้ + งานค้างที่ยังไม่ปิด',
+        'งานหลักก่อนตรวจรับ: รอยื่นก่อนรับ + รอตรวจรับสินค้า',
       CURRENT_SHIFT:
-        'เฉพาะกะปัจจุบัน',
+        'กะปัจจุบันก่อนตรวจรับ',
       CARRY_OVER:
-        'งานค้างข้ามกะที่ยังไม่ปิด',
+        'ค้างข้ามกะก่อนตรวจรับ',
+      FOLLOW_UP:
+        'หลังตรวจรับ: รอเอกสารคืน / รอออก Gate Out',
       CLOSED:
         'ปิดงานแล้ว',
       ALL:
@@ -2579,6 +2628,430 @@
     return date
       .toISOString()
       .slice(0, 10);
+  }
+
+
+
+
+  async function loadVendorWorkflowSnapshot(options) {
+    const config =
+      options &&
+      typeof options === 'object'
+        ? options
+        : {};
+
+    state.vendorWorkflowLoaded =
+      false;
+
+    if (
+      !API ||
+      typeof API.getInboundWorkflowDashboard !==
+        'function'
+    ) {
+      state.vendorWorkflowItems =
+        [];
+      return;
+    }
+
+    try {
+      const data =
+        await API.getInboundWorkflowDashboard(
+          state.moduleId,
+          {
+            limit: 1000,
+            cacheBust: Date.now()
+          }
+        );
+
+      state.vendorWorkflowItems =
+        normalizeVendorWorkflowItems(data);
+
+    } catch (error) {
+      if (!config.silent) {
+        console.warn(
+          'โหลด Inbound Workflow สำหรับ Module ไม่สำเร็จ',
+          error
+        );
+      }
+
+      state.vendorWorkflowItems =
+        [];
+    } finally {
+      state.vendorWorkflowLoaded =
+        true;
+    }
+  }
+
+
+  function annotateVendorWorkflowStages() {
+    const list =
+      Array.isArray(
+        state.records
+      )
+        ? state.records
+        : [];
+
+    list.forEach((record) => {
+      const workflow =
+        findVendorWorkflowForRecord(
+          record
+        );
+
+      const status =
+        String(
+          workflow &&
+          workflow.statusCode ||
+          ''
+        ).toUpperCase();
+
+      const meta =
+        getVendorOperationalMeta(
+          record,
+          status
+        );
+
+      record.vendorWorkflowStatus =
+        status || 'WAITING_DOCUMENT';
+
+      record.vendorOperationalStage =
+        meta.stage;
+
+      record.vendorOperationalLabel =
+        meta.label;
+
+      record.vendorOperationalMessage =
+        meta.message;
+
+      record.vendorWorkflowAutoId =
+        workflow &&
+        workflow.autoId ||
+        '';
+    });
+  }
+
+
+  function normalizeVendorWorkflowItems(data) {
+    const source =
+      data &&
+      data.data &&
+      typeof data.data === 'object'
+        ? data.data
+        : data &&
+          typeof data === 'object'
+          ? data
+          : {};
+
+    const list =
+      []
+        .concat(
+          Array.isArray(source.items)
+            ? source.items
+            : []
+        )
+        .concat(
+          Array.isArray(source.waitingReceiving)
+            ? source.waitingReceiving
+            : []
+        )
+        .concat(
+          Array.isArray(source.receivingCompleted)
+            ? source.receivingCompleted
+            : []
+        )
+        .concat(
+          Array.isArray(source.documentReturned)
+            ? source.documentReturned
+            : []
+        );
+
+    const map =
+      new Map();
+
+    list.forEach((item) => {
+      const normalized =
+        normalizeVendorWorkflowItem(item);
+
+      const key =
+        normalized.autoId ||
+        normalized.appointmentNumber ||
+        normalized.registration ||
+        normalized.phone;
+
+      if (!key) {
+        return;
+      }
+
+      const existing =
+        map.get(key);
+
+      if (
+        !existing ||
+        dateToMs(
+          normalized.updatedAt
+        ) >=
+          dateToMs(
+            existing.updatedAt
+          )
+      ) {
+        map.set(
+          key,
+          normalized
+        );
+      }
+    });
+
+    return Array.from(
+      map.values()
+    );
+  }
+
+
+  function normalizeVendorWorkflowItem(item) {
+    const source =
+      item &&
+      typeof item === 'object'
+        ? item
+        : {};
+
+    const record =
+      source.record ||
+      source.vehicle ||
+      source.sourceRecord ||
+      {};
+
+    return {
+      autoId:
+        textValue(
+          source.autoId ||
+          source.entryCode ||
+          source.recordId ||
+          record.autoId ||
+          record.entryCode
+        ),
+
+      appointmentNumber:
+        textValue(
+          source.appointmentNumber ||
+          source.appointment ||
+          record.appointmentNumber ||
+          record.appointment ||
+          record.booking
+        ),
+
+      registration:
+        textValue(
+          source.registration ||
+          source.plate ||
+          record.registration ||
+          record.plate
+        ),
+
+      phone:
+        textValue(
+          source.phone ||
+          source.mobile ||
+          record.phone ||
+          record.mobile
+        ),
+
+      statusCode:
+        textValue(
+          source.statusCode ||
+          source.status
+        ).toUpperCase(),
+
+      updatedAt:
+        textValue(
+          source.updatedAt ||
+          source.updatedAtText ||
+          source.generatedAt
+        )
+    };
+  }
+
+
+  function findVendorWorkflowForRecord(record) {
+    const identity =
+      getVendorCoreIdentity(record);
+
+    const tokens =
+      [
+        record &&
+          record.recordId,
+        record &&
+          record.autoId,
+        identity.appointmentNumber,
+        findRecordFieldValue(
+          record,
+          [
+            'ทะเบียนรถ',
+            'ทะเบียน',
+            'REGISTRATION',
+            'PLATE'
+          ]
+        ),
+        findRecordFieldValue(
+          record,
+          [
+            'เบอร์โทร',
+            'โทรศัพท์',
+            'PHONE',
+            'MOBILE'
+          ]
+        )
+      ]
+        .map(normalizeVendorToken)
+        .filter(Boolean);
+
+    if (!tokens.length) {
+      return null;
+    }
+
+    return (
+      state.vendorWorkflowItems.find((item) => {
+        const itemTokens =
+          [
+            item.autoId,
+            item.appointmentNumber,
+            item.registration,
+            item.phone
+          ]
+            .map(normalizeVendorToken)
+            .filter(Boolean);
+
+        return tokens.some(
+          (token) =>
+            itemTokens.includes(token)
+        );
+      }) ||
+      null
+    );
+  }
+
+
+  function getVendorOperationalMeta(record, status) {
+    if (
+      isVendorRecordClosed(record) ||
+      status === 'GATE_OUT_COMPLETED' ||
+      status === 'CANCELLED'
+    ) {
+      return {
+        stage: 'CLOSED',
+        label: 'ปิดงานแล้ว',
+        message:
+          'มี Timestamp Out / Gate Out แล้ว'
+      };
+    }
+
+    if (
+      status === 'RECEIVING_COMPLETED'
+    ) {
+      return {
+        stage: 'AFTER_RECEIVING',
+        label: 'หลังตรวจรับ',
+        message:
+          'ตรวจรับเสร็จแล้ว: รอรับเอกสารคืนที่ Inbound'
+      };
+    }
+
+    if (
+      status === 'DOCUMENT_RETURNED'
+    ) {
+      return {
+        stage: 'AFTER_RECEIVING',
+        label: 'หลังตรวจรับ',
+        message:
+          'รับเอกสารคืนแล้ว: รอออก Gate Out'
+      };
+    }
+
+    if (
+      status === 'DOCUMENT_SUBMITTED'
+    ) {
+      return {
+        stage: 'READY_TO_RECEIVE',
+        label: 'รอตรวจรับสินค้า',
+        message:
+          'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ'
+      };
+    }
+
+    return {
+      stage: 'BEFORE_RECEIVING',
+      label: 'รอยื่นก่อนรับ',
+      message:
+        'รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
+    };
+  }
+
+
+  function recordIsAfterReceiving(record) {
+    const stage =
+      String(
+        record &&
+        record.vendorOperationalStage ||
+        ''
+      ).toUpperCase();
+
+    return stage === 'AFTER_RECEIVING';
+  }
+
+
+  function recordIsBeforeOrReadyReceiving(record) {
+    const stage =
+      String(
+        record &&
+        record.vendorOperationalStage ||
+        ''
+      ).toUpperCase();
+
+    return (
+      stage === 'BEFORE_RECEIVING' ||
+      stage === 'READY_TO_RECEIVE' ||
+      !stage
+    );
+  }
+
+
+  function normalizeVendorToken(value) {
+    return String(
+      value === null ||
+      value === undefined
+        ? ''
+        : value
+    )
+      .trim()
+      .replace(/\s+/g, '')
+      .toUpperCase();
+  }
+
+
+  function textValue(value) {
+    return String(
+      value === null ||
+      value === undefined
+        ? ''
+        : value
+    ).trim();
+  }
+
+
+  function dateToMs(value) {
+    const direct =
+      parseBangkokDateTime(value);
+
+    if (direct) {
+      return direct.getTime();
+    }
+
+    const ms =
+      Date.parse(
+        String(value || '')
+      );
+
+    return Number.isFinite(ms)
+      ? ms
+      : 0;
   }
 
 
@@ -4496,7 +4969,18 @@
     article.dataset.operationalState =
       hasTimestampOut
         ? 'CLOSED'
-        : '';
+        : (
+            record.vendorOperationalStage ||
+            ''
+          );
+
+    article.dataset.vendorStage =
+      record.vendorOperationalStage ||
+      '';
+
+    article.dataset.vendorStageLabel =
+      record.vendorOperationalLabel ||
+      '';
 
     const vendorIdentity =
       getVendorCoreIdentity(record);
