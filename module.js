@@ -81,6 +81,7 @@
 
   async function initializePage() {
     initializeOverdueBadgeSystem();
+    injectVendorModuleStableStyle();
 
     if (typeof window.Swal === 'undefined') {
       console.error('ไม่พบ SweetAlert2');
@@ -3466,6 +3467,280 @@
   }
 
 
+
+  function getVendorCoreIdentity(record) {
+    const primaryLabel =
+      normalizeFieldLabel(
+        getPrimaryLabel(record)
+      );
+
+    const primaryValue =
+      String(
+        record &&
+        record.primaryValue ||
+        ''
+      ).trim();
+
+    let appointmentNumber =
+      findRecordFieldValue(
+        record,
+        [
+          'เลขนัดหมาย',
+          'หมายเลขนัดหมาย',
+          'นัดหมาย',
+          'APPT',
+          'APPOINTMENT',
+          'BOOKING'
+        ]
+      );
+
+    let companyName =
+      findRecordFieldValue(
+        record,
+        [
+          'ชื่อบริษัท',
+          'บริษัท',
+          'COMPANY',
+          'VENDOR',
+          'SUPPLIER'
+        ]
+      );
+
+    if (
+      !appointmentNumber &&
+      primaryValue &&
+      (
+        isAppointmentLabel(primaryLabel) ||
+        looksLikeAppointmentNumber(
+          primaryValue
+        )
+      )
+    ) {
+      appointmentNumber =
+        primaryValue;
+    }
+
+    if (
+      !companyName &&
+      primaryValue &&
+      isCompanyLabel(primaryLabel)
+    ) {
+      companyName =
+        primaryValue;
+    }
+
+    /*
+     * ถ้า Admin ตั้ง primary เป็นบริษัท และยังหา APPT ไม่เจอ
+     * ให้ใช้ primary เป็นบริษัทเท่านั้น ไม่เดา APPT ผิด
+     */
+    if (
+      !companyName &&
+      primaryValue &&
+      !looksLikeAppointmentNumber(
+        primaryValue
+      )
+    ) {
+      companyName =
+        primaryValue;
+    }
+
+    if (
+      !appointmentNumber
+    ) {
+      appointmentNumber =
+        record &&
+        (
+          record.appointmentNumber ||
+          record.appointment ||
+          record.appt ||
+          ''
+        ) ||
+        '';
+    }
+
+    if (
+      !companyName
+    ) {
+      companyName =
+        record &&
+        (
+          record.companyName ||
+          record.company ||
+          record.vendorName ||
+          ''
+        ) ||
+        '';
+    }
+
+    return {
+      appointmentNumber:
+        String(
+          appointmentNumber || ''
+        ).trim(),
+
+      companyName:
+        String(
+          companyName || ''
+        ).trim()
+    };
+  }
+
+
+  function findRecordFieldValue(
+    record,
+    aliases
+  ) {
+    const fields =
+      Array.isArray(
+        record &&
+        record.fields
+      )
+        ? record.fields
+        : [];
+
+    const wanted =
+      aliases.map(
+        normalizeFieldLabel
+      );
+
+    const matched =
+      fields.find((field) => {
+        const label =
+          normalizeFieldLabel(
+            field &&
+            (
+              field.label ||
+              field.displayName ||
+              field.name ||
+              field.id ||
+              field.fieldId
+            )
+          );
+
+        return wanted.some(
+          (alias) =>
+            label === alias ||
+            label.includes(alias) ||
+            alias.includes(label)
+        );
+      });
+
+    return matched
+      ? String(
+          matched.value || ''
+        ).trim()
+      : '';
+  }
+
+
+  function isVendorCoreIdentityField(
+    field,
+    record
+  ) {
+    const label =
+      normalizeFieldLabel(
+        field &&
+        (
+          field.label ||
+          field.displayName ||
+          field.name ||
+          field.id ||
+          field.fieldId
+        )
+      );
+
+    if (
+      isAppointmentLabel(label) ||
+      isCompanyLabel(label)
+    ) {
+      return true;
+    }
+
+    const value =
+      normalizeComparableText(
+        field &&
+        field.value
+      );
+
+    const identity =
+      getVendorCoreIdentity(record);
+
+    const appointment =
+      normalizeComparableText(
+        identity.appointmentNumber
+      );
+
+    const company =
+      normalizeComparableText(
+        identity.companyName
+      );
+
+    return (
+      (
+        appointment &&
+        value === appointment
+      ) ||
+      (
+        company &&
+        value === company
+      )
+    );
+  }
+
+
+  function isAppointmentLabel(label) {
+    const clean =
+      normalizeFieldLabel(label);
+
+    return [
+      'เลขนัดหมาย',
+      'หมายเลขนัดหมาย',
+      'นัดหมาย',
+      'appt',
+      'appointment',
+      'booking'
+    ].some(
+      (alias) =>
+        clean === alias ||
+        clean.includes(alias)
+    );
+  }
+
+
+  function isCompanyLabel(label) {
+    const clean =
+      normalizeFieldLabel(label);
+
+    return [
+      'ชื่อบริษัท',
+      'บริษัท',
+      'company',
+      'vendor',
+      'supplier'
+    ].some(
+      (alias) =>
+        clean === alias ||
+        clean.includes(alias)
+    );
+  }
+
+
+  function looksLikeAppointmentNumber(value) {
+    const textValue =
+      String(value || '')
+        .trim()
+        .replace(/\s+/g, '');
+
+    if (!textValue) {
+      return false;
+    }
+
+    return /^[A-Z0-9][A-Z0-9\-\/]{4,}$/i.test(
+      textValue
+    );
+  }
+
+
   function getDisplayFields(
     record,
     options
@@ -3539,6 +3814,17 @@
             return false;
           }
 
+          if (
+            config.excludeCoreIdentity ===
+              true &&
+            isVendorCoreIdentityField(
+              field,
+              record
+            )
+          ) {
+            return false;
+          }
+
           const label =
             String(
               field.label ||
@@ -3599,6 +3885,15 @@
 
     article.dataset.recordId =
       record.recordId || '';
+
+    const vendorIdentity =
+      getVendorCoreIdentity(record);
+
+    article.dataset.appointmentNumber =
+      vendorIdentity.appointmentNumber || '';
+
+    article.dataset.companyName =
+      vendorIdentity.companyName || '';
 
     article.dataset.nearAutoClose =
       record.isNearAutoClose
@@ -3670,7 +3965,7 @@
       'vehicle-card__primary-label';
 
     primaryLabel.textContent =
-      getPrimaryLabel(record);
+      'เลขนัดหมาย';
 
     const title =
       document.createElement(
@@ -3681,8 +3976,22 @@
       'vehicle-card__title';
 
     title.textContent =
+      vendorIdentity.appointmentNumber ||
       record.primaryValue ||
-      'ไม่พบข้อมูลหลัก';
+      'ไม่พบเลขนัดหมาย';
+
+    const companyLine =
+      document.createElement(
+        'p'
+      );
+
+    companyLine.className =
+      'vehicle-card__company-name';
+
+    companyLine.textContent =
+      vendorIdentity.companyName ||
+      'ไม่พบชื่อบริษัท';
+
 
     const statusLine =
       document.createElement(
@@ -3734,6 +4043,10 @@
 
     titleWrap.appendChild(
       title
+    );
+
+    titleWrap.appendChild(
+      companyLine
     );
 
     titleWrap.appendChild(
@@ -3854,10 +4167,11 @@
     getDisplayFields(
       record,
       {
-        excludeTimestampIn: true
+        excludeTimestampIn: true,
+        excludeCoreIdentity: true
       }
     )
-      .slice(0, 4)
+      .slice(0, 3)
       .forEach(
         (field) => {
           detailGrid.appendChild(
@@ -4055,11 +4369,15 @@
     const primaryLabel =
       getPrimaryLabel(record);
 
+    const vendorIdentity =
+      getVendorCoreIdentity(record);
+
     const fieldHtml =
       getDisplayFields(
         record,
         {
-          excludeTimestampIn: true
+          excludeTimestampIn: true,
+          excludeCoreIdentity: true
         }
       )
         .map(
@@ -4075,11 +4393,24 @@
     Swal.fire({
       width: 620,
       title:
+        vendorIdentity.appointmentNumber ||
         record.primaryValue ||
         'รายละเอียดรายการ',
       html: `
         <div class="record-primary-caption">
           ${escapeHtml(primaryLabel)}
+        </div>
+
+        <div class="record-vendor-identity">
+          <div>
+            <span>เลขนัดหมาย</span>
+            <strong>${escapeHtml(vendorIdentity.appointmentNumber || '-')}</strong>
+          </div>
+
+          <div>
+            <span>บริษัท</span>
+            <strong>${escapeHtml(vendorIdentity.companyName || '-')}</strong>
+          </div>
         </div>
 
         <div class="record-detail-dialog" data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}">
@@ -4100,6 +4431,165 @@
       confirmButtonText: 'ปิด'
     });
   }
+
+
+  function injectVendorModuleStableStyle() {
+    if (
+      document.getElementById(
+        'vendorModuleStableStyle'
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement('style');
+
+    style.id =
+      'vendorModuleStableStyle';
+
+    style.textContent = `
+      .vehicle-card__company-name {
+        margin: 2px 0 0;
+        color: #334155;
+        font-size: .86rem;
+        font-weight: 900;
+        line-height: 1.18;
+        overflow-wrap: anywhere;
+      }
+
+      .vehicle-card__primary-label {
+        color: #64748b;
+        font-weight: 950;
+      }
+
+      .vehicle-card__title {
+        letter-spacing: -.02em;
+      }
+
+      .record-vendor-identity {
+        display: grid;
+        grid-template-columns: 1fr 1.3fr;
+        gap: 8px;
+        margin: 8px 0 12px;
+      }
+
+      .record-vendor-identity > div {
+        min-width: 0;
+        border: 1px solid #dbeafe;
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #eff6ff;
+      }
+
+      .record-vendor-identity span {
+        display: block;
+        color: #64748b;
+        font-size: .74rem;
+        font-weight: 900;
+      }
+
+      .record-vendor-identity strong {
+        display: block;
+        margin-top: 2px;
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 1000;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 760px) {
+        body.module-page .vehicle-card {
+          padding: 10px 9px 9px 13px !important;
+        }
+
+        body.module-page .vehicle-card__header {
+          gap: 6px !important;
+        }
+
+        body.module-page .vehicle-card__primary-label {
+          font-size: .58rem !important;
+          line-height: 1.1 !important;
+        }
+
+        body.module-page .vehicle-card__title {
+          color: #0f172a !important;
+          font-size: clamp(1.05rem, 4.8vw, 1.45rem) !important;
+          font-weight: 1000 !important;
+          line-height: 1.02 !important;
+          word-break: break-word !important;
+        }
+
+        body.module-page .vehicle-card__company-name {
+          color: #1e293b !important;
+          font-size: clamp(.72rem, 3.2vw, .92rem) !important;
+          font-weight: 950 !important;
+          line-height: 1.14 !important;
+          display: -webkit-box !important;
+          -webkit-line-clamp: 2 !important;
+          -webkit-box-orient: vertical !important;
+          overflow: hidden !important;
+        }
+
+        body.module-page .vehicle-card__status-line {
+          gap: 5px !important;
+          margin-top: 5px !important;
+        }
+
+        body.module-page .vehicle-status-badge {
+          font-size: .58rem !important;
+          min-height: 22px !important;
+          padding: 3px 7px !important;
+        }
+
+        body.module-page .vehicle-card__timer {
+          font-size: .86rem !important;
+        }
+
+        body.module-page .vehicle-card__priority-text {
+          font-size: .62rem !important;
+          line-height: 1.22 !important;
+          margin-top: 7px !important;
+        }
+
+        body.module-page .vehicle-detail-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 6px !important;
+        }
+
+        body.module-page .vehicle-field {
+          padding: 6px !important;
+        }
+
+        body.module-page .vehicle-field span {
+          font-size: .48rem !important;
+        }
+
+        body.module-page .vehicle-field strong,
+        body.module-page .vehicle-field a {
+          font-size: .68rem !important;
+        }
+
+        body.module-page .workflow-guard-note {
+          font-size: .66rem !important;
+          line-height: 1.25 !important;
+        }
+
+        .record-vendor-identity {
+          grid-template-columns: 1fr;
+        }
+
+        .record-vendor-identity strong {
+          font-size: 1.05rem;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+
 
   /************************************************************
    * Dynamic Overdue App Badge
