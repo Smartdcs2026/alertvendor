@@ -1,6 +1,6 @@
 /************************************************************
  * module-workflow-guard.js
- * ROUND 06 PART 09.1 — Core Workflow Guard + Queue Signals
+ * ROUND 06 PART 09 — Core Workflow Guard + Auto ID Bridge
  *
  * เป้าหมาย:
  * - ไม่แตะ receiving.js เดิมที่ใช้งานได้
@@ -215,18 +215,6 @@
 
       updateGuardNote(card, guard);
     });
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'alertvendor:workflow-guard-updated',
-        {
-          detail: {
-            items: state.items.slice(),
-            loadedAt: state.lastLoadedAt || Date.now()
-          }
-        }
-      )
-    );
   }
 
   function evaluateCardGuard(card) {
@@ -721,10 +709,7 @@
       },
 
     getIdentityForRecord:
-      getIdentityForRecord,
-
-    getItems:
-      () => state.items.slice()
+      getIdentityForRecord
   };
 
   function getIdentityForRecord(recordId) {
