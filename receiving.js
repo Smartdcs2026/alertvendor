@@ -2977,6 +2977,17 @@
 
       state.refreshPending = true;
 
+      document.dispatchEvent(
+        new CustomEvent(
+          'alertvendor:receiving-completed',
+          {
+            detail: {
+              recordId: cleanRecordId
+            }
+          }
+        )
+      );
+
     } catch (error) {
       await showApiError(
         error,
