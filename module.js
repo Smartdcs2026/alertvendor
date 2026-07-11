@@ -883,6 +883,9 @@
           recordId:
             record.recordId || '',
 
+          autoId:
+            getVendorRecordAutoId(record) || '',
+
           sourceRowNumber:
             Number(
               record.sourceRowNumber
@@ -2812,6 +2815,9 @@
           status
         );
 
+      record.vendorAutoId =
+        getVendorRecordAutoId(record) || '';
+
       record.vendorWorkflowStatus =
         status || 'WAITING_DOCUMENT';
 
@@ -2874,11 +2880,14 @@
         normalizeVendorWorkflowItem(item);
 
       const key =
-        normalized.autoId ||
-        normalized.appointmentNumber ||
-        normalized.registration ||
-        normalized.phone;
+        normalizeVendorAutoId(
+          normalized.autoId
+        );
 
+      /*
+       * ใช้ Auto ID เท่านั้นเป็น key
+       * ห้าม fallback ไปเลขนัดหมาย/ทะเบียน/โทร เพราะข้อมูลเหล่านี้ซ้ำได้
+       */
       if (!key) {
         return;
       }
@@ -2973,57 +2982,24 @@
 
 
   function findVendorWorkflowForRecord(record) {
-    const identity =
-      getVendorCoreIdentity(record);
+    const recordAutoId =
+      getVendorRecordAutoId(record);
 
-    const tokens =
-      [
-        record &&
-          record.recordId,
-        record &&
-          record.autoId,
-        identity.appointmentNumber,
-        findRecordFieldValue(
-          record,
-          [
-            'ทะเบียนรถ',
-            'ทะเบียน',
-            'REGISTRATION',
-            'PLATE'
-          ]
-        ),
-        findRecordFieldValue(
-          record,
-          [
-            'เบอร์โทร',
-            'โทรศัพท์',
-            'PHONE',
-            'MOBILE'
-          ]
-        )
-      ]
-        .map(normalizeVendorToken)
-        .filter(Boolean);
-
-    if (!tokens.length) {
+    if (!recordAutoId) {
       return null;
     }
 
+    const cleanAutoId =
+      normalizeVendorAutoId(
+        recordAutoId
+      );
+
     return (
       state.vendorWorkflowItems.find((item) => {
-        const itemTokens =
-          [
-            item.autoId,
-            item.appointmentNumber,
-            item.registration,
-            item.phone
-          ]
-            .map(normalizeVendorToken)
-            .filter(Boolean);
-
-        return tokens.some(
-          (token) =>
-            itemTokens.includes(token)
+        return (
+          normalizeVendorAutoId(
+            item.autoId
+          ) === cleanAutoId
         );
       }) ||
       null
@@ -3112,6 +3088,79 @@
       stage === 'READY_TO_RECEIVE' ||
       !stage
     );
+  }
+
+
+
+  function getVendorRecordAutoId(record) {
+    const direct =
+      findVendorAutoIdCandidate([
+        record && record.autoId,
+        record && record.entryCode,
+        record && record.qrText,
+        record && record.workflowAutoId,
+        record && record.inboundAutoId,
+        record && record.expectedAutoId,
+        record && record.vendorAutoId,
+        record && record.recordId,
+        findRecordFieldValue(
+          record,
+          [
+            'Auto ID',
+            'AUTO ID',
+            'AUTOID',
+            'รหัส AUTO ID',
+            'รหัส Gate In',
+            'รหัสเข้า',
+            'รหัสรายการ'
+          ]
+        )
+      ]);
+
+    return direct;
+  }
+
+
+  function findVendorAutoIdCandidate(values) {
+    const list =
+      Array.isArray(values)
+        ? values
+        : [values];
+
+    for (
+      let index = 0;
+      index < list.length;
+      index += 1
+    ) {
+      const value =
+        String(
+          list[index] ||
+          ''
+        ).trim();
+
+      if (!value) {
+        continue;
+      }
+
+      const match =
+        value.match(
+          /\bSK\d{6,20}\b/i
+        );
+
+      if (match) {
+        return match[0]
+          .toUpperCase();
+      }
+    }
+
+    return '';
+  }
+
+
+  function normalizeVendorAutoId(value) {
+    return findVendorAutoIdCandidate([
+      value
+    ]);
   }
 
 
@@ -5056,6 +5105,12 @@
     article.dataset.recordId =
       record.recordId || '';
 
+    const vendorAutoId =
+      getVendorRecordAutoId(record);
+
+    article.dataset.autoId =
+      vendorAutoId || '';
+
     const hasTimestampOut =
       recordHasTimestampOut(record);
 
@@ -5202,6 +5257,24 @@
       vendorIdentity.companyName ||
       'ไม่พบชื่อบริษัท';
 
+    const autoIdLine =
+      document.createElement(
+        'span'
+      );
+
+    autoIdLine.className =
+      'vehicle-card__auto-id';
+
+    autoIdLine.textContent =
+      vendorAutoId
+        ? 'Auto ID ' + vendorAutoId
+        : '';
+
+    if (!vendorAutoId) {
+      autoIdLine.hidden =
+        true;
+    }
+
 
     const statusLine =
       document.createElement(
@@ -5257,6 +5330,10 @@
 
     titleWrap.appendChild(
       companyLine
+    );
+
+    titleWrap.appendChild(
+      autoIdLine
     );
 
     titleWrap.appendChild(
@@ -5783,6 +5860,15 @@
         display: none !important;
       }
 
+      .vehicle-card__auto-id {
+        display: inline-block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: .66rem;
+        font-weight: 900;
+        letter-spacing: .01em;
+      }
+
       .vehicle-card__company-name {
         margin: 2px 0 0;
         color: #334155;
@@ -5883,6 +5969,10 @@
           -webkit-line-clamp: 2 !important;
           -webkit-box-orient: vertical !important;
           overflow: hidden !important;
+        }
+
+        body.module-page .vehicle-card__auto-id {
+          font-size: .56rem !important;
         }
 
         body.module-page .vehicle-card__status-line {
