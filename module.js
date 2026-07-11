@@ -16,7 +16,6 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
- * - HOTFIX 26: กันสิทธิ์ INBOUND เข้า Module + Auth Reset Stable
  */
 (function (window, document) {
   'use strict';
@@ -125,18 +124,6 @@
       }
 
       state.session = session;
-
-      const moduleRole = getModuleSessionRole(session);
-
-      if (moduleRole === 'INBOUND') {
-        redirectToInbound();
-        return;
-      }
-
-      if (moduleRole !== 'ADMIN' && moduleRole !== 'USER') {
-        redirectToLogin();
-        return;
-      }
 
       if (
         session.user &&
@@ -3613,6 +3600,34 @@
     article.dataset.recordId =
       record.recordId || '';
 
+    /*
+     * ROUND 06 PART 09.1J
+     * ให้ Frontend Queue ตรวจพบรายการที่ออก Gate Out แล้วได้แน่นอน
+     * แม้ Workflow บางขั้นตอน เช่น รับเอกสารคืน Inbound จะตกหล่น
+     */
+    const cardHasTimestampOut =
+      recordHasTimestampOut(record);
+
+    article.dataset.hasTimestampOut =
+      cardHasTimestampOut
+        ? 'true'
+        : 'false';
+
+    article.dataset.timestampOut =
+      record.timestampOut ||
+      record.timestampOutDisplay ||
+      '';
+
+    article.dataset.isCurrentlyInArea =
+      record.isCurrentlyInArea === true
+        ? 'true'
+        : 'false';
+
+    article.dataset.canCheckout =
+      record.canCheckout === true
+        ? 'true'
+        : 'false';
+
     article.dataset.nearAutoClose =
       record.isNearAutoClose
         ? 'TRUE'
@@ -6277,30 +6292,6 @@
       url.searchParams.get('id') ||
       ''
     ).trim();
-  }
-
-
-  function getModuleSessionUser(session) {
-    if (session && session.user && typeof session.user === 'object') {
-      return session.user;
-    }
-
-    return session || {};
-  }
-
-  function getModuleSessionRole(session) {
-    return String(
-      getModuleSessionUser(session).role || 'USER'
-    )
-      .trim()
-      .toUpperCase();
-  }
-
-  function redirectToInbound() {
-    window.location.replace(
-      CONFIG.INBOUND_URL ||
-      './inbound.html'
-    );
   }
 
   function redirectToDashboard() {
