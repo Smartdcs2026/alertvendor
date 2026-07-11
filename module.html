@@ -91,18 +91,18 @@
   ></script>
 
   <script
-    src="./module.js?v=20260711-r06-09-2e4-focus-receiving-sync"
+    src="./module.js?v=20260711-r06-09-2e5-module-control-simplification"
     defer
   ></script>
 
   <script
-    src="./receiving.js?v=20260711-r06-09-2e4-focus-receiving-sync"
+    src="./receiving.js?v=20260711-r06-09-2e5-module-control-simplification"
     defer
   ></script>
 
   
   <script
-    src="./module-workflow-guard.js?v=20260711-r06-09-2e4-focus-receiving-sync"
+    src="./module-workflow-guard.js?v=20260711-r06-09-2e5-module-control-simplification"
     defer
   ></script>
 
@@ -348,7 +348,7 @@
           class="module-focus-receiving-filter"
           data-focus-receiving="WAITING_RECEIVING"
         >
-          <span>รอรับสินค้าเสร็จ</span>
+          <span>รอตรวจรับสินค้า</span>
           <strong id="focusCountWaitingReceiving">0</strong>
         </button>
 
@@ -357,7 +357,7 @@
           class="module-focus-receiving-filter"
           data-focus-receiving="WAITING_GATE_OUT"
         >
-          <span>รับเสร็จรอ Gate Out</span>
+          <span>หลังตรวจรับ</span>
           <strong id="focusCountWaitingGateOut">0</strong>
         </button>
       </div>
@@ -410,39 +410,7 @@
     </section>
 
     <section class="vehicle-tools">
-      <label class="vehicle-filter vendor-queue-filter">
-        <span class="sr-only">
-          กรองตามกะ/คิวงาน
-        </span>
-
-        <select id="vendorQueueFilter">
-          <option value="ACTIVE">
-            งานหลักก่อนตรวจรับ
-          </option>
-
-          <option value="CURRENT_SHIFT">
-            กะปัจจุบันก่อนตรวจรับ
-          </option>
-
-          <option value="CARRY_OVER">
-            ค้างข้ามกะก่อนตรวจรับ
-          </option>
-
-          <option value="FOLLOW_UP">
-            หลังตรวจรับ
-          </option>
-
-          <option value="CLOSED">
-            ปิดงาน
-          </option>
-
-          <option value="ALL">
-            ทั้งหมด
-          </option>
-        </select>
-      </label>
-
-      <label class="vehicle-search">
+<label class="vehicle-search">
         <span class="sr-only">
           ค้นหาข้อมูลรถ
         </span>
@@ -528,7 +496,7 @@
         </span>
 
         <span id="vendorQueueContext">
-          งานปัจจุบัน
+          ใช้แถบสถานะด้านบนเป็นตัวกรองหลัก
         </span>
       </div>
     </section>
@@ -695,7 +663,7 @@
             data-metric="WAITING_RECEIVING"
             data-receiving-filter="WAITING_RECEIVING"
           >
-            <span>รอรับสินค้าเสร็จ</span>
+            <span>รอตรวจรับสินค้า</span>
             <strong id="receivingWaitingCount">0</strong>
             <small>ต้องติดตามขั้นตอนรับสินค้า</small>
           </button>
