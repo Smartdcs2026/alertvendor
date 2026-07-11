@@ -3131,72 +3131,23 @@
   }
 
   function applyReceivingFilter() {
-    if (!state.enabled) {
-      document.querySelectorAll('.vehicle-card').forEach((card) => {
-        card.classList.remove('is-receiving-filter-hidden');
-        card.removeAttribute('aria-hidden');
+    /*
+     * ROUND 06 PART 09.2E5
+     * ให้ module.js เป็นเจ้าของการกรองหลักของหน้า Module เพียงตัวเดียว
+     * receiving.js ห้ามซ่อน/แสดงการ์ดเอง เพราะจะทำให้จำนวนกับรายการไม่ตรงกัน
+     */
+    document
+      .querySelectorAll(
+        '.vehicle-card[data-record-id]'
+      )
+      .forEach((card) => {
+        card.classList.remove(
+          'is-receiving-filter-hidden'
+        );
+        card.removeAttribute(
+          'aria-hidden'
+        );
       });
-      syncModuleResultCountFromReceivingFilter();
-      return;
-    }
-
-    document.querySelectorAll('.vehicle-card[data-record-id]').forEach((card) => {
-      const sourceItem = state.records.get(String(card.dataset.recordId || ''));
-      const item = sourceItem ? normalizeReceivingRecordState(sourceItem) : null;
-      const visible = state.stageFilter === 'ALL' || (
-        item && item.stageCode === state.stageFilter
-      );
-
-      card.classList.toggle('is-receiving-filter-hidden', !visible);
-      card.setAttribute('aria-hidden', String(!visible));
-    });
-
-    syncModuleResultCountFromReceivingFilter();
-  }
-
-
-  function syncModuleResultCountFromReceivingFilter() {
-    const result =
-      document.getElementById('resultCount');
-
-    if (!result) {
-      return;
-    }
-
-    const cards =
-      Array.from(
-        document.querySelectorAll(
-          '.vehicle-card[data-record-id]'
-        )
-      );
-
-    const visibleCount =
-      cards.filter(
-        (card) =>
-          !card.classList.contains(
-            'is-receiving-filter-hidden'
-          ) &&
-          card.getAttribute('aria-hidden') !== 'true'
-      ).length;
-
-    const labels = {
-      WAITING_RECEIVING:
-        'รอรับสินค้าเสร็จ',
-      WAITING_GATE_OUT:
-        'รับเสร็จรอ Gate Out',
-      ALL:
-        'ทั้งหมด'
-    };
-
-    if (
-      labels[state.stageFilter]
-    ) {
-      result.textContent =
-        labels[state.stageFilter] +
-        ' ' +
-        visibleCount +
-        ' รายการ';
-    }
   }
 
 
