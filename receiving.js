@@ -1,7 +1,7 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
- * ROUND 06 PART 09.1 — Mobile Work Queue Cleanup + Sync Auto ID
+ * ROUND 06 PART 09 — Sync รับสินค้าเสร็จเข้า Inbound Workflow ด้วย Auto ID จริง
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
