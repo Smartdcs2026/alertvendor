@@ -16,7 +16,7 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
- * - Production R15: Consolidated Board + Automatic Shift Handover
+ * - Production R16: Mobile Command Center + Compact Action Cards
  */
 (function (window, document) {
   'use strict';
@@ -39,6 +39,8 @@
     operationalBoard: null,
     operationalStageFilter: 'ALL',
     shiftFilter: 'ALL',
+    sortMode: 'LONGEST',
+    mobileWorkspace: 'LIST',
     searchText: '',
     statusFilter: 'ALL',
     serverOffsetMs: 0,
@@ -87,9 +89,9 @@
   async function initializePage() {
     if (document.body) {
       document.body.dataset.operationalBoardBuild =
-        '2026.07.12-r15-consolidated-auto-handover';
+        '2026.07.13-r16-mobile-command-center';
       document.body.dataset.shiftHandoverBuild =
-        '2026.07.12-r15-consolidated-auto-handover';
+        '2026.07.13-r16-mobile-command-center';
     }
 
     initializeOverdueBadgeSystem();
@@ -124,6 +126,7 @@
     }
 
     bindEvents();
+    setMobileWorkspace('LIST');
     startClock();
     showPageLoading(true);
 
@@ -215,6 +218,26 @@
     const statusFilter =
       document.getElementById(
         'statusFilter'
+      );
+
+    const focusStatusGroup =
+      document.getElementById(
+        'criticalStatusFilters'
+      );
+
+    const sortSelect =
+      document.getElementById(
+        'focusSortSelect'
+      );
+
+    const mobileWorkspaceTabs =
+      document.getElementById(
+        'mobileWorkspaceTabs'
+      );
+
+    const mobileConflictFilter =
+      document.getElementById(
+        'mobileConflictFilter'
       );
 
     const operationalStageGroup =
@@ -329,6 +352,103 @@
               'ALL'
             ).toUpperCase();
 
+          syncCriticalStatusUi();
+          applyFiltersAndRender();
+        }
+      );
+
+    focusStatusGroup &&
+      focusStatusGroup.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-focus-status]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          clearQuickFilterContext({
+            keepStatus: true
+          });
+
+          state.statusFilter =
+            String(
+              button.dataset.focusStatus ||
+              'ALL'
+            ).toUpperCase();
+
+          if (statusFilter) {
+            statusFilter.value =
+              state.statusFilter;
+          }
+
+          syncCriticalStatusUi();
+          setMobileWorkspace('LIST', {
+            scroll: isMobileViewport()
+          });
+          applyFiltersAndRender();
+        }
+      );
+
+    sortSelect &&
+      sortSelect.addEventListener(
+        'change',
+        () => {
+          state.sortMode =
+            String(
+              sortSelect.value ||
+              'LONGEST'
+            ).toUpperCase();
+
+          applyFiltersAndRender();
+        }
+      );
+
+    mobileWorkspaceTabs &&
+      mobileWorkspaceTabs.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-mobile-workspace]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          setMobileWorkspace(
+            button.dataset.mobileWorkspace ||
+            'LIST',
+            {
+              scroll: true
+            }
+          );
+        }
+      );
+
+    mobileConflictFilter &&
+      mobileConflictFilter.addEventListener(
+        'click',
+        () => {
+          const nextConflictState =
+            state.operationalStageFilter ===
+              'DATA_CONFLICT'
+              ? 'ALL'
+              : 'DATA_CONFLICT';
+
+          clearQuickFilterContext();
+          state.operationalStageFilter =
+            nextConflictState;
+
+          syncOperationalFilterUi();
+          syncCriticalStatusUi();
+          setMobileWorkspace('LIST', {
+            scroll: isMobileViewport()
+          });
           applyFiltersAndRender();
         }
       );
@@ -346,6 +466,10 @@
             return;
           }
 
+          clearQuickFilterContext({
+            keepStage: true
+          });
+
           state.operationalStageFilter =
             String(
               button.dataset.operationalStage ||
@@ -353,6 +477,12 @@
             ).toUpperCase();
 
           syncOperationalFilterUi();
+          syncCriticalStatusUi();
+          if (isMobileViewport()) {
+            setMobileWorkspace('LIST', {
+              scroll: true
+            });
+          }
           applyFiltersAndRender();
         }
       );
@@ -370,6 +500,10 @@
             return;
           }
 
+          clearQuickFilterContext({
+            keepShift: true
+          });
+
           state.shiftFilter =
             String(
               button.dataset.operationalShift ||
@@ -377,6 +511,11 @@
             ).toUpperCase();
 
           syncOperationalFilterUi();
+          if (isMobileViewport()) {
+            setMobileWorkspace('LIST', {
+              scroll: true
+            });
+          }
           applyFiltersAndRender();
         }
       );
@@ -385,9 +524,14 @@
       operationalResetButton.addEventListener(
         'click',
         () => {
-          state.operationalStageFilter = 'ALL';
-          state.shiftFilter = 'ALL';
+          clearQuickFilterContext();
           syncOperationalFilterUi();
+          syncCriticalStatusUi();
+          if (isMobileViewport()) {
+            setMobileWorkspace('LIST', {
+              scroll: true
+            });
+          }
           applyFiltersAndRender();
         }
       );
@@ -498,6 +642,10 @@
                   value;
               }
 
+              syncCriticalStatusUi();
+              setMobileWorkspace('LIST', {
+                scroll: isMobileViewport()
+              });
               applyFiltersAndRender();
             }
           );
@@ -670,6 +818,169 @@
         }
       }
     );
+  }
+
+  function clearQuickFilterContext(options) {
+    const config =
+      options &&
+      typeof options === 'object'
+        ? options
+        : {};
+
+    if (config.keepStatus !== true) {
+      state.statusFilter = 'ALL';
+      const statusSelect =
+        document.getElementById(
+          'statusFilter'
+        );
+      if (statusSelect) {
+        statusSelect.value = 'ALL';
+      }
+    }
+
+    if (config.keepStage !== true) {
+      state.operationalStageFilter = 'ALL';
+    }
+
+    if (config.keepShift !== true) {
+      state.shiftFilter = 'ALL';
+    }
+
+    state.selectedTimelineStartMs = null;
+    state.searchText = '';
+
+    const searchInput =
+      document.getElementById(
+        'searchInput'
+      );
+    if (searchInput) {
+      searchInput.value = '';
+    }
+  }
+
+  function isMobileViewport() {
+    return window.matchMedia(
+      '(max-width: 767px)'
+    ).matches;
+  }
+
+  function setMobileWorkspace(
+    workspace,
+    options
+  ) {
+    const allowed = [
+      'LIST',
+      'STAGES',
+      'SHIFTS',
+      'HANDOVER'
+    ];
+    const next =
+      allowed.includes(
+        String(workspace || '').toUpperCase()
+      )
+        ? String(workspace).toUpperCase()
+        : 'LIST';
+
+    state.mobileWorkspace = next;
+
+    if (document.body) {
+      document.body.dataset.mobileWorkspace =
+        next;
+    }
+
+    document
+      .querySelectorAll(
+        '[data-mobile-workspace]'
+      )
+      .forEach((button) => {
+        const active =
+          String(
+            button.dataset.mobileWorkspace ||
+            ''
+          ).toUpperCase() === next;
+
+        button.classList.toggle(
+          'is-active',
+          active
+        );
+        button.setAttribute(
+          'aria-pressed',
+          active ? 'true' : 'false'
+        );
+      });
+
+    const config =
+      options &&
+      typeof options === 'object'
+        ? options
+        : {};
+
+    if (
+      config.scroll === true &&
+      isMobileViewport()
+    ) {
+      const target =
+        next === 'LIST'
+          ? document.getElementById(
+              'vehicleList'
+            )
+          : document.getElementById(
+              'operationalBoardPanel'
+            );
+
+      window.requestAnimationFrame(
+        () => target?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        })
+      );
+    }
+  }
+
+  function syncCriticalStatusUi() {
+    document
+      .querySelectorAll(
+        '[data-focus-status]'
+      )
+      .forEach((button) => {
+        const active =
+          String(
+            button.dataset.focusStatus ||
+            'ALL'
+          ).toUpperCase() ===
+          String(
+            state.statusFilter ||
+            'ALL'
+          ).toUpperCase();
+
+        button.classList.toggle(
+          'is-active',
+          active
+        );
+        button.setAttribute(
+          'aria-pressed',
+          active ? 'true' : 'false'
+        );
+      });
+
+    const conflictButton =
+      document.getElementById(
+        'mobileConflictFilter'
+      );
+
+    if (conflictButton) {
+      const active =
+        state.operationalStageFilter ===
+        'DATA_CONFLICT';
+      conflictButton.classList.toggle(
+        'is-active',
+        active
+      );
+      conflictButton.setAttribute(
+        'aria-pressed',
+        active ? 'true' : 'false'
+      );
+    }
   }
 
   function markUserInteraction() {
@@ -2291,6 +2602,29 @@
     );
 
     setText(
+      'focusCountAll',
+      String(summary.total)
+    );
+    setText(
+      'focusCountNormal',
+      String(summary.normal)
+    );
+    setText(
+      'focusCountWarning',
+      String(summary.warning)
+    );
+    setText(
+      'focusCountOverdue',
+      String(summary.overdue)
+    );
+    setText(
+      'mobileTabListCount',
+      String(summary.total)
+    );
+
+    syncCriticalStatusUi();
+
+    setText(
       'controlTotal',
       String(summary.total)
     );
@@ -2453,6 +2787,7 @@
     );
 
     updateActiveFilterText();
+    syncCriticalStatusUi();
   }
 
 
@@ -2666,6 +3001,26 @@
       'operationalCarryOverCount',
       String(summary.carryOver || 0)
     );
+    setText(
+      'mobileCriticalConflictCount',
+      String(
+        Number(stageCounts.DATA_CONFLICT) ||
+        0
+      )
+    );
+    setText(
+      'mobileTabStageCount',
+      String(
+        (Number(stageCounts.WAITING_RECEIVING) || 0) +
+        (Number(stageCounts.DATA_CONFLICT) || 0)
+      )
+    );
+    setText(
+      'mobileTabShiftCount',
+      String(summary.carryOver || 0)
+    );
+
+    syncCriticalStatusUi();
 
     const currentShift =
       board.currentShift || null;
@@ -3003,6 +3358,17 @@
       'shiftHandoverStatus',
       handover.statusLabel ||
       status
+    );
+    setText(
+      'mobileTabHandoverState',
+      handover.acknowledged === true
+        ? '✓'
+        : [
+            'AUTO_FINALIZED',
+            'ACKNOWLEDGED'
+          ].includes(status)
+          ? '!'
+          : '–'
     );
 
     const fromShift =
@@ -3541,19 +3907,86 @@
   }
 
   function sortRecords(records) {
+    const mode =
+      String(
+        state.sortMode ||
+        'LONGEST'
+      ).toUpperCase();
+
     records.sort(
       (left, right) => {
-        const leftOperationalOrder =
-          Number(left.operationalStageOrder) || 50;
-        const rightOperationalOrder =
-          Number(right.operationalStageOrder) || 50;
+        if (mode === 'LONGEST') {
+          const durationDelta =
+            (Number(right.durationSeconds) || 0) -
+            (Number(left.durationSeconds) || 0);
+
+          if (durationDelta !== 0) {
+            return durationDelta;
+          }
+
+          return (
+            Number(left.timestampInEpochMs) || 0
+          ) - (
+            Number(right.timestampInEpochMs) || 0
+          );
+        }
+
+        if (mode === 'NEWEST') {
+          return (
+            Number(right.timestampInEpochMs) || 0
+          ) - (
+            Number(left.timestampInEpochMs) || 0
+          );
+        }
+
+        if (mode === 'APPOINTMENT') {
+          return String(
+            getPriorityIdentity(left)
+              .appointmentNumber ||
+            left.primaryValue ||
+            ''
+          ).localeCompare(
+            String(
+              getPriorityIdentity(right)
+                .appointmentNumber ||
+              right.primaryValue ||
+              ''
+            ),
+            'th',
+            {
+              numeric: true,
+              sensitivity: 'base'
+            }
+          );
+        }
+
+        if (mode === 'COMPANY') {
+          return String(
+            getPriorityIdentity(left)
+              .companyName ||
+            ''
+          ).localeCompare(
+            String(
+              getPriorityIdentity(right)
+                .companyName ||
+              ''
+            ),
+            'th',
+            {
+              numeric: true,
+              sensitivity: 'base'
+            }
+          );
+        }
 
         const leftConflict =
-          left.operationalStage === 'DATA_CONFLICT'
+          left.operationalStage ===
+            'DATA_CONFLICT'
             ? 0
             : 1;
         const rightConflict =
-          right.operationalStage === 'DATA_CONFLICT'
+          right.operationalStage ===
+            'DATA_CONFLICT'
             ? 0
             : 1;
 
@@ -3563,35 +3996,27 @@
 
         const leftScore =
           Number.isFinite(
-            Number(
-              left.priorityScore
-            )
+            Number(left.priorityScore)
           )
-            ? Number(
-                left.priorityScore
-              )
+            ? Number(left.priorityScore)
             : 999999999999;
-
         const rightScore =
           Number.isFinite(
-            Number(
-              right.priorityScore
-            )
+            Number(right.priorityScore)
           )
-            ? Number(
-                right.priorityScore
-              )
+            ? Number(right.priorityScore)
             : 999999999999;
 
-        if (
-          leftScore !==
-          rightScore
-        ) {
-          return (
-            leftScore -
-            rightScore
-          );
+        if (leftScore !== rightScore) {
+          return leftScore - rightScore;
         }
+
+        const leftOperationalOrder =
+          Number(left.operationalStageOrder) ||
+          50;
+        const rightOperationalOrder =
+          Number(right.operationalStageOrder) ||
+          50;
 
         if (
           leftOperationalOrder !==
@@ -3602,18 +4027,13 @@
         }
 
         return (
-          Number(
-            left.timestampInEpochMs
-          ) || 0
+          Number(left.timestampInEpochMs) || 0
         ) - (
-          Number(
-            right.timestampInEpochMs
-          ) || 0
+          Number(right.timestampInEpochMs) || 0
         );
       }
     );
   }
-
 
 
   function renderWarehouseSituation(
@@ -5670,19 +6090,48 @@
 
 
   function openRecordDetail(record) {
-    const primaryLabel =
-      getPrimaryLabel(record);
+    const identity =
+      getPriorityIdentity(record);
+    const stageMeta =
+      getOperationalStageMeta(
+        record.operationalStage
+      );
+    const appointment =
+      identity.appointmentNumber ||
+      record.primaryValue ||
+      'ไม่พบเลขนัดหมาย';
+    const company =
+      identity.companyName ||
+      'ไม่พบชื่อบริษัท';
 
-    const fieldHtml =
+    const fields =
       getDisplayFields(
         record,
         {
           excludeTimestampIn: true
         }
-      )
+      ).filter((field) => {
+        const label =
+          normalizeFieldLabel(
+            field.label ||
+            field.displayName ||
+            ''
+          );
+        return ![
+          'เลขนัดหมาย',
+          'หมายเลขนัดหมาย',
+          'appointment',
+          'บริษัท',
+          'ชื่อบริษัท',
+          'company'
+        ].includes(label);
+      });
+
+    const fieldHtml =
+      fields
         .map(
           (field) => `
-            <div class="record-detail-row">
+            <div class="record-action-row">
               <span>${escapeHtml(field.label || field.displayName || '-')}</span>
               <strong>${escapeHtml(field.value || '-')}</strong>
             </div>
@@ -5690,32 +6139,147 @@
         )
         .join('');
 
+    const timelineItems = [
+      ['Gate In', record.timestampIn],
+      ['ยื่นเอกสาร', record.documentSubmittedAt],
+      ['รับสินค้าเสร็จ', record.receivingCompleteAt],
+      ['รับเอกสารคืน', record.documentReturnedAt]
+    ];
+    const timelineHtml =
+      timelineItems
+        .map((item) => `
+          <div class="record-action-timeline__item ${item[1] ? 'is-complete' : 'is-pending'}">
+            <span>${escapeHtml(item[0])}</span>
+            <strong>${escapeHtml(item[1] || 'รอดำเนินการ')}</strong>
+          </div>
+        `)
+        .join('');
+
+    const receivingButton =
+      record.receivingEnabled === false
+        ? ''
+        : `
+          <button
+            type="button"
+            class="record-action-primary receiving-complete-button"
+            data-record-id="${escapeHtml(record.recordId || '')}"
+            data-canonical-record-id="${escapeHtml(record.canonicalRecordId || '')}"
+            data-source-row-number="${Number(record.sourceRowNumber) || 0}"
+            data-expected-timestamp-in="${escapeHtml(record.timestampIn || '')}"
+            data-expected-timestamp-in-epoch-ms="${Number(record.timestampInEpochMs) || 0}"
+            data-expected-primary-value="${escapeHtml(record.primaryValue || '')}"
+            data-entry-code="${escapeHtml(record.autoId || record.sourceAutoId || '')}"
+            data-operational-stage="${escapeHtml(record.operationalStage || '')}"
+            data-can-complete="${record.canCompleteReceiving ? 'TRUE' : 'FALSE'}"
+            ${record.canCompleteReceiving ? '' : 'disabled aria-disabled="true"'}
+            title="${escapeHtml(record.operationalStageDescription || stageMeta.description)}"
+          >
+            ${escapeHtml(
+              record.canCompleteReceiving
+                ? 'บันทึกรับสินค้าเสร็จ'
+                : stageMeta.shortLabel
+            )}
+          </button>
+        `;
+
+    const checkoutButton =
+      record.canCheckout &&
+      isAdmin()
+        ? `
+          <button
+            id="recordDetailCheckoutButton"
+            type="button"
+            class="record-action-secondary"
+          >
+            บันทึกออกพื้นที่
+          </button>
+        `
+        : '';
+
     Swal.fire({
-      width: 620,
-      title:
-        record.primaryValue ||
-        'รายละเอียดรายการ',
+      width: 720,
+      position:
+        isMobileViewport()
+          ? 'bottom'
+          : 'center',
+      title: '',
       html: `
-        <div class="record-primary-caption">
-          ${escapeHtml(primaryLabel)}
-        </div>
+        <article class="record-action-sheet" data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}">
+          <header class="record-action-sheet__identity">
+            <div>
+              <span>เลขนัดหมาย</span>
+              <strong>${escapeHtml(appointment)}</strong>
+            </div>
+            <div>
+              <span>บริษัท</span>
+              <h2>${escapeHtml(company)}</h2>
+            </div>
+          </header>
 
-        <div class="record-detail-dialog" data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}">
-          <div class="record-detail-summary">
-            <span>${escapeHtml(record.statusLabel || '-')}</span>
+          <div class="record-action-sheet__status">
+            <span data-status="${escapeHtml(record.statusCode || 'INCOMPLETE')}">${escapeHtml(record.statusLabel || '-')}</span>
             <strong>${escapeHtml(record.durationDisplay || '--:--:--')}</strong>
-            <small>${escapeHtml(record.priorityText || '')}</small>
           </div>
 
-          <div class="record-detail-row">
-            <span>เวลาเข้าพื้นที่</span>
-            <strong>${escapeHtml(record.timestampIn || '-')}</strong>
-          </div>
+          <section class="record-action-sheet__stage">
+            <div>
+              <span>ขั้นตอนปัจจุบัน</span>
+              <strong>${escapeHtml(record.operationalStageLabel || stageMeta.label)}</strong>
+            </div>
+            <p>${escapeHtml(record.operationalStageDescription || stageMeta.description)}</p>
+          </section>
 
-          ${fieldHtml}
-        </div>
+          <section class="record-action-timeline">
+            ${timelineHtml}
+          </section>
+
+          <section class="record-action-shifts">
+            <div><span>กะเข้า</span><strong>${escapeHtml(record.entryShiftCode || '-')}</strong></div>
+            <div><span>กะรับผิดชอบ</span><strong>${escapeHtml(record.ownerShiftCode || '-')}</strong></div>
+            <div><span>ค้างข้ามกะ</span><strong>${record.carryOver ? `${Number(record.carryOverShiftCount) || 1} กะ` : 'ไม่ค้าง'}</strong></div>
+          </section>
+
+          <section class="record-action-details">
+            <div class="record-action-row">
+              <span>เวลาเข้าพื้นที่</span>
+              <strong>${escapeHtml(record.timestampIn || '-')}</strong>
+            </div>
+            ${fieldHtml}
+          </section>
+
+          <footer class="record-action-sheet__actions">
+            ${receivingButton}
+            ${checkoutButton}
+          </footer>
+        </article>
       `,
-      confirmButtonText: 'ปิด'
+      showConfirmButton: true,
+      confirmButtonText: 'ปิด',
+      showCloseButton: true,
+      heightAuto: false,
+      customClass: {
+        popup: 'record-action-popup',
+        htmlContainer: 'record-action-html',
+        actions: 'record-action-close-actions',
+        confirmButton: 'record-action-close-button'
+      },
+      didOpen: (popup) => {
+        const checkout =
+          popup.querySelector(
+            '#recordDetailCheckoutButton'
+          );
+
+        checkout?.addEventListener(
+          'click',
+          async () => {
+            Swal.close();
+            await handleCheckout(
+              record,
+              checkout
+            );
+          }
+        );
+      }
     });
   }
 
