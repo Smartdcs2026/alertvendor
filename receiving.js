@@ -1,7 +1,7 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
- * PRODUCTION R07 — Workflow Permission Guard + Stable Receiving Sync
+ * PRODUCTION R08 — Workflow Permission Guard + Server-side Sync Awareness
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
@@ -356,13 +356,59 @@
     item,
     result
   ) {
+    const backendSync =
+      result &&
+      result.workflowSync &&
+      typeof result.workflowSync === 'object'
+        ? result.workflowSync
+        : null;
+
+    /*
+     * Production R08:
+     * Api.gs จะ Sync Workflow หลังบันทึก Receiving ในคำขอเดียวกัน
+     * ถ้า Backend แจ้งว่าสำเร็จแล้ว ห้ามยิงซ้ำจาก Browser
+     */
+    if (
+      backendSync &&
+      backendSync.success === true
+    ) {
+      return backendSync;
+    }
+
+    if (
+      backendSync &&
+      backendSync.success === false
+    ) {
+      console.warn(
+        'Backend บันทึก Receiving สำเร็จ แต่ Sync Workflow ไม่ครบ',
+        backendSync
+      );
+
+      if (window.Swal) {
+        await window.Swal.fire({
+          icon: 'warning',
+          title: 'บันทึกตรวจรับเสร็จแล้ว แต่ Workflow ยังไม่ครบ',
+          text:
+            backendSync.message ||
+            'ระบบบันทึก Receiving แล้ว แต่ยังปรับสถานะ Inbound Workflow ไม่สำเร็จ กรุณาให้ Admin ตรวจสอบ',
+          confirmButtonText: 'รับทราบ'
+        });
+      }
+
+      return backendSync;
+    }
+
+    /*
+     * รองรับช่วงเปลี่ยนผ่าน หาก Apps Script ยังเป็นรุ่นเก่า
+     * จึงค่อยใช้ API แยกแบบเดิมเป็น Fallback
+     */
     if (
       !API ||
       typeof API.completeInboundWorkflowReceiving !==
         'function' ||
       !item
     ) {
-      return;
+      return null;
     }
 
     const workflowIdentity =
