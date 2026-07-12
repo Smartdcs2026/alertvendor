@@ -307,28 +307,52 @@
       );
 
     if (!actions) {
-      const stage =
+      let stage =
         card.querySelector(
           '.receiving-card-stage'
         );
 
-      if (stage) {
-        actions =
-          document.createElement('div');
+      if (!stage) {
+        stage =
+          document.createElement('section');
 
-        actions.className =
-          'receiving-card-stage__actions';
+        stage.className =
+          'receiving-card-stage receiving-card-stage--workflow-only';
 
-        stage.appendChild(actions);
+        stage.innerHTML =
+          '<div class="receiving-card-stage__head">' +
+            '<div>' +
+              '<small>ขั้นตอนตรวจรับ</small>' +
+              '<strong>รอตรวจรับสินค้า</strong>' +
+            '</div>' +
+            '<span>พร้อมตรวจรับ</span>' +
+          '</div>' +
+          '<p class="workflow-only-stage-note">' +
+            'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ' +
+          '</p>';
+
+        const footer =
+          card.querySelector(
+            '.vehicle-card__footer'
+          );
+
+        if (footer) {
+          card.insertBefore(
+            stage,
+            footer
+          );
+        } else {
+          card.appendChild(stage);
+        }
       }
-    }
 
-    if (!actions) {
-      /*
-       * ถ้า Receiving Flow ยังไม่สร้าง Stage เลย
-       * ไม่ฝืนสร้างปุ่มลอย เพราะ receiving.js อาจยังไม่มี item
-       */
-      return null;
+      actions =
+        document.createElement('div');
+
+      actions.className =
+        'receiving-card-stage__actions';
+
+      stage.appendChild(actions);
     }
 
     const button =
@@ -407,6 +431,57 @@
       ).toLowerCase();
 
     return inArea === 'false';
+  }
+
+
+
+  function getEffectiveWorkflowStatus(item) {
+    const source =
+      item &&
+      typeof item === 'object'
+        ? item
+        : {};
+
+    const rawStatus =
+      String(
+        source.statusCode ||
+        source.status ||
+        ''
+      ).toUpperCase();
+
+    if (
+      source.gateOutAt ||
+      rawStatus === 'GATE_OUT_COMPLETED'
+    ) {
+      return 'GATE_OUT_COMPLETED';
+    }
+
+    if (
+      source.documentReturnedAt ||
+      rawStatus === 'DOCUMENT_RETURNED'
+    ) {
+      return 'DOCUMENT_RETURNED';
+    }
+
+    if (
+      source.receivingCompletedAt ||
+      rawStatus === 'RECEIVING_COMPLETED'
+    ) {
+      return 'RECEIVING_COMPLETED';
+    }
+
+    if (
+      source.documentSubmittedAt ||
+      rawStatus === 'DOCUMENT_SUBMITTED' ||
+      rawStatus === 'WAITING_RECEIVING' ||
+      rawStatus === 'WAITING_RECEIVE' ||
+      rawStatus === 'DOCUMENT_RECEIVED'
+    ) {
+      return 'DOCUMENT_SUBMITTED';
+    }
+
+    return rawStatus ||
+      'WAITING_DOCUMENT';
   }
 
 
@@ -521,7 +596,7 @@
     }
 
     const status =
-      String(item.statusCode || '').toUpperCase();
+      getEffectiveWorkflowStatus(item);
 
     const meta =
       getVendorStageMeta(
@@ -732,6 +807,38 @@
           source.mobile ||
           record.phone ||
           record.mobile
+        ),
+      documentSubmittedAt:
+        text(
+          source.documentSubmittedAt ||
+          source.submittedAt ||
+          source.documentReceivedAt ||
+          record.documentSubmittedAt ||
+          record.submittedAt ||
+          record.documentReceivedAt
+        ),
+      receivingCompletedAt:
+        text(
+          source.receivingCompletedAt ||
+          source.receivingCompleteAt ||
+          source.receivingAt ||
+          record.receivingCompletedAt ||
+          record.receivingCompleteAt ||
+          record.receivingAt
+        ),
+      documentReturnedAt:
+        text(
+          source.documentReturnedAt ||
+          source.returnedAt ||
+          record.documentReturnedAt ||
+          record.returnedAt
+        ),
+      gateOutAt:
+        text(
+          source.gateOutAt ||
+          source.timestampOut ||
+          record.gateOutAt ||
+          record.timestampOut
         ),
       statusCode:
         text(
@@ -1027,7 +1134,7 @@
       autoId: item.autoId || '',
       appointmentNumber: item.appointmentNumber || '',
       registration: item.registration || '',
-      statusCode: item.statusCode || ''
+      statusCode: getEffectiveWorkflowStatus(item) || ''
     };
   }
 
