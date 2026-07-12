@@ -60,6 +60,12 @@
     href="./module-shift.css?v=20260703-r56-shift-phase1"
   >
 
+
+  <link
+    rel="stylesheet"
+    href="./module-operational-board.css?v=20260712-r13-unified-board"
+  >
+
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
@@ -71,7 +77,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260712-r08-workflow-server-sync"
+    src="./api.js?v=20260712-r13-unified-operational-board"
     defer
   ></script>
 
@@ -81,7 +87,7 @@
   ></script>
 
   <script
-    src="./module-stability.js?v=20260702-r44-scroll-stability"
+    src="./module-stability.js?v=20260712-r13-operational-board-stability"
     defer
   ></script>
 
@@ -91,18 +97,18 @@
   ></script>
 
   <script
-    src="./module.js?v=20260712-r06-09-rollback-stable-base"
+    src="./module.js?v=20260712-r13-unified-operational-board"
     defer
   ></script>
 
   <!-- Production R07: Guard ต้องลงทะเบียน Capture Listener ก่อน Receiving -->
   <script
-    src="./module-workflow-guard.js?v=20260712-r10-button-visibility-hotfix"
+    src="./module-workflow-guard.js?v=20260712-r13-local-stage-guard"
     defer
   ></script>
 
   <script
-    src="./receiving.js?v=20260712-r12-receiving-filter-consistency"
+    src="./receiving.js?v=20260712-r13-operational-action"
     defer
   ></script>
 
@@ -345,20 +351,47 @@
 
         <button
           type="button"
-          class="module-focus-receiving-filter"
-          data-focus-receiving="WAITING_RECEIVING"
+          class="module-focus-operational-filter"
+          data-operational-stage="WAITING_INBOUND_DOCUMENT"
         >
-          <span>รอรับสินค้าเสร็จ</span>
-          <strong id="focusCountWaitingReceiving">0</strong>
+          <span>รอยื่นเอกสาร</span>
+          <strong id="focusOperationalCountWaitingInboundDocument">0</strong>
         </button>
 
         <button
           type="button"
-          class="module-focus-receiving-filter"
-          data-focus-receiving="WAITING_GATE_OUT"
+          class="module-focus-operational-filter"
+          data-operational-stage="WAITING_RECEIVING"
         >
-          <span>รับเสร็จรอ Gate Out</span>
-          <strong id="focusCountWaitingGateOut">0</strong>
+          <span>รอรับสินค้าเสร็จ</span>
+          <strong id="focusOperationalCountWaitingReceiving">0</strong>
+        </button>
+
+        <button
+          type="button"
+          class="module-focus-operational-filter"
+          data-operational-stage="WAITING_DOCUMENT_RETURN"
+        >
+          <span>รอรับเอกสารคืน</span>
+          <strong id="focusOperationalCountWaitingDocumentReturn">0</strong>
+        </button>
+
+        <button
+          type="button"
+          class="module-focus-operational-filter"
+          data-operational-stage="WAITING_GATE_OUT"
+        >
+          <span>รอ Gate Out</span>
+          <strong id="focusOperationalCountWaitingGateOut">0</strong>
+        </button>
+
+        <button
+          type="button"
+          class="module-focus-operational-filter is-conflict"
+          data-operational-stage="DATA_CONFLICT"
+        >
+          <span>ข้อมูลขัดแย้ง</span>
+          <strong id="focusOperationalCountDataConflict">0</strong>
         </button>
       </div>
 
@@ -384,11 +417,11 @@
 
         <button
           type="button"
-          id="focusReceivingInsightButton"
-          data-focus-insight="RECEIVING"
+          id="operationalBoardInsightButton"
+          data-operational-scroll="true"
         >
           <span aria-hidden="true">⇄</span>
-          Receiving Flow
+          งานตามกะ
         </button>
 
         <button
@@ -407,6 +440,96 @@
           สถิติ
         </button>
       </nav>
+    </section>
+
+    <section
+      id="operationalBoardPanel"
+      class="operational-board-panel"
+      aria-label="สถานะปฏิบัติงานและความรับผิดชอบตามกะ"
+    >
+      <header class="operational-board-panel__header">
+        <div>
+          <small>UNIFIED OPERATIONAL BOARD</small>
+          <h2>สถานะงานตามขั้นตอนและกะรับผิดชอบ</h2>
+          <p id="operationalCurrentShift">กำลังอ่านการตั้งค่ากะ</p>
+        </div>
+
+        <div class="operational-board-panel__header-actions">
+          <span id="operationalIntegrity" class="operational-integrity" data-state="LOADING">กำลังตรวจความครบถ้วน</span>
+          <span id="operationalSnapshotTime">กำลังโหลด Snapshot</span>
+          <button id="operationalBoardRefresh" type="button">
+            อัปเดตข้อมูล
+          </button>
+        </div>
+      </header>
+
+      <div
+        id="operationalStageFilters"
+        class="operational-stage-filters"
+        role="toolbar"
+        aria-label="กรองตามขั้นตอนปฏิบัติงาน"
+      >
+        <button
+          type="button"
+          class="is-active"
+          data-operational-stage="ALL"
+          aria-pressed="true"
+        >
+          <span>ทุกขั้นตอน</span>
+          <strong id="operationalCountAll">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_INBOUND_DOCUMENT">
+          <span>รอ Inbound ยื่นเอกสาร</span>
+          <strong id="operationalCountWaitingInboundDocument">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_RECEIVING">
+          <span>รอรับสินค้าเสร็จ</span>
+          <strong id="operationalCountWaitingReceiving">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_DOCUMENT_RETURN">
+          <span>รอรับเอกสารคืน</span>
+          <strong id="operationalCountWaitingDocumentReturn">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_GATE_OUT">
+          <span>รอ Gate Out</span>
+          <strong id="operationalCountWaitingGateOut">0</strong>
+        </button>
+
+        <button type="button" class="is-conflict" data-operational-stage="DATA_CONFLICT">
+          <span>ข้อมูลขัดแย้ง</span>
+          <strong id="operationalCountDataConflict">0</strong>
+        </button>
+      </div>
+
+      <div class="operational-shift-toolbar">
+        <div>
+          <span>แบ่งตามกะที่ Admin ตั้งค่า</span>
+          <strong>ค้างข้ามกะ <b id="operationalCarryOverCount">0</b></strong>
+        </div>
+
+        <div
+          id="operationalShiftFilters"
+          class="operational-shift-filters"
+          role="toolbar"
+          aria-label="กรองตามกะเข้า"
+        ></div>
+
+        <button id="operationalResetFilters" type="button">
+          ล้างตัวกรองงาน
+        </button>
+      </div>
+
+      <div
+        id="operationalShiftSummaryGrid"
+        class="operational-shift-summary-grid"
+        aria-live="polite"
+      >
+        <div class="operational-shift-empty">กำลังประมวลผลข้อมูลกะ</div>
+      </div>
     </section>
 
     <section class="vehicle-tools">
@@ -593,7 +716,9 @@
 
     <section
       id="receivingFlowPanel"
-      class="receiving-flow-panel is-hidden"
+      class="receiving-flow-panel is-hidden legacy-receiving-panel"
+      hidden
+      aria-hidden="true"
       aria-label="การติดตามการรับสินค้า"
       aria-hidden="true"
     >
