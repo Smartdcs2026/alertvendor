@@ -1,11 +1,11 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
- * ROUND 06 PART 09 — Sync ตรวจรับเสร็จเข้า Inbound Workflow ด้วย Auto ID จริง
+ * ROUND 06 PART 09 — Sync รับสินค้าเสร็จเข้า Inbound Workflow ด้วย Auto ID จริง
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
- * - เพิ่มปุ่มบันทึกตรวจรับเสร็จบนการ์ด
+ * - เพิ่มปุ่มบันทึกรับสินค้าเสร็จบนการ์ด
  * - แสดงเวลา 2 ช่วง
  * - Admin เปิด/ปิด Feature แยกตาม Module
  * - Silent Refresh แบบ Near Real-time โดยไม่แสดง Loading/Toast
@@ -156,49 +156,14 @@
         ? normalized
         : 'WAITING_RECEIVING';
 
-    syncModuleQueueSelectFromReceivingFilter();
     syncReceivingFilterUi();
     renderPriorityList();
     applyReceivingFilter();
   }
 
-
-  function syncModuleQueueSelectFromReceivingFilter() {
-    const queueSelect =
-      document.getElementById(
-        'vendorQueueFilter'
-      );
-
-    if (!queueSelect) {
-      return;
-    }
-
-    if (
-      state.stageFilter ===
-      'WAITING_GATE_OUT'
-    ) {
-      queueSelect.value =
-        'FOLLOW_UP';
-      return;
-    }
-
-    if (
-      state.stageFilter ===
-      'WAITING_RECEIVING'
-    ) {
-      queueSelect.value =
-        'ACTIVE';
-    }
-  }
-
-
   function handleReceivingCardClick(event) {
     if (!state.enabled) return;
-
-    const completeButton =
-      event.target.closest(
-        '[data-receiving-complete-record]'
-      );
+    const completeButton = event.target.closest('[data-receiving-complete-record]');
 
     if (completeButton) {
       event.preventDefault();
@@ -209,23 +174,6 @@
         state.dialogOpen ||
         state.savingRecordId
       ) {
-        return;
-      }
-
-      const permission =
-        getReceivingButtonPermission(
-          completeButton
-        );
-
-      if (!permission.allowed) {
-        void showMessage({
-          icon: 'info',
-          title: 'ยังไม่ถึงขั้นตอนตรวจรับ',
-          text:
-            permission.message ||
-            'ต้องรอ Inbound บันทึกรับเอกสารก่อน จึงจะบันทึกตรวจรับเสร็จได้',
-          confirmButtonText: 'รับทราบ'
-        });
         return;
       }
 
@@ -254,100 +202,12 @@
       return;
     }
 
-    const copyButton =
-      event.target.closest(
-        '[data-receiving-copy-card]'
-      );
-
+    const copyButton = event.target.closest('[data-receiving-copy-card]');
     if (copyButton) {
       event.preventDefault();
       event.stopPropagation();
-      void copyRecordMessage(
-        copyButton.dataset
-          .receivingCopyCard
-      );
+      void copyRecordMessage(copyButton.dataset.receivingCopyCard);
     }
-  }
-
-
-  function getReceivingButtonPermission(button) {
-    if (!button) {
-      return {
-        allowed: false,
-        message: 'ไม่พบปุ่มบันทึกตรวจรับ'
-      };
-    }
-
-    const card =
-      button.closest(
-        '.vehicle-card[data-record-id]'
-      );
-
-    const allowedByGuard =
-      String(
-        button.dataset.receivingAllowed ||
-        ''
-      ).toLowerCase();
-
-    const ariaDisabled =
-      String(
-        button.getAttribute(
-          'aria-disabled'
-        ) || ''
-      ).toLowerCase();
-
-    if (
-      allowedByGuard !== 'true' &&
-      (
-        button.disabled ||
-        ariaDisabled === 'true' ||
-        allowedByGuard === 'false'
-      )
-    ) {
-      return {
-        allowed: false,
-        message:
-          button.dataset.receivingBlockMessage ||
-          'ต้องรอ Inbound บันทึกรับเอกสารก่อน จึงจะบันทึกตรวจรับเสร็จได้'
-      };
-    }
-
-    if (
-      card &&
-      (
-        String(card.dataset.hasTimestampOut || '').toLowerCase() === 'true' ||
-        String(card.dataset.vendorStage || '').toUpperCase() === 'CLOSED'
-      )
-    ) {
-      return {
-        allowed: false,
-        message:
-          'รายการนี้ปิดงานแล้ว มี Timestamp Out / Gate Out แล้ว'
-      };
-    }
-
-    const workflowStatus =
-      String(
-        button.closest('.vehicle-card')?.dataset.workflowGuard ||
-        ''
-      ).toUpperCase();
-
-    if (
-      workflowStatus &&
-      workflowStatus !== 'DOCUMENT_SUBMITTED'
-    ) {
-      return {
-        allowed: false,
-        message:
-          button.dataset.receivingBlockMessage ||
-          'Inbound ยังไม่ได้บันทึกรับเอกสาร จึงยังบันทึกตรวจรับเสร็จไม่ได้'
-      };
-    }
-
-    return {
-      allowed: true,
-      message: ''
-    };
   }
 
 
@@ -424,8 +284,8 @@
 
           note:
             syncAutoId
-              ? 'Sync จากปุ่มตรวจรับเสร็จหน้า Module ด้วย Auto ID ' + syncAutoId
-              : 'Sync จากปุ่มตรวจรับเสร็จหน้า Module',
+              ? 'Sync จากปุ่มรับสินค้าเสร็จหน้า Module ด้วย Auto ID ' + syncAutoId
+              : 'Sync จากปุ่มรับสินค้าเสร็จหน้า Module',
 
           clientRequestId:
             result &&
@@ -437,7 +297,7 @@
 
     } catch (error) {
       console.warn(
-        'Sync ตรวจรับเสร็จเข้า Inbound Workflow ไม่สำเร็จ',
+        'Sync รับสินค้าเสร็จเข้า Inbound Workflow ไม่สำเร็จ',
         error
       );
 
@@ -453,7 +313,7 @@
       ) {
         await window.Swal.fire({
           icon: 'warning',
-          title: 'บันทึกตรวจรับเสร็จแล้ว แต่ยัง Sync Workflow ไม่ครบ',
+          title: 'บันทึกรับสินค้าเสร็จแล้ว แต่ยัง Sync Workflow ไม่ครบ',
           text:
             syncAutoId
               ? (
@@ -1138,7 +998,7 @@
         stageLabel:
           hasReceiving
             ? 'รับสินค้าเสร็จ รอ Gate Out'
-            : 'รอตรวจรับสินค้า',
+            : 'รอรับสินค้าเสร็จ',
         isExited:
           false,
         hasRealGateOut:
@@ -1797,7 +1657,7 @@
 
     const labels = {
       ALL: 'ทั้งหมด',
-      WAITING_RECEIVING: 'รอตรวจรับสินค้า',
+      WAITING_RECEIVING: 'รอรับสินค้าเสร็จ',
       WAITING_GATE_OUT: 'รับสินค้าเสร็จ รอ Gate Out'
     };
     const count = state.stageFilter === 'WAITING_RECEIVING'
@@ -2136,30 +1996,17 @@
         item.receivingCompleteEpochMs ||
         item.receivingCompleteAt
       );
-
-    const hasGateOut =
-      Boolean(
-        item.gateOutSource ||
-        item.gateOutAt ||
-        item.gateOutEpochMs
-      );
-
-    const canShowCompleteButton =
-      item.canCompleteReceiving &&
-      !hasReceiving &&
-      !hasGateOut;
-
     const stageOneLabel = hasReceiving
-      ? 'เข้า → ตรวจรับเสร็จ'
-      : 'เข้า → รอตรวจรับ';
+      ? 'เข้า → รับสินค้าเสร็จ'
+      : 'เข้า → รอรับสินค้า';
     const stageTwoLabel = hasReceiving
-      ? 'ตรวจรับเสร็จ → Gate Out'
-      : 'เริ่มหลังตรวจรับเสร็จ';
+      ? 'รับเสร็จ → Gate Out'
+      : 'เริ่มหลังรับสินค้าเสร็จ';
 
     return `
       <div class="receiving-card-stage__head">
         <div>
-          <small>ขั้นตอนตรวจรับ</small>
+          <small>RECEIVING FLOW</small>
           <strong>${escapeHtml(item.stageLabel || '-')}</strong>
         </div>
 
@@ -2199,23 +2046,20 @@
                 ? 'ระบบเคลียร์ ไม่ใช่ Gate Out จริง'
                 : hasReceiving
                   ? 'กำลังรอสแกน Gate Out'
-                  : 'เริ่มนับหลังบันทึกตรวจรับเสร็จ'}
+                  : 'เริ่มนับหลังบันทึกรับสินค้าเสร็จ'}
           </small>
         </div>
       </div>
 
       <div class="receiving-card-stage__actions">
-        ${canShowCompleteButton
+        ${item.canCompleteReceiving
           ? `
             <button
               type="button"
               class="receiving-complete-button"
               data-receiving-complete-record="${escapeHtml(item.recordId || '')}"
-              data-receiving-allowed="${item.canCompleteReceiving ? 'true' : 'false'}"
-              aria-disabled="${item.canCompleteReceiving ? 'false' : 'true'}"
-              ${item.canCompleteReceiving ? '' : 'disabled'}
             >
-              บันทึกตรวจรับเสร็จ
+              บันทึกรับสินค้าเสร็จ
             </button>
           `
           : ''}
@@ -2233,7 +2077,7 @@
 
 
   /**
-   * สร้างข้อมูลตรวจทานก่อนบันทึกตรวจรับเสร็จ
+   * สร้างข้อมูลตรวจทานก่อนบันทึกรับสินค้าเสร็จ
    * แสดงข้อมูลทุกช่องที่ API ส่งมาใน item.fields
    */
   function buildReceivingReviewHtml(
@@ -2301,11 +2145,6 @@
 
     return `
       <div class="receiving-review-dialog">
-        <section class="receiving-review-step">
-          <strong>ขั้นตอนที่กำลังบันทึก</strong>
-          <span>Inbound บันทึกรับเอกสารแล้ว → คลัง/User/Admin ยืนยันตรวจรับเสร็จ</span>
-        </section>
-
         <section class="receiving-review-identity">
           <small>รายการที่กำลังบันทึก</small>
 
@@ -2320,7 +2159,7 @@
           <span>
             ${escapeHtml(
               item.stageLabel ||
-              'รอตรวจรับสินค้า'
+              'รอรับสินค้าเสร็จ'
             )}
           </span>
 
@@ -2654,195 +2493,6 @@
     );
   }
 
-
-
-  function buildWorkflowOnlyReceivingItem(button, recordId) {
-    const card =
-      button &&
-      button.closest
-        ? button.closest(
-            '.vehicle-card[data-record-id]'
-          )
-        : null;
-
-    if (!card) {
-      return null;
-    }
-
-    const autoId =
-      findAutoIdCandidate([
-        button.dataset && button.dataset.workflowAutoId,
-        card.dataset && card.dataset.workflowAutoId,
-        card.dataset && card.dataset.autoId,
-        recordId
-      ]);
-
-    if (!autoId) {
-      return null;
-    }
-
-    const title =
-      text(
-        card.querySelector(
-          '.vehicle-card__title'
-        ) &&
-        card.querySelector(
-          '.vehicle-card__title'
-        ).textContent
-      );
-
-    const company =
-      text(
-        card.querySelector(
-          '.vehicle-card__company-name'
-        ) &&
-        card.querySelector(
-          '.vehicle-card__company-name'
-        ).textContent
-      );
-
-    const timestampIn =
-      text(
-        card.querySelector(
-          '.vehicle-in-time strong'
-        ) &&
-        card.querySelector(
-          '.vehicle-in-time strong'
-        ).textContent
-      );
-
-    return {
-      recordId:
-        autoId,
-      autoId:
-        autoId,
-      entryCode:
-        autoId,
-      qrText:
-        autoId,
-      primaryValue:
-        title || autoId,
-      expectedPrimaryValue:
-        title || autoId,
-      companyName:
-        company,
-      timestampIn:
-        timestampIn,
-      expectedTimestampIn:
-        timestampIn,
-      timestampInEpochMs:
-        null,
-      expectedTimestampInEpochMs:
-        null,
-      sourceRowNumber:
-        0,
-      isCurrentlyInArea:
-        true,
-      canCompleteReceiving:
-        true,
-      gateOutSource:
-        'PENDING',
-      stageCode:
-        'WAITING_RECEIVING',
-      stageLabel:
-        'รอตรวจรับสินค้า',
-      fields:
-        [
-          {
-            label: 'Auto ID',
-            value: autoId
-          },
-          {
-            label: 'เลขนัดหมาย',
-            value: title || ''
-          },
-          {
-            label: 'บริษัท',
-            value: company || ''
-          }
-        ].filter((field) =>
-          String(field.value || '').trim()
-        )
-    };
-  }
-
-
-  async function completeReceivingByInboundWorkflowOnly(item, button) {
-    const identity =
-      resolveReceivingWorkflowIdentity(
-        item
-      );
-
-    const autoId =
-      identity.autoId ||
-      findAutoIdCandidate([
-        button &&
-        button.dataset &&
-        button.dataset.workflowAutoId,
-        button &&
-        button.closest &&
-        button.closest('.vehicle-card') &&
-        button.closest('.vehicle-card').dataset &&
-        button.closest('.vehicle-card').dataset.autoId
-      ]);
-
-    if (!autoId) {
-      throw new Error(
-        'ไม่พบ Auto ID จึงไม่สามารถบันทึกตรวจรับลง Inbound Workflow ได้'
-      );
-    }
-
-    const result =
-      await API.completeInboundWorkflowReceiving(
-        state.moduleId,
-        {
-          entryCode:
-            autoId,
-          autoId:
-            autoId,
-          qrText:
-            autoId,
-          recordId:
-            item.recordId || autoId,
-          appointmentNumber:
-            identity.appointmentNumber || item.appointmentNumber || '',
-          registration:
-            identity.registration || item.registration || '',
-          note:
-            'บันทึกตรวจรับเสร็จจากหน้า Module โดยใช้ Inbound Workflow เป็นแหล่งข้อมูลหลัก',
-          clientRequestId:
-            'MODULE_RECEIVING_' +
-            autoId +
-            '_' +
-            Date.now()
-        }
-      );
-
-    return {
-      success: true,
-      inboundWorkflowOnly: true,
-      autoId:
-        autoId,
-      receivingCompleteAt:
-        result &&
-        (
-          result.receivingCompletedAt ||
-          result.updatedAt ||
-          result.generatedAt
-        ) ||
-        formatDateTime(
-          new Date(
-            getReceivingNowMs()
-          )
-        ),
-      arrivalToReceivingDisplay:
-        item.arrivalToReceivingDisplay || '',
-      raw:
-        result
-    };
-  }
-
-
   async function handleCompleteReceiving(
     recordId,
     button
@@ -2850,7 +2500,7 @@
     const cleanRecordId =
       String(recordId || '');
 
-    let item =
+    const item =
       state.records.get(
         cleanRecordId
       );
@@ -2862,101 +2512,15 @@
       return;
     }
 
-    const permission =
-      getReceivingButtonPermission(
-        button
-      );
-
-    if (!permission.allowed) {
-      await showMessage({
-        icon: 'info',
-        title: 'ยังไม่ถึงขั้นตอนตรวจรับ',
-        text:
-          permission.message,
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-
     if (
-      !item &&
-      permission.allowed === true
-    ) {
-      item =
-        buildWorkflowOnlyReceivingItem(
-          button,
-          cleanRecordId
-        );
-    }
-
-    if (
-      !item
-    ) {
-      await showMessage({
-        icon: 'warning',
-        title: 'ไม่พบข้อมูลรายการ',
-        text:
-          'กรุณารีเฟรชข้อมูล แล้วลองใหม่อีกครั้ง',
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-
-    const workflowReadyOverride =
-      permission.allowed === true &&
-      String(
-        button &&
-        button.dataset &&
-        button.dataset.receivingAllowed ||
-        ''
-      ).toLowerCase() === 'true';
-
-    if (
-      !item.canCompleteReceiving &&
-      !workflowReadyOverride
+      !item ||
+      !item.canCompleteReceiving
     ) {
       await showMessage({
         icon: 'info',
         title: 'ไม่สามารถบันทึกได้',
         text:
-          'รายการนี้ตรวจรับเสร็จแล้ว หรือมีเวลาออก / Gate Out แล้ว',
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-
-    if (
-      !item.canCompleteReceiving &&
-      workflowReadyOverride &&
-      (
-        item.receivingCompleteAt ||
-        item.receivingCompleteEpochMs ||
-        (
-          item.gateOutSource &&
-          item.gateOutSource !== 'PENDING'
-        )
-      )
-    ) {
-      await showMessage({
-        icon: 'info',
-        title: 'ไม่สามารถบันทึกได้',
-        text:
-          'รายการนี้ตรวจรับเสร็จแล้ว หรือมีเวลาออก / Gate Out แล้ว',
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-
-    if (
-      item.gateOutSource &&
-      item.gateOutSource !== 'PENDING'
-    ) {
-      await showMessage({
-        icon: 'info',
-        title: 'รายการนี้ปิดงานแล้ว',
-        text:
-          'พบข้อมูล Gate Out แล้ว จึงไม่สามารถบันทึกตรวจรับย้อนหลังจากปุ่มนี้ได้',
-        confirmButtonText: 'รับทราบ'
+          'รายการนี้บันทึกรับสินค้าเสร็จแล้ว หรือมีเวลาออกแล้ว'
       });
       return;
     }
@@ -2996,7 +2560,7 @@
         await window.Swal.fire({
           icon: 'question',
           title:
-            'ยืนยันบันทึกตรวจรับเสร็จ',
+            'ตรวจสอบข้อมูลก่อนบันทึก',
           html:
             buildReceivingReviewHtml(
               item,
@@ -3007,7 +2571,7 @@
             760,
           showCancelButton: true,
           confirmButtonText:
-            'ยืนยันบันทึกตรวจรับเสร็จ',
+            'ตรวจสอบแล้ว ยืนยันบันทึก',
           cancelButtonText:
             'ย้อนกลับ',
           reverseButtons: true,
@@ -3095,16 +2659,30 @@
         'กำลังบันทึก...'
       );
 
-      /*
-       * ROUND 06 PART 09.2F
-       * ใช้ Inbound Workflow เป็นแหล่งบันทึกหลัก 100%
-       * ไม่เขียนชีทรับสินค้าเสร็จแยกก่อนแล้วค่อย sync อีกต่อไป
-       */
       const result =
-        await completeReceivingByInboundWorkflowOnly(
-          item,
-          button
+        await API.completeReceiving(
+          state.moduleId,
+          {
+            recordId:
+              item.recordId,
+            sourceRowNumber:
+              item.sourceRowNumber,
+            expectedTimestampIn:
+              item.expectedTimestampIn ||
+              item.timestampIn,
+            expectedTimestampInEpochMs:
+              item.expectedTimestampInEpochMs ||
+              item.timestampInEpochMs,
+            expectedPrimaryValue:
+              item.expectedPrimaryValue ||
+              item.primaryValue
+          }
         );
+
+      await syncInboundWorkflowReceivingComplete(
+        item,
+        result
+      );
 
       if (
         result &&
@@ -3161,10 +2739,10 @@
           result &&
           result.alreadyCompleted
             ? 'รายการนี้บันทึกแล้ว'
-            : 'บันทึกตรวจรับเสร็จแล้ว',
+            : 'บันทึกรับสินค้าเสร็จแล้ว',
         html: `
           <div class="receiving-success-dialog">
-            <span>วันเวลาตรวจรับเสร็จ</span>
+            <span>วันเวลารับสินค้าเสร็จ</span>
 
             <strong>
               ${escapeHtml(
@@ -3176,7 +2754,7 @@
               )}
             </strong>
 
-            <span>Gate In → ตรวจรับเสร็จ</span>
+            <span>Gate In → รับสินค้าเสร็จ</span>
 
             <strong>
               ${escapeHtml(
@@ -3193,27 +2771,12 @@
         returnFocus: false
       });
 
-      if (button) {
-        button.remove();
-      }
-
       state.refreshPending = true;
-
-      document.dispatchEvent(
-        new CustomEvent(
-          'alertvendor:receiving-completed',
-          {
-            detail: {
-              recordId: cleanRecordId
-            }
-          }
-        )
-      );
 
     } catch (error) {
       await showApiError(
         error,
-        'บันทึกตรวจรับเสร็จไม่สำเร็จ'
+        'บันทึกรับสินค้าเสร็จไม่สำเร็จ'
       );
 
     } finally {
@@ -3317,23 +2880,24 @@
   }
 
   function applyReceivingFilter() {
-    /*
-     * ROUND 06 PART 09.2E5
-     * ให้ module.js เป็นเจ้าของการกรองหลักของหน้า Module เพียงตัวเดียว
-     * receiving.js ห้ามซ่อน/แสดงการ์ดเอง เพราะจะทำให้จำนวนกับรายการไม่ตรงกัน
-     */
-    document
-      .querySelectorAll(
-        '.vehicle-card[data-record-id]'
-      )
-      .forEach((card) => {
-        card.classList.remove(
-          'is-receiving-filter-hidden'
-        );
-        card.removeAttribute(
-          'aria-hidden'
-        );
+    if (!state.enabled) {
+      document.querySelectorAll('.vehicle-card').forEach((card) => {
+        card.classList.remove('is-receiving-filter-hidden');
+        card.removeAttribute('aria-hidden');
       });
+      return;
+    }
+
+    document.querySelectorAll('.vehicle-card[data-record-id]').forEach((card) => {
+      const sourceItem = state.records.get(String(card.dataset.recordId || ''));
+      const item = sourceItem ? normalizeReceivingRecordState(sourceItem) : null;
+      const visible = state.stageFilter === 'ALL' || (
+        item && item.stageCode === state.stageFilter
+      );
+
+      card.classList.toggle('is-receiving-filter-hidden', !visible);
+      card.setAttribute('aria-hidden', String(!visible));
+    });
   }
 
 
@@ -3388,11 +2952,11 @@
       'รายการ: ' + (item.primaryValue || '-'),
       'เวลาเข้า: ' + (item.timestampIn || '-'),
       'สถานะ: ' + (item.stageLabel || '-'),
-      'ช่วงเข้า → ตรวจรับเสร็จ: ' + (
+      'ช่วงเข้า → รับสินค้าเสร็จ: ' + (
         item.arrivalToReceivingDisplay || formatDuration(item.currentStageSeconds) || '-'
       ),
       'รับสินค้าเสร็จ: ' + (item.receivingCompleteAt || 'ยังไม่บันทึก'),
-      'ช่วงตรวจรับเสร็จ → Gate Out: ' + (
+      'ช่วงรับเสร็จ → Gate Out: ' + (
         item.receivingToGateOutDisplay || 'ยังไม่เริ่ม'
       ),
       'Gate Out: ' + (item.timestampOut || 'ยังไม่มีการสแกน Gate Out'),
