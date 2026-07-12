@@ -6,7 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - รองรับ Receiving Flow, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
+ * - Production R07: Session key v2 + Inbound Workflow methods ครบทุก route
  */
 (function (window) {
   'use strict';
@@ -20,7 +20,24 @@
     ).replace(/\/+$/, '');
 
   const TOKEN_STORAGE_KEY =
-    'alertvendor_access_token';
+    String(
+      CONFIG.TOKEN_STORAGE_KEY ||
+      'alertvendor_access_token_v2'
+    ).trim() ||
+    'alertvendor_access_token_v2';
+
+  const LEGACY_TOKEN_STORAGE_KEYS =
+    Object.freeze(
+      [
+        'alertvendor_access_token',
+        'alertvendor_access_token_v1',
+        'alertvendor_token',
+        'alertvendorAccessToken',
+        'access_token'
+      ].filter(
+        (key) => key !== TOKEN_STORAGE_KEY
+      )
+    );
 
   const inFlightGetRequests =
     new Map();
@@ -75,23 +92,76 @@
    * Token Storage
    ************************************************************/
 
-  function getAccessToken() {
+  function readStorageToken(
+    storage,
+    key
+  ) {
     try {
       return String(
-        window.sessionStorage
-          .getItem(
-            TOKEN_STORAGE_KEY
-          ) || ''
+        storage.getItem(key) || ''
       ).trim();
-
     } catch (error) {
-      console.warn(
-        'ไม่สามารถอ่าน Session Token ได้',
-        error
-      );
-
       return '';
     }
+  }
+
+  function removeStorageKey(
+    storage,
+    key
+  ) {
+    try {
+      storage.removeItem(key);
+    } catch (error) {
+      /* Storage อาจถูก Browser Policy ปิดไว้ */
+    }
+  }
+
+  function getAccessToken() {
+    let token =
+      readStorageToken(
+        window.sessionStorage,
+        TOKEN_STORAGE_KEY
+      );
+
+    if (token) {
+      return token;
+    }
+
+    /*
+     * ย้าย Session รุ่นเก่าเข้าสู่ key ปัจจุบันแบบครั้งเดียว
+     * ไม่อ่านจาก localStorage เพื่อคงนโยบาย WINDOW_ISOLATED
+     */
+    for (const legacyKey of LEGACY_TOKEN_STORAGE_KEYS) {
+      token =
+        readStorageToken(
+          window.sessionStorage,
+          legacyKey
+        );
+
+      if (!token) {
+        continue;
+      }
+
+      try {
+        window.sessionStorage.setItem(
+          TOKEN_STORAGE_KEY,
+          token
+        );
+      } catch (error) {
+        /* ใช้ token ที่อ่านได้ต่อ แม้ migrate ไม่สำเร็จ */
+      }
+
+      LEGACY_TOKEN_STORAGE_KEYS.forEach(
+        (key) => removeStorageKey(
+          window.sessionStorage,
+          key
+        )
+      );
+
+      return token;
+    }
+
+    return '';
   }
 
   function setAccessToken(
@@ -114,6 +184,13 @@
           cleanToken
         );
 
+      LEGACY_TOKEN_STORAGE_KEYS.forEach(
+        (key) => removeStorageKey(
+          window.sessionStorage,
+          key
+        )
+      );
+
     } catch (error) {
       throw new VehicleAPIError(
         'เบราว์เซอร์ไม่อนุญาตให้บันทึก Session',
@@ -131,18 +208,26 @@
   }
 
   function clearAccessToken() {
-    try {
-      window.sessionStorage
-        .removeItem(
-          TOKEN_STORAGE_KEY
-        );
+    const keys =
+      [
+        TOKEN_STORAGE_KEY,
+        ...LEGACY_TOKEN_STORAGE_KEYS
+      ];
 
-    } catch (error) {
-      console.warn(
-        'ไม่สามารถล้าง Session Token ได้',
-        error
+    keys.forEach((key) => {
+      removeStorageKey(
+        window.sessionStorage,
+        key
       );
-    }
+
+      /* ล้างของเก่าที่อาจเคยถูกเก็บข้ามหน้าต่าง */
+      removeStorageKey(
+        window.localStorage,
+        key
+      );
+    });
+
+    inFlightGetRequests.clear();
   }
 
   function updateTokenFromData(
@@ -688,6 +773,94 @@
       ),
       maximum
     );
+  }
+
+  function requireApiText(
+    value,
+    code,
+    message
+  ) {
+    const text =
+      String(value || '').trim();
+
+    if (!text) {
+      throw new VehicleAPIError(
+        message,
+        code,
+        400
+      );
+    }
+
+    return text;
+  }
+
+  function workflowBasePath(
+    moduleId
+  ) {
+    const cleanModuleId =
+      requireApiText(
+        moduleId,
+        'MODULE_ID_REQUIRED',
+        'กรุณาระบุรหัส Module'
+      );
+
+    return (
+      '/api/workflow/modules/' +
+      encodeURIComponent(cleanModuleId)
+    );
+  }
+
+  function workflowPayload(
+    payload,
+    defaultMethod
+  ) {
+    const source =
+      payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload)
+        ? { ...payload }
+        : {};
+
+    const entryCode =
+      String(
+        source.entryCode ||
+        source.autoId ||
+        source.code ||
+        source.qrText ||
+        source.recordId ||
+        ''
+      ).trim();
+
+    const clientRequestId =
+      String(
+        source.clientRequestId ||
+        source.requestId ||
+        createRequestId()
+      ).trim();
+
+    return {
+      ...source,
+      entryCode,
+      qrText:
+        String(
+          source.qrText ||
+          source.rawQrText ||
+          entryCode
+        ).trim(),
+      lookupMethod:
+        String(
+          source.lookupMethod ||
+          source.method ||
+          defaultMethod ||
+          'MANUAL'
+        ).trim().toUpperCase(),
+      clientRequestId,
+      requestId:
+        String(
+          source.requestId ||
+          clientRequestId
+        ).trim()
+    };
   }
 
   function getClientDiagnostics() {
@@ -1254,6 +1427,622 @@
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
             body: record || {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    /**********************************************************
+     * Inbound Workflow API
+     **********************************************************/
+
+    async lookupInboundWorkflow(
+      moduleId,
+      entryCode,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const cleanEntryCode =
+        requireApiText(
+          entryCode ||
+          config.entryCode ||
+          config.autoId ||
+          config.code,
+          'ENTRY_CODE_REQUIRED',
+          'กรุณาระบุ Auto ID หรือรหัสเข้าพื้นที่'
+        );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/lookup',
+          {
+            dedupe: false,
+            query: {
+              entryCode:
+                cleanEntryCode,
+              method:
+                config.lookupMethod ||
+                config.method ||
+                'MANUAL',
+              _:
+                config.cacheBust ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getInboundWorkflowState(
+      moduleId,
+      entryCode,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const cleanEntryCode =
+        requireApiText(
+          entryCode ||
+          config.entryCode ||
+          config.autoId ||
+          config.code,
+          'ENTRY_CODE_REQUIRED',
+          'กรุณาระบุ Auto ID หรือรหัสเข้าพื้นที่'
+        );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/state/' +
+          encodeURIComponent(cleanEntryCode),
+          {
+            dedupe: false,
+            query: {
+              method:
+                config.lookupMethod ||
+                config.method ||
+                'MANUAL',
+              _:
+                config.cacheBust ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async submitInboundDocument(
+      moduleId,
+      payload
+    ) {
+      const body =
+        workflowPayload(
+          payload,
+          'SCAN'
+        );
+
+      requireApiText(
+        body.entryCode,
+        'ENTRY_CODE_REQUIRED',
+        'กรุณาระบุ Auto ID ก่อนบันทึกยื่นเอกสาร'
+      );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/submit-document',
+          {
+            method: 'POST',
+            timeoutMs:
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+            body
+          }
+        );
+
+      return response.data;
+    },
+
+    async completeInboundWorkflowReceiving(
+      moduleId,
+      payload
+    ) {
+      const body =
+        workflowPayload(
+          payload,
+          'MANUAL'
+        );
+
+      requireApiText(
+        body.entryCode,
+        'ENTRY_CODE_REQUIRED',
+        'ไม่พบ Auto ID สำหรับ Sync สถานะตรวจรับเสร็จ'
+      );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/complete-receiving',
+          {
+            method: 'POST',
+            timeoutMs:
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+            body
+          }
+        );
+
+      return response.data;
+    },
+
+    async returnInboundDocument(
+      moduleId,
+      payload
+    ) {
+      const body =
+        workflowPayload(
+          payload,
+          'SCAN'
+        );
+
+      requireApiText(
+        body.entryCode,
+        'ENTRY_CODE_REQUIRED',
+        'กรุณาระบุ Auto ID ก่อนบันทึกรับเอกสารคืน'
+      );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/return-document',
+          {
+            method: 'POST',
+            timeoutMs:
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+            body
+          }
+        );
+
+      return response.data;
+    },
+
+    async cancelInboundWorkflow(
+      moduleId,
+      payload
+    ) {
+      const source =
+        workflowPayload(
+          payload,
+          'MANUAL'
+        );
+
+      const body = {
+        ...source,
+        reason:
+          String(
+            source.reason ||
+            source.cancelReason ||
+            source.note ||
+            ''
+          ).trim(),
+        stageCode:
+          String(
+            source.stageCode ||
+            source.statusCode ||
+            ''
+          ).trim()
+      };
+
+      if (!body.entryCode && !body.eventId) {
+        throw new VehicleAPIError(
+          'กรุณาระบุ Auto ID หรือรหัสเหตุการณ์ที่ต้องการยกเลิก',
+          'ENTRY_CODE_OR_EVENT_ID_REQUIRED',
+          400
+        );
+      }
+
+      requireApiText(
+        body.reason,
+        'CANCEL_REASON_REQUIRED',
+        'กรุณาระบุเหตุผลการยกเลิก'
+      );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/cancel-event',
+          {
+            method: 'POST',
+            timeoutMs:
+              CONFIG.SAVE_TIMEOUT_MS ||
+              90000,
+            body
+          }
+        );
+
+      return response.data;
+    },
+
+    async getInboundWorkflowDashboard(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/dashboard',
+          {
+            dedupe:
+              !config.cacheBust,
+            query: {
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  100,
+                  30
+                ),
+              _:
+                config.cacheBust ||
+                ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getInboundWorkflowSlaAlerts(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/sla-alerts',
+          {
+            query: {
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  200,
+                  50
+                )
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async setupInboundWorkflowDefaultSlaRules(
+      moduleId
+    ) {
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/sla-alerts/setup-default',
+          {
+            method: 'POST',
+            body: {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async getInboundWorkflowReport(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/report',
+          {
+            query: {
+              date:
+                config.date ||
+                config.reportDate ||
+                '',
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  5000,
+                  500
+                )
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getInboundWorkflowAudit(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/audit',
+          {
+            query: {
+              date:
+                config.date ||
+                config.reportDate ||
+                '',
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  1000,
+                  300
+                )
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async exportInboundWorkflowCsv(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/export/csv',
+          {
+            method: 'POST',
+            timeoutMs: 120000,
+            body: {
+              date:
+                config.date ||
+                config.reportDate ||
+                '',
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  5000,
+                  500
+                )
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async syncInboundWorkflowGateOut(
+      moduleId,
+      payload
+    ) {
+      const body =
+        workflowPayload(
+          payload,
+          'MANUAL'
+        );
+
+      requireApiText(
+        body.entryCode,
+        'ENTRY_CODE_REQUIRED',
+        'กรุณาระบุ Auto ID สำหรับ Sync Gate Out'
+      );
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/sync-gate-out',
+          {
+            method: 'POST',
+            body
+          }
+        );
+
+      return response.data;
+    },
+
+    async previewInboundGateOutSync(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/gate-out-sync/preview',
+          {
+            query: {
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  100,
+                  30
+                )
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async runInboundGateOutSync(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/gate-out-sync/run',
+          {
+            method: 'POST',
+            timeoutMs: 120000,
+            body: {
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  100,
+                  30
+                )
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async getInboundAutoGateOutStatus(
+      moduleId
+    ) {
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/gate-out-sync/auto/status'
+        );
+
+      return response.data;
+    },
+
+    async enableInboundAutoGateOut(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/gate-out-sync/auto/enable',
+          {
+            method: 'POST',
+            body: {
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  100,
+                  30
+                ),
+              intervalMinutes:
+                Number(
+                  config.intervalMinutes
+                ) || 10
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async disableInboundAutoGateOut(
+      moduleId
+    ) {
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/gate-out-sync/auto/disable',
+          {
+            method: 'POST',
+            body: {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async runInboundAutoGateOutNow(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          workflowBasePath(moduleId) +
+          '/gate-out-sync/auto/run-now',
+          {
+            method: 'POST',
+            timeoutMs: 120000,
+            body: {
+              limit:
+                clampInteger(
+                  config.limit,
+                  1,
+                  100,
+                  30
+                )
+            }
           }
         );
 
