@@ -2740,6 +2740,24 @@
 
 
 
+
+  function notifyMissingInboundWorkflowApi() {
+    if (
+      document.body.dataset.inboundWorkflowApiMissing ===
+      'true'
+    ) {
+      return;
+    }
+
+    document.body.dataset.inboundWorkflowApiMissing =
+      'true';
+
+    console.error(
+      'api.js ไม่มี getInboundWorkflowDashboard: หน้า Module จะไม่รู้ว่า Inbound ยื่นเอกสารแล้ว'
+    );
+  }
+
+
   async function loadVendorWorkflowSnapshot(options) {
     const config =
       options &&
@@ -2757,6 +2775,7 @@
     ) {
       state.vendorWorkflowItems =
         [];
+      notifyMissingInboundWorkflowApi();
       return;
     }
 
