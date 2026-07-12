@@ -1,6 +1,6 @@
 /************************************************************
  * module-workflow-guard.js
- * ROUND 06 PART 09 — Core Workflow Guard + Auto ID Bridge
+ * PRODUCTION R07 — Core Workflow Guard + Auto ID Bridge
  *
  * เป้าหมาย:
  * - ไม่แตะ receiving.js เดิมที่ใช้งานได้
@@ -197,6 +197,17 @@
         button.disabled =
           !guard.ready;
 
+        button.dataset.receivingAllowed =
+          guard.ready ? 'true' : 'false';
+
+        button.dataset.receivingBlockMessage =
+          guard.ready
+            ? ''
+            : (
+                guard.message ||
+                'รอ Inbound ยื่นเอกสารก่อน'
+              );
+
         button.classList.toggle(
           'is-disabled-by-workflow',
           !guard.ready
@@ -209,7 +220,7 @@
 
         button.title =
           guard.ready
-            ? 'บันทึกรับสินค้าเสร็จ'
+            ? 'บันทึกตรวจรับเสร็จ'
             : guard.message;
       }
 
@@ -517,7 +528,7 @@
     if (window.Swal) {
       window.Swal.fire({
         icon: 'info',
-        title: 'ยังบันทึกรับสินค้าไม่ได้',
+        title: 'ยังไม่ถึงขั้นตอนตรวจรับ',
         text: message,
         confirmButtonText: 'รับทราบ'
       });
