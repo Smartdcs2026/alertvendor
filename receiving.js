@@ -2655,6 +2655,118 @@
   }
 
 
+
+  function buildWorkflowOnlyReceivingItem(button, recordId) {
+    const card =
+      button &&
+      button.closest
+        ? button.closest(
+            '.vehicle-card[data-record-id]'
+          )
+        : null;
+
+    if (!card) {
+      return null;
+    }
+
+    const autoId =
+      findAutoIdCandidate([
+        button.dataset && button.dataset.workflowAutoId,
+        card.dataset && card.dataset.workflowAutoId,
+        card.dataset && card.dataset.autoId,
+        recordId
+      ]);
+
+    if (!autoId) {
+      return null;
+    }
+
+    const title =
+      text(
+        card.querySelector(
+          '.vehicle-card__title'
+        ) &&
+        card.querySelector(
+          '.vehicle-card__title'
+        ).textContent
+      );
+
+    const company =
+      text(
+        card.querySelector(
+          '.vehicle-card__company-name'
+        ) &&
+        card.querySelector(
+          '.vehicle-card__company-name'
+        ).textContent
+      );
+
+    const timestampIn =
+      text(
+        card.querySelector(
+          '.vehicle-in-time strong'
+        ) &&
+        card.querySelector(
+          '.vehicle-in-time strong'
+        ).textContent
+      );
+
+    return {
+      recordId:
+        autoId,
+      autoId:
+        autoId,
+      entryCode:
+        autoId,
+      qrText:
+        autoId,
+      primaryValue:
+        title || autoId,
+      expectedPrimaryValue:
+        title || autoId,
+      companyName:
+        company,
+      timestampIn:
+        timestampIn,
+      expectedTimestampIn:
+        timestampIn,
+      timestampInEpochMs:
+        null,
+      expectedTimestampInEpochMs:
+        null,
+      sourceRowNumber:
+        0,
+      isCurrentlyInArea:
+        true,
+      canCompleteReceiving:
+        true,
+      gateOutSource:
+        'PENDING',
+      stageCode:
+        'WAITING_RECEIVING',
+      stageLabel:
+        'รอตรวจรับสินค้า',
+      fields:
+        [
+          {
+            label: 'Auto ID',
+            value: autoId
+          },
+          {
+            label: 'เลขนัดหมาย',
+            value: title || ''
+          },
+          {
+            label: 'บริษัท',
+            value: company || ''
+          }
+        ].filter((field) =>
+          String(field.value || '').trim()
+        )
+    };
+  }
+
+
   async function completeReceivingByInboundWorkflowOnly(item, button) {
     const identity =
       resolveReceivingWorkflowIdentity(
@@ -2738,7 +2850,7 @@
     const cleanRecordId =
       String(recordId || '');
 
-    const item =
+    let item =
       state.records.get(
         cleanRecordId
       );
@@ -2764,6 +2876,17 @@
         confirmButtonText: 'รับทราบ'
       });
       return;
+    }
+
+    if (
+      !item &&
+      permission.allowed === true
+    ) {
+      item =
+        buildWorkflowOnlyReceivingItem(
+          button,
+          cleanRecordId
+        );
     }
 
     if (
