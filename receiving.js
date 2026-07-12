@@ -1,6 +1,6 @@
 /**
  * receiving.js
- * PRODUCTION R13 — Receiving Action Controller
+ * PRODUCTION R15 — Consolidated Receiving Action Controller
  *
  * หน้าที่เฉพาะ:
  * - รับคลิกปุ่ม "บันทึกรับสินค้าเสร็จ"
@@ -16,7 +16,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.12-r13-unified-operational-board-action';
+    '2026.07.12-r15-consolidated-action';
 
   const inFlight = new Set();
 
@@ -115,9 +115,19 @@
       );
     }
 
-    const primary =
+    const appointment =
+      record && (
+        record.appointmentNumber ||
+        record.appointment
+      ) ||
       record && record.primaryValue ||
       button.dataset.expectedPrimaryValue ||
+      '-';
+    const company =
+      record && (
+        record.companyName ||
+        record.company
+      ) ||
       '-';
     const timestampIn =
       record && record.timestampIn ||
@@ -138,7 +148,8 @@
       title: 'ยืนยันรับสินค้าเสร็จ',
       html: `
         <div class="receiving-confirm-grid">
-          <div><span>ข้อมูลหลัก</span><strong>${escapeHtml(primary)}</strong></div>
+          <div><span>เลขนัดหมาย</span><strong>${escapeHtml(appointment)}</strong></div>
+          <div><span>บริษัท</span><strong>${escapeHtml(company)}</strong></div>
           <div><span>เวลาเข้าพื้นที่</span><strong>${escapeHtml(timestampIn)}</strong></div>
           <div><span>ยื่นเอกสาร</span><strong>${escapeHtml(documentSubmittedAt)}</strong></div>
           <div><span>กะเข้า</span><strong>${escapeHtml(entryShift)}</strong></div>
