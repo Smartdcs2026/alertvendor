@@ -2805,11 +2805,9 @@
         );
 
       const status =
-        String(
-          workflow &&
-          workflow.statusCode ||
-          ''
-        ).toUpperCase();
+        getEffectiveVendorWorkflowStatus(
+          workflow
+        );
 
       const meta =
         getVendorOperationalMeta(
@@ -3003,6 +3001,34 @@
           record.timestampOut
         ),
 
+      documentSubmittedAt:
+        textValue(
+          source.documentSubmittedAt ||
+          source.submittedAt ||
+          source.documentReceivedAt ||
+          record.documentSubmittedAt ||
+          record.submittedAt ||
+          record.documentReceivedAt
+        ),
+
+      receivingCompletedAt:
+        textValue(
+          source.receivingCompletedAt ||
+          source.receivingCompleteAt ||
+          source.receivingAt ||
+          record.receivingCompletedAt ||
+          record.receivingCompleteAt ||
+          record.receivingAt
+        ),
+
+      documentReturnedAt:
+        textValue(
+          source.documentReturnedAt ||
+          source.returnedAt ||
+          record.documentReturnedAt ||
+          record.returnedAt
+        ),
+
       statusCode:
         textValue(
           source.statusCode ||
@@ -3070,9 +3096,9 @@
       }
 
       const status =
-        String(
-          item.statusCode || ''
-        ).toUpperCase();
+        getEffectiveVendorWorkflowStatus(
+          item
+        );
 
       if (
         ![
@@ -3234,6 +3260,57 @@
       }) ||
       null
     );
+  }
+
+
+
+  function getEffectiveVendorWorkflowStatus(item) {
+    const source =
+      item &&
+      typeof item === 'object'
+        ? item
+        : {};
+
+    const rawStatus =
+      String(
+        source.statusCode ||
+        source.status ||
+        ''
+      ).toUpperCase();
+
+    if (
+      source.gateOutAt ||
+      rawStatus === 'GATE_OUT_COMPLETED'
+    ) {
+      return 'GATE_OUT_COMPLETED';
+    }
+
+    if (
+      source.documentReturnedAt ||
+      rawStatus === 'DOCUMENT_RETURNED'
+    ) {
+      return 'DOCUMENT_RETURNED';
+    }
+
+    if (
+      source.receivingCompletedAt ||
+      rawStatus === 'RECEIVING_COMPLETED'
+    ) {
+      return 'RECEIVING_COMPLETED';
+    }
+
+    if (
+      source.documentSubmittedAt ||
+      rawStatus === 'DOCUMENT_SUBMITTED' ||
+      rawStatus === 'WAITING_RECEIVING' ||
+      rawStatus === 'WAITING_RECEIVE' ||
+      rawStatus === 'DOCUMENT_RECEIVED'
+    ) {
+      return 'DOCUMENT_SUBMITTED';
+    }
+
+    return rawStatus ||
+      'WAITING_DOCUMENT';
   }
 
 
