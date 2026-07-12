@@ -1,7 +1,7 @@
 /**
  * receiving.js
  * Receiving Flow สำหรับหน้า Module
- * PRODUCTION R08 — Workflow Permission Guard + Server-side Sync Awareness
+ * HOTFIX R4.3 — Receiving Stage Filter Consistency
  *
  * - ไม่แก้ module.js เดิม
  * - เพิ่มแผงสรุปสำหรับผู้บริหาร
@@ -50,7 +50,7 @@
 
   function initializeReceivingFlow() {
     document.body.dataset.receivingUiBuild =
-      '2026.07.12-r10-button-visibility-hotfix';
+      '2026.07.12-r12-receiving-filter-consistency';
 
     state.moduleId = getModuleIdFromUrl();
 
@@ -3251,16 +3251,19 @@
   }
 
   function applyReceivingFilter() {
-    /*
-     * ROUND 06 PART 09.2E5
-     * ให้ module.js เป็นเจ้าของการกรองหลักของหน้า Module เพียงตัวเดียว
-     * receiving.js ห้ามซ่อน/แสดงการ์ดเอง เพราะจะทำให้จำนวนกับรายการไม่ตรงกัน
-     */
-    document
-      .querySelectorAll(
+    const cards = Array.from(
+      document.querySelectorAll(
         '.vehicle-card[data-record-id]'
       )
-      .forEach((card) => {
+    );
+
+    /*
+     * HOTFIX R4.3
+     * ตัวเลขบนแถบ Receiving และรายการด้านล่างต้องใช้สถานะชุดเดียวกัน
+     * จึงกรองการ์ดจาก state.records โดยตรง ไม่พึ่งค่า select ของ module.js
+     */
+    if (!state.enabled) {
+      cards.forEach((card) => {
         card.classList.remove(
           'is-receiving-filter-hidden'
         );
@@ -3268,6 +3271,66 @@
           'aria-hidden'
         );
       });
+
+      return;
+    }
+
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const recordId = String(
+        card.dataset.recordId || ''
+      );
+
+      const sourceItem =
+        state.records.get(recordId);
+
+      const item = sourceItem
+        ? normalizeReceivingRecordState(
+            sourceItem
+          )
+        : null;
+
+      const visible =
+        state.stageFilter === 'ALL' ||
+        Boolean(
+          item &&
+          item.isCurrentlyInArea === true &&
+          item.stageCode === state.stageFilter
+        );
+
+      card.classList.toggle(
+        'is-receiving-filter-hidden',
+        !visible
+      );
+
+      if (visible) {
+        visibleCount += 1;
+        card.removeAttribute(
+          'aria-hidden'
+        );
+      } else {
+        card.setAttribute(
+          'aria-hidden',
+          'true'
+        );
+      }
+    });
+
+    /*
+     * อัปเดตจำนวนเหนือรายการให้ตรงกับจำนวนการ์ดที่มองเห็นจริง
+     * เช่น รับเสร็จรอ Gate Out = 1 ต้องแสดง 1 รายการ ไม่ใช่ 10 รายการ
+     */
+    const resultCount =
+      document.getElementById(
+        'resultCount'
+      );
+
+    if (resultCount) {
+      resultCount.textContent =
+        formatNumber(visibleCount) +
+        ' รายการ';
+    }
   }
 
 
