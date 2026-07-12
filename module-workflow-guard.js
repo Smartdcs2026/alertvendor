@@ -164,12 +164,6 @@
       card.dataset.workflowGuard =
         guard.status || 'UNKNOWN';
 
-      card.dataset.vendorStage =
-        guard.stage || 'UNKNOWN';
-
-      card.dataset.vendorStageLabel =
-        guard.label || '';
-
       card.dataset.workflowAutoId =
         workflowAutoId;
 
@@ -185,36 +179,10 @@
           ? workflowItem.registration
           : '';
 
-      let button =
+      const button =
         card.querySelector(
           '[data-receiving-complete-record]'
         );
-
-      /*
-       * ROUND 06 PART 09.2E3
-       * ปุ่มตรวจรับต้องมีเฉพาะขั้นตอน READY_TO_RECEIVE เท่านั้น
-       * ถ้าตรวจรับเสร็จแล้ว / รอเอกสารคืน / รอ Gate Out / ปิดงาน
-       * ต้องถอดปุ่มออก ไม่ใช่แค่ disable เพราะจะทำให้ผู้ใช้สับสน
-       */
-      if (!guard.ready) {
-        removeReceivingActionButtons(card);
-        button = null;
-      }
-
-      /*
-       * ถ้า Workflow = DOCUMENT_SUBMITTED แล้วแต่ Receiving Flow ไม่วาดปุ่ม
-       * ให้ Workflow Guard สร้างปุ่มให้เอง
-       */
-      if (
-        !button &&
-        guard.ready
-      ) {
-        button =
-          ensureWorkflowReadyReceivingButton(
-            card,
-            workflowItem
-          );
-      }
 
       if (button) {
         button.dataset.workflowAutoId =
@@ -225,23 +193,6 @@
 
         button.dataset.workflowRegistration =
           card.dataset.workflowRegistration || '';
-
-        button.dataset.vendorStage =
-          guard.stage || 'UNKNOWN';
-
-        button.dataset.vendorStageLabel =
-          guard.label || '';
-
-        button.dataset.receivingAllowed =
-          guard.ready ? 'true' : 'false';
-
-        button.dataset.receivingBlockMessage =
-          guard.ready
-            ? ''
-            : (
-                guard.message ||
-                'ยังไม่ถึงขั้นตอนตรวจรับ'
-              );
 
         button.disabled =
           !guard.ready;
@@ -258,7 +209,7 @@
 
         button.title =
           guard.ready
-            ? 'บันทึกตรวจรับเสร็จ'
+            ? 'บันทึกรับสินค้าเสร็จ'
             : guard.message;
       }
 
@@ -266,313 +217,12 @@
     });
   }
 
-
-
-  function removeReceivingActionButtons(card) {
-    if (!card) {
-      return;
-    }
-
-    card
-      .querySelectorAll(
-        '[data-receiving-complete-record]'
-      )
-      .forEach((button) => {
-        button.remove();
-      });
-  }
-
-
-  function ensureWorkflowReadyReceivingButton(
-    card,
-    workflowItem
-  ) {
-    if (!card) {
-      return null;
-    }
-
-    const recordId =
-      String(
-        card.dataset.recordId ||
-        ''
-      ).trim();
-
-    if (!recordId) {
-      return null;
-    }
-
-    let actions =
-      card.querySelector(
-        '.receiving-card-stage__actions'
-      );
-
-    if (!actions) {
-      let stage =
-        card.querySelector(
-          '.receiving-card-stage'
-        );
-
-      if (!stage) {
-        stage =
-          document.createElement('section');
-
-        stage.className =
-          'receiving-card-stage receiving-card-stage--workflow-only';
-
-        stage.innerHTML =
-          '<div class="receiving-card-stage__head">' +
-            '<div>' +
-              '<small>ขั้นตอนตรวจรับ</small>' +
-              '<strong>รอตรวจรับสินค้า</strong>' +
-            '</div>' +
-            '<span>พร้อมตรวจรับ</span>' +
-          '</div>' +
-          '<p class="workflow-only-stage-note">' +
-            'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ' +
-          '</p>';
-
-        const footer =
-          card.querySelector(
-            '.vehicle-card__footer'
-          );
-
-        if (footer) {
-          card.insertBefore(
-            stage,
-            footer
-          );
-        } else {
-          card.appendChild(stage);
-        }
-      }
-
-      actions =
-        document.createElement('div');
-
-      actions.className =
-        'receiving-card-stage__actions';
-
-      stage.appendChild(actions);
-    }
-
-    const button =
-      document.createElement('button');
-
-    button.type =
-      'button';
-
-    button.className =
-      'receiving-complete-button is-created-by-workflow-guard';
-
-    button.dataset.receivingCompleteRecord =
-      recordId;
-
-    button.textContent =
-      'บันทึกตรวจรับเสร็จ';
-
-    if (
-      workflowItem &&
-      workflowItem.autoId
-    ) {
-      button.dataset.workflowAutoId =
-        workflowItem.autoId;
-    }
-
-    actions.insertBefore(
-      button,
-      actions.firstChild
-    );
-
-    return button;
-  }
-
-
-  function hasGateOutEvidence(card) {
-    if (!card) {
-      return false;
-    }
-
-    const directFlag =
-      String(
-        card.dataset.hasTimestampOut ||
-        ''
-      ).toLowerCase();
-
-    if (directFlag === 'true') {
-      return true;
-    }
-
-    const timestampOut =
-      text(
-        card.dataset.timestampOut ||
-        ''
-      );
-
-    if (
-      timestampOut &&
-      ![
-        '-',
-        '--',
-        'null',
-        'undefined',
-        'ยังไม่มีข้อมูล',
-        'ไม่มีข้อมูล'
-      ].includes(
-        timestampOut.toLowerCase()
-      )
-    ) {
-      return true;
-    }
-
-    const inArea =
-      String(
-        card.dataset.isCurrentlyInArea ||
-        ''
-      ).toLowerCase();
-
-    return inArea === 'false';
-  }
-
-
-
-  function getEffectiveWorkflowStatus(item) {
-    const source =
-      item &&
-      typeof item === 'object'
-        ? item
-        : {};
-
-    const rawStatus =
-      String(
-        source.statusCode ||
-        source.status ||
-        ''
-      ).toUpperCase();
-
-    if (
-      source.gateOutAt ||
-      rawStatus === 'GATE_OUT_COMPLETED'
-    ) {
-      return 'GATE_OUT_COMPLETED';
-    }
-
-    if (
-      source.documentReturnedAt ||
-      rawStatus === 'DOCUMENT_RETURNED'
-    ) {
-      return 'DOCUMENT_RETURNED';
-    }
-
-    if (
-      source.receivingCompletedAt ||
-      rawStatus === 'RECEIVING_COMPLETED'
-    ) {
-      return 'RECEIVING_COMPLETED';
-    }
-
-    if (
-      source.documentSubmittedAt ||
-      rawStatus === 'DOCUMENT_SUBMITTED' ||
-      rawStatus === 'WAITING_RECEIVING' ||
-      rawStatus === 'WAITING_RECEIVE' ||
-      rawStatus === 'DOCUMENT_RECEIVED'
-    ) {
-      return 'DOCUMENT_SUBMITTED';
-    }
-
-    return rawStatus ||
-      'WAITING_DOCUMENT';
-  }
-
-
-  function getVendorStageMeta(
-    status,
-    hasGateOut
-  ) {
-    if (hasGateOut) {
-      return {
-        key: 'CLOSED',
-        label: 'ปิดงานแล้ว',
-        message: 'ปิดงานแล้ว: มี Timestamp Out / ออก Gate Out แล้ว'
-      };
-    }
-
-    if (status === 'DOCUMENT_SUBMITTED') {
-      return {
-        key: 'READY_TO_RECEIVE',
-        label: 'รอตรวจรับสินค้า',
-        message: 'Inbound บันทึกรับเอกสารแล้ว พร้อมบันทึกตรวจรับเสร็จ'
-      };
-    }
-
-    if (status === 'RECEIVING_COMPLETED') {
-      return {
-        key: 'WAIT_DOCUMENT_RETURN',
-        label: 'รอรับเอกสารคืน',
-        message: 'ตรวจรับเสร็จแล้ว: รอรับเอกสารคืนที่ห้อง Inbound'
-      };
-    }
-
-    if (status === 'DOCUMENT_RETURNED') {
-      return {
-        key: 'WAIT_GATE_OUT',
-        label: 'รอออก Gate Out',
-        message: 'รับเอกสารคืนแล้ว: รอออก Gate Out'
-      };
-    }
-
-    if (status === 'GATE_OUT_COMPLETED') {
-      return {
-        key: 'CLOSED',
-        label: 'ปิดงานแล้ว',
-        message: 'ปิดงานแล้ว: ออก Gate Out แล้ว'
-      };
-    }
-
-    if (status === 'CANCELLED') {
-      return {
-        key: 'CANCELLED',
-        label: 'ยกเลิก',
-        message: 'รายการนี้ถูกยกเลิกแล้ว'
-      };
-    }
-
-    return {
-      key: 'WAIT_DOCUMENT_SUBMIT',
-      label: 'รอยื่นก่อนรับ',
-      message: 'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
-    };
-  }
-
-
-
   function evaluateCardGuard(card) {
     if (!card) {
       return {
         ready: false,
         status: 'UNKNOWN',
-        stage: 'UNKNOWN',
-        label: 'ไม่พบข้อมูล',
         message: 'ไม่พบข้อมูลการ์ด'
-      };
-    }
-
-    const hasGateOut =
-      hasGateOutEvidence(card);
-
-    if (hasGateOut) {
-      const meta =
-        getVendorStageMeta(
-          'GATE_OUT_COMPLETED',
-          true
-        );
-
-      return {
-        ready: false,
-        status: 'GATE_OUT_COMPLETED',
-        stage: meta.key,
-        label: meta.label,
-        message: meta.message
       };
     }
 
@@ -580,41 +230,67 @@
       findWorkflowItemForCard(card);
 
     if (!item) {
-      const meta =
-        getVendorStageMeta(
-          'WAITING_DOCUMENT',
-          false
-        );
-
       return {
         ready: false,
-        status: 'WAITING_DOCUMENT',
-        stage: meta.key,
-        label: meta.label,
-        message: meta.message
+        status: 'UNKNOWN',
+        message:
+          'รอ Inbound ยื่นเอกสารก่อน'
       };
     }
 
     const status =
-      getEffectiveWorkflowStatus(item);
+      String(item.statusCode || '').toUpperCase();
 
-    const meta =
-      getVendorStageMeta(
+    if (status === 'DOCUMENT_SUBMITTED') {
+      return {
+        ready: true,
         status,
-        false
-      );
+        message:
+          'พร้อมบันทึกรับสินค้าเสร็จ'
+      };
+    }
+
+    if (status === 'RECEIVING_COMPLETED') {
+      return {
+        ready: false,
+        status,
+        message:
+          'รายการนี้รับสินค้าเสร็จแล้ว รอ Inbound รับเอกสารคืน'
+      };
+    }
+
+    if (status === 'DOCUMENT_RETURNED') {
+      return {
+        ready: false,
+        status,
+        message:
+          'รายการนี้คืนเอกสารแล้ว รอ Gate Out'
+      };
+    }
+
+    if (status === 'GATE_OUT_COMPLETED') {
+      return {
+        ready: false,
+        status,
+        message:
+          'รายการนี้ออก Gate Out แล้ว ปิดงานสมบูรณ์'
+      };
+    }
+
+    if (status === 'CANCELLED') {
+      return {
+        ready: false,
+        status,
+        message:
+          'รายการนี้ถูกยกเลิกแล้ว'
+      };
+    }
 
     return {
-      ready:
-        status === 'DOCUMENT_SUBMITTED',
-      status:
-        status || 'WAITING_DOCUMENT',
-      stage:
-        meta.key,
-      label:
-        meta.label,
+      ready: false,
+      status: status || 'WAITING_DOCUMENT',
       message:
-        meta.message
+        'รอ Inbound ยื่นเอกสารก่อน'
     };
   }
 
@@ -625,6 +301,18 @@
       card.querySelector(
         '.workflow-guard-note'
       );
+
+    if (guard.ready) {
+      if (note) note.remove();
+      card.classList.remove(
+        'workflow-guard-blocked'
+      );
+      return;
+    }
+
+    card.classList.add(
+      'workflow-guard-blocked'
+    );
 
     if (!note) {
       note =
@@ -642,59 +330,43 @@
       target.appendChild(note);
     }
 
-    card.classList.toggle(
-      'workflow-guard-blocked',
-      !guard.ready
-    );
-
-    card.classList.toggle(
-      'workflow-guard-ready',
-      guard.ready
-    );
-
-    card.classList.toggle(
-      'workflow-guard-closed',
-      guard.stage === 'CLOSED'
-    );
-
-    note.dataset.vendorStage =
-      guard.stage || 'UNKNOWN';
-
-    note.innerHTML =
-      '<strong>' +
-      escapeHtml(guard.label || 'ขั้นตอน') +
-      '</strong>' +
-      '<span>' +
-      escapeHtml(
-        guard.message ||
-        'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ'
-      ) +
-      '</span>';
+    note.textContent =
+      guard.message ||
+      'รอ Inbound ยื่นเอกสารก่อน';
   }
 
   function findWorkflowItemForCard(card) {
-    const cardAutoId =
-      extractAutoIdFromCard(card);
+    const recordId =
+      String(
+        card.dataset.recordId ||
+        ''
+      ).trim();
 
-    if (!cardAutoId) {
-      return null;
-    }
-
-    const cleanAutoId =
-      normalizeAutoId(
-        cardAutoId
+    const textValue =
+      normalizeSearchText(
+        card.textContent ||
+        ''
       );
 
-    return (
+    const byRecordId =
       state.items.find((item) => {
         return (
-          normalizeAutoId(
-            item.autoId
-          ) === cleanAutoId
+          equalsToken(item.autoId, recordId) ||
+          equalsToken(item.appointmentNumber, recordId) ||
+          equalsToken(item.registration, recordId)
         );
-      }) ||
-      null
-    );
+      });
+
+    if (byRecordId) return byRecordId;
+
+    return state.items.find((item) => {
+      return (
+        containsToken(textValue, item.autoId) ||
+        containsToken(textValue, item.appointmentNumber) ||
+        containsToken(textValue, item.registration) ||
+        containsToken(textValue, item.phone)
+      );
+    }) || null;
   }
 
   function normalizeDashboardItems(data) {
@@ -739,14 +411,9 @@
         normalizeWorkflowItem(item);
 
       const key =
-        normalizeAutoId(
-          normalized.autoId
-        );
+        normalized.autoId ||
+        normalized.appointmentNumber;
 
-      /*
-       * ใช้ Auto ID เท่านั้นเป็น key
-       * ห้าม fallback ไปเลขนัดหมาย เพราะเลขนัดหมายซ้ำได้
-       */
       if (!key) return;
 
       const existing =
@@ -808,38 +475,6 @@
           record.phone ||
           record.mobile
         ),
-      documentSubmittedAt:
-        text(
-          source.documentSubmittedAt ||
-          source.submittedAt ||
-          source.documentReceivedAt ||
-          record.documentSubmittedAt ||
-          record.submittedAt ||
-          record.documentReceivedAt
-        ),
-      receivingCompletedAt:
-        text(
-          source.receivingCompletedAt ||
-          source.receivingCompleteAt ||
-          source.receivingAt ||
-          record.receivingCompletedAt ||
-          record.receivingCompleteAt ||
-          record.receivingAt
-        ),
-      documentReturnedAt:
-        text(
-          source.documentReturnedAt ||
-          source.returnedAt ||
-          record.documentReturnedAt ||
-          record.returnedAt
-        ),
-      gateOutAt:
-        text(
-          source.gateOutAt ||
-          source.timestampOut ||
-          record.gateOutAt ||
-          record.timestampOut
-        ),
       statusCode:
         text(
           source.statusCode ||
@@ -877,7 +512,7 @@
     const message =
       guard &&
       guard.message ||
-      'รอยื่นก่อนรับ: รอคนขับยื่นเอกสารที่ห้อง Inbound ก่อนตรวจรับ';
+      'รอ Inbound ยื่นเอกสารก่อน';
 
     if (window.Swal) {
       window.Swal.fire({
@@ -959,10 +594,6 @@
         opacity: .58 !important;
         filter: grayscale(.15);
         cursor: not-allowed !important;
-      }
-
-      .receiving-complete-button.is-created-by-workflow-guard {
-        box-shadow: 0 0 0 2px rgba(22, 163, 74, .12) inset;
       }
 
       .workflow-guard-shake {
@@ -1056,21 +687,6 @@
       : 0;
   }
 
-  function escapeHtml(value) {
-    return String(
-      value === undefined ||
-      value === null
-        ? ''
-        : value
-    )
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-
   function text(value) {
     return String(
       value === undefined ||
@@ -1097,12 +713,10 @@
   };
 
   function getIdentityForRecord(recordId) {
-    const cleanAutoId =
-      normalizeAutoId(
-        recordId
-      );
+    const clean =
+      normalizeSearchText(recordId);
 
-    if (!cleanAutoId) {
+    if (!clean) {
       return {
         autoId: '',
         appointmentNumber: '',
@@ -1111,13 +725,30 @@
       };
     }
 
-    const item =
-      state.items.find((entry) => {
+    const direct =
+      state.items.find((item) => {
         return (
-          normalizeAutoId(
-            entry.autoId
-          ) === cleanAutoId
+          equalsToken(item.autoId, clean) ||
+          equalsToken(item.appointmentNumber, clean) ||
+          equalsToken(item.registration, clean) ||
+          equalsToken(item.phone, clean)
         );
+      });
+
+    const item =
+      direct ||
+      state.items.find((entry) => {
+        const textValue =
+          normalizeSearchText(
+            [
+              entry.autoId,
+              entry.appointmentNumber,
+              entry.registration,
+              entry.phone
+            ].join(' ')
+          );
+
+        return textValue.includes(clean);
       }) ||
       null;
 
@@ -1131,67 +762,16 @@
     }
 
     return {
-      autoId: item.autoId || '',
-      appointmentNumber: item.appointmentNumber || '',
-      registration: item.registration || '',
-      statusCode: getEffectiveWorkflowStatus(item) || ''
+      autoId:
+        item.autoId || '',
+      appointmentNumber:
+        item.appointmentNumber || '',
+      registration:
+        item.registration || '',
+      statusCode:
+        item.statusCode || ''
     };
   }
-
-
-  function extractAutoIdFromCard(card) {
-    if (!card) {
-      return '';
-    }
-
-    return findAutoIdCandidate([
-      card.dataset && card.dataset.autoId,
-      card.dataset && card.dataset.workflowAutoId,
-      card.dataset && card.dataset.recordId
-    ]);
-  }
-
-
-  function findAutoIdCandidate(values) {
-    const list =
-      Array.isArray(values)
-        ? values
-        : [values];
-
-    for (
-      let index = 0;
-      index < list.length;
-      index += 1
-    ) {
-      const value =
-        String(
-          list[index] ||
-          ''
-        ).trim();
-
-      if (!value) continue;
-
-      const match =
-        value.match(
-          /\bSK\d{6,20}\b/i
-        );
-
-      if (match) {
-        return match[0]
-          .toUpperCase();
-      }
-    }
-
-    return '';
-  }
-
-
-  function normalizeAutoId(value) {
-    return findAutoIdCandidate([
-      value
-    ]);
-  }
-
 
   function destroy() {
     if (state.timer) {
