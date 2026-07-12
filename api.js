@@ -6,7 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - Production R08: Session key v2 + Workflow high-volume guard + backend sync awareness
+ * - Production R13: Unified Operational Board + Shift Ownership
  */
 (function (window) {
   'use strict';
@@ -1137,6 +1137,40 @@
           {
             query:
               options || {}
+          }
+        );
+
+      return response.data;
+    },
+
+    async getOperationalBoard(
+      moduleId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/operational-board',
+          {
+            query: {
+              limit:
+                config.limit ||
+                1500,
+
+              forceRefresh:
+                config.forceRefresh === true
+                  ? 'true'
+                  : ''
+            }
           }
         );
 
@@ -2484,6 +2518,162 @@
               requestId:
                 config.requestId || ''
             }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getAdminWorkflowSyncStatus(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/workflow-sync/status',
+          {
+            query: {
+              moduleId:
+                config.moduleId || '',
+
+              limit:
+                config.limit || 300,
+
+              forceRefresh:
+                config.forceRefresh === true
+                  ? 'true'
+                  : ''
+            },
+
+            timeoutMs:
+              120000
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async previewAdminWorkflowSync(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/workflow-sync/preview',
+          {
+            method:
+              'POST',
+
+            timeoutMs:
+              120000,
+
+            body: {
+              moduleId:
+                config.moduleId || '',
+
+              limit:
+                config.limit || 300,
+
+              eventIds:
+                Array.isArray(config.eventIds)
+                  ? config.eventIds
+                  : [],
+
+              includeSynced:
+                config.includeSynced === true,
+
+              includeBlocked:
+                config.includeBlocked !== false,
+
+              includeErrors:
+                config.includeErrors !== false
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async repairAdminWorkflowSync(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/workflow-sync/repair',
+          {
+            method:
+              'POST',
+
+            timeoutMs:
+              240000,
+
+            body: {
+              moduleId:
+                config.moduleId || '',
+
+              eventIds:
+                Array.isArray(config.eventIds)
+                  ? config.eventIds
+                  : [],
+
+              maxRepair:
+                config.maxRepair || 20,
+
+              scanLimit:
+                config.scanLimit || 300
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getAdminWorkflowSyncHistory(
+      options
+    ) {
+      const config =
+        options &&
+        typeof options === 'object'
+          ? options
+          : {};
+
+      const response =
+        await request(
+          '/api/admin/workflow-sync/history',
+          {
+            query: {
+              moduleId:
+                config.moduleId || '',
+
+              result:
+                config.result || '',
+
+              limit:
+                config.limit || 50
+            },
+
+            timeoutMs:
+              120000
           }
         );
 
