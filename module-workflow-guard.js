@@ -1,6 +1,6 @@
 /************************************************************
  * module-workflow-guard.js
- * PRODUCTION R08 — Core Workflow Guard + High-volume Auto ID Bridge
+ * PRODUCTION R10 HOTFIX — Button Visibility + Core Workflow Guard
  *
  * เป้าหมาย:
  * - ไม่แตะ receiving.js เดิมที่ใช้งานได้
@@ -28,6 +28,9 @@
   window.addEventListener('beforeunload', destroy);
 
   function initialize() {
+    document.body.dataset.workflowGuardBuild =
+      '2026.07.12-r10-button-visibility-hotfix';
+
     state.moduleId = getModuleId();
 
     if (
@@ -52,6 +55,15 @@
     document.addEventListener(
       'alertvendor:records-updated',
       () => void refreshWorkflowGuard(true)
+    );
+
+    /*
+     * Receiving สร้างปุ่มแบบ Dynamic หลังโหลดข้อมูล API.
+     * เมื่อรับ Event นี้ให้ Apply Guard ทันที เพื่อไม่ให้ผู้ใช้ต้องรอรอบ Timer.
+     */
+    document.addEventListener(
+      'alertvendor:receiving-ui-updated',
+      applyCardGuards
     );
 
     document.addEventListener(
@@ -180,8 +192,9 @@
           : '';
 
       const button =
-        card.querySelector(
-          '[data-receiving-complete-record]'
+        ensureReceivingActionButton(
+          card,
+          guard
         );
 
       if (button) {
@@ -227,6 +240,122 @@
       updateGuardNote(card, guard);
     });
   }
+
+  /**
+   * HOTFIX R10:
+   * ถ้า Receiving Card มีสถานะ WAITING_RECEIVING แต่ไฟล์ Receiving รุ่นก่อน
+   * ไม่ได้สร้างปุ่มไว้ Guard จะสร้างปุ่มสำรองให้เอง.
+   */
+  function ensureReceivingActionButton(
+    card,
+    guard
+  ) {
+    if (!card) {
+      return null;
+    }
+
+    let button =
+      card.querySelector(
+        '[data-receiving-complete-record]'
+      );
+
+    if (button) {
+      return button;
+    }
+
+    const stage =
+      card.querySelector(
+        '.receiving-card-stage'
+      );
+
+    if (!stage) {
+      return null;
+    }
+
+    const stageCode =
+      String(
+        card.dataset.receivingStage ||
+        stage.dataset.stage ||
+        ''
+      ).toUpperCase();
+
+    const alreadyCompleted =
+      Boolean(
+        stage.querySelector(
+          '.receiving-complete-badge'
+        )
+      );
+
+    const hasGateOut =
+      String(
+        card.dataset.hasTimestampOut ||
+        ''
+      ).toLowerCase() === 'true' ||
+      String(
+        card.dataset.vendorStage ||
+        ''
+      ).toUpperCase() === 'CLOSED';
+
+    if (
+      stageCode !== 'WAITING_RECEIVING' ||
+      alreadyCompleted ||
+      hasGateOut
+    ) {
+      return null;
+    }
+
+    let actions =
+      stage.querySelector(
+        '.receiving-card-stage__actions'
+      );
+
+    if (!actions) {
+      actions =
+        document.createElement(
+          'div'
+        );
+
+      actions.className =
+        'receiving-card-stage__actions';
+
+      stage.appendChild(
+        actions
+      );
+    }
+
+    button =
+      document.createElement(
+        'button'
+      );
+
+    button.type =
+      'button';
+
+    button.className =
+      'receiving-complete-button';
+
+    button.dataset.receivingCompleteRecord =
+      String(
+        card.dataset.recordId ||
+        ''
+      );
+
+    button.dataset.receivingAllowed =
+      guard && guard.ready
+        ? 'true'
+        : 'false';
+
+    button.textContent =
+      'บันทึกตรวจรับเสร็จ';
+
+    actions.insertBefore(
+      button,
+      actions.firstChild
+    );
+
+    return button;
+  }
+
 
   function evaluateCardGuard(card) {
     if (!card) {
