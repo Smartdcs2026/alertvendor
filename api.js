@@ -6,7 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - Production R13: Unified Operational Board + Shift Ownership
+ * - Production R15: Consolidated Operational Board + Automatic Shift Handover
  */
 (function (window) {
   'use strict';
@@ -1170,6 +1170,46 @@
                 config.forceRefresh === true
                   ? 'true'
                   : ''
+            }
+          }
+        );
+
+      return response.data;
+    },
+
+    async updateShiftHandover(
+      moduleId,
+      action,
+      payload
+    ) {
+      const body =
+        payload &&
+        typeof payload === 'object'
+          ? payload
+          : {};
+
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/shift-handover',
+          {
+            method: 'POST',
+            body: {
+              handoverAction:
+                String(
+                  action || ''
+                ).trim().toUpperCase(),
+              snapshotKey:
+                String(
+                  body.snapshotKey || ''
+                ).trim(),
+              note:
+                String(
+                  body.note || ''
+                ).trim()
             }
           }
         );
