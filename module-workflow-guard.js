@@ -1,6 +1,6 @@
 /************************************************************
  * module-workflow-guard.js
- * PRODUCTION R07 — Core Workflow Guard + Auto ID Bridge
+ * PRODUCTION R08 — Core Workflow Guard + High-volume Auto ID Bridge
  *
  * เป้าหมาย:
  * - ไม่แตะ receiving.js เดิมที่ใช้งานได้
@@ -13,7 +13,7 @@
 
   const API = window.VehicleAPI;
   const REFRESH_MS = 10000;
-  const SAFE_LIMIT = 100;
+  const SAFE_LIMIT = 1000;
 
   const state = {
     moduleId: '',
