@@ -37,7 +37,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260703-r54-regression-fix"
+    href="./styles.css?v=20260712-r15-consolidated"
   >
 
   <link
@@ -61,11 +61,6 @@
   >
 
 
-  <link
-    rel="stylesheet"
-    href="./module-operational-board.css?v=20260712-r13-unified-board"
-  >
-
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
@@ -77,7 +72,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260712-r13-unified-operational-board"
+    src="./api.js?v=20260712-r15-consolidated-auto-handover"
     defer
   ></script>
 
@@ -97,18 +92,13 @@
   ></script>
 
   <script
-    src="./module.js?v=20260712-r13-unified-operational-board"
+    src="./module.js?v=20260712-r15-consolidated-auto-handover"
     defer
   ></script>
 
-  <!-- Production R07: Guard ต้องลงทะเบียน Capture Listener ก่อน Receiving -->
-  <script
-    src="./module-workflow-guard.js?v=20260712-r13-local-stage-guard"
-    defer
-  ></script>
 
   <script
-    src="./receiving.js?v=20260712-r13-operational-action"
+    src="./receiving.js?v=20260712-r15-consolidated-action"
     defer
   ></script>
 
@@ -530,6 +520,52 @@
       >
         <div class="operational-shift-empty">กำลังประมวลผลข้อมูลกะ</div>
       </div>
+
+      <section
+        id="shiftHandoverPanel"
+        class="shift-handover-panel"
+        data-status="LOADING"
+        aria-label="สถานะส่งมอบงานอัตโนมัติระหว่างกะ"
+      >
+        <header class="shift-handover-panel__header">
+          <div>
+            <small>AUTOMATIC SHIFT HANDOVER</small>
+            <h3>ส่งมอบงานอัตโนมัติระหว่างกะ</h3>
+            <p>ระบบสร้าง Snapshot ก่อนหมดกะและปิดส่งมอบให้อัตโนมัติ ผู้ใช้ไม่ต้องกดมอบงาน</p>
+          </div>
+          <span id="shiftHandoverStatus">กำลังอ่านสถานะ</span>
+        </header>
+
+        <div class="shift-handover-panel__route">
+          <div>
+            <span>กะส่งมอบ</span>
+            <strong id="shiftHandoverFrom">-</strong>
+          </div>
+          <b aria-hidden="true">→</b>
+          <div>
+            <span>กะรับมอบ</span>
+            <strong id="shiftHandoverTo">-</strong>
+          </div>
+          <div>
+            <span>อัปเดตล่าสุด</span>
+            <strong id="shiftHandoverUpdatedAt">-</strong>
+          </div>
+        </div>
+
+        <div
+          id="shiftHandoverMetrics"
+          class="shift-handover-panel__metrics"
+          aria-live="polite"
+        ></div>
+
+        <p id="shiftHandoverNote" class="shift-handover-panel__note">ยังไม่มีหมายเหตุส่งมอบ</p>
+
+        <div class="shift-handover-panel__actions">
+          <button id="shiftHandoverAddNote" type="button">เพิ่มหรือแก้หมายเหตุ</button>
+          <button id="shiftHandoverAcknowledge" type="button">รับทราบงานจากกะก่อน</button>
+          <button id="shiftHandoverRefresh" type="button" hidden>สร้าง Snapshot ใหม่</button>
+        </div>
+      </section>
     </section>
 
     <section class="vehicle-tools">
