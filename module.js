@@ -761,6 +761,8 @@
 
       annotateVendorWorkflowStages();
 
+      mergeInboundWorkflowItemsIntoRecords();
+
       /*
        * สำเนารายการ Active ทั้งหมดหลังคำนวณสถานะ
        * รายการนี้ไม่ถูกตัดออกจาก badge จนกว่า API รอบใหม่
@@ -2965,6 +2967,42 @@
           record.mobile
         ),
 
+      companyName:
+        textValue(
+          source.companyName ||
+          source.company ||
+          source.vendorName ||
+          record.companyName ||
+          record.company ||
+          record.vendorName
+        ),
+
+      driverName:
+        textValue(
+          source.driverName ||
+          source.personName ||
+          source.driver ||
+          record.driverName ||
+          record.personName ||
+          record.driver
+        ),
+
+      gateInAt:
+        textValue(
+          source.gateInAt ||
+          source.timestampIn ||
+          record.gateInAt ||
+          record.timestampIn
+        ),
+
+      gateOutAt:
+        textValue(
+          source.gateOutAt ||
+          source.timestampOut ||
+          record.gateOutAt ||
+          record.timestampOut
+        ),
+
       statusCode:
         textValue(
           source.statusCode ||
@@ -2977,6 +3015,198 @@
           source.updatedAtText ||
           source.generatedAt
         )
+    };
+  }
+
+
+
+  function mergeInboundWorkflowItemsIntoRecords() {
+    const records =
+      Array.isArray(
+        state.records
+      )
+        ? state.records
+        : [];
+
+    if (
+      !Array.isArray(
+        state.vendorWorkflowItems
+      ) ||
+      state.vendorWorkflowItems.length === 0
+    ) {
+      return;
+    }
+
+    const existingAutoIds =
+      new Set();
+
+    records.forEach((record) => {
+      const autoId =
+        normalizeVendorAutoId(
+          getVendorRecordAutoId(record)
+        );
+
+      if (autoId) {
+        existingAutoIds.add(autoId);
+      }
+    });
+
+    const syntheticRecords = [];
+
+    state.vendorWorkflowItems.forEach((item) => {
+      const autoId =
+        normalizeVendorAutoId(
+          item && item.autoId
+        );
+
+      if (!autoId) {
+        return;
+      }
+
+      if (
+        existingAutoIds.has(autoId)
+      ) {
+        return;
+      }
+
+      const status =
+        String(
+          item.statusCode || ''
+        ).toUpperCase();
+
+      if (
+        ![
+          'DOCUMENT_SUBMITTED',
+          'RECEIVING_COMPLETED',
+          'DOCUMENT_RETURNED'
+        ].includes(status)
+      ) {
+        return;
+      }
+
+      const synthetic =
+        buildRecordFromInboundWorkflowItem(
+          item
+        );
+
+      if (synthetic) {
+        syntheticRecords.push(synthetic);
+        existingAutoIds.add(autoId);
+      }
+    });
+
+    if (
+      syntheticRecords.length > 0
+    ) {
+      state.records =
+        records.concat(
+          syntheticRecords
+        );
+
+      recalculateAllRecords();
+      annotateVendorWorkflowStages();
+    }
+  }
+
+
+  function buildRecordFromInboundWorkflowItem(item) {
+    const autoId =
+      normalizeVendorAutoId(
+        item && item.autoId
+      );
+
+    if (!autoId) {
+      return null;
+    }
+
+    const gateInDate =
+      parseBangkokDateTime(
+        item.gateInAt
+      );
+
+    const gateOutDate =
+      parseBangkokDateTime(
+        item.gateOutAt
+      );
+
+    const fields = [
+      {
+        id: 'autoId',
+        fieldId: 'autoId',
+        label: 'Auto ID',
+        value: autoId,
+        type: 'TEXT'
+      },
+      {
+        id: 'registration',
+        fieldId: 'registration',
+        label: 'ทะเบียนรถ',
+        value: item.registration || '',
+        type: 'TEXT'
+      },
+      {
+        id: 'driverName',
+        fieldId: 'driverName',
+        label: 'ชื่อ',
+        value: item.driverName || '',
+        type: 'TEXT'
+      },
+      {
+        id: 'phone',
+        fieldId: 'phone',
+        label: 'เบอร์โทร',
+        value: item.phone || '',
+        type: 'PHONE'
+      }
+    ].filter(
+      (field) =>
+        String(field.value || '').trim()
+    );
+
+    return {
+      recordId: autoId,
+      autoId: autoId,
+      entryCode: autoId,
+      qrText: autoId,
+      sourceRowNumber: 0,
+      primaryValue:
+        item.appointmentNumber ||
+        autoId,
+      appointmentNumber:
+        item.appointmentNumber || '',
+      companyName:
+        item.companyName || '',
+      timestampIn:
+        item.gateInAt || '',
+      timestampInEpochMs:
+        gateInDate
+          ? gateInDate.getTime()
+          : null,
+      timestampOut:
+        item.gateOutAt || '',
+      timestampOutEpochMs:
+        gateOutDate
+          ? gateOutDate.getTime()
+          : null,
+      isCurrentlyInArea:
+        !item.gateOutAt,
+      isIncomplete:
+        false,
+      canCheckout:
+        false,
+      fields:
+        fields,
+      searchText:
+        [
+          autoId,
+          item.appointmentNumber,
+          item.companyName,
+          item.driverName,
+          item.registration,
+          item.phone
+        ].filter(Boolean).join(' '),
+      source:
+        'INBOUND_WORKFLOW'
     };
   }
 
@@ -3117,7 +3347,108 @@
         )
       ]);
 
-    return direct;
+    if (direct) {
+      return direct;
+    }
+
+    /*
+     * ใช้ข้อมูลจาก Inbound Workflow เพื่อ "หา Auto ID กลับมา"
+     * ไม่ใช่ใช้เลขนัดหมายตัดสินสถานะโดยตรง
+     * ต้อง match อย่างน้อย เลขนัดหมาย+ทะเบียน หรือ เลขนัดหมาย+เบอร์โทร
+     * และต้องเจอเพียงรายการเดียวเท่านั้น จึงปลอดภัยพอ
+     */
+    return resolveAutoIdFromWorkflowSnapshot(
+      record
+    );
+  }
+
+
+  function resolveAutoIdFromWorkflowSnapshot(record) {
+    if (
+      !Array.isArray(
+        state.vendorWorkflowItems
+      ) ||
+      state.vendorWorkflowItems.length === 0
+    ) {
+      return '';
+    }
+
+    const identity =
+      getVendorCoreIdentity(record);
+
+    const appointment =
+      normalizeVendorToken(
+        identity.appointmentNumber
+      );
+
+    const registration =
+      normalizeVendorToken(
+        findRecordFieldValue(
+          record,
+          [
+            'ทะเบียนรถ',
+            'ทะเบียน',
+            'REGISTRATION',
+            'PLATE'
+          ]
+        )
+      );
+
+    const phone =
+      normalizeVendorToken(
+        findRecordFieldValue(
+          record,
+          [
+            'เบอร์โทร',
+            'โทรศัพท์',
+            'PHONE',
+            'MOBILE'
+          ]
+        )
+      );
+
+    if (!appointment) {
+      return '';
+    }
+
+    const matches =
+      state.vendorWorkflowItems.filter((item) => {
+        const sameAppointment =
+          normalizeVendorToken(
+            item.appointmentNumber
+          ) === appointment;
+
+        if (!sameAppointment) {
+          return false;
+        }
+
+        const sameRegistration =
+          registration &&
+          normalizeVendorToken(
+            item.registration
+          ) === registration;
+
+        const samePhone =
+          phone &&
+          normalizeVendorToken(
+            item.phone
+          ) === phone;
+
+        return Boolean(
+          sameRegistration ||
+          samePhone
+        );
+      });
+
+    if (
+      matches.length !== 1
+    ) {
+      return '';
+    }
+
+    return normalizeVendorAutoId(
+      matches[0].autoId
+    );
   }
 
 
