@@ -6,7 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - Production R07: Session key v2 + Inbound Workflow methods ครบทุก route
+ * - Production R08: Session key v2 + Workflow high-volume guard + backend sync awareness
  */
 (function (window) {
   'use strict';
@@ -1700,8 +1700,8 @@
                 clampInteger(
                   config.limit,
                   1,
-                  100,
-                  30
+                  1000,
+                  500
                 ),
               _:
                 config.cacheBust ||
