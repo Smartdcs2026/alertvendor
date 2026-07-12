@@ -37,17 +37,12 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260712-r15-consolidated"
+    href="./styles.css?v=20260713-r16-mobile-command-center"
   >
 
   <link
     rel="stylesheet"
     href="./dashboard-link.css?v=20260702-r45-dashboard-contrast"
-  >
-
-  <link
-    rel="stylesheet"
-    href="./module-focus.css?v=20260703-r54-card-first-ui"
   >
 
   <link
@@ -92,7 +87,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260712-r15-consolidated-auto-handover"
+    src="./module.js?v=20260713-r16-mobile-command-center"
     defer
   ></script>
 
@@ -113,11 +108,6 @@
   ></script>
 
   <script
-    src="./module-focus.js?v=20260703-r56-shift-phase1"
-    defer
-  ></script>
-
-  <script
     src="./module-shift.js?v=20260703-r56-shift-phase1"
     defer
   ></script>
@@ -126,6 +116,7 @@
 <body
   data-page="module"
   class="module-page module-card-focus"
+  data-mobile-workspace="LIST"
 >
   <!-- แสดงเฉพาะตอนเปิดหน้าเป็นครั้งแรก -->
   <div
@@ -298,18 +289,20 @@
 
     <section
       id="moduleFocusToolbar"
-      class="module-focus-toolbar"
-      aria-label="เครื่องมือปฏิบัติงาน"
+      class="module-focus-toolbar module-critical-summary"
+      aria-label="สถานการณ์สำคัญที่ต้องเห็นทันที"
     >
       <div
+        id="criticalStatusFilters"
         class="module-focus-statuses"
         role="toolbar"
-        aria-label="ตัวกรองรายการรถ"
+        aria-label="กรองตามระดับเวลา"
       >
         <button
           type="button"
           class="is-active"
           data-focus-status="ALL"
+          aria-pressed="true"
         >
           <span>ทั้งหมด</span>
           <strong id="focusCountAll">0</strong>
@@ -318,6 +311,7 @@
         <button
           type="button"
           data-focus-status="NORMAL"
+          aria-pressed="false"
         >
           <span>ปกติ</span>
           <strong id="focusCountNormal">0</strong>
@@ -326,111 +320,56 @@
         <button
           type="button"
           data-focus-status="WARNING"
+          aria-pressed="false"
         >
-          <span>ใกล้เกินเวลา</span>
+          <span>ใกล้เกิน</span>
           <strong id="focusCountWarning">0</strong>
         </button>
 
         <button
           type="button"
           data-focus-status="OVERDUE"
+          aria-pressed="false"
         >
           <span>เกินเวลา</span>
           <strong id="focusCountOverdue">0</strong>
         </button>
 
         <button
+          id="mobileConflictFilter"
           type="button"
-          class="module-focus-operational-filter"
-          data-operational-stage="WAITING_INBOUND_DOCUMENT"
+          class="mobile-critical-conflict"
+          data-mobile-conflict-filter="true"
+          aria-pressed="false"
         >
-          <span>รอยื่นเอกสาร</span>
-          <strong id="focusOperationalCountWaitingInboundDocument">0</strong>
-        </button>
-
-        <button
-          type="button"
-          class="module-focus-operational-filter"
-          data-operational-stage="WAITING_RECEIVING"
-        >
-          <span>รอรับสินค้าเสร็จ</span>
-          <strong id="focusOperationalCountWaitingReceiving">0</strong>
-        </button>
-
-        <button
-          type="button"
-          class="module-focus-operational-filter"
-          data-operational-stage="WAITING_DOCUMENT_RETURN"
-        >
-          <span>รอรับเอกสารคืน</span>
-          <strong id="focusOperationalCountWaitingDocumentReturn">0</strong>
-        </button>
-
-        <button
-          type="button"
-          class="module-focus-operational-filter"
-          data-operational-stage="WAITING_GATE_OUT"
-        >
-          <span>รอ Gate Out</span>
-          <strong id="focusOperationalCountWaitingGateOut">0</strong>
-        </button>
-
-        <button
-          type="button"
-          class="module-focus-operational-filter is-conflict"
-          data-operational-stage="DATA_CONFLICT"
-        >
-          <span>ข้อมูลขัดแย้ง</span>
-          <strong id="focusOperationalCountDataConflict">0</strong>
+          <span>ข้อมูลผิดปกติ</span>
+          <strong id="mobileCriticalConflictCount">0</strong>
         </button>
       </div>
-
-      <nav
-        class="module-focus-insights"
-        aria-label="ข้อมูลเพิ่มเติมของโมดูล"
-      >
-        <button
-          type="button"
-          data-focus-insight="OVERVIEW"
-        >
-          <span aria-hidden="true">▦</span>
-          ภาพรวม
-        </button>
-
-        <button
-          type="button"
-          data-focus-insight="URGENT"
-        >
-          <span aria-hidden="true">!</span>
-          งานเร่งด่วน
-        </button>
-
-        <button
-          type="button"
-          id="operationalBoardInsightButton"
-          data-operational-scroll="true"
-        >
-          <span aria-hidden="true">⇄</span>
-          งานตามกะ
-        </button>
-
-        <button
-          type="button"
-          data-focus-insight="ROUND"
-        >
-          <span aria-hidden="true">◷</span>
-          การเคลื่อนไหว
-        </button>
-
-        <button
-          type="button"
-          data-focus-insight="STATS"
-        >
-          <span aria-hidden="true">▥</span>
-          สถิติ
-        </button>
-      </nav>
     </section>
+
+    <nav
+      id="mobileWorkspaceTabs"
+      class="mobile-workspace-tabs"
+      aria-label="เลือกส่วนข้อมูล"
+    >
+      <button type="button" class="is-active" data-mobile-workspace="LIST" aria-pressed="true">
+        <span>รายการ</span>
+        <strong id="mobileTabListCount">0</strong>
+      </button>
+      <button type="button" data-mobile-workspace="STAGES" aria-pressed="false">
+        <span>ขั้นตอน</span>
+        <strong id="mobileTabStageCount">0</strong>
+      </button>
+      <button type="button" data-mobile-workspace="SHIFTS" aria-pressed="false">
+        <span>ตามกะ</span>
+        <strong id="mobileTabShiftCount">0</strong>
+      </button>
+      <button type="button" data-mobile-workspace="HANDOVER" aria-pressed="false">
+        <span>ส่งมอบ</span>
+        <strong id="mobileTabHandoverState">–</strong>
+      </button>
+    </nav>
 
     <section
       id="operationalBoardPanel"
@@ -456,6 +395,7 @@
       <div
         id="operationalStageFilters"
         class="operational-stage-filters"
+        data-mobile-workspace-section="STAGES"
         role="toolbar"
         aria-label="กรองตามขั้นตอนปฏิบัติงาน"
       >
@@ -495,7 +435,7 @@
         </button>
       </div>
 
-      <div class="operational-shift-toolbar">
+      <div class="operational-shift-toolbar" data-mobile-workspace-section="SHIFTS">
         <div>
           <span>แบ่งตามกะที่ Admin ตั้งค่า</span>
           <strong>ค้างข้ามกะ <b id="operationalCarryOverCount">0</b></strong>
@@ -516,6 +456,7 @@
       <div
         id="operationalShiftSummaryGrid"
         class="operational-shift-summary-grid"
+        data-mobile-workspace-section="SHIFTS"
         aria-live="polite"
       >
         <div class="operational-shift-empty">กำลังประมวลผลข้อมูลกะ</div>
@@ -524,6 +465,7 @@
       <section
         id="shiftHandoverPanel"
         class="shift-handover-panel"
+        data-mobile-workspace-section="HANDOVER"
         data-status="LOADING"
         aria-label="สถานะส่งมอบงานอัตโนมัติระหว่างกะ"
       >
@@ -568,7 +510,7 @@
       </section>
     </section>
 
-    <section class="vehicle-tools">
+    <section class="vehicle-tools" data-mobile-workspace-section="LIST">
       <label class="vehicle-search">
         <span class="sr-only">
           ค้นหาข้อมูลรถ
@@ -644,7 +586,7 @@
       </button>
     </section>
 
-    <section class="vehicle-result-header">
+    <section class="vehicle-result-header" data-mobile-workspace-section="LIST">
       <div>
         <strong id="resultCount">
           0 รายการ
@@ -659,6 +601,7 @@
     <div
       id="vehicleEmpty"
       class="empty-state is-hidden"
+      data-mobile-workspace-section="LIST"
     >
       <strong>
         ไม่พบข้อมูลตามเงื่อนไข
@@ -672,6 +615,7 @@
     <section
       id="vehicleList"
       class="vehicle-grid"
+      data-mobile-workspace-section="LIST"
       aria-live="polite"
       aria-busy="false"
     ></section>
