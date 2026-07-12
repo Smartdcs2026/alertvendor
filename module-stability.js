@@ -33,6 +33,10 @@
   );
 
   wrapApiRefresh(
+    'getOperationalBoard'
+  );
+
+  wrapApiRefresh(
     'getMovementSummary',
     stabilizeMovementGeneratedAt
   );
@@ -68,7 +72,7 @@
 
     const wrapped =
       async function (...args) {
-        if (methodName === 'getRecords') {
+        if (methodName === 'getRecords' || methodName === 'getOperationalBoard') {
           await waitForUserScrollIdle();
         }
 
