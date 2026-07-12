@@ -71,7 +71,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260712-r06-09-2f2-api-workflow-methods"
+    src="./api.js?v=20260712-r06-09-rollback-stable-base"
     defer
   ></script>
 
@@ -91,18 +91,18 @@
   ></script>
 
   <script
-    src="./module.js?v=20260712-r06-09-2f2-api-workflow-methods"
+    src="./module.js?v=20260712-r06-09-rollback-stable-base"
     defer
   ></script>
 
   <script
-    src="./receiving.js?v=20260712-r06-09-2f2-api-workflow-methods"
+    src="./receiving.js?v=20260712-r06-09-rollback-stable-base"
     defer
   ></script>
 
   
   <script
-    src="./module-workflow-guard.js?v=20260712-r06-09-2f2-api-workflow-methods"
+    src="./module-workflow-guard.js?v=20260712-r06-09-rollback-stable-base"
     defer
   ></script>
 
@@ -348,7 +348,7 @@
           class="module-focus-receiving-filter"
           data-focus-receiving="WAITING_RECEIVING"
         >
-          <span>รอตรวจรับสินค้า</span>
+          <span>รอรับสินค้าเสร็จ</span>
           <strong id="focusCountWaitingReceiving">0</strong>
         </button>
 
@@ -357,7 +357,7 @@
           class="module-focus-receiving-filter"
           data-focus-receiving="WAITING_GATE_OUT"
         >
-          <span>หลังตรวจรับ</span>
+          <span>รับเสร็จรอ Gate Out</span>
           <strong id="focusCountWaitingGateOut">0</strong>
         </button>
       </div>
@@ -410,7 +410,7 @@
     </section>
 
     <section class="vehicle-tools">
-<label class="vehicle-search">
+      <label class="vehicle-search">
         <span class="sr-only">
           ค้นหาข้อมูลรถ
         </span>
@@ -493,10 +493,6 @@
 
         <span id="lastUpdated">
           กำลังเตรียมข้อมูล
-        </span>
-
-        <span id="vendorQueueContext">
-          ใช้แถบสถานะด้านบนเป็นตัวกรองหลัก
         </span>
       </div>
     </section>
@@ -663,7 +659,7 @@
             data-metric="WAITING_RECEIVING"
             data-receiving-filter="WAITING_RECEIVING"
           >
-            <span>รอตรวจรับสินค้า</span>
+            <span>รอรับสินค้าเสร็จ</span>
             <strong id="receivingWaitingCount">0</strong>
             <small>ต้องติดตามขั้นตอนรับสินค้า</small>
           </button>
