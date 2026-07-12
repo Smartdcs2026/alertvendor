@@ -16,6 +16,7 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
+ * - Production R13: ใช้ Unified Operational Board Snapshot และแบ่งงานตามกะ
  */
 (function (window, document) {
   'use strict';
@@ -35,6 +36,9 @@
     module: null,
     records: [],
     filteredRecords: [],
+    operationalBoard: null,
+    operationalStageFilter: 'ALL',
+    shiftFilter: 'ALL',
     searchText: '',
     statusFilter: 'ALL',
     serverOffsetMs: 0,
@@ -80,6 +84,11 @@
   document.addEventListener('keydown', markUserInteraction, { once: true });
 
   async function initializePage() {
+    if (document.body) {
+      document.body.dataset.operationalBoardBuild =
+        '2026.07.12-r13-unified-operational-board';
+    }
+
     initializeOverdueBadgeSystem();
 
     if (typeof window.Swal === 'undefined') {
@@ -205,6 +214,26 @@
         'statusFilter'
       );
 
+    const operationalStageGroup =
+      document.getElementById(
+        'operationalStageFilters'
+      );
+
+    const operationalShiftGroup =
+      document.getElementById(
+        'operationalShiftFilters'
+      );
+
+    const operationalResetButton =
+      document.getElementById(
+        'operationalResetFilters'
+      );
+
+    const operationalRefreshButton =
+      document.getElementById(
+        'operationalBoardRefresh'
+      );
+
     const movementScopeGroup =
       document.getElementById(
         'movementScopeGroup'
@@ -283,6 +312,100 @@
             ).toUpperCase();
 
           applyFiltersAndRender();
+        }
+      );
+
+    operationalStageGroup &&
+      operationalStageGroup.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-operational-stage]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          state.operationalStageFilter =
+            String(
+              button.dataset.operationalStage ||
+              'ALL'
+            ).toUpperCase();
+
+          syncOperationalFilterUi();
+          applyFiltersAndRender();
+        }
+      );
+
+    operationalShiftGroup &&
+      operationalShiftGroup.addEventListener(
+        'click',
+        (event) => {
+          const button =
+            event.target.closest(
+              '[data-operational-shift]'
+            );
+
+          if (!button) {
+            return;
+          }
+
+          state.shiftFilter =
+            String(
+              button.dataset.operationalShift ||
+              'ALL'
+            ).toUpperCase();
+
+          syncOperationalFilterUi();
+          applyFiltersAndRender();
+        }
+      );
+
+    operationalResetButton &&
+      operationalResetButton.addEventListener(
+        'click',
+        () => {
+          state.operationalStageFilter = 'ALL';
+          state.shiftFilter = 'ALL';
+          syncOperationalFilterUi();
+          applyFiltersAndRender();
+        }
+      );
+
+    operationalRefreshButton &&
+      operationalRefreshButton.addEventListener(
+        'click',
+        () => void loadRecords({
+          silentError: false,
+          showSuccessToast: true,
+          forceRender: true,
+          forceRefresh: true
+        })
+      );
+
+    document.addEventListener(
+      'alertvendor:refresh-operational-board',
+      () => void loadRecords({
+        silentError: true,
+        showSuccessToast: false,
+        forceRender: true,
+        forceRefresh: true
+      })
+    );
+
+    document
+      .querySelector('[data-operational-scroll]')
+      ?.addEventListener(
+        'click',
+        () => {
+          document
+            .getElementById('operationalBoardPanel')
+            ?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
         }
       );
 
@@ -662,14 +785,62 @@
       );
 
     try {
-      const result =
-        await API.getRecords(
+      let usingOperationalBoard =
+        typeof API.getOperationalBoard ===
+          'function';
+      let result;
+
+      if (usingOperationalBoard) {
+        try {
+          result =
+            await API.getOperationalBoard(
+              state.moduleId,
+              {
+                limit: 1500,
+                forceRefresh:
+                  config.forceRefresh === true
+              }
+            );
+        } catch (error) {
+          const fallbackCodes = [
+            'ROUTE_NOT_FOUND',
+            'ACTION_NOT_FOUND',
+            'OPERATIONAL_BOARD_DEPENDENCY_MISSING',
+            'OPERATIONAL_BOARD_ERROR'
+          ];
+
+          if (
+            !fallbackCodes.includes(
+              String(error && error.code || '')
+            )
+          ) {
+            throw error;
+          }
+
+          console.warn(
+            'Operational Board ยังไม่พร้อม ใช้ Records API ชั่วคราว',
+            error
+          );
+          usingOperationalBoard = false;
+        }
+      }
+
+      if (!usingOperationalBoard) {
+        result = await API.getRecords(
           state.moduleId,
           {
             mode: 'active',
             limit: 1000
           }
         );
+      }
+
+      state.operationalBoard =
+        usingOperationalBoard &&
+        result &&
+        typeof result === 'object'
+          ? result
+          : null;
 
       if (
         result &&
@@ -693,7 +864,9 @@
         Array.isArray(
           result.records
         )
-          ? result.records
+          ? result.records.map(
+              normalizeOperationalRecord
+            )
           : [];
 
       const previousSignature =
@@ -736,6 +909,7 @@
         nextSignature;
 
       renderSummary();
+      renderOperationalBoard();
       renderTimeline();
 
       if (mustRender) {
@@ -773,6 +947,22 @@
 
       state.hasLoadedRecords =
         true;
+
+      document.dispatchEvent(
+        new CustomEvent(
+          'alertvendor:records-updated',
+          {
+            detail: {
+              moduleId: state.moduleId,
+              generatedAt:
+                result && result.generatedAt || '',
+              records: state.records,
+              operationalBoard:
+                state.operationalBoard
+            }
+          }
+        )
+      );
 
       if (
         config.showSuccessToast
@@ -856,6 +1046,30 @@
             Boolean(
               record.canCheckout
             ),
+
+          operationalStage:
+            record.operationalStage || '',
+
+          dataHealthCode:
+            record.dataHealthCode || '',
+
+          receivingCompleteAt:
+            record.receivingCompleteAt || '',
+
+          workflowStatusCode:
+            record.workflowStatusCode || '',
+
+          entryShiftCode:
+            record.entryShiftCode || '',
+
+          ownerShiftCode:
+            record.ownerShiftCode || '',
+
+          carryOver:
+            Boolean(record.carryOver),
+
+          canCompleteReceiving:
+            Boolean(record.canCompleteReceiving),
 
           fields:
             Array.isArray(
@@ -2130,6 +2344,22 @@
           }
 
           if (
+            !recordMatchesOperationalStage(
+              record
+            )
+          ) {
+            return false;
+          }
+
+          if (
+            !recordMatchesShiftFilter(
+              record
+            )
+          ) {
+            return false;
+          }
+
+          if (
             !recordMatchesTimeline(
               record
             )
@@ -2183,9 +2413,747 @@
     updateActiveFilterText();
   }
 
+
+  function normalizeOperationalRecord(record) {
+    const item =
+      record &&
+      typeof record === 'object'
+        ? record
+        : {};
+
+    if (!item.operationalStage) {
+      item.operationalStage =
+        item.receivingCompleteAt
+          ? 'WAITING_DOCUMENT_RETURN'
+          : 'WAITING_INBOUND_DOCUMENT';
+    }
+
+    if (!item.operationalStageLabel) {
+      item.operationalStageLabel =
+        getOperationalStageMeta(
+          item.operationalStage
+        ).label;
+    }
+
+    if (!Number.isFinite(
+      Number(item.operationalStageOrder)
+    )) {
+      item.operationalStageOrder =
+        getOperationalStageMeta(
+          item.operationalStage
+        ).order;
+    }
+
+    item.entryShift =
+      item.entryShift &&
+      typeof item.entryShift === 'object'
+        ? item.entryShift
+        : null;
+
+    item.ownerShift =
+      item.ownerShift &&
+      typeof item.ownerShift === 'object'
+        ? item.ownerShift
+        : null;
+
+    item.entryShiftCode =
+      item.entryShiftCode ||
+      item.entryShift &&
+      item.entryShift.code ||
+      '';
+
+    item.ownerShiftCode =
+      item.ownerShiftCode ||
+      item.ownerShift &&
+      item.ownerShift.code ||
+      '';
+
+    return item;
+  }
+
+  function recordMatchesOperationalStage(record) {
+    const filter =
+      String(
+        state.operationalStageFilter ||
+        'ALL'
+      ).toUpperCase();
+
+    return (
+      filter === 'ALL' ||
+      String(
+        record.operationalStage || ''
+      ).toUpperCase() === filter
+    );
+  }
+
+  function recordMatchesShiftFilter(record) {
+    const filter =
+      String(
+        state.shiftFilter ||
+        'ALL'
+      ).toUpperCase();
+
+    if (filter === 'ALL') {
+      return true;
+    }
+
+    if (filter === 'CURRENT') {
+      const currentCode =
+        state.operationalBoard &&
+        state.operationalBoard.currentShift
+          ? String(
+              state.operationalBoard
+                .currentShift.code || ''
+            ).toUpperCase()
+          : '';
+
+      return Boolean(
+        currentCode &&
+        String(
+          record.ownerShiftCode || ''
+        ).toUpperCase() ===
+          currentCode
+      );
+    }
+
+    if (filter === 'CARRY_OVER') {
+      return record.carryOver === true;
+    }
+
+    if (filter === 'UNSCHEDULED') {
+      return !record.entryShiftCode;
+    }
+
+    return String(
+      record.entryShiftCode || ''
+    ).toUpperCase() === filter;
+  }
+
+  function getOperationalStageMeta(code) {
+    const key =
+      String(code || '').toUpperCase();
+
+    const map = {
+      WAITING_INBOUND_DOCUMENT: {
+        label: 'รอ Inbound ยื่นเอกสาร',
+        shortLabel: 'รอยื่นเอกสาร',
+        description: 'Inbound ต้องสแกนยื่นเอกสารก่อน',
+        order: 10
+      },
+      WAITING_RECEIVING: {
+        label: 'รอรับสินค้าเสร็จ',
+        shortLabel: 'รอรับสินค้า',
+        description: 'ยื่นเอกสารแล้ว พร้อมบันทึกรับสินค้าเสร็จ',
+        order: 20
+      },
+      WAITING_DOCUMENT_RETURN: {
+        label: 'รอรับเอกสารคืน',
+        shortLabel: 'รอเอกสารคืน',
+        description: 'รับสินค้าเสร็จแล้ว รอ Inbound รับเอกสารคืน',
+        order: 30
+      },
+      WAITING_GATE_OUT: {
+        label: 'รอ Gate Out',
+        shortLabel: 'รอ Gate Out',
+        description: 'รับเอกสารคืนแล้ว รอสแกน Gate Out จริง',
+        order: 40
+      },
+      DATA_CONFLICT: {
+        label: 'ข้อมูลขัดแย้ง',
+        shortLabel: 'ข้อมูลขัดแย้ง',
+        description: 'ให้ Admin ตรวจสอบข้อมูลที่ไม่สอดคล้องกัน',
+        order: 90
+      }
+    };
+
+    return map[key] || map.DATA_CONFLICT;
+  }
+
+  function renderOperationalBoard() {
+    const board =
+      state.operationalBoard || {};
+    /*
+     * จำนวนบนตัวกรองต้องคำนวณจาก Array เดียวกับที่ใช้วาดการ์ด
+     * ห้ามใช้ Summary จาก Snapshot หาก state.records ถูกตัดรายการ Auto Close แล้ว
+     */
+    const summary =
+      buildOperationalSummary(
+        state.records
+      );
+    const stageCounts =
+      summary.stages || {};
+
+    setText(
+      'operationalCountAll',
+      String(summary.activeTotal || 0)
+    );
+
+    [
+      'WAITING_INBOUND_DOCUMENT',
+      'WAITING_RECEIVING',
+      'WAITING_DOCUMENT_RETURN',
+      'WAITING_GATE_OUT',
+      'DATA_CONFLICT'
+    ].forEach((code) => {
+      const suffix =
+        code
+          .split('_')
+          .map(
+            (part) =>
+              part.charAt(0) +
+              part.slice(1).toLowerCase()
+          )
+          .join('');
+      const countText =
+        String(
+          Number(stageCounts[code]) || 0
+        );
+
+      setText(
+        'operationalCount' + suffix,
+        countText
+      );
+
+      setText(
+        'focusOperationalCount' + suffix,
+        countText
+      );
+    });
+
+    setText(
+      'operationalCarryOverCount',
+      String(summary.carryOver || 0)
+    );
+
+    const currentShift =
+      board.currentShift || null;
+
+    setText(
+      'operationalCurrentShift',
+      currentShift
+        ? 'กะปัจจุบัน ' +
+          currentShift.code +
+          ' · ' +
+          currentShift.start +
+          '–' +
+          currentShift.end
+        : 'ยังไม่ได้เปิดระบบกะหรือเวลาปัจจุบันไม่อยู่ในช่วงกะ'
+    );
+
+    setText(
+      'operationalSnapshotTime',
+      board.generatedAt
+        ? 'Snapshot ' +
+          board.generatedAt
+        : 'กำลังใช้ข้อมูลรายการปัจจุบัน'
+    );
+
+    const integrityNode =
+      document.getElementById(
+        'operationalIntegrity'
+      );
+    const integrity =
+      board.integrity || null;
+
+    if (integrityNode) {
+      const integrityOk =
+        integrity &&
+        integrity.success === true;
+      const fallbackMode =
+        !state.operationalBoard;
+
+      integrityNode.dataset.state =
+        fallbackMode
+          ? 'FALLBACK'
+          : integrityOk
+            ? 'OK'
+            : 'ERROR';
+
+      integrityNode.textContent =
+        fallbackMode
+          ? 'โหมดสำรอง: ยังไม่ใช้ Snapshot รวม'
+          : integrityOk
+            ? 'ข้อมูลครบถ้วน · 1 รายการต่อ 1 สถานะ'
+            : 'พบข้อมูลไม่สมดุล ให้ Admin ตรวจสอบ';
+    }
+
+    renderOperationalShiftFilters();
+    renderOperationalShiftSummaries();
+    syncOperationalFilterUi();
+  }
+
+  function buildOperationalSummary(records) {
+    const list =
+      Array.isArray(records)
+        ? records
+        : [];
+    const stages = {
+      WAITING_INBOUND_DOCUMENT: 0,
+      WAITING_RECEIVING: 0,
+      WAITING_DOCUMENT_RETURN: 0,
+      WAITING_GATE_OUT: 0,
+      DATA_CONFLICT: 0
+    };
+
+    list.forEach((record) => {
+      const code =
+        String(
+          record.operationalStage ||
+          'DATA_CONFLICT'
+        ).toUpperCase();
+
+      if (stages[code] === undefined) {
+        stages.DATA_CONFLICT += 1;
+      } else {
+        stages[code] += 1;
+      }
+    });
+
+    return {
+      activeTotal: list.length,
+      stages,
+      carryOver:
+        list.filter(
+          (record) =>
+            record.carryOver === true
+        ).length
+    };
+  }
+
+  function renderOperationalShiftFilters() {
+    const container =
+      document.getElementById(
+        'operationalShiftFilters'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    const board =
+      state.operationalBoard || {};
+    const config =
+      board.shiftConfig || {};
+    const shifts =
+      config.enabled === true &&
+      Array.isArray(config.shifts)
+        ? config.shifts
+        : [];
+    const counts = {};
+
+    state.records.forEach((record) => {
+      const code =
+        String(
+          record.entryShiftCode ||
+          'UNSCHEDULED'
+        ).toUpperCase();
+
+      counts[code] =
+        (counts[code] || 0) + 1;
+    });
+
+    const buttons = [
+      {
+        code: 'ALL',
+        label: 'ทุกกะ',
+        count: state.records.length
+      },
+      {
+        code: 'CURRENT',
+        label: 'กะปัจจุบัน',
+        count:
+          board.currentShift
+            ? state.records.filter(
+                (record) =>
+                  String(
+                    record.ownerShiftCode || ''
+                  ).toUpperCase() ===
+                  String(
+                    board.currentShift.code || ''
+                  ).toUpperCase()
+              ).length
+            : 0
+      },
+      ...shifts.map((shift) => ({
+        code:
+          String(
+            shift.code || ''
+          ).toUpperCase(),
+        label:
+          'กะ ' +
+          String(
+            shift.code || ''
+          ).toUpperCase(),
+        title:
+          String(shift.name || '') +
+          ' ' +
+          String(shift.start || '') +
+          '–' +
+          String(shift.end || ''),
+        count:
+          counts[
+            String(
+              shift.code || ''
+            ).toUpperCase()
+          ] || 0
+      })),
+      {
+        code: 'CARRY_OVER',
+        label: 'ค้างข้ามกะ',
+        count:
+          state.records.filter(
+            (record) =>
+              record.carryOver === true
+          ).length
+      }
+    ];
+
+    if (
+      state.records.some(
+        (record) =>
+          !record.entryShiftCode
+      )
+    ) {
+      buttons.push({
+        code: 'UNSCHEDULED',
+        label: 'ไม่ทราบกะ',
+        count: counts.UNSCHEDULED || 0
+      });
+    }
+
+    container.innerHTML = '';
+
+    buttons.forEach((item) => {
+      const button =
+        document.createElement(
+          'button'
+        );
+
+      button.type = 'button';
+      button.dataset.operationalShift =
+        item.code;
+      button.title = item.title || item.label;
+      button.innerHTML =
+        '<span>' +
+        escapeHtml(item.label) +
+        '</span><strong>' +
+        escapeHtml(String(item.count)) +
+        '</strong>';
+
+      container.appendChild(button);
+    });
+  }
+
+  function renderOperationalShiftSummaries() {
+    const container =
+      document.getElementById(
+        'operationalShiftSummaryGrid'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    const summaries =
+      state.operationalBoard &&
+      Array.isArray(
+        state.operationalBoard
+          .shiftSummaries
+      )
+        ? state.operationalBoard
+            .shiftSummaries
+        : [];
+
+    container.innerHTML = '';
+
+    if (summaries.length === 0) {
+      const empty =
+        document.createElement(
+          'div'
+        );
+      empty.className =
+        'operational-shift-empty';
+      empty.textContent =
+        'ยังไม่ได้เปิดระบบกะสำหรับ Module นี้';
+      container.appendChild(empty);
+      return;
+    }
+
+    summaries.forEach((summary) => {
+      const card =
+        document.createElement(
+          'article'
+        );
+      card.className =
+        'operational-shift-card' +
+        (
+          summary.isCurrent
+            ? ' is-current'
+            : ''
+        );
+
+      const stage =
+        summary.stages || {};
+
+      card.innerHTML = `
+        <header>
+          <div>
+            <small>${summary.isCurrent ? 'กะปัจจุบัน' : 'กะปฏิบัติงาน'}</small>
+            <strong>กะ ${escapeHtml(summary.code || '-')} · ${escapeHtml(summary.name || '')}</strong>
+          </div>
+          <span>${escapeHtml(summary.start || '')}–${escapeHtml(summary.end || '')}</span>
+        </header>
+        <div class="operational-shift-card__metrics">
+          <div><span>คงค้างต้นกะ</span><strong>${Number(summary.openingBalance) || 0}</strong></div>
+          <div><span>Gate In</span><strong>${Number(summary.gateIn) || 0}</strong></div>
+          <div><span>Gate Out จริง</span><strong>${Number(summary.gateOutActual) || 0}</strong></div>
+          <div><span>Auto Close</span><strong>${Number(summary.autoClose) || 0}</strong></div>
+          <div><span>คงค้างปลายกะ</span><strong>${Number(summary.closingBalance) || 0}</strong></div>
+          <div><span>Active จากกะนี้</span><strong>${Number(summary.activeFromShift) || 0}</strong></div>
+        </div>
+        <div class="operational-shift-card__stages">
+          <span>รอยื่น ${Number(stage.WAITING_INBOUND_DOCUMENT) || 0}</span>
+          <span>รอรับ ${Number(stage.WAITING_RECEIVING) || 0}</span>
+          <span>รอคืนเอกสาร ${Number(stage.WAITING_DOCUMENT_RETURN) || 0}</span>
+          <span>รอออก ${Number(stage.WAITING_GATE_OUT) || 0}</span>
+          <span>ขัดแย้ง ${Number(stage.DATA_CONFLICT) || 0}</span>
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  function syncOperationalFilterUi() {
+    document
+      .querySelectorAll(
+        '[data-operational-stage]'
+      )
+      .forEach((button) => {
+        const active =
+          String(
+            button.dataset
+              .operationalStage ||
+            'ALL'
+          ).toUpperCase() ===
+          String(
+            state.operationalStageFilter ||
+            'ALL'
+          ).toUpperCase();
+
+        button.classList.toggle(
+          'is-active',
+          active
+        );
+        button.setAttribute(
+          'aria-pressed',
+          active ? 'true' : 'false'
+        );
+      });
+
+    document
+      .querySelectorAll(
+        '[data-operational-shift]'
+      )
+      .forEach((button) => {
+        const active =
+          String(
+            button.dataset
+              .operationalShift ||
+            'ALL'
+          ).toUpperCase() ===
+          String(
+            state.shiftFilter ||
+            'ALL'
+          ).toUpperCase();
+
+        button.classList.toggle(
+          'is-active',
+          active
+        );
+        button.setAttribute(
+          'aria-pressed',
+          active ? 'true' : 'false'
+        );
+      });
+  }
+
+  function createOperationalStageBlock(record) {
+    const meta =
+      getOperationalStageMeta(
+        record.operationalStage
+      );
+    const section =
+      document.createElement(
+        'section'
+      );
+
+    section.className =
+      'vehicle-operational-stage';
+    section.dataset.stage =
+      record.operationalStage ||
+      'DATA_CONFLICT';
+
+    const heading =
+      document.createElement('div');
+    heading.className =
+      'vehicle-operational-stage__heading';
+
+    const title =
+      document.createElement('strong');
+    title.textContent =
+      record.operationalStageLabel ||
+      meta.label;
+
+    const health =
+      document.createElement('span');
+    health.className =
+      'vehicle-operational-health';
+    health.dataset.health =
+      record.dataHealthCode || 'OK';
+    health.textContent =
+      record.dataHealthLabel ||
+      'ข้อมูลสอดคล้อง';
+
+    heading.appendChild(title);
+    heading.appendChild(health);
+
+    const description =
+      document.createElement('p');
+    description.textContent =
+      record.operationalStageDescription ||
+      meta.description;
+
+    const timeline =
+      document.createElement('div');
+    timeline.className =
+      'vehicle-operational-stage__timeline';
+
+    const stageTimes = [
+      ['Gate In', record.timestampIn],
+      ['ยื่นเอกสาร', record.documentSubmittedAt],
+      ['รับสินค้าเสร็จ', record.receivingCompleteAt],
+      ['รับเอกสารคืน', record.documentReturnedAt]
+    ];
+
+    stageTimes.forEach((item) => {
+      const node =
+        document.createElement('div');
+      node.className =
+        item[1]
+          ? 'is-complete'
+          : 'is-pending';
+      node.innerHTML =
+        '<span>' +
+        escapeHtml(item[0]) +
+        '</span><strong>' +
+        escapeHtml(item[1] || '--:--:--') +
+        '</strong>';
+      timeline.appendChild(node);
+    });
+
+    const shifts =
+      document.createElement('div');
+    shifts.className =
+      'vehicle-operational-stage__shifts';
+    shifts.innerHTML = `
+      <span>กะเข้า <strong>${escapeHtml(record.entryShiftCode || '-')}</strong></span>
+      <span>ผู้รับผิดชอบ <strong>${escapeHtml(record.ownerShiftCode || '-')}</strong></span>
+      ${record.carryOver ? `<span class="is-carry">ค้างข้ามกะ <strong>${Number(record.carryOverShiftCount) || 1}</strong></span>` : ''}
+    `;
+
+    section.appendChild(heading);
+    section.appendChild(description);
+    section.appendChild(timeline);
+    section.appendChild(shifts);
+
+    if (
+      record.receivingEnabled !== false
+    ) {
+      const actions =
+        document.createElement('div');
+      actions.className =
+        'vehicle-operational-stage__actions';
+
+      const button =
+        document.createElement('button');
+      button.type = 'button';
+      button.className =
+        'receiving-complete-button';
+      button.dataset.recordId =
+        record.recordId || '';
+      button.dataset.canonicalRecordId =
+        record.canonicalRecordId || '';
+      button.dataset.sourceRowNumber =
+        String(
+          Number(record.sourceRowNumber) || 0
+        );
+      button.dataset.expectedTimestampIn =
+        record.timestampIn || '';
+      button.dataset.expectedTimestampInEpochMs =
+        String(
+          Number(record.timestampInEpochMs) || 0
+        );
+      button.dataset.expectedPrimaryValue =
+        record.primaryValue || '';
+      button.dataset.entryCode =
+        record.autoId ||
+        record.sourceAutoId ||
+        '';
+      button.dataset.operationalStage =
+        record.operationalStage || '';
+      button.dataset.canComplete =
+        record.canCompleteReceiving
+          ? 'TRUE'
+          : 'FALSE';
+      button.disabled =
+        record.canCompleteReceiving !== true;
+      button.setAttribute(
+        'aria-disabled',
+        button.disabled
+          ? 'true'
+          : 'false'
+      );
+      button.textContent =
+        record.canCompleteReceiving
+          ? 'บันทึกรับสินค้าเสร็จ'
+          : meta.shortLabel;
+      button.title =
+        record.canCompleteReceiving
+          ? 'บันทึกเวลารับสินค้าเสร็จ'
+          : (
+              record.operationalStageDescription ||
+              meta.description
+            );
+
+      actions.appendChild(button);
+      section.appendChild(actions);
+    }
+
+    return section;
+  }
+
   function sortRecords(records) {
     records.sort(
       (left, right) => {
+        const leftOperationalOrder =
+          Number(left.operationalStageOrder) || 50;
+        const rightOperationalOrder =
+          Number(right.operationalStageOrder) || 50;
+
+        const leftConflict =
+          left.operationalStage === 'DATA_CONFLICT'
+            ? 0
+            : 1;
+        const rightConflict =
+          right.operationalStage === 'DATA_CONFLICT'
+            ? 0
+            : 1;
+
+        if (leftConflict !== rightConflict) {
+          return leftConflict - rightConflict;
+        }
+
         const leftScore =
           Number.isFinite(
             Number(
@@ -2216,6 +3184,14 @@
             leftScore -
             rightScore
           );
+        }
+
+        if (
+          leftOperationalOrder !==
+          rightOperationalOrder
+        ) {
+          return leftOperationalOrder -
+            rightOperationalOrder;
         }
 
         return (
@@ -3600,6 +4576,24 @@
     article.dataset.recordId =
       record.recordId || '';
 
+    article.dataset.canonicalRecordId =
+      record.canonicalRecordId || '';
+
+    article.dataset.operationalStage =
+      record.operationalStage ||
+      'DATA_CONFLICT';
+
+    article.dataset.entryShift =
+      record.entryShiftCode || '';
+
+    article.dataset.ownerShift =
+      record.ownerShiftCode || '';
+
+    article.dataset.carryOver =
+      record.carryOver
+        ? 'TRUE'
+        : 'FALSE';
+
     article.dataset.nearAutoClose =
       record.isNearAutoClose
         ? 'TRUE'
@@ -3866,6 +4860,11 @@
         }
       );
 
+    const operationalBlock =
+      createOperationalStageBlock(
+        record
+      );
+
     const footer =
       document.createElement(
         'div'
@@ -3971,6 +4970,12 @@
     ) {
       article.appendChild(
         detailGrid
+      );
+    }
+
+    if (operationalBlock) {
+      article.appendChild(
+        operationalBlock
       );
     }
 
@@ -6278,6 +7283,33 @@
       './login.html'
     );
   }
+
+
+  window.VehicleModule = Object.freeze({
+    refreshOperationalBoard(
+      forceRefresh
+    ) {
+      return loadRecords({
+        silentError: true,
+        showSuccessToast: false,
+        forceRender: true,
+        forceRefresh:
+          forceRefresh !== false
+      });
+    },
+
+    getRecord(recordId) {
+      return state.records.find(
+        (record) =>
+          String(record.recordId || '') ===
+          String(recordId || '')
+      ) || null;
+    },
+
+    getOperationalBoard() {
+      return state.operationalBoard;
+    }
+  });
 
   function destroyPage() {
     state.destroyed = true;
