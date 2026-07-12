@@ -1,14 +1,12 @@
 /**
  * api.js
- * ROUND 05 HOTFIX 33 — Stable Auth + Inbound Dashboard Limit Clamp
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
- * - เก็บ Signed Session Token ใน sessionStorage ของหน้าต่างนั้นเท่านั้น
- * - ไม่ใช้ localStorage เป็น Active Token เพื่อกัน Session ปะปนระหว่าง PWA / Chrome / แท็บอื่น
+ * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
- * - Logout/Login จะล้าง Token เก่าทั้ง sessionStorage และ localStorage legacy
- * - รองรับ Receiving Flow, Inbound Workflow, รับเอกสารคืน, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
+ * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
+ * - รองรับ Receiving Flow, การบันทึกรับสินค้าเสร็จ และ Feature Flag ราย Module
  */
 (function (window) {
   'use strict';
@@ -22,10 +20,7 @@
     ).replace(/\/+$/, '');
 
   const TOKEN_STORAGE_KEY =
-    String(
-      CONFIG.TOKEN_STORAGE_KEY ||
-      'alertvendor_access_token'
-    );
+    'alertvendor_access_token';
 
   const inFlightGetRequests =
     new Map();
@@ -80,107 +75,23 @@
    * Token Storage
    ************************************************************/
 
-  function readStorageToken(
-    storage
-  ) {
+  function getAccessToken() {
     try {
-      if (!storage) {
-        return '';
-      }
-
       return String(
-        storage.getItem(
-          TOKEN_STORAGE_KEY
-        ) || ''
+        window.sessionStorage
+          .getItem(
+            TOKEN_STORAGE_KEY
+          ) || ''
       ).trim();
 
     } catch (error) {
-      return '';
-    }
-  }
-
-  function writeStorageToken(
-    storage,
-    token
-  ) {
-    try {
-      if (!storage) {
-        return false;
-      }
-
-      storage.setItem(
-        TOKEN_STORAGE_KEY,
-        token
+      console.warn(
+        'ไม่สามารถอ่าน Session Token ได้',
+        error
       );
 
-      return true;
-
-    } catch (error) {
-      return false;
+      return '';
     }
-  }
-
-  function removeStorageToken(
-    storage
-  ) {
-    try {
-      if (storage) {
-        storage.removeItem(
-          TOKEN_STORAGE_KEY
-        );
-      }
-
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
-  function removeNamedStorageToken(
-    storage,
-    key
-  ) {
-    try {
-      if (storage && key) {
-        storage.removeItem(
-          String(key)
-        );
-      }
-
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
-  function clearLegacyAccessTokens() {
-    const legacyKeys = [
-      'alertvendor_access_token',
-      'alertvendor_access_token_v1'
-    ];
-
-    legacyKeys.forEach(
-      function (key) {
-        removeNamedStorageToken(
-          window.localStorage,
-          key
-        );
-
-        removeNamedStorageToken(
-          window.sessionStorage,
-          key
-        );
-      }
-    );
-  }
-
-  function getAccessToken() {
-    /*
-     * HOTFIX 13:
-     * ใช้เฉพาะ sessionStorage ของหน้าต่าง/แอพปัจจุบัน
-     * เพื่อป้องกัน PWA กับ Chrome หรือหลายแท็บใช้ Token คนละสิทธิ์ปะปนกัน
-     */
-    return readStorageToken(
-      window.sessionStorage
-    );
   }
 
   function setAccessToken(
@@ -196,54 +107,43 @@
       return;
     }
 
-    /*
-     * Hotfix 26:
-     * ล้าง Token legacy ทุกครั้งก่อนตั้ง Token ใหม่
-     * และใช้ Token key v2 เฉพาะ sessionStorage เท่านั้น
-     */
-    clearLegacyAccessTokens();
+    try {
+      window.sessionStorage
+        .setItem(
+          TOKEN_STORAGE_KEY,
+          cleanToken
+        );
 
-    removeStorageToken(
-      window.localStorage
-    );
-
-    const savedSession =
-      writeStorageToken(
-        window.sessionStorage,
-        cleanToken
-      );
-
-    if (!savedSession) {
+    } catch (error) {
       throw new VehicleAPIError(
         'เบราว์เซอร์ไม่อนุญาตให้บันทึก Session',
-        'TOKEN_STORAGE_FAILED',
-        0
+        'SESSION_STORAGE_FAILED',
+        0,
+        {
+          originalMessage:
+            error &&
+            error.message
+              ? error.message
+              : String(error)
+        }
       );
     }
   }
 
   function clearAccessToken() {
-    clearLegacyAccessTokens();
-
-    removeStorageToken(
-      window.localStorage
-    );
-
-    removeStorageToken(
+    try {
       window.sessionStorage
-    );
+        .removeItem(
+          TOKEN_STORAGE_KEY
+        );
+
+    } catch (error) {
+      console.warn(
+        'ไม่สามารถล้าง Session Token ได้',
+        error
+      );
+    }
   }
-
-  /*
-   * Hotfix 26:
-   * ล้าง Token legacy ทันทีที่โหลด api.js
-   * แต่ไม่ล้าง Token v2 ใน sessionStorage ของหน้าต่างปัจจุบัน
-   */
-  clearLegacyAccessTokens();
-
-  removeStorageToken(
-    window.localStorage
-  );
 
   function updateTokenFromData(
     data
@@ -840,9 +740,6 @@
       storageAvailable:
         storageAvailable,
 
-      storageMode:
-        'sessionStorage-v2-only',
-
       sessionTokenPresent:
         Boolean(
           getAccessToken()
@@ -1364,6 +1261,16 @@
     },
 
 
+    /************************************************************
+     * Inbound Workflow API
+     * ROUND 06 PART 09.2F2
+     *
+     * หน้า Module ใช้ Inbound Workflow เป็นแหล่งความจริงของ
+     * การยื่นเอกสาร / ตรวจรับเสร็จ / รับเอกสารคืน
+     * ดังนั้น api.js ต้องมี method ชุดนี้ด้วย ไม่เช่นนั้น
+     * module.js และ module-workflow-guard.js จะโหลด workflow ไม่ได้
+     ************************************************************/
+
     async lookupInboundWorkflow(
       moduleId,
       entryCode,
@@ -1512,8 +1419,6 @@
     },
 
 
-
-
     async completeInboundWorkflowReceiving(
       moduleId,
       payload
@@ -1543,6 +1448,20 @@
                 body.autoId ||
                 body.code ||
                 body.qrText ||
+                body.recordId ||
+                '',
+
+              autoId:
+                body.autoId ||
+                body.entryCode ||
+                body.qrText ||
+                body.recordId ||
+                '',
+
+              qrText:
+                body.qrText ||
+                body.entryCode ||
+                body.autoId ||
                 body.recordId ||
                 '',
 
@@ -1640,72 +1559,6 @@
     },
 
 
-    async cancelInboundWorkflow(
-      moduleId,
-      payload
-    ) {
-      const body =
-        payload &&
-        typeof payload === 'object'
-          ? payload
-          : {};
-
-      const response =
-        await request(
-          '/api/workflow/modules/' +
-          encodeURIComponent(moduleId) +
-          '/cancel-event',
-          {
-            method: 'POST',
-
-            timeoutMs:
-              CONFIG.INBOUND_SAVE_TIMEOUT_MS ||
-              CONFIG.SAVE_TIMEOUT_MS ||
-              90000,
-
-            body: {
-              entryCode:
-                body.entryCode ||
-                body.autoId ||
-                body.code ||
-                body.qrText ||
-                '',
-
-              eventId:
-                body.eventId ||
-                '',
-
-              cancelScope:
-                body.cancelScope ||
-                'CURRENT_INBOUND_STAGE',
-
-              statusCode:
-                body.statusCode ||
-                '',
-
-              reason:
-                body.reason ||
-                body.cancelReason ||
-                body.note ||
-                '',
-
-              note:
-                body.note ||
-                body.reason ||
-                '',
-
-              clientRequestId:
-                body.clientRequestId ||
-                body.requestId ||
-                createRequestId()
-            }
-          }
-        );
-
-      return response.data;
-    },
-
-
     async getInboundWorkflowDashboard(
       moduleId,
       options
@@ -1715,29 +1568,6 @@
         typeof options === 'object'
           ? options
           : {};
-
-      /*
-       * Hotfix 33:
-       * Worker / Backend ไม่รับ limit ที่สูงเกินหรือไม่ใช่ตัวเลข
-       * จำกัดเป็น 1-100 เพื่อไม่ให้เกิด error:
-       * "ค่าพารามิเตอร์ limit ไม่ถูกต้อง"
-       */
-      const requestedLimit =
-        Number(
-          config.limit ||
-          100
-        );
-
-      const safeLimit =
-        Math.min(
-          Math.max(
-            Number.isFinite(requestedLimit)
-              ? Math.floor(requestedLimit)
-              : 100,
-            1
-          ),
-          100
-        );
 
       const response =
         await request(
@@ -1752,12 +1582,38 @@
 
             query: {
               limit:
-                safeLimit
+                config.limit ||
+                1000
             }
           }
         );
 
       return response.data;
+    },
+
+
+
+
+
+    async submitInboundWorkflowDocument(
+      moduleId,
+      payload
+    ) {
+      return this.submitInboundDocument(
+        moduleId,
+        payload
+      );
+    },
+
+
+    async returnInboundWorkflowDocument(
+      moduleId,
+      payload
+    ) {
+      return this.returnInboundDocument(
+        moduleId,
+        payload
+      );
     },
 
     async getCalendar(
