@@ -16,7 +16,7 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
- * - Production R16: Mobile Command Center + Compact Action Cards
+ * - Production R17: Action Sheet CSS + Shift Handover Accuracy
  */
 (function (window, document) {
   'use strict';
@@ -89,9 +89,9 @@
   async function initializePage() {
     if (document.body) {
       document.body.dataset.operationalBoardBuild =
-        '2026.07.13-r16-mobile-command-center';
+        '2026.07.13-r17-action-sheet-shift-accuracy';
       document.body.dataset.shiftHandoverBuild =
-        '2026.07.13-r16-mobile-command-center';
+        '2026.07.13-r17-action-sheet-shift-accuracy';
     }
 
     initializeOverdueBadgeSystem();
@@ -3332,12 +3332,12 @@
       return;
     }
 
+    const board =
+      state.operationalBoard || {};
     const handover =
-      state.operationalBoard &&
-      state.operationalBoard.handover &&
-      typeof state.operationalBoard.handover ===
-        'object'
-        ? state.operationalBoard.handover
+      board.handover &&
+      typeof board.handover === 'object'
+        ? board.handover
         : {
             enabled: false,
             status: 'NOT_AVAILABLE',
@@ -3350,42 +3350,77 @@
         handover.status ||
         'NOT_AVAILABLE'
       ).toUpperCase();
+    const fromShift =
+      handover.fromShift || {};
+    const rawToShift =
+      handover.toShift || {};
+    const currentShift =
+      board.currentShift || {};
+    const activeShiftCount =
+      board.shiftConfig &&
+      Array.isArray(
+        board.shiftConfig.shifts
+      )
+        ? board.shiftConfig.shifts
+          .filter((shift) =>
+            shift.active !== false
+          ).length
+        : 0;
+    const fromCode =
+      normalizeShiftCode(
+        fromShift.code
+      );
+    const toCode =
+      normalizeShiftCode(
+        rawToShift.code
+      );
+    const sameShiftConflict = Boolean(
+      activeShiftCount > 1 &&
+      fromCode &&
+      toCode &&
+      fromCode === toCode
+    );
+    const pairValid =
+      handover.pairValid !== false &&
+      !sameShiftConflict;
+    const toShift =
+      pairValid
+        ? rawToShift
+        : currentShift;
+    const effectiveStatus =
+      pairValid
+        ? status
+        : 'PAIR_INVALID';
 
     panel.dataset.status =
-      status;
+      effectiveStatus;
 
     setText(
       'shiftHandoverStatus',
-      handover.statusLabel ||
-      status
+      pairValid
+        ? handover.statusLabel || status
+        : 'พบ Snapshot กะไม่ถูกต้อง · รอระบบซ่อมอัตโนมัติ'
     );
     setText(
       'mobileTabHandoverState',
-      handover.acknowledged === true
-        ? '✓'
-        : [
-            'AUTO_FINALIZED',
-            'ACKNOWLEDGED'
-          ].includes(status)
-          ? '!'
-          : '–'
+      !pairValid
+        ? '!'
+        : handover.acknowledged === true
+          ? '✓'
+          : [
+              'AUTO_FINALIZED',
+              'ACKNOWLEDGED'
+            ].includes(status)
+            ? '!'
+            : '–'
     );
-
-    const fromShift =
-      handover.fromShift || {};
-    const toShift =
-      handover.toShift || {};
 
     setText(
       'shiftHandoverFrom',
       fromShift.code
-        ? 'กะ ' +
-          fromShift.code +
-          (
-            fromShift.name
-              ? ' · ' +
-                fromShift.name
-              : ''
+        ? formatShiftTitle(
+            fromShift,
+            fromShift.code
           )
         : '-'
     );
@@ -3393,13 +3428,9 @@
     setText(
       'shiftHandoverTo',
       toShift.code
-        ? 'กะ ' +
-          toShift.code +
-          (
-            toShift.name
-              ? ' · ' +
-                toShift.name
-              : ''
+        ? formatShiftTitle(
+            toShift,
+            toShift.code
           )
         : '-'
     );
@@ -3448,6 +3479,13 @@
 
     const noteParts = [];
 
+    if (!pairValid) {
+      noteParts.push(
+        handover.pairWarning ||
+        'Snapshot เดิมระบุกะส่งมอบและกะรับมอบเป็นกะเดียวกัน ระบบจะไม่ให้รับทราบรายการนี้'
+      );
+    }
+
     if (handover.note) {
       noteParts.push(
         'หมายเหตุส่งมอบ: ' +
@@ -3485,13 +3523,14 @@
         : 'ระบบส่งมอบอัตโนมัติ ผู้ใช้สามารถเพิ่มหมายเหตุได้โดยไม่กระทบงานหลัก'
     );
 
-    const hasSnapshot =
-      Boolean(
-        handover.snapshotKey
-      );
+    const hasSnapshot = Boolean(
+      handover.snapshotKey &&
+      pairValid
+    );
     const enabled =
       handover.enabled !== false;
     const finalized =
+      pairValid &&
       [
         'AUTO_FINALIZED',
         'ACKNOWLEDGED'
@@ -3519,16 +3558,19 @@
 
     if (acknowledgeButton) {
       acknowledgeButton.hidden =
-        handover.acknowledged === true;
+        handover.acknowledged === true &&
+        pairValid;
       acknowledgeButton.disabled =
         state.handoverInProgress ||
         !enabled ||
         !hasSnapshot ||
         !finalized;
       acknowledgeButton.title =
-        !finalized
-          ? 'รอระบบปิด Snapshot ส่งมอบอัตโนมัติก่อน'
-          : 'บันทึกว่ากะปัจจุบันเปิดดูและรับทราบงานแล้ว';
+        !pairValid
+          ? 'Snapshot กะไม่ถูกต้อง ระบบไม่อนุญาตให้รับทราบ'
+          : !finalized
+            ? 'รอระบบปิด Snapshot ส่งมอบอัตโนมัติก่อน'
+            : 'บันทึกว่ากะปัจจุบันเปิดดูและรับทราบงานแล้ว';
     }
 
     if (refreshButton) {
@@ -3829,10 +3871,16 @@
       document.createElement('div');
     shifts.className =
       'vehicle-operational-stage__shifts';
+    const currentShiftCode =
+      record.currentShiftCode ||
+      record.responsibleShiftCode ||
+      record.ownerShiftCode ||
+      '';
+
     shifts.innerHTML = `
-      <span>กะเข้า <strong>${escapeHtml(record.entryShiftCode || '-')}</strong></span>
-      <span>ผู้รับผิดชอบ <strong>${escapeHtml(record.ownerShiftCode || '-')}</strong></span>
-      ${record.carryOver ? `<span class="is-carry">ค้างข้ามกะ <strong>${Number(record.carryOverShiftCount) || 1}</strong></span>` : ''}
+      <span>กะที่รถเข้า <strong>${escapeHtml(record.entryShiftCode || '-')}</strong></span>
+      <span>กะปัจจุบัน <strong>${escapeHtml(currentShiftCode || '-')}</strong></span>
+      ${record.carryOver ? `<span class="is-carry">ส่งต่อ ${escapeHtml(record.entryShiftCode || '-')} → ${escapeHtml(currentShiftCode || '-')} <strong>${Number(record.carryOverShiftCount) || 1} ช่วงกะ</strong></span>` : ''}
     `;
 
     section.appendChild(heading);
@@ -6089,6 +6137,259 @@
 
 
 
+  function normalizeShiftCode(value) {
+    return String(value || '')
+      .trim()
+      .replace(/^กะ\s*/i, '')
+      .trim()
+      .toUpperCase();
+  }
+
+  function formatShiftTitle(
+    shift,
+    fallbackCode
+  ) {
+    const data =
+      shift && typeof shift === 'object'
+        ? shift
+        : {};
+    const code = normalizeShiftCode(
+      data.code ||
+      data.shiftCode ||
+      fallbackCode ||
+      ''
+    );
+    const rawName = String(
+      data.name ||
+      data.shiftName ||
+      ''
+    ).trim();
+    const normalizedName =
+      normalizeShiftCode(rawName);
+    const meaningfulName =
+      rawName &&
+      normalizedName !== code
+        ? rawName
+        : '';
+
+    if (!code) {
+      return '-';
+    }
+
+    return (
+      'กะ ' + code +
+      (
+        meaningfulName
+          ? ' · ' + meaningfulName
+          : ''
+      )
+    );
+  }
+
+  function formatShiftWindow(shift) {
+    const data =
+      shift && typeof shift === 'object'
+        ? shift
+        : {};
+    const start = String(
+      data.start || ''
+    ).trim();
+    const end = String(
+      data.end || ''
+    ).trim();
+    const businessDate = String(
+      data.businessDate || ''
+    ).trim();
+    const parts = [];
+
+    if (start || end) {
+      parts.push(
+        (start || '--:--') +
+        '–' +
+        (end || '--:--')
+      );
+    }
+
+    if (businessDate) {
+      parts.push(
+        'วันปฏิบัติงาน ' +
+        businessDate
+      );
+    }
+
+    return parts.join(' · ') ||
+      'ไม่พบช่วงเวลากะ';
+  }
+
+  function buildRecordShiftPresentation(record) {
+    const board =
+      state.operationalBoard || {};
+    const entryShift =
+      record.entryShift &&
+      typeof record.entryShift === 'object'
+        ? record.entryShift
+        : {};
+    const currentShift =
+      record.currentShift &&
+      typeof record.currentShift === 'object'
+        ? record.currentShift
+        : record.responsibleShift &&
+          typeof record.responsibleShift === 'object'
+          ? record.responsibleShift
+          : board.currentShift &&
+            typeof board.currentShift === 'object'
+            ? board.currentShift
+            : record.ownerShift &&
+              typeof record.ownerShift === 'object'
+              ? record.ownerShift
+              : {};
+    const entryCode = normalizeShiftCode(
+      entryShift.code ||
+      record.entryShiftCode ||
+      ''
+    );
+    const currentCode = normalizeShiftCode(
+      currentShift.code ||
+      record.currentShiftCode ||
+      record.responsibleShiftCode ||
+      record.ownerShiftCode ||
+      ''
+    );
+    const transitionCount = Math.max(
+      0,
+      Number(
+        record.carryOverShiftCount
+      ) || 0
+    );
+    const carryOver = Boolean(
+      record.carryOver ||
+      (
+        entryCode &&
+        currentCode &&
+        entryCode !== currentCode
+      )
+    );
+
+    let transitionText =
+      'ยังไม่สามารถระบุการส่งต่องานได้';
+    let transitionDetail =
+      'ตรวจสอบการตั้งค่ากะในหน้า Admin';
+
+    if (entryCode && currentCode) {
+      if (carryOver) {
+        transitionText =
+          'กะ ' + entryCode +
+          ' → กะ ' + currentCode;
+        transitionDetail =
+          Math.max(1, transitionCount) +
+          ' ช่วงกะ';
+      } else {
+        transitionText =
+          'อยู่ภายในกะ ' +
+          currentCode +
+          ' เดียวกัน';
+        transitionDetail =
+          'ยังไม่ผ่านจุดเปลี่ยนกะ';
+      }
+    }
+
+    return {
+      entryTitle:
+        formatShiftTitle(
+          entryShift,
+          entryCode
+        ),
+      entryWindow:
+        formatShiftWindow(
+          entryShift
+        ),
+      currentTitle:
+        formatShiftTitle(
+          currentShift,
+          currentCode
+        ),
+      currentWindow:
+        formatShiftWindow(
+          currentShift
+        ),
+      transitionText:
+        transitionText,
+      transitionDetail:
+        transitionDetail,
+      carryOver:
+        carryOver
+    };
+  }
+
+  function buildRecordTimeline(record) {
+    const hasDocument = Boolean(
+      record.documentSubmittedAt
+    );
+    const hasReceiving = Boolean(
+      record.receivingCompleteAt ||
+      record.workflowReceivingCompletedAt
+    );
+    const hasReturn = Boolean(
+      record.documentReturnedAt
+    );
+
+    return [
+      {
+        label: 'Gate In',
+        value:
+          record.timestampIn ||
+          'ไม่พบเวลา Gate In',
+        state:
+          record.timestampIn
+            ? 'complete'
+            : 'pending'
+      },
+      {
+        label: 'ยื่นเอกสาร',
+        value:
+          record.documentSubmittedAt ||
+          'รอดำเนินการ',
+        state:
+          hasDocument
+            ? 'complete'
+            : 'pending'
+      },
+      {
+        label: 'รับสินค้าเสร็จ',
+        value:
+          record.receivingCompleteAt ||
+          record.workflowReceivingCompletedAt ||
+          (
+            hasDocument
+              ? 'รอดำเนินการ'
+              : 'ยังไม่พร้อมดำเนินการ'
+          ),
+        state:
+          hasReceiving
+            ? 'complete'
+            : hasDocument
+              ? 'pending'
+              : 'blocked'
+      },
+      {
+        label: 'รับเอกสารคืน',
+        value:
+          record.documentReturnedAt ||
+          (
+            hasReceiving
+              ? 'รอดำเนินการ'
+              : 'ยังไม่พร้อมดำเนินการ'
+          ),
+        state:
+          hasReturn
+            ? 'complete'
+            : hasReceiving
+              ? 'pending'
+              : 'blocked'
+      }
+    ];
+  }
+
   function openRecordDetail(record) {
     const identity =
       getPriorityIdentity(record);
@@ -6103,6 +6404,10 @@
     const company =
       identity.companyName ||
       'ไม่พบชื่อบริษัท';
+    const shiftPresentation =
+      buildRecordShiftPresentation(
+        record
+      );
 
     const fields =
       getDisplayFields(
@@ -6139,21 +6444,33 @@
         )
         .join('');
 
-    const timelineItems = [
-      ['Gate In', record.timestampIn],
-      ['ยื่นเอกสาร', record.documentSubmittedAt],
-      ['รับสินค้าเสร็จ', record.receivingCompleteAt],
-      ['รับเอกสารคืน', record.documentReturnedAt]
-    ];
     const timelineHtml =
-      timelineItems
-        .map((item) => `
-          <div class="record-action-timeline__item ${item[1] ? 'is-complete' : 'is-pending'}">
-            <span>${escapeHtml(item[0])}</span>
-            <strong>${escapeHtml(item[1] || 'รอดำเนินการ')}</strong>
+      buildRecordTimeline(record)
+        .map((item, index) => `
+          <div class="record-action-timeline__item is-${escapeHtml(item.state)}">
+            <b class="record-action-timeline__index">${index + 1}</b>
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
           </div>
         `)
         .join('');
+
+    let disabledReceivingLabel =
+      stageMeta.shortLabel;
+
+    if (
+      record.operationalStage ===
+      'WAITING_INBOUND_DOCUMENT'
+    ) {
+      disabledReceivingLabel =
+        'รอ Inbound ยื่นเอกสารก่อน';
+    } else if (
+      record.operationalStage ===
+      'DATA_CONFLICT'
+    ) {
+      disabledReceivingLabel =
+        'ข้อมูลขัดแย้ง — ติดต่อ Admin';
+    }
 
     const receivingButton =
       record.receivingEnabled === false
@@ -6177,7 +6494,7 @@
             ${escapeHtml(
               record.canCompleteReceiving
                 ? 'บันทึกรับสินค้าเสร็จ'
-                : stageMeta.shortLabel
+                : disabledReceivingLabel
             )}
           </button>
         `;
@@ -6197,7 +6514,7 @@
         : '';
 
     Swal.fire({
-      width: 720,
+      width: 760,
       position:
         isMobileViewport()
           ? 'bottom'
@@ -6234,9 +6551,21 @@
           </section>
 
           <section class="record-action-shifts">
-            <div><span>กะเข้า</span><strong>${escapeHtml(record.entryShiftCode || '-')}</strong></div>
-            <div><span>กะรับผิดชอบ</span><strong>${escapeHtml(record.ownerShiftCode || '-')}</strong></div>
-            <div><span>ค้างข้ามกะ</span><strong>${record.carryOver ? `${Number(record.carryOverShiftCount) || 1} กะ` : 'ไม่ค้าง'}</strong></div>
+            <div class="record-action-shift-card">
+              <span>กะที่รถเข้า</span>
+              <strong>${escapeHtml(shiftPresentation.entryTitle)}</strong>
+              <small>${escapeHtml(shiftPresentation.entryWindow)}</small>
+            </div>
+            <div class="record-action-shift-card is-current">
+              <span>กะปัจจุบัน</span>
+              <strong>${escapeHtml(shiftPresentation.currentTitle)}</strong>
+              <small>${escapeHtml(shiftPresentation.currentWindow)}</small>
+            </div>
+            <div class="record-action-shift-card is-handover">
+              <span>การส่งต่องาน</span>
+              <strong>${escapeHtml(shiftPresentation.transitionText)}</strong>
+              <small>${escapeHtml(shiftPresentation.transitionDetail)}</small>
+            </div>
           </section>
 
           <section class="record-action-details">
