@@ -2654,6 +2654,83 @@
     );
   }
 
+
+  async function completeReceivingByInboundWorkflowOnly(item, button) {
+    const identity =
+      resolveReceivingWorkflowIdentity(
+        item
+      );
+
+    const autoId =
+      identity.autoId ||
+      findAutoIdCandidate([
+        button &&
+        button.dataset &&
+        button.dataset.workflowAutoId,
+        button &&
+        button.closest &&
+        button.closest('.vehicle-card') &&
+        button.closest('.vehicle-card').dataset &&
+        button.closest('.vehicle-card').dataset.autoId
+      ]);
+
+    if (!autoId) {
+      throw new Error(
+        'ไม่พบ Auto ID จึงไม่สามารถบันทึกตรวจรับลง Inbound Workflow ได้'
+      );
+    }
+
+    const result =
+      await API.completeInboundWorkflowReceiving(
+        state.moduleId,
+        {
+          entryCode:
+            autoId,
+          autoId:
+            autoId,
+          qrText:
+            autoId,
+          recordId:
+            item.recordId || autoId,
+          appointmentNumber:
+            identity.appointmentNumber || item.appointmentNumber || '',
+          registration:
+            identity.registration || item.registration || '',
+          note:
+            'บันทึกตรวจรับเสร็จจากหน้า Module โดยใช้ Inbound Workflow เป็นแหล่งข้อมูลหลัก',
+          clientRequestId:
+            'MODULE_RECEIVING_' +
+            autoId +
+            '_' +
+            Date.now()
+        }
+      );
+
+    return {
+      success: true,
+      inboundWorkflowOnly: true,
+      autoId:
+        autoId,
+      receivingCompleteAt:
+        result &&
+        (
+          result.receivingCompletedAt ||
+          result.updatedAt ||
+          result.generatedAt
+        ) ||
+        formatDateTime(
+          new Date(
+            getReceivingNowMs()
+          )
+        ),
+      arrivalToReceivingDisplay:
+        item.arrivalToReceivingDisplay || '',
+      raw:
+        result
+    };
+  }
+
+
   async function handleCompleteReceiving(
     recordId,
     button
@@ -2895,30 +2972,16 @@
         'กำลังบันทึก...'
       );
 
+      /*
+       * ROUND 06 PART 09.2F
+       * ใช้ Inbound Workflow เป็นแหล่งบันทึกหลัก 100%
+       * ไม่เขียนชีทรับสินค้าเสร็จแยกก่อนแล้วค่อย sync อีกต่อไป
+       */
       const result =
-        await API.completeReceiving(
-          state.moduleId,
-          {
-            recordId:
-              item.recordId,
-            sourceRowNumber:
-              item.sourceRowNumber,
-            expectedTimestampIn:
-              item.expectedTimestampIn ||
-              item.timestampIn,
-            expectedTimestampInEpochMs:
-              item.expectedTimestampInEpochMs ||
-              item.timestampInEpochMs,
-            expectedPrimaryValue:
-              item.expectedPrimaryValue ||
-              item.primaryValue
-          }
+        await completeReceivingByInboundWorkflowOnly(
+          item,
+          button
         );
-
-      await syncInboundWorkflowReceivingComplete(
-        item,
-        result
-      );
 
       if (
         result &&
