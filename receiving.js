@@ -49,6 +49,9 @@
   window.addEventListener('beforeunload', destroyReceivingFlow);
 
   function initializeReceivingFlow() {
+    document.body.dataset.receivingUiBuild =
+      '2026.07.12-r10-button-visibility-hotfix';
+
     state.moduleId = getModuleIdFromUrl();
 
     if (!state.moduleId || !API || typeof API.getReceivingFlow !== 'function') {
@@ -1098,9 +1101,50 @@
         ? sourceItem
         : {};
 
+    const rawActiveValue =
+      item.isCurrentlyInArea;
+
+    const activeText =
+      String(
+        rawActiveValue === undefined ||
+        rawActiveValue === null
+          ? ''
+          : rawActiveValue
+      )
+        .trim()
+        .toLowerCase();
+
+    const activeValueProvided =
+      rawActiveValue !== undefined &&
+      rawActiveValue !== null &&
+      rawActiveValue !== '';
+
+    const incomingStageCode =
+      String(
+        item.stageCode ||
+        ''
+      ).toUpperCase();
+
+    /*
+     * HOTFIX R10:
+     * Worker / Apps Script บางรุ่นอาจส่ง boolean เป็น true, 1 หรือข้อความ "true".
+     * ถ้าไม่ได้ส่งฟิลด์นี้มาเลย ให้ใช้ Stage ที่เป็นงานค้างเป็น fallback.
+     */
     const isActive =
-      item.isCurrentlyInArea ===
-        true;
+      rawActiveValue === true ||
+      rawActiveValue === 1 ||
+      activeText === 'true' ||
+      activeText === '1' ||
+      (
+        !activeValueProvided &&
+        [
+          'WAITING_RECEIVING',
+          'WAITING_GATE_OUT',
+          'ACTIVE'
+        ].includes(
+          incomingStageCode
+        )
+      );
 
     const hasReceiving =
       Boolean(
@@ -2122,6 +2166,25 @@
       );
 
     updateVisibleStageTimers();
+
+    /*
+     * แจ้ง Workflow Guard หลังสร้าง/อัปเดตปุ่ม เพื่อให้ Guard
+     * เปิดปุ่มทันทีเมื่อสถานะเป็น DOCUMENT_SUBMITTED
+     * โดยไม่ต้องรอรอบ Refresh 10 วินาที.
+     */
+    document.dispatchEvent(
+      new CustomEvent(
+        'alertvendor:receiving-ui-updated',
+        {
+          detail: {
+            moduleId:
+              state.moduleId,
+            recordCount:
+              state.records.size
+          }
+        }
+      )
+    );
   }
 
 
@@ -2190,10 +2253,21 @@
         item.gateOutEpochMs
       );
 
+    /*
+     * HOTFIX R10:
+     * ห้ามตัดปุ่มออกจาก DOM ด้วยค่า canCompleteReceiving เพียงค่าเดียว
+     * เพราะ Workflow Guard เปิด/ปิดได้เฉพาะปุ่มที่มีอยู่แล้วเท่านั้น.
+     * แสดงปุ่มสำหรับรายการ Active ที่ยังไม่รับเสร็จและยังไม่ Gate Out
+     * แล้วให้ Workflow Guard เป็นผู้อนุญาตขั้นสุดท้าย.
+     */
     const canShowCompleteButton =
-      item.canCompleteReceiving &&
       !hasReceiving &&
-      !hasGateOut;
+      !hasGateOut &&
+      (
+        item.isCurrentlyInArea === true ||
+        item.stageCode === 'WAITING_RECEIVING' ||
+        item.canCompleteReceiving === true
+      );
 
     const stageOneLabel = hasReceiving
       ? 'เข้า → ตรวจรับเสร็จ'
