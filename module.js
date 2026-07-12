@@ -16,7 +16,7 @@
  * - Movement Summary: เข้า ออก รวม สุทธิ รอบ 4 ชั่วโมง และวันนี้
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
- * - Production R13: ใช้ Unified Operational Board Snapshot และแบ่งงานตามกะ
+ * - Production R15: Consolidated Board + Automatic Shift Handover
  */
 (function (window, document) {
   'use strict';
@@ -46,6 +46,7 @@
     durationTimer: null,
     refreshTimer: null,
     refreshInProgress: false,
+    handoverInProgress: false,
     recordsSignature: '',
     hasLoadedRecords: false,
     movementSummary: null,
@@ -86,7 +87,9 @@
   async function initializePage() {
     if (document.body) {
       document.body.dataset.operationalBoardBuild =
-        '2026.07.12-r13-unified-operational-board';
+        '2026.07.12-r15-consolidated-auto-handover';
+      document.body.dataset.shiftHandoverBuild =
+        '2026.07.12-r15-consolidated-auto-handover';
     }
 
     initializeOverdueBadgeSystem();
@@ -232,6 +235,21 @@
     const operationalRefreshButton =
       document.getElementById(
         'operationalBoardRefresh'
+      );
+
+    const shiftHandoverAddNoteButton =
+      document.getElementById(
+        'shiftHandoverAddNote'
+      );
+
+    const shiftHandoverAcknowledgeButton =
+      document.getElementById(
+        'shiftHandoverAcknowledge'
+      );
+
+    const shiftHandoverRefreshButton =
+      document.getElementById(
+        'shiftHandoverRefresh'
       );
 
     const movementScopeGroup =
@@ -383,6 +401,30 @@
           forceRender: true,
           forceRefresh: true
         })
+      );
+
+    shiftHandoverAddNoteButton &&
+      shiftHandoverAddNoteButton.addEventListener(
+        'click',
+        () => void handleShiftHandoverAction(
+          'ADD_NOTE'
+        )
+      );
+
+    shiftHandoverAcknowledgeButton &&
+      shiftHandoverAcknowledgeButton.addEventListener(
+        'click',
+        () => void handleShiftHandoverAction(
+          'ACKNOWLEDGE'
+        )
+      );
+
+    shiftHandoverRefreshButton &&
+      shiftHandoverRefreshButton.addEventListener(
+        'click',
+        () => void handleShiftHandoverAction(
+          'REFRESH_SNAPSHOT'
+        )
       );
 
     document.addEventListener(
@@ -2679,6 +2721,7 @@
 
     renderOperationalShiftFilters();
     renderOperationalShiftSummaries();
+    renderShiftHandover();
     syncOperationalFilterUi();
   }
 
@@ -2923,6 +2966,370 @@
       container.appendChild(card);
     });
   }
+
+  function renderShiftHandover() {
+    const panel =
+      document.getElementById(
+        'shiftHandoverPanel'
+      );
+
+    if (!panel) {
+      return;
+    }
+
+    const handover =
+      state.operationalBoard &&
+      state.operationalBoard.handover &&
+      typeof state.operationalBoard.handover ===
+        'object'
+        ? state.operationalBoard.handover
+        : {
+            enabled: false,
+            status: 'NOT_AVAILABLE',
+            statusLabel:
+              'ยังไม่พบข้อมูลส่งมอบอัตโนมัติ'
+          };
+
+    const status =
+      String(
+        handover.status ||
+        'NOT_AVAILABLE'
+      ).toUpperCase();
+
+    panel.dataset.status =
+      status;
+
+    setText(
+      'shiftHandoverStatus',
+      handover.statusLabel ||
+      status
+    );
+
+    const fromShift =
+      handover.fromShift || {};
+    const toShift =
+      handover.toShift || {};
+
+    setText(
+      'shiftHandoverFrom',
+      fromShift.code
+        ? 'กะ ' +
+          fromShift.code +
+          (
+            fromShift.name
+              ? ' · ' +
+                fromShift.name
+              : ''
+          )
+        : '-'
+    );
+
+    setText(
+      'shiftHandoverTo',
+      toShift.code
+        ? 'กะ ' +
+          toShift.code +
+          (
+            toShift.name
+              ? ' · ' +
+                toShift.name
+              : ''
+          )
+        : '-'
+    );
+
+    setText(
+      'shiftHandoverUpdatedAt',
+      handover.updatedAt ||
+      handover.finalizedAt ||
+      handover.draftAt ||
+      handover.generatedAt ||
+      '-'
+    );
+
+    const metricsNode =
+      document.getElementById(
+        'shiftHandoverMetrics'
+      );
+
+    const summary =
+      handover.summary || {};
+    const metrics =
+      summary.metrics || {};
+
+    if (metricsNode) {
+      const metricItems = [
+        ['คงค้างส่งต่อ', metrics.activeTotal],
+        ['รอยื่นเอกสาร', metrics.waitingInboundDocument],
+        ['รอรับสินค้า', metrics.waitingReceiving],
+        ['รอคืนเอกสาร', metrics.waitingDocumentReturn],
+        ['รอ Gate Out', metrics.waitingGateOut],
+        ['ข้อมูลขัดแย้ง', metrics.dataConflict],
+        ['เกินเวลา', metrics.overdueAtEnd],
+        ['ค้างข้ามกะ', metrics.carryOver]
+      ];
+
+      metricsNode.innerHTML =
+        metricItems
+          .map((item) => `
+            <div>
+              <span>${escapeHtml(item[0])}</span>
+              <strong>${Number(item[1]) || 0}</strong>
+            </div>
+          `)
+          .join('');
+    }
+
+    const noteParts = [];
+
+    if (handover.note) {
+      noteParts.push(
+        'หมายเหตุส่งมอบ: ' +
+        handover.note
+      );
+    }
+
+    if (handover.acknowledged) {
+      noteParts.push(
+        'รับทราบโดย ' +
+        (
+          handover.acknowledgedBy ||
+          '-'
+        ) +
+        (
+          handover.acknowledgedAt
+            ? ' · ' +
+              handover.acknowledgedAt
+            : ''
+        )
+      );
+
+      if (handover.acknowledgementNote) {
+        noteParts.push(
+          'หมายเหตุรับมอบ: ' +
+          handover.acknowledgementNote
+        );
+      }
+    }
+
+    setText(
+      'shiftHandoverNote',
+      noteParts.length
+        ? noteParts.join(' | ')
+        : 'ระบบส่งมอบอัตโนมัติ ผู้ใช้สามารถเพิ่มหมายเหตุได้โดยไม่กระทบงานหลัก'
+    );
+
+    const hasSnapshot =
+      Boolean(
+        handover.snapshotKey
+      );
+    const enabled =
+      handover.enabled !== false;
+    const finalized =
+      [
+        'AUTO_FINALIZED',
+        'ACKNOWLEDGED'
+      ].includes(status);
+
+    const addNoteButton =
+      document.getElementById(
+        'shiftHandoverAddNote'
+      );
+    const acknowledgeButton =
+      document.getElementById(
+        'shiftHandoverAcknowledge'
+      );
+    const refreshButton =
+      document.getElementById(
+        'shiftHandoverRefresh'
+      );
+
+    if (addNoteButton) {
+      addNoteButton.disabled =
+        state.handoverInProgress ||
+        !enabled ||
+        !hasSnapshot;
+    }
+
+    if (acknowledgeButton) {
+      acknowledgeButton.hidden =
+        handover.acknowledged === true;
+      acknowledgeButton.disabled =
+        state.handoverInProgress ||
+        !enabled ||
+        !hasSnapshot ||
+        !finalized;
+      acknowledgeButton.title =
+        !finalized
+          ? 'รอระบบปิด Snapshot ส่งมอบอัตโนมัติก่อน'
+          : 'บันทึกว่ากะปัจจุบันเปิดดูและรับทราบงานแล้ว';
+    }
+
+    if (refreshButton) {
+      refreshButton.hidden =
+        !isAdmin();
+      refreshButton.disabled =
+        state.handoverInProgress ||
+        !enabled;
+    }
+  }
+
+
+  async function handleShiftHandoverAction(
+    action
+  ) {
+    if (
+      state.handoverInProgress ||
+      !API ||
+      typeof API.updateShiftHandover !==
+        'function'
+    ) {
+      return;
+    }
+
+    const handover =
+      state.operationalBoard &&
+      state.operationalBoard.handover ||
+      {};
+
+    const cleanAction =
+      String(action || '')
+        .trim()
+        .toUpperCase();
+
+    let note = '';
+
+    if (cleanAction === 'ADD_NOTE') {
+      const result =
+        await Swal.fire({
+          icon: 'info',
+          title: 'หมายเหตุส่งมอบงาน',
+          input: 'textarea',
+          inputValue:
+            handover.note || '',
+          inputPlaceholder:
+            'ระบุข้อมูลที่กะถัดไปควรทราบ',
+          inputAttributes: {
+            maxlength: '1000'
+          },
+          showCancelButton: true,
+          confirmButtonText: 'บันทึกหมายเหตุ',
+          cancelButtonText: 'ยกเลิก',
+          reverseButtons: true
+        });
+
+      if (!result.isConfirmed) {
+        return;
+      }
+
+      note =
+        String(
+          result.value || ''
+        ).trim();
+    }
+
+    if (cleanAction === 'ACKNOWLEDGE') {
+      const result =
+        await Swal.fire({
+          icon: 'question',
+          title: 'รับทราบงานจากกะก่อน',
+          text:
+            'การรับทราบเป็นหลักฐานการเปิดดูเท่านั้น ไม่บล็อกการทำงานหลัก',
+          input: 'textarea',
+          inputPlaceholder:
+            'หมายเหตุรับมอบ (ไม่บังคับ)',
+          inputAttributes: {
+            maxlength: '1000'
+          },
+          showCancelButton: true,
+          confirmButtonText: 'รับทราบงาน',
+          cancelButtonText: 'ยกเลิก',
+          reverseButtons: true
+        });
+
+      if (!result.isConfirmed) {
+        return;
+      }
+
+      note =
+        String(
+          result.value || ''
+        ).trim();
+    }
+
+    if (cleanAction === 'REFRESH_SNAPSHOT') {
+      const result =
+        await Swal.fire({
+          icon: 'warning',
+          title: 'สร้าง Snapshot ใหม่',
+          text:
+            'ระบบจะคำนวณสถานะล่าสุดและอัปเดต Snapshot ส่งมอบของกะที่เกี่ยวข้อง',
+          showCancelButton: true,
+          confirmButtonText: 'สร้าง Snapshot',
+          cancelButtonText: 'ยกเลิก',
+          reverseButtons: true
+        });
+
+      if (!result.isConfirmed) {
+        return;
+      }
+    }
+
+    state.handoverInProgress = true;
+    renderShiftHandover();
+
+    try {
+      const updated =
+        await API.updateShiftHandover(
+          state.moduleId,
+          cleanAction,
+          {
+            snapshotKey:
+              handover.snapshotKey || '',
+            note: note
+          }
+        );
+
+      if (
+        state.operationalBoard &&
+        updated
+      ) {
+        state.operationalBoard.handover =
+          updated;
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title:
+          cleanAction === 'ACKNOWLEDGE'
+            ? 'รับทราบงานแล้ว'
+            : cleanAction === 'ADD_NOTE'
+              ? 'บันทึกหมายเหตุแล้ว'
+              : 'อัปเดต Snapshot แล้ว',
+        confirmButtonText: 'ตกลง',
+        timer: 1300,
+        timerProgressBar: true
+      });
+
+      await loadRecords({
+        silentError: true,
+        showSuccessToast: false,
+        forceRender: true,
+        forceRefresh: true
+      });
+
+    } catch (error) {
+      await showApiError(
+        error,
+        'ดำเนินการส่งมอบงานไม่สำเร็จ'
+      );
+
+    } finally {
+      state.handoverInProgress = false;
+      renderShiftHandover();
+    }
+  }
+
 
   function syncOperationalFilterUi() {
     document
@@ -4442,6 +4849,165 @@
   }
 
 
+  function isAppointmentFieldLabel(value) {
+    const label =
+      normalizeFieldLabel(value);
+
+    return (
+      label.includes('เลขนัดหมาย') ||
+      label.includes('หมายเลขนัดหมาย') ||
+      label.includes('appointment') ||
+      label.includes('bookingnumber') ||
+      label === 'booking'
+    );
+  }
+
+
+  function isCompanyFieldLabel(value) {
+    const label =
+      normalizeFieldLabel(value);
+
+    return (
+      label.includes('บริษัท') ||
+      label.includes('company') ||
+      label.includes('vendor') ||
+      label.includes('supplier')
+    );
+  }
+
+
+  function getPriorityIdentity(record) {
+    const data =
+      record &&
+      typeof record === 'object'
+        ? record
+        : {};
+
+    const result = {
+      appointmentNumber:
+        String(
+          data.appointmentNumber ||
+          data.appointment ||
+          ''
+        ).trim(),
+      companyName:
+        String(
+          data.companyName ||
+          data.company ||
+          ''
+        ).trim()
+    };
+
+    const fields =
+      Array.isArray(data.fields)
+        ? data.fields
+        : [];
+
+    fields.forEach((field) => {
+      const label =
+        field &&
+        (
+          field.label ||
+          field.displayName ||
+          field.name
+        );
+      const value =
+        String(
+          field && field.value ||
+          ''
+        ).trim();
+
+      if (!value) {
+        return;
+      }
+
+      if (
+        !result.appointmentNumber &&
+        isAppointmentFieldLabel(label)
+      ) {
+        result.appointmentNumber =
+          value;
+      }
+
+      if (
+        !result.companyName &&
+        isCompanyFieldLabel(label)
+      ) {
+        result.companyName =
+          value;
+      }
+    });
+
+    const primaryLabel =
+      getPrimaryLabel(data);
+    const primaryValue =
+      String(
+        data.primaryValue || ''
+      ).trim();
+
+    if (
+      !result.appointmentNumber &&
+      primaryValue &&
+      isAppointmentFieldLabel(
+        primaryLabel
+      )
+    ) {
+      result.appointmentNumber =
+        primaryValue;
+    }
+
+    if (
+      !result.companyName &&
+      primaryValue &&
+      isCompanyFieldLabel(
+        primaryLabel
+      )
+    ) {
+      result.companyName =
+        primaryValue;
+    }
+
+    return result;
+  }
+
+
+  function isPriorityIdentityField(
+    field,
+    identity
+  ) {
+    const label =
+      field &&
+      (
+        field.label ||
+        field.displayName ||
+        field.name
+      );
+    const value =
+      normalizeComparableText(
+        field && field.value
+      );
+
+    return (
+      isAppointmentFieldLabel(label) ||
+      isCompanyFieldLabel(label) ||
+      (
+        identity.appointmentNumber &&
+        value ===
+          normalizeComparableText(
+            identity.appointmentNumber
+          )
+      ) ||
+      (
+        identity.companyName &&
+        value ===
+          normalizeComparableText(
+            identity.companyName
+          )
+      )
+    );
+  }
+
+
   function getDisplayFields(
     record,
     options
@@ -4466,6 +5032,9 @@
         record.primaryValue
       );
 
+    const priorityIdentity =
+      getPriorityIdentity(record);
+
     const unique =
       new Set();
 
@@ -4483,6 +5052,15 @@
 
           if (
             isPrimaryField(field)
+          ) {
+            return false;
+          }
+
+          if (
+            isPriorityIdentityField(
+              field,
+              priorityIdentity
+            )
           ) {
             return false;
           }
@@ -4561,6 +5139,9 @@
     record,
     index
   ) {
+    const priorityIdentity =
+      getPriorityIdentity(record);
+
     const article =
       document.createElement(
         'article'
@@ -4611,6 +5192,8 @@
       'aria-label',
       'ดูรายละเอียด ' +
       (
+        priorityIdentity.appointmentNumber ||
+        priorityIdentity.companyName ||
         record.primaryValue ||
         'รายการรถ'
       )
@@ -4664,7 +5247,9 @@
       'vehicle-card__primary-label';
 
     primaryLabel.textContent =
-      getPrimaryLabel(record);
+      priorityIdentity.appointmentNumber
+        ? 'เลขนัดหมาย'
+        : getPrimaryLabel(record);
 
     const title =
       document.createElement(
@@ -4672,11 +5257,31 @@
       );
 
     title.className =
-      'vehicle-card__title';
+      'vehicle-card__title vehicle-card__appointment';
 
     title.textContent =
+      priorityIdentity.appointmentNumber ||
       record.primaryValue ||
-      'ไม่พบข้อมูลหลัก';
+      'ไม่พบเลขนัดหมาย';
+
+    const companyLabel =
+      document.createElement(
+        'span'
+      );
+    companyLabel.className =
+      'vehicle-card__company-label';
+    companyLabel.textContent =
+      'บริษัท';
+
+    const company =
+      document.createElement(
+        'p'
+      );
+    company.className =
+      'vehicle-card__company';
+    company.textContent =
+      priorityIdentity.companyName ||
+      'ไม่พบชื่อบริษัท';
 
     const statusLine =
       document.createElement(
@@ -4728,6 +5333,14 @@
 
     titleWrap.appendChild(
       title
+    );
+
+    titleWrap.appendChild(
+      companyLabel
+    );
+
+    titleWrap.appendChild(
+      company
     );
 
     titleWrap.appendChild(
