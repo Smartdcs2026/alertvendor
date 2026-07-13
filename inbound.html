@@ -6,16 +6,17 @@
   <meta name="theme-color" content="#073b59">
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
-  <!-- ROUND 06 PART 08: core workflow guard; scanner logic unchanged -->
+  <!-- PHASE 2A: Durable pending queue, unstable-network recovery, idempotent replay -->
 
-  <link rel="stylesheet" href="./inbound.css?v=20260710-r06-08-core-workflow-guard">
+  <link rel="stylesheet" href="./inbound.css?v=20260713-phase2a-inbound-resilience-r1">
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
-  <script src="./config.js?v=20260710-r06-08-core-workflow-guard" defer></script>
-  <script src="./api.js?v=20260712-r08-workflow-server-sync" defer></script>
+  <script src="./config.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
+  <script src="./api.js?v=20260713-phase1a-canonical-lifecycle-r1" defer></script>
+  <script src="./inbound-offline-queue.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
   <script src="./inbound-scanner.js?v=20260710-r06-08-core-workflow-guard" defer></script>
-  <script src="./inbound.js?v=20260710-r06-08-core-workflow-guard" defer></script>
+  <script src="./inbound.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
 
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
@@ -506,6 +507,23 @@
         <button id="inboundFullscreenButton" type="button" class="button--fullscreen" title="เปิดเต็มจอ">เต็มจอ</button>
           <button id="inboundRefreshButton" type="button">รีเฟรช</button>
         <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
+      </div>
+    </section>
+
+    <section class="inbound-network-bar" aria-label="สถานะเครือข่ายและรายการรอส่ง">
+      <div class="inbound-network-state">
+        <span id="inboundNetworkState" data-state="CHECKING">กำลังตรวจเครือข่าย</span>
+        <small id="inboundQueueDetail">ไม่มีรายการรอส่ง</small>
+      </div>
+
+      <div class="inbound-queue-actions">
+        <button id="inboundQueueButton" type="button" class="button--queue" aria-label="เปิดรายการรอส่ง">
+          รอส่ง <strong id="inboundPendingCount">0</strong>
+        </button>
+        <button id="inboundFailedQueueButton" type="button" class="button--queue-failed" aria-label="เปิดรายการส่งไม่สำเร็จ" hidden>
+          ผิดพลาด <strong id="inboundFailedCount">0</strong>
+        </button>
+        <button id="inboundRetryQueueButton" type="button" class="button--queue-retry" hidden>ส่งใหม่ตอนนี้</button>
       </div>
     </section>
 
