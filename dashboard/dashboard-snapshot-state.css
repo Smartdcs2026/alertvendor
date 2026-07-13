@@ -405,11 +405,14 @@ body.dashboard-one-page-fullscreen .live-block {
   min-width: 148px !important;
 }
 
+/*
+ * PHASE 4C HOTFIX 2
+ * Snapshot/Reconciliation ยังคงทำงานใน JavaScript และ Backend
+ * แต่ห้ามใช้พื้นที่ใน Fullscreen Dashboard
+ */
+:fullscreen .dashboard-snapshot-banner,
 body.dashboard-one-page-fullscreen .dashboard-snapshot-banner {
-  width: calc(100% - 16px) !important;
-  min-height: 25px !important;
-  margin-top: 3px !important;
-  border-radius: 8px !important;
+  display: none !important;
 }
 
 body.dashboard-one-page-fullscreen
@@ -776,3 +779,20 @@ body.dashboard-one-page-fullscreen
   }
 }
 
+/* Final protection: Snapshot must never occupy Fullscreen viewport */
+:fullscreen #dashboardSnapshotBanner,
+body.dashboard-one-page-fullscreen #dashboardSnapshotBanner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+
+body.dashboard-one-page-fullscreen .control-main {
+  margin-top: 0 !important;
+  padding-top: 3px !important;
+}
