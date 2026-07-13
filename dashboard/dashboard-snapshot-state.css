@@ -128,3 +128,16 @@
 .dashboard-snapshot-banner[data-state="LIVE"] .dashboard-snapshot-banner__state {
   background: #d9f4eb;
 }
+
+
+/*
+ * PHASE 4A HOTFIX 1
+ * Loading Overlay ต้องอยู่ต่ำกว่า SweetAlert เพื่อไม่ให้ Modal ถูกบัง
+ */
+.dashboard-loading {
+  z-index: 1000 !important;
+}
+
+.swal2-container {
+  z-index: 12000 !important;
+}
