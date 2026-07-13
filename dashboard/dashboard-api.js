@@ -1,6 +1,6 @@
 /**
  * dashboard-api.js
- * PHASE 4A — Read-only API with GET retry and Operational Board snapshot
+ * PHASE 4A HOTFIX 3 — CORS preflight-safe GET retry
  */
 (function (window) {
   'use strict';
@@ -111,8 +111,7 @@
     );
     const headers = new Headers({
       Accept: 'application/json',
-      'X-Request-Id': logicalRequestId,
-      'X-Retry-Attempt': String(attempt)
+      'X-Request-Id': logicalRequestId
     });
     const token = getAccessToken();
 
@@ -176,10 +175,18 @@
 
       throw new DashboardAPIError(
         window.navigator.onLine
-          ? 'เชื่อมต่อระบบไม่สำเร็จ'
+          ? 'เบราว์เซอร์เชื่อมต่อ Worker ไม่สำเร็จ'
           : 'อุปกรณ์ไม่มีอินเทอร์เน็ต',
         'NETWORK_ERROR',
-        0
+        0,
+        {
+          online: window.navigator.onLine === true,
+          apiBase: API_BASE,
+          path: String(path || ''),
+          hint:
+            'ตรวจ CORS preflight, ALLOWED_ORIGINS และ Access-Control-Allow-Headers'
+        },
+        logicalRequestId
       );
     } finally {
       window.clearTimeout(timeoutId);
