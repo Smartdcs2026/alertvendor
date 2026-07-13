@@ -1,6 +1,6 @@
 /**
- * dashboard-shift-context.js
- * PHASE 4C HOTFIX 1 — Stable layout + real current business date
+ * dashboard-shift.js
+ * ROUND 80 — Contextual Executive Dashboard
  */
 (function (window, document) {
   'use strict';
@@ -17,9 +17,6 @@
 
     selectedDate:
       '',
-
-    followCurrentBusinessDate:
-      true,
 
     data:
       null,
@@ -63,9 +60,7 @@
       getModuleId();
 
     state.selectedDate =
-      normalizeBusinessDateValue(
-        todayIso()
-      );
+      todayIso();
 
     const dateInput =
       byId(
@@ -115,13 +110,8 @@
       'change',
       (event) => {
         state.selectedDate =
-          normalizeBusinessDateValue(
-            event.target.value ||
-            todayIso()
-          );
-
-        state.followCurrentBusinessDate =
-          false;
+          event.target.value ||
+          todayIso();
 
         state.data =
           null;
@@ -153,9 +143,6 @@
     )?.addEventListener(
       'click',
       () => {
-        state.followCurrentBusinessDate =
-          true;
-
         state.selectedDate =
           todayIso();
 
@@ -245,18 +232,6 @@
     document.body.dataset
       .dashboardView =
         state.view;
-
-    document.dispatchEvent(
-      new CustomEvent(
-        'dashboard:view-changed',
-        {
-          detail: {
-            view:
-              state.view
-          }
-        }
-      )
-    );
 
     document
       .querySelectorAll(
@@ -357,12 +332,10 @@
         await API
           .getShiftDashboard(
             state.moduleId,
-            state.followCurrentBusinessDate
-              ? {}
-              : {
-                  date:
-                    state.selectedDate
-                }
+            {
+              date:
+                state.selectedDate
+            }
           );
 
       if (
@@ -374,19 +347,6 @@
 
       state.data =
         data || null;
-
-      if (
-        state.followCurrentBusinessDate &&
-        data &&
-        data.businessDate
-      ) {
-        state.selectedDate =
-          normalizeBusinessDateValue(
-            data.businessDate
-          );
-
-        syncDateInput();
-      }
 
       render();
 
@@ -474,20 +434,6 @@
 
     bindWorkspaceEvents();
     scheduleLayoutRefresh();
-
-    document.dispatchEvent(
-      new CustomEvent(
-        'dashboard:content-ready',
-        {
-          detail: {
-            view:
-              state.view,
-            businessDate:
-              state.selectedDate
-          }
-        }
-      )
-    );
   }
 
 
@@ -975,19 +921,6 @@
               )
             )}
 
-            ${
-              isCrossDayWindow(
-                daily.businessDayStart,
-                daily.businessDayEnd
-              )
-                ? `
-                    <em class="shift-cross-day-badge is-business-day">
-                      วันปฏิบัติงานข้ามวัน
-                    </em>
-                  `
-                : ''
-            }
-
             ·
             <strong>
               ${escapeHtml(
@@ -1409,13 +1342,7 @@
                 )}
               </span>
 
-              <small
-                title="${escapeHtml(
-                  shiftRangeTitle(
-                    card
-                  )
-                )}"
-              >
+              <small>
                 ${escapeHtml(
                   card.start
                 )}
@@ -1423,17 +1350,6 @@
                 ${escapeHtml(
                   card.end
                 )}
-
-                ${
-                  card.crossesMidnight ===
-                    true
-                    ? `
-                        <em class="shift-cross-day-badge">
-                          ข้ามวัน
-                        </em>
-                      `
-                    : ''
-                }
               </small>
             </div>
           </div>
@@ -4652,131 +4568,6 @@
   }
 
 
-
-  function normalizeBusinessDateValue(
-    value
-  ) {
-    const text =
-      String(
-        value ||
-        ''
-      ).trim();
-
-    const isoMatch =
-      text.match(
-        /^(\d{4})-(\d{2})-(\d{2})/
-      );
-
-    if (isoMatch) {
-      return (
-        isoMatch[1] + '-' +
-        isoMatch[2] + '-' +
-        isoMatch[3]
-      );
-    }
-
-    const dmyMatch =
-      text.match(
-        /^(\d{2})\/(\d{2})\/(\d{4})/
-      );
-
-    if (dmyMatch) {
-      return (
-        dmyMatch[3] + '-' +
-        dmyMatch[2] + '-' +
-        dmyMatch[1]
-      );
-    }
-
-    return todayIso();
-  }
-
-
-  function shiftRangeTitle(
-    card
-  ) {
-    const item =
-      card &&
-      typeof card ===
-        'object'
-        ? card
-        : {};
-
-    const start =
-      dashboardDisplayDateTime(
-        item.rangeStart
-      );
-
-    const end =
-      dashboardDisplayDateTime(
-        item.rangeEnd
-      );
-
-    if (
-      start !== '-' &&
-      end !== '-'
-    ) {
-      return (
-        'ช่วงจริง ' +
-        start +
-        ' – ' +
-        end +
-        (
-          item.crossesMidnight ===
-            true
-            ? ' (ข้ามวัน)'
-            : ''
-        )
-      );
-    }
-
-    return (
-      String(
-        item.start ||
-        ''
-      ) +
-      ' – ' +
-      String(
-        item.end ||
-        ''
-      )
-    ).trim();
-  }
-
-
-  function isCrossDayWindow(
-    startValue,
-    endValue
-  ) {
-    const startText =
-      dashboardDisplayDateTime(
-        startValue
-      );
-
-    const endText =
-      dashboardDisplayDateTime(
-        endValue
-      );
-
-    const startDate =
-      startText.match(
-        /^(\d{2}\/\d{2}\/\d{4})/
-      );
-
-    const endDate =
-      endText.match(
-        /^(\d{2}\/\d{2}\/\d{4})/
-      );
-
-    return Boolean(
-      startDate &&
-      endDate &&
-      startDate[1] !==
-        endDate[1]
-    );
-  }
-
-
  function dashboardDisplayDateTime(
   value
 ) {
@@ -4972,9 +4763,6 @@
         date
       );
 
-    state.followCurrentBusinessDate =
-      false;
-
     state.data =
       null;
 
@@ -4990,11 +4778,6 @@
       );
 
     if (input) {
-      state.selectedDate =
-        normalizeBusinessDateValue(
-          state.selectedDate
-        );
-
       input.value =
         state.selectedDate;
     }
@@ -5015,9 +4798,8 @@
       window.setTimeout(
         () => {
           if (
-            state.followCurrentBusinessDate ||
             state.selectedDate ===
-              todayIso()
+            todayIso()
           ) {
             loadShiftDashboard(
               true
@@ -5072,6 +4854,36 @@
       }
     );
 
+    if (
+      typeof window.ResizeObserver ===
+      'function'
+    ) {
+      state.resizeObserver =
+        new window.ResizeObserver(
+          handler
+        );
+
+      [
+        document.querySelector(
+          '.control-header'
+        ),
+        document.querySelector(
+          '.control-main'
+        ),
+        byId(
+          'dashboardShiftWorkspace'
+        )
+      ]
+        .filter(Boolean)
+        .forEach(
+          (element) => {
+            state.resizeObserver
+              .observe(
+                element
+              );
+          }
+        );
+    }
   }
 
 
@@ -5182,6 +4994,12 @@
       );
     }
 
+    if (
+      state.resizeObserver
+    ) {
+      state.resizeObserver
+        .disconnect();
+    }
   }
 
 
