@@ -1,6 +1,6 @@
 /**
  * dashboard-config.js
- * ROUND 05 HOTFIX 30 — Dashboard Session Key v2
+ * PHASE 4A — Dashboard Single Snapshot + Reconciliation
  */
 (function (window) {
   'use strict';
@@ -9,10 +9,6 @@
     API_BASE:
       'https://alertvendor.somchaibutphon.workers.dev',
 
-    /*
-     * ต้องตรงกับ config.js หลัก
-     * ไม่เช่นนั้น Dashboard จะหา session ไม่เจอ แล้วเด้งกลับหน้า Login/Index
-     */
     TOKEN_STORAGE_KEY:
       'alertvendor_access_token_v2',
 
@@ -28,10 +24,22 @@
     API_TIMEOUT_MS:
       60000,
 
+    GET_RETRY_COUNT:
+      2,
+
+    GET_RETRY_BASE_MS:
+      700,
+
     REFRESH_SECONDS:
       15,
 
-    ACTIVE_RECORD_LIMIT:
-      5000
+    OPERATIONAL_BOARD_LIMIT:
+      3000,
+
+    LAST_GOOD_SNAPSHOT_TTL_MS:
+      15 * 60 * 1000,
+
+    SNAPSHOT_STALE_AFTER_MS:
+      90 * 1000
   });
 })(window);
