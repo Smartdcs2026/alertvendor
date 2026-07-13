@@ -37,7 +37,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260713-r17-action-sheet-shift-accuracy"
+    href="./styles.css?v=20260713-r19-operational-alert-control"
   >
 
   <link
@@ -83,12 +83,12 @@
   ></script>
 
   <script
-    src="./module-operations.js?v=20260703-r55-detail-swal-style-fix"
+    src="./module-operations.js?v=20260713-r19-operational-alert-control"
     defer
   ></script>
 
   <script
-    src="./module.js?v=20260713-r18-workflow-wording-accuracy"
+    src="./module.js?v=20260713-r19-operational-alert-control"
     defer
   ></script>
 
@@ -387,6 +387,32 @@
         <div class="operational-board-panel__header-actions">
           <span id="operationalIntegrity" class="operational-integrity" data-state="LOADING">กำลังตรวจความครบถ้วน</span>
           <span id="operationalSnapshotTime">กำลังโหลด Snapshot</span>
+
+          <button
+            id="operationalAlertToggle"
+            class="operational-alert-toggle is-enabled"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="ปิด OPERATIONAL ALERT อัตโนมัติ"
+            title="เปิดอยู่: กดเพื่อปิดเฉพาะ OPERATIONAL ALERT อัตโนมัติ"
+          >
+            <span class="operational-alert-toggle__label">
+              OPERATIONAL ALERT
+            </span>
+
+            <span
+              class="operational-alert-toggle__track"
+              aria-hidden="true"
+            >
+              <i></i>
+            </span>
+
+            <strong id="operationalAlertToggleStatus">
+              เปิด
+            </strong>
+          </button>
+
           <button id="operationalBoardRefresh" type="button">
             อัปเดตข้อมูล
           </button>
