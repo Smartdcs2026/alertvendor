@@ -1,6 +1,6 @@
 /**
  * dashboard.js
- * PHASE 4A HOTFIX 1 — Dashboard Loading Overlay / SweetAlert Deadlock Fix
+ * PHASE 4C — Fullscreen One-Page Dashboard + Loading Safety
  *
  * แก้กรณี Backend ตอบ Error ระหว่าง Initial Load แล้ว Loading Overlay
  * มี z-index สูงกว่า SweetAlert ทำให้ผู้ใช้มองไม่เห็น/กดปุ่ม Error ไม่ได้
@@ -63,6 +63,11 @@
     initialLoadCompleted: false
   };
 
+  let fullscreenFitTimer = null;
+  let fullscreenFitResizeObserver = null;
+  let fullscreenFitMutationObserver = null;
+  let fullscreenFitApplying = false;
+
   const doughnutCenterPlugin = {
     id: 'dashboardDoughnutCenter',
 
@@ -111,6 +116,7 @@
 
   async function initializeDashboard() {
     bindEvents();
+    initializeFullscreenOnePageFit();
     startClock();
     showLoading(true);
 
@@ -333,6 +339,7 @@
         () => {
           syncResponsiveDashboard();
           resizeCharts();
+          scheduleFullscreenOnePageFit();
         },
         120
       )
@@ -341,6 +348,16 @@
     document.addEventListener(
       'fullscreenchange',
       syncFullscreenButton
+    );
+
+    document.addEventListener(
+      'dashboard:content-ready',
+      scheduleFullscreenOnePageFit
+    );
+
+    document.addEventListener(
+      'dashboard:view-changed',
+      scheduleFullscreenOnePageFit
     );
   }
 
@@ -4531,7 +4548,329 @@
       resizeCharts,
       80
     );
+
+    scheduleFullscreenOnePageFit(true);
   }
+
+
+  function initializeFullscreenOnePageFit() {
+    const target =
+      document.querySelector(
+        '.control-main'
+      );
+
+    if (!target) {
+      return;
+    }
+
+    if (
+      typeof window.ResizeObserver ===
+      'function'
+    ) {
+      fullscreenFitResizeObserver =
+        new window.ResizeObserver(
+          scheduleFullscreenOnePageFit
+        );
+
+      [
+        target,
+        document.querySelector(
+          '.control-header'
+        ),
+        document.getElementById(
+          'dashboardSnapshotBanner'
+        )
+      ]
+        .filter(Boolean)
+        .forEach(
+          (element) => {
+            fullscreenFitResizeObserver
+              .observe(element);
+          }
+        );
+    }
+
+    if (
+      typeof window.MutationObserver ===
+      'function'
+    ) {
+      fullscreenFitMutationObserver =
+        new window.MutationObserver(
+          scheduleFullscreenOnePageFit
+        );
+
+      fullscreenFitMutationObserver
+        .observe(
+          target,
+          {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: [
+              'hidden',
+              'class',
+              'data-state'
+            ]
+          }
+        );
+    }
+
+    scheduleFullscreenOnePageFit(true);
+  }
+
+
+  function scheduleFullscreenOnePageFit(
+    immediate
+  ) {
+    if (state.destroyed) {
+      return;
+    }
+
+    if (fullscreenFitTimer) {
+      window.clearTimeout(
+        fullscreenFitTimer
+      );
+    }
+
+    fullscreenFitTimer =
+      window.setTimeout(
+        () => {
+          fullscreenFitTimer =
+            null;
+
+          window.requestAnimationFrame(
+            applyFullscreenOnePageFit
+          );
+        },
+        immediate === true
+          ? 0
+          : 90
+      );
+  }
+
+
+  function applyFullscreenOnePageFit() {
+    if (fullscreenFitApplying) {
+      return;
+    }
+
+    const target =
+      document.querySelector(
+        '.control-main'
+      );
+
+    const isDesktopFullscreen =
+      Boolean(
+        document.fullscreenElement
+      ) &&
+      window.innerWidth >= 1000 &&
+      window.innerHeight >= 620;
+
+    if (
+      !target ||
+      !isDesktopFullscreen
+    ) {
+      resetFullscreenOnePageFit();
+      return;
+    }
+
+    fullscreenFitApplying = true;
+
+    try {
+      document.body.classList.add(
+        'dashboard-one-page-fullscreen'
+      );
+
+      const snapshotBanner =
+        document.getElementById(
+          'dashboardSnapshotBanner'
+        );
+
+      if (
+        snapshotBanner &&
+        snapshotBanner.open
+      ) {
+        snapshotBanner.open =
+          false;
+      }
+
+      document.documentElement
+        .style.setProperty(
+          '--dashboard-fullscreen-scale',
+          '1'
+        );
+
+      target.dataset.fullscreenFit =
+        'CALCULATING';
+
+      let scale = 1;
+
+      for (
+        let pass = 0;
+        pass < 4;
+        pass += 1
+      ) {
+        document.documentElement
+          .style.setProperty(
+            '--dashboard-fullscreen-scale',
+            String(scale)
+          );
+
+        const rect =
+          target.getBoundingClientRect();
+
+        const availableWidth =
+          Math.max(
+            320,
+            window.innerWidth -
+            Math.max(
+              0,
+              rect.left
+            ) -
+            4
+          );
+
+        const availableHeight =
+          Math.max(
+            320,
+            window.innerHeight -
+            Math.max(
+              0,
+              rect.top
+            ) -
+            4
+          );
+
+        const naturalWidth =
+          Math.max(
+            target.scrollWidth,
+            Math.round(
+              rect.width /
+              Math.max(
+                scale,
+                0.01
+              )
+            )
+          );
+
+        const naturalHeight =
+          Math.max(
+            target.scrollHeight,
+            Math.round(
+              rect.height /
+              Math.max(
+                scale,
+                0.01
+              )
+            )
+          );
+
+        const safeScale =
+          Math.max(
+            0.42,
+            Math.min(
+              1,
+              availableWidth /
+                Math.max(
+                  naturalWidth,
+                  1
+                ),
+              availableHeight /
+                Math.max(
+                  naturalHeight,
+                  1
+                )
+            )
+          );
+
+        if (
+          Math.abs(
+            safeScale -
+            scale
+          ) < 0.006
+        ) {
+          scale =
+            safeScale;
+          break;
+        }
+
+        scale =
+          safeScale;
+      }
+
+      document.documentElement
+        .style.setProperty(
+          '--dashboard-fullscreen-scale',
+          scale.toFixed(4)
+        );
+
+      target.dataset.fullscreenFit =
+        scale < 0.995
+          ? 'SCALED'
+          : 'NATIVE';
+
+      target.dataset.fullscreenScale =
+        scale.toFixed(3);
+
+      window.scrollTo(
+        0,
+        0
+      );
+
+      window.setTimeout(
+        () => {
+          resizeCharts();
+
+          document.dispatchEvent(
+            new CustomEvent(
+              'dashboard:fullscreen-fit-complete',
+              {
+                detail: {
+                  scale:
+                    scale,
+                  view:
+                    document.body
+                      .dataset
+                      .dashboardView ||
+                    'LIVE'
+                }
+              }
+            )
+          );
+        },
+        100
+      );
+
+    } finally {
+      fullscreenFitApplying =
+        false;
+    }
+  }
+
+
+  function resetFullscreenOnePageFit() {
+    const target =
+      document.querySelector(
+        '.control-main'
+      );
+
+    document.body.classList.remove(
+      'dashboard-one-page-fullscreen'
+    );
+
+    document.documentElement
+      .style.removeProperty(
+        '--dashboard-fullscreen-scale'
+      );
+
+    if (target) {
+      delete target.dataset
+        .fullscreenFit;
+      delete target.dataset
+        .fullscreenScale;
+    }
+  }
+
 
   function focusRecordsPanel() {
     const panel =
@@ -4616,6 +4955,24 @@
         state.clockTimer
       );
     }
+
+    if (fullscreenFitTimer) {
+      window.clearTimeout(
+        fullscreenFitTimer
+      );
+    }
+
+    if (fullscreenFitResizeObserver) {
+      fullscreenFitResizeObserver
+        .disconnect();
+    }
+
+    if (fullscreenFitMutationObserver) {
+      fullscreenFitMutationObserver
+        .disconnect();
+    }
+
+    resetFullscreenOnePageFit();
 
     Object.keys(state.charts)
       .forEach(destroyChart);
