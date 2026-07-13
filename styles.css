@@ -19542,3 +19542,111 @@ body.module-card-focus
  * This prevents styles.css and the dedicated detail stylesheet
  * from competing for the same SweetAlert component.
  ************************************************************/
+
+
+/************************************************************
+ * PRODUCTION R19 — OPERATIONAL ALERT Control
+ * Scope: module vendors only. No responsive layout changes.
+ ************************************************************/
+
+.module-page .operational-alert-toggle {
+  min-height: 32px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #aabdc7 !important;
+  border-radius: 999px !important;
+  padding: 5px 9px !important;
+  color: #425d6c !important;
+  background: #f3f6f8 !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+  transition:
+    border-color .16s ease,
+    background .16s ease,
+    color .16s ease;
+}
+
+.module-page .operational-alert-toggle:hover {
+  border-color: #5a91a4 !important;
+  background: #edf6f8 !important;
+}
+
+.module-page .operational-alert-toggle:focus-visible {
+  outline: 3px solid rgba(14, 137, 157, .22);
+  outline-offset: 2px;
+}
+
+.module-page .operational-alert-toggle__label {
+  color: inherit !important;
+  font-size: 9px !important;
+  font-weight: 950 !important;
+  letter-spacing: .045em;
+}
+
+.module-page .operational-alert-toggle__track {
+  position: relative;
+  width: 31px;
+  height: 18px;
+  flex: 0 0 31px;
+  border-radius: 999px;
+  background: #9eabb3;
+  box-shadow: inset 0 1px 3px rgba(20, 45, 60, .2);
+  transition: background .16s ease;
+}
+
+.module-page .operational-alert-toggle__track i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(20, 45, 60, .28);
+  transition: transform .16s ease;
+}
+
+.module-page .operational-alert-toggle > strong {
+  min-width: 22px;
+  color: inherit !important;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+  line-height: 1;
+}
+
+.module-page .operational-alert-toggle.is-enabled {
+  border-color: #72bcae !important;
+  color: #116a5d !important;
+  background: #eaf8f4 !important;
+}
+
+.module-page .operational-alert-toggle.is-enabled
+.operational-alert-toggle__track {
+  background: #169b84;
+}
+
+.module-page .operational-alert-toggle.is-enabled
+.operational-alert-toggle__track i {
+  transform: translateX(13px);
+}
+
+.module-page .operational-alert-toggle.is-disabled {
+  border-color: #c6d0d6 !important;
+  color: #687982 !important;
+  background: #f2f4f5 !important;
+}
+
+@media (max-width: 720px) {
+  .module-page .operational-alert-toggle {
+    grid-column: 1 / -1;
+    justify-self: end;
+    min-height: 31px !important;
+    padding: 4px 8px !important;
+  }
+
+  .module-page .operational-alert-toggle__label {
+    font-size: 8px !important;
+  }
+}
