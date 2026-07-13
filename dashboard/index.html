@@ -57,6 +57,8 @@
 
  <link rel="stylesheet" href="./dashboard-mobile-hotfix.css?v=20260706-r86">
 
+  <link rel="stylesheet" href="./dashboard-snapshot-state.css?v=20260713-phase4a-r1">
+
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
@@ -68,17 +70,17 @@
   ></script>
 
   <script
-    src="./dashboard-config.js?v=20260710-r05-hotfix30-dashboard-session-key"
+    src="./dashboard-config.js?v=20260713-phase4a-r1"
     defer
   ></script>
 
   <script
-    src="./dashboard-api.js?v=20260710-r05-hotfix30-dashboard-session-key"
+    src="./dashboard-api.js?v=20260713-phase4a-r1"
     defer
   ></script>
 
   <script
-    src="./dashboard.js?v=20260710-r05-hotfix30-dashboard-session-key"
+    src="./dashboard.js?v=20260713-phase4a-r1"
     defer
   ></script>
 
@@ -168,6 +170,34 @@
       </div>
     </div>
   </header>
+
+  <section
+    id="dashboardSnapshotBanner"
+    class="dashboard-snapshot-banner is-hidden"
+    data-state="BLOCKED"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="dashboard-snapshot-banner__state">
+      <span>SNAPSHOT STATUS</span>
+      <strong id="dashboardSnapshotState">ยังไม่มี Snapshot ที่เชื่อถือได้</strong>
+    </div>
+
+    <div class="dashboard-snapshot-banner__metric">
+      <span>Snapshot ID</span>
+      <strong id="dashboardSnapshotId">-</strong>
+    </div>
+
+    <div class="dashboard-snapshot-banner__metric dashboard-snapshot-banner__metric--wide">
+      <span>Reconciliation</span>
+      <strong id="dashboardSnapshotReconciliation">กำลังตรวจสอบ</strong>
+    </div>
+
+    <div class="dashboard-snapshot-banner__metric">
+      <span>Data Quality</span>
+      <strong id="dashboardSnapshotQuality">--</strong>
+    </div>
+  </section>
 
   <main class="control-main">
     <section
@@ -451,8 +481,11 @@
 
             <select id="dashboardStageFilter" class="is-hidden" aria-label="กรองขั้นตอน">
               <option value="ALL">ทุกขั้นตอน</option>
+              <option value="WAITING_INBOUND_DOCUMENT">รอยื่นเอกสาร Inbound</option>
               <option value="WAITING_RECEIVING">รอรับสินค้าเสร็จ</option>
-              <option value="WAITING_GATE_OUT">รับเสร็จ รอ Gate Out</option>
+              <option value="WAITING_DOCUMENT_RETURN">รอรับเอกสารคืน</option>
+              <option value="WAITING_GATE_OUT">รอ Gate Out</option>
+              <option value="DATA_CONFLICT">ข้อมูลขัดแย้ง</option>
             </select>
 
             <button
@@ -540,35 +573,35 @@
             </div>
           </header>
 
-          <div class="receiving-grid">
+          <div class="receiving-grid receiving-grid--canonical">
+            <button type="button" data-tone="WAITING" data-stage-filter="WAITING_INBOUND_DOCUMENT">
+              <span>รอยื่นเอกสาร</span>
+              <strong id="kpiWaitingInboundDocument">0</strong>
+              <small>Gate In → Inbound</small>
+            </button>
+
             <button type="button" data-tone="WAITING" data-stage-filter="WAITING_RECEIVING">
               <span>รอรับสินค้าเสร็จ</span>
               <strong id="kpiWaitingReceiving">0</strong>
-              <small>อยู่ในช่วงที่ 1</small>
+              <small>ยื่นเอกสารแล้ว</small>
+            </button>
+
+            <button type="button" data-tone="TODAY" data-stage-filter="WAITING_DOCUMENT_RETURN">
+              <span>รอรับเอกสารคืน</span>
+              <strong id="kpiWaitingDocumentReturn">0</strong>
+              <small>รับสินค้าเสร็จแล้ว</small>
             </button>
 
             <button type="button" data-tone="GATE_OUT" data-stage-filter="WAITING_GATE_OUT">
-              <span>รับเสร็จ รอ Gate Out</span>
+              <span>รอ Gate Out</span>
               <strong id="kpiWaitingGateOut">0</strong>
-              <small>อยู่ในช่วงที่ 2</small>
+              <small>รับเอกสารคืนแล้ว</small>
             </button>
-
-            <div data-tone="TODAY">
-              <span>รับสินค้าเสร็จวันนี้</span>
-              <strong id="kpiReceivingToday">0</strong>
-              <small>เหตุการณ์ที่บันทึก</small>
-            </div>
-
-            <div data-tone="QUALITY">
-              <span>ออกโดยไม่มีรับเสร็จ</span>
-              <strong id="kpiMissingReceiving">0</strong>
-              <small>ข้อมูลไม่ครบ</small>
-            </div>
 
             <div class="receiving-grid__duration" data-tone="STAGE_ONE">
               <span>เฉลี่ย เข้า → รับเสร็จ</span>
               <strong id="kpiAverageStageOne">--:--:--</strong>
-              <small>ช่วงที่ 1</small>
+              <small>เฉพาะข้อมูลที่สมบูรณ์</small>
             </div>
 
             <div class="receiving-grid__duration" data-tone="STAGE_TWO">
