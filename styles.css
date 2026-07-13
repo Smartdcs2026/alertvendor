@@ -19545,108 +19545,113 @@ body.module-card-focus
  ************************************************************/
 
 /************************************************************
- * PRODUCTION R20 — Compact Alert Header Control
- * One control in the sticky header: no extra content row.
+ * PRODUCTION R21 — Operational Alert Control Fix
+ * - ปุ่มอยู่ภายในกล่องนาฬิกาแบบ absolute จึงไม่เพิ่มคอลัมน์/บรรทัด
+ * - click target อยู่เหนือองค์ประกอบอื่นและรองรับ touch
+ * - คืนจำนวนคอลัมน์ Header ให้เท่ากับโครงสร้างเดิม
  ************************************************************/
 
+.module-page .module-command-bar {
+  grid-template-columns:
+    auto
+    minmax(250px, 1fr)
+    auto
+    minmax(160px, auto)
+    auto;
+}
+
+.module-page .module-clock {
+  position: relative;
+  padding-left: 27px;
+}
+
 .module-page .operational-alert-toggle {
-  min-width: 116px;
-  min-height: 38px;
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid rgba(255, 255, 255, .24) !important;
-  border-radius: 10px !important;
-  padding: 5px 8px !important;
-  color: #d8e9f1 !important;
-  background: rgba(255, 255, 255, .07) !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 12;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  display: grid !important;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .3) !important;
+  border-radius: 7px !important;
+  padding: 0 !important;
+  color: #c7d8e1 !important;
+  background: rgba(255, 255, 255, .08) !important;
   box-shadow: none !important;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color .16s ease, background .16s ease, color .16s ease;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color .16s ease,
+    color .16s ease,
+    background .16s ease,
+    transform .12s ease;
 }
 
 .module-page .operational-alert-toggle:hover {
-  border-color: rgba(112, 226, 215, .65) !important;
-  background: rgba(255, 255, 255, .12) !important;
+  border-color: rgba(112, 226, 215, .72) !important;
+  background: rgba(255, 255, 255, .14) !important;
+}
+
+.module-page .operational-alert-toggle:active {
+  transform: scale(.93);
 }
 
 .module-page .operational-alert-toggle:focus-visible {
-  outline: 3px solid rgba(112, 226, 215, .28);
+  outline: 3px solid rgba(112, 226, 215, .3);
   outline-offset: 2px;
 }
 
-.module-page .operational-alert-toggle__icon {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
-  display: grid;
-  place-items: center;
+.module-page .operational-alert-toggle svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
 }
 
-.module-page .operational-alert-toggle__icon svg {
-  width: 17px;
-  height: 17px;
-}
-
-.module-page .operational-alert-toggle__label {
-  color: inherit !important;
-  font-size: 8px !important;
-  font-weight: 950 !important;
-}
-
-.module-page .operational-alert-toggle__track {
-  position: relative;
-  width: 27px;
-  height: 16px;
-  flex: 0 0 27px;
-  border-radius: 999px;
-  background: #71828c;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .22);
-  transition: background .16s ease;
-}
-
-.module-page .operational-alert-toggle__track i {
+.module-page .operational-alert-toggle::after {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 10px;
-  height: 10px;
+  right: -2px;
+  bottom: -2px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #075170;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
-  transition: transform .16s ease;
-}
-
-.module-page .operational-alert-toggle > strong {
-  min-width: 17px;
-  color: inherit !important;
-  font-size: 7px !important;
-  font-weight: 950 !important;
-  line-height: 1;
+  background: #8798a2;
+  content: "";
 }
 
 .module-page .operational-alert-toggle.is-enabled {
-  border-color: rgba(112, 226, 215, .55) !important;
-  color: #82eee3 !important;
-  background: rgba(22, 155, 132, .14) !important;
+  border-color: rgba(105, 235, 205, .68) !important;
+  color: #8df3df !important;
+  background: rgba(16, 167, 139, .18) !important;
 }
 
-.module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track {
-  background: #19aa8f;
-}
-
-.module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track i {
-  transform: translateX(11px);
+.module-page .operational-alert-toggle.is-enabled::after {
+  background: #43e58c;
 }
 
 .module-page .operational-alert-toggle.is-disabled {
-  color: #bdcad1 !important;
-  background: rgba(255, 255, 255, .04) !important;
+  color: #9dafb9 !important;
+  background: rgba(255, 255, 255, .045) !important;
 }
 
-/* The board header returns to two compact rows only. */
+.module-page .operational-alert-toggle.is-disabled::before {
+  position: absolute;
+  z-index: 2;
+  width: 15px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: #c6d1d7;
+  content: "";
+  transform: rotate(-45deg);
+  pointer-events: none;
+}
+
 .module-page .operational-board-panel__header-actions {
   grid-template-columns: minmax(0, auto) auto;
   align-items: center;
@@ -19657,59 +19662,36 @@ body.module-card-focus
 }
 
 @media (max-width: 900px) {
-  .module-page .operational-alert-toggle {
-    min-width: 40px;
-    min-height: 38px;
-    padding: 5px 6px !important;
+  .module-page .module-command-bar {
+    grid-template-columns:
+      auto minmax(0, 1fr) minmax(145px, auto) auto;
   }
 
-  .module-page .operational-alert-toggle__label,
-  .module-page .operational-alert-toggle > strong {
-    display: none !important;
+  .module-page .module-clock {
+    padding-left: 26px;
   }
 }
 
 @media (max-width: 640px) {
+  .module-page .module-command-bar {
+    grid-template-columns:
+      auto minmax(0, 1fr) minmax(104px, auto);
+  }
+
+  .module-page .module-clock {
+    padding-left: 25px;
+  }
+
   .module-page .operational-alert-toggle {
-    width: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    gap: 3px;
-    border-radius: 9px !important;
-    padding: 0 !important;
+    top: 1px;
+    width: 21px;
+    height: 21px;
+    min-width: 21px;
+    min-height: 21px;
   }
 
-  .module-page .operational-alert-toggle__icon {
-    width: 15px;
-    height: 15px;
-    flex-basis: 15px;
-  }
-
-  .module-page .operational-alert-toggle__icon svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .module-page .operational-alert-toggle__track {
-    width: 14px;
-    height: 14px;
-    flex-basis: 14px;
-    background: #71828c;
-  }
-
-  .module-page .operational-alert-toggle__track i {
-    top: 3px;
-    left: 3px;
-    width: 8px;
-    height: 8px;
-  }
-
-  .module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track i {
-    transform: none;
-  }
-
-  .module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track {
-    background: #20bf9f;
-    box-shadow: 0 0 0 3px rgba(32, 191, 159, .15);
+  .module-page .operational-alert-toggle svg {
+    width: 13px;
+    height: 13px;
   }
 }
