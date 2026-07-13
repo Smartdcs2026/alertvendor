@@ -142,7 +142,7 @@
       document.body.dataset.shiftHandoverBuild =
         '2026.07.13-r18-workflow-wording-accuracy';
       document.body.dataset.operationalAlertBuild =
-        '2026.07.13-r21-alert-control-fix';
+        '2026.07.13-r22-alert-rescue';
     }
 
     initializeOverdueBadgeSystem();
