@@ -1,6 +1,6 @@
 /**
  * dashboard-shift.js
- * ROUND 80 — Contextual Executive Dashboard
+ * PHASE 4B — Executive Warehouse Vehicle Flow Dashboard
  */
 (function (window, document) {
   'use strict';
@@ -415,6 +415,21 @@
             state.data
           );
 
+    workspace.dataset.managementState =
+      String(
+        state.data &&
+        state.data.management &&
+        state.data.management.status ||
+        'READY'
+      ).toUpperCase();
+
+    workspace.dataset.reconciliationState =
+      state.data &&
+      state.data.reconciliation &&
+      state.data.reconciliation.success === false
+        ? 'ERROR'
+        : 'READY';
+
     if (
       state.view ===
       'DAILY'
@@ -588,6 +603,11 @@
           }
         </div>
       </header>
+
+      ${managementFocusHtml(
+        data,
+        'SHIFT'
+      )}
 
       <section class="shift-executive-kpis">
         ${executiveKpi(
@@ -836,6 +856,10 @@
       </section>
 
       <footer class="shift-dashboard-footer">
+        ${executiveSnapshotFooterHtml(
+          data
+        )}
+
         <span>
           อัปเดต
           ${escapeHtml(
@@ -1003,6 +1027,11 @@
           }
         </div>
       </header>
+
+      ${managementFocusHtml(
+        data,
+        'DAILY'
+      )}
 
       <section class="daily-summary-grid">
         ${dailyMetricHtml(
@@ -1197,6 +1226,10 @@
             </h3>
           </header>
 
+          ${managementDailyInsightHtml(
+            data
+          )}
+
           ${dailyInsightItem(
             'กะภาระงานสูงสุด',
             executive
@@ -1262,6 +1295,10 @@
       </section>
 
       <footer class="shift-dashboard-footer">
+        ${executiveSnapshotFooterHtml(
+          data
+        )}
+
         <span>
           อัปเดต
           ${escapeHtml(
@@ -1810,6 +1847,394 @@
         `
       )
       .join('');
+  }
+
+
+
+  function managementFocusHtml(
+    data,
+    view
+  ) {
+    const management =
+      data &&
+      data.management &&
+      typeof data.management ===
+        'object'
+        ? data.management
+        : buildManagementFallback(
+            data
+          );
+
+    const focus =
+      Array.isArray(
+        management.focus
+      )
+        ? management.focus
+        : [];
+
+    const visibleFocus =
+      focus.slice(
+        0,
+        view === 'DAILY'
+          ? 4
+          : 3
+      );
+
+    const status =
+      String(
+        management.status ||
+        'READY'
+      ).toUpperCase();
+
+    return `
+      <section
+        class="executive-management-strip"
+        data-management-status="${escapeHtml(
+          status
+        )}"
+        aria-label="ประเด็นบริหารจัดการ"
+      >
+        <div class="executive-management-strip__status">
+          <span>
+            EXECUTIVE FOCUS
+          </span>
+
+          <strong>
+            ${escapeHtml(
+              management.statusLabel ||
+              managementStatusLabel(
+                status
+              )
+            )}
+          </strong>
+        </div>
+
+        <div class="executive-management-strip__items">
+          ${
+            visibleFocus.length
+              ? visibleFocus
+                  .map(
+                    function (item) {
+                      return `
+                        <article
+                          class="executive-management-focus"
+                          data-level="${escapeHtml(
+                            String(
+                              item.level ||
+                              'READY'
+                            ).toUpperCase()
+                          )}"
+                          title="${escapeHtml(
+                            item.note ||
+                            ''
+                          )}"
+                        >
+                          <span>
+                            ${escapeHtml(
+                              item.label ||
+                              '-'
+                            )}
+                          </span>
+
+                          <strong>
+                            ${escapeHtml(
+                              item.value ||
+                              '-'
+                            )}
+                          </strong>
+                        </article>
+                      `;
+                    }
+                  )
+                  .join('')
+              : `
+                  <article
+                    class="executive-management-focus"
+                    data-level="READY"
+                  >
+                    <span>
+                      การไหลของรถ
+                    </span>
+
+                    <strong>
+                      อยู่ในภาวะควบคุม
+                    </strong>
+                  </article>
+                `
+          }
+        </div>
+      </section>
+    `;
+  }
+
+
+  function managementDailyInsightHtml(
+    data
+  ) {
+    const management =
+      data &&
+      data.management &&
+      typeof data.management ===
+        'object'
+        ? data.management
+        : buildManagementFallback(
+            data
+          );
+
+    const focus =
+      Array.isArray(
+        management.focus
+      )
+        ? management.focus
+        : [];
+
+    return focus
+      .filter(
+        function (item) {
+          return (
+            String(
+              item.level ||
+              ''
+            ).toUpperCase() !==
+            'READY'
+          );
+        }
+      )
+      .slice(
+        0,
+        3
+      )
+      .map(
+        function (item) {
+          return dailyInsightItem(
+            item.label ||
+            'ประเด็นติดตาม',
+            item.value ||
+            '-',
+            item.note ||
+            ''
+          );
+        }
+      )
+      .join('');
+  }
+
+
+  function executiveSnapshotFooterHtml(
+    data
+  ) {
+    const snapshotId =
+      String(
+        data &&
+        data.snapshotId ||
+        ''
+      ).trim();
+
+    const reconciliationOk =
+      !(
+        data &&
+        data.reconciliation &&
+        data.reconciliation.success ===
+          false
+      );
+
+    const quality =
+      Number(
+        data &&
+        data.dataQuality &&
+        data.dataQuality.score
+      );
+
+    const qualityText =
+      Number.isFinite(
+        quality
+      )
+        ? `${formatNumber(
+            quality
+          )}%`
+        : '--';
+
+    return `
+      <span
+        class="shift-dashboard-snapshot"
+        data-reconcile="${
+          reconciliationOk
+            ? 'READY'
+            : 'ERROR'
+        }"
+        title="${
+          snapshotId
+            ? `Snapshot ${escapeHtml(
+                snapshotId
+              )}`
+            : 'ไม่มี Snapshot ID'
+        }"
+      >
+        ${
+          reconciliationOk
+            ? 'Reconcile แล้ว'
+            : 'ข้อมูลไม่สมดุล'
+        }
+        · Data Quality
+        ${qualityText}
+      </span>
+    `;
+  }
+
+
+  function buildManagementFallback(
+    data
+  ) {
+    const metric =
+      data &&
+      data.daily &&
+      data.daily.metrics &&
+      typeof data.daily.metrics ===
+        'object'
+        ? data.daily.metrics
+        : {};
+
+    const backlog =
+      Number(
+        metric.backlogChange
+      ) || 0;
+
+    const over =
+      Number(
+        metric.overThresholdRecords
+      ) || 0;
+
+    const evaluated =
+      Number(
+        metric.evaluatedRecords
+      ) || 0;
+
+    const quality =
+      Number(
+        metric.dataCompletenessPercent
+      );
+
+    const focus = [];
+
+    if (over > 0) {
+      focus.push({
+        level:
+          'ATTENTION',
+        label:
+          'รายการเกินเกณฑ์',
+        value:
+          `${over} / ${evaluated}`,
+        note:
+          'ติดตามรายการใช้เวลาสูง'
+      });
+    }
+
+    if (backlog > 0) {
+      focus.push({
+        level:
+          'ATTENTION',
+        label:
+          'คงค้างเพิ่มขึ้น',
+        value:
+          `+${backlog} รายการ`,
+        note:
+          'ทบทวนกำลังการรับสินค้า'
+      });
+    }
+
+    if (
+      Number.isFinite(
+        quality
+      ) &&
+      quality < 100
+    ) {
+      focus.push({
+        level:
+          quality < 95
+            ? 'CRITICAL'
+            : 'ATTENTION',
+        label:
+          'ข้อมูลไม่ครบ',
+        value:
+          `${formatNumber(
+            quality
+          )}%`,
+        note:
+          'ตรวจข้อมูลต้นทาง'
+      });
+    }
+
+    if (!focus.length) {
+      focus.push({
+        level:
+          'READY',
+        label:
+          'การไหลของรถ',
+        value:
+          'อยู่ในภาวะควบคุม',
+        note:
+          ''
+      });
+    }
+
+    const status =
+      focus.some(
+        function (item) {
+          return (
+            item.level ===
+            'CRITICAL'
+          );
+        }
+      )
+        ? 'CRITICAL'
+        : focus.some(
+            function (item) {
+              return (
+                item.level ===
+                'ATTENTION'
+              );
+            }
+          )
+          ? 'ATTENTION'
+          : 'READY';
+
+    return {
+      status:
+        status,
+      statusLabel:
+        managementStatusLabel(
+          status
+        ),
+      focus:
+        focus
+    };
+  }
+
+
+  function managementStatusLabel(
+    status
+  ) {
+    const value =
+      String(
+        status ||
+        'READY'
+      ).toUpperCase();
+
+    if (
+      value ===
+      'CRITICAL'
+    ) {
+      return 'ต้องเร่งจัดการ';
+    }
+
+    if (
+      value ===
+      'ATTENTION'
+    ) {
+      return 'ควรติดตาม';
+    }
+
+    return 'อยู่ในภาวะควบคุม';
   }
 
 
