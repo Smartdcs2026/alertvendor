@@ -22,7 +22,7 @@
     Vehicle Control Tower Dashboard
   </title>
 
-  <!-- PHASE 4A HOTFIX 3: CORS preflight + loading overlay fixes -->
+  <!-- PHASE 4A HOTFIX 4: desktop trend + compact system detail bar -->
 
   <link
     rel="icon"
@@ -57,7 +57,7 @@
 
  <link rel="stylesheet" href="./dashboard-mobile-hotfix.css?v=20260706-r86">
 
-  <link rel="stylesheet" href="./dashboard-snapshot-state.css?v=20260713-phase4a-hotfix1">
+  <link rel="stylesheet" href="./dashboard-snapshot-state.css?v=20260713-phase4a-hotfix4-trend-compact">
 
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
@@ -171,33 +171,49 @@
     </div>
   </header>
 
-  <section
+  <details
     id="dashboardSnapshotBanner"
     class="dashboard-snapshot-banner is-hidden"
     data-state="BLOCKED"
-    role="status"
     aria-live="polite"
   >
-    <div class="dashboard-snapshot-banner__state">
-      <span>SNAPSHOT STATUS</span>
-      <strong id="dashboardSnapshotState">ยังไม่มี Snapshot ที่เชื่อถือได้</strong>
-    </div>
+    <summary class="dashboard-snapshot-banner__summary">
+      <span class="dashboard-snapshot-banner__dot" aria-hidden="true"></span>
 
-    <div class="dashboard-snapshot-banner__metric">
-      <span>Snapshot ID</span>
-      <strong id="dashboardSnapshotId">-</strong>
-    </div>
+      <span class="dashboard-snapshot-banner__summary-label">
+        ข้อมูลระบบ
+      </span>
 
-    <div class="dashboard-snapshot-banner__metric dashboard-snapshot-banner__metric--wide">
-      <span>Reconciliation</span>
-      <strong id="dashboardSnapshotReconciliation">กำลังตรวจสอบ</strong>
-    </div>
+      <strong id="dashboardSnapshotState">
+        ยังไม่มี Snapshot ที่เชื่อถือได้
+      </strong>
 
-    <div class="dashboard-snapshot-banner__metric">
-      <span>Data Quality</span>
-      <strong id="dashboardSnapshotQuality">--</strong>
+      <span class="dashboard-snapshot-banner__expand-label">
+        ดูรายละเอียด
+      </span>
+
+      <span class="dashboard-snapshot-banner__chevron" aria-hidden="true">
+        ▾
+      </span>
+    </summary>
+
+    <div class="dashboard-snapshot-banner__details">
+      <div class="dashboard-snapshot-banner__metric">
+        <span>Snapshot ID</span>
+        <strong id="dashboardSnapshotId">-</strong>
+      </div>
+
+      <div class="dashboard-snapshot-banner__metric dashboard-snapshot-banner__metric--wide">
+        <span>Reconciliation</span>
+        <strong id="dashboardSnapshotReconciliation">กำลังตรวจสอบ</strong>
+      </div>
+
+      <div class="dashboard-snapshot-banner__metric">
+        <span>Data Quality</span>
+        <strong id="dashboardSnapshotQuality">--</strong>
+      </div>
     </div>
-  </section>
+  </details>
 
   <main class="control-main">
     <section
