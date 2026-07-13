@@ -1,6 +1,6 @@
 /**
  * dashboard-shift-context.js
- * PHASE 4C — Contextual Dashboard + Cross-Day Shift Clarity
+ * PHASE 4C HOTFIX 1 — Stable layout + real current business date
  */
 (function (window, document) {
   'use strict';
@@ -17,6 +17,9 @@
 
     selectedDate:
       '',
+
+    followCurrentBusinessDate:
+      true,
 
     data:
       null,
@@ -117,6 +120,9 @@
             todayIso()
           );
 
+        state.followCurrentBusinessDate =
+          false;
+
         state.data =
           null;
 
@@ -147,6 +153,9 @@
     )?.addEventListener(
       'click',
       () => {
+        state.followCurrentBusinessDate =
+          true;
+
         state.selectedDate =
           todayIso();
 
@@ -348,10 +357,12 @@
         await API
           .getShiftDashboard(
             state.moduleId,
-            {
-              date:
-                state.selectedDate
-            }
+            state.followCurrentBusinessDate
+              ? {}
+              : {
+                  date:
+                    state.selectedDate
+                }
           );
 
       if (
@@ -363,6 +374,19 @@
 
       state.data =
         data || null;
+
+      if (
+        state.followCurrentBusinessDate &&
+        data &&
+        data.businessDate
+      ) {
+        state.selectedDate =
+          normalizeBusinessDateValue(
+            data.businessDate
+          );
+
+        syncDateInput();
+      }
 
       render();
 
@@ -4948,6 +4972,9 @@
         date
       );
 
+    state.followCurrentBusinessDate =
+      false;
+
     state.data =
       null;
 
@@ -4988,8 +5015,9 @@
       window.setTimeout(
         () => {
           if (
+            state.followCurrentBusinessDate ||
             state.selectedDate ===
-            todayIso()
+              todayIso()
           ) {
             loadShiftDashboard(
               true
@@ -5044,36 +5072,6 @@
       }
     );
 
-    if (
-      typeof window.ResizeObserver ===
-      'function'
-    ) {
-      state.resizeObserver =
-        new window.ResizeObserver(
-          handler
-        );
-
-      [
-        document.querySelector(
-          '.control-header'
-        ),
-        document.querySelector(
-          '.control-main'
-        ),
-        byId(
-          'dashboardShiftWorkspace'
-        )
-      ]
-        .filter(Boolean)
-        .forEach(
-          (element) => {
-            state.resizeObserver
-              .observe(
-                element
-              );
-          }
-        );
-    }
   }
 
 
@@ -5184,12 +5182,6 @@
       );
     }
 
-    if (
-      state.resizeObserver
-    ) {
-      state.resizeObserver
-        .disconnect();
-    }
   }
 
 
