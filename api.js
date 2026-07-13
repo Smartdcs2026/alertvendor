@@ -1,5 +1,6 @@
 /**
  * api.js
+ * PHASE 3A — Stable Request ID for idempotent module writes
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -271,6 +272,27 @@
         .toString(36)
         .slice(2, 12)
     );
+  }
+
+  function resolveRequestId(config) {
+    const source =
+      config && typeof config === 'object'
+        ? config
+        : {};
+
+    const body =
+      source.body &&
+      typeof source.body === 'object' &&
+      !Array.isArray(source.body)
+        ? source.body
+        : {};
+
+    return String(
+      source.requestId ||
+      body.clientRequestId ||
+      body.requestId ||
+      createRequestId()
+    ).trim();
   }
 
   function buildUrl(
@@ -572,9 +594,12 @@
       'application/json'
     );
 
+    const stableRequestId =
+      resolveRequestId(config);
+
     headers.set(
       'X-Request-Id',
-      createRequestId()
+      stableRequestId
     );
 
     if (useAuthentication) {
@@ -1490,6 +1515,22 @@
       moduleId,
       record
     ) {
+      const source =
+        record &&
+        typeof record === 'object' &&
+        !Array.isArray(record)
+          ? { ...record }
+          : {};
+
+      const requestId = String(
+        source.clientRequestId ||
+        source.requestId ||
+        createRequestId()
+      ).trim();
+
+      source.clientRequestId = requestId;
+      source.requestId = requestId;
+
       const response =
         await request(
           '/api/modules/' +
@@ -1500,7 +1541,8 @@
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
-            body: record || {}
+            requestId,
+            body: source
           }
         );
 
