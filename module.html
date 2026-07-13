@@ -56,6 +56,11 @@
     href="./module-alert-detail.css?v=20260713-r17-action-sheet-shift-accuracy"
   >
 
+  <link
+    rel="stylesheet"
+    href="./module-snapshot-state.css?v=20260713-phase3a"
+  >
+
 
   <!--
     Production R24: Footer Alert Control owns its critical CSS here.
@@ -278,12 +283,12 @@
   ></script>
 
   <script
-    src="./api.js?v=20260712-r15-consolidated-auto-handover"
+    src="./api.js?v=20260713-phase3a-stable-request-id"
     defer
   ></script>
 
   <script
-    src="./module-data-bridge.js?v=20260703-r54-full-record-bridge"
+    src="./module-data-bridge.js?v=20260713-phase3a-operational-board-bridge"
     defer
   ></script>
 
@@ -298,13 +303,13 @@
   ></script>
 
   <script
-    src="./module.js?v=20260713-r24-footer-alert-visual-polish"
+    src="./module.js?v=20260713-phase3a-single-snapshot"
     defer
   ></script>
 
 
   <script
-    src="./receiving.js?v=20260712-r15-consolidated-action"
+    src="./receiving.js?v=20260713-phase3a-idempotent-recovery"
     defer
   ></script>
 
@@ -810,6 +815,33 @@
         </span>
       </div>
     </section>
+
+    <section
+      id="moduleSnapshotState"
+      class="module-snapshot-state"
+      data-state="LOADING"
+      data-mobile-workspace-section="LIST"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="module-snapshot-state__body">
+        <strong id="moduleSnapshotTitle">กำลังตรวจสอบ Snapshot</strong>
+        <span id="moduleSnapshotDetail">กำลังอ่านสถานะปฏิบัติงานจาก Backend</span>
+      </div>
+
+      <div class="module-snapshot-state__actions">
+        <span id="modulePendingWrites" data-pending="FALSE">ไม่มีรายการค้างส่ง</span>
+        <button
+          id="moduleSnapshotRetry"
+          class="button button--secondary module-snapshot-state__retry"
+          type="button"
+          hidden
+        >
+          โหลดข้อมูลสดอีกครั้ง
+        </button>
+      </div>
+    </section>
+
 
     <div
       id="vehicleEmpty"
