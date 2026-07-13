@@ -89,9 +89,9 @@
   async function initializePage() {
     if (document.body) {
       document.body.dataset.operationalBoardBuild =
-        '2026.07.13-r17-action-sheet-shift-accuracy';
+        '2026.07.13-r18-workflow-wording-accuracy';
       document.body.dataset.shiftHandoverBuild =
-        '2026.07.13-r17-action-sheet-shift-accuracy';
+        '2026.07.13-r18-workflow-wording-accuracy';
     }
 
     initializeOverdueBadgeSystem();
@@ -2912,27 +2912,27 @@
 
     const map = {
       WAITING_INBOUND_DOCUMENT: {
-        label: 'รอ Inbound ยื่นเอกสาร',
-        shortLabel: 'รอยื่นเอกสาร',
-        description: 'Inbound ต้องสแกนยื่นเอกสารก่อน',
+        label: 'รอ พขร.ยื่นเอกสาร',
+        shortLabel: 'รอ พขร.ยื่นเอกสาร',
+        description: 'รอ พขร.นำเอกสารไปยื่นที่ห้อง Inbound',
         order: 10
       },
       WAITING_RECEIVING: {
         label: 'รอรับสินค้าเสร็จ',
         shortLabel: 'รอรับสินค้า',
-        description: 'ยื่นเอกสารแล้ว พร้อมบันทึกรับสินค้าเสร็จ',
+        description: 'พขร.ยื่นเอกสารแล้ว พร้อมบันทึกรับสินค้าเสร็จ',
         order: 20
       },
       WAITING_DOCUMENT_RETURN: {
-        label: 'รอรับเอกสารคืน',
-        shortLabel: 'รอเอกสารคืน',
-        description: 'รับสินค้าเสร็จแล้ว รอ Inbound รับเอกสารคืน',
+        label: 'พขร.รอรับเอกสารคืน',
+        shortLabel: 'พขร.รอเอกสารคืน',
+        description: 'รับสินค้าเสร็จแล้ว พขร.รอรับเอกสารคืนจากห้อง Inbound',
         order: 30
       },
       WAITING_GATE_OUT: {
         label: 'รอ Gate Out',
         shortLabel: 'รอ Gate Out',
-        description: 'รับเอกสารคืนแล้ว รอสแกน Gate Out จริง',
+        description: 'พขร.รับเอกสารคืนแล้ว รอสแกน Gate Out จริง',
         order: 40
       },
       DATA_CONFLICT: {
@@ -3310,9 +3310,9 @@
           <div><span>Active จากกะนี้</span><strong>${Number(summary.activeFromShift) || 0}</strong></div>
         </div>
         <div class="operational-shift-card__stages">
-          <span>รอยื่น ${Number(stage.WAITING_INBOUND_DOCUMENT) || 0}</span>
+          <span>รอ พขร.ยื่น ${Number(stage.WAITING_INBOUND_DOCUMENT) || 0}</span>
           <span>รอรับ ${Number(stage.WAITING_RECEIVING) || 0}</span>
-          <span>รอคืนเอกสาร ${Number(stage.WAITING_DOCUMENT_RETURN) || 0}</span>
+          <span>พขร.รอคืน ${Number(stage.WAITING_DOCUMENT_RETURN) || 0}</span>
           <span>รอออก ${Number(stage.WAITING_GATE_OUT) || 0}</span>
           <span>ขัดแย้ง ${Number(stage.DATA_CONFLICT) || 0}</span>
         </div>
@@ -3457,9 +3457,9 @@
     if (metricsNode) {
       const metricItems = [
         ['คงค้างส่งต่อ', metrics.activeTotal],
-        ['รอยื่นเอกสาร', metrics.waitingInboundDocument],
+        ['รอ พขร.ยื่นเอกสาร', metrics.waitingInboundDocument],
         ['รอรับสินค้า', metrics.waitingReceiving],
-        ['รอคืนเอกสาร', metrics.waitingDocumentReturn],
+        ['พขร.รอเอกสารคืน', metrics.waitingDocumentReturn],
         ['รอ Gate Out', metrics.waitingGateOut],
         ['ข้อมูลขัดแย้ง', metrics.dataConflict],
         ['เกินเวลา', metrics.overdueAtEnd],
@@ -3846,9 +3846,9 @@
 
     const stageTimes = [
       ['Gate In', record.timestampIn],
-      ['ยื่นเอกสาร', record.documentSubmittedAt],
+      ['พขร.ยื่นเอกสาร', record.documentSubmittedAt],
       ['รับสินค้าเสร็จ', record.receivingCompleteAt],
-      ['รับเอกสารคืน', record.documentReturnedAt]
+      ['พขร.รับเอกสารคืน', record.documentReturnedAt]
     ];
 
     stageTimes.forEach((item) => {
@@ -6345,7 +6345,7 @@
             : 'pending'
       },
       {
-        label: 'ยื่นเอกสาร',
+        label: 'พขร.ยื่นเอกสาร',
         value:
           record.documentSubmittedAt ||
           'รอดำเนินการ',
@@ -6372,7 +6372,7 @@
               : 'blocked'
       },
       {
-        label: 'รับเอกสารคืน',
+        label: 'พขร.รับเอกสารคืน',
         value:
           record.documentReturnedAt ||
           (
@@ -6463,7 +6463,7 @@
       'WAITING_INBOUND_DOCUMENT'
     ) {
       disabledReceivingLabel =
-        'รอ Inbound ยื่นเอกสารก่อน';
+        'รอ พขร.ยื่นเอกสารก่อน';
     } else if (
       record.operationalStage ===
       'DATA_CONFLICT'
