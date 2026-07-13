@@ -106,9 +106,29 @@
           }
         ),
 
+    toggle:
+      () =>
+        setOperationalAlertEnabled(
+          !isOperationalAlertEnabled(),
+          {
+            persist: true,
+            emit: true
+          }
+        ),
+
     syncUi:
       () => syncOperationalAlertToggle()
   };
+
+  /*
+   * ใช้ delegated click แบบ capture เพื่อให้ปุ่มทำงานได้แน่นอน
+   * แม้สคริปต์ส่วนอื่นจะหยุด event bubbling หรือมีการจัด DOM ใหม่
+   */
+  document.addEventListener(
+    'click',
+    handleOperationalAlertToggleClick,
+    true
+  );
 
   document.addEventListener('DOMContentLoaded', initializePage);
   window.addEventListener('beforeunload', destroyPage);
@@ -122,7 +142,7 @@
       document.body.dataset.shiftHandoverBuild =
         '2026.07.13-r18-workflow-wording-accuracy';
       document.body.dataset.operationalAlertBuild =
-        '2026.07.13-r20-compact-alert-header';
+        '2026.07.13-r21-alert-control-fix';
     }
 
     initializeOverdueBadgeSystem();
@@ -290,11 +310,6 @@
     const operationalRefreshButton =
       document.getElementById(
         'operationalBoardRefresh'
-      );
-
-    const operationalAlertToggle =
-      document.getElementById(
-        'operationalAlertToggle'
       );
 
     const shiftHandoverAddNoteButton =
@@ -582,20 +597,6 @@
           forceRender: true,
           forceRefresh: true
         })
-      );
-
-    operationalAlertToggle &&
-      operationalAlertToggle.addEventListener(
-        'click',
-        () => {
-          setOperationalAlertEnabled(
-            !isOperationalAlertEnabled(),
-            {
-              persist: true,
-              emit: true
-            }
-          );
-        }
       );
 
     shiftHandoverAddNoteButton &&
@@ -7489,6 +7490,32 @@
     }
   }
 
+  function handleOperationalAlertToggleClick(event) {
+    const target =
+      event && event.target &&
+      typeof event.target.closest === 'function'
+        ? event.target.closest(
+            '#operationalAlertToggle'
+          )
+        : null;
+
+    if (!target) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (
+      window.AlertVendorOperationalAlert &&
+      typeof window.AlertVendorOperationalAlert.toggle ===
+        'function'
+    ) {
+      window.AlertVendorOperationalAlert.toggle();
+    }
+  }
+
+
   function initializeOperationalAlertPreference() {
     state.operationalAlertStorageKey =
       buildOperationalAlertStorageKey();
@@ -7637,6 +7664,11 @@
         'aria-checked',
         enabled ? 'true' : 'false'
       );
+
+      button.dataset.state =
+        enabled ? 'ON' : 'OFF';
+
+      button.disabled = false;
 
       button.setAttribute(
         'aria-label',
