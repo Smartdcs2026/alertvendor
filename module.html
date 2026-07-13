@@ -37,7 +37,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260713-r20-compact-alert-header"
+    href="./styles.css?v=20260713-r21-alert-control-fix"
   >
 
   <link
@@ -88,7 +88,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260713-r20-compact-alert-header"
+    src="./module.js?v=20260713-r21-alert-control-fix"
     defer
   ></script>
 
@@ -212,25 +212,22 @@
           </strong>
         </div>
 
-        <button
-          id="operationalAlertToggle"
-          class="operational-alert-toggle is-enabled"
-          type="button"
-          role="switch"
-          aria-checked="true"
-          aria-label="ปิดการแจ้งเตือนอัตโนมัติ"
-          title="การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
-        >
-          <span
-            class="operational-alert-toggle__icon"
-            aria-hidden="true"
+        <div class="module-clock">
+          <button
+            id="operationalAlertToggle"
+            class="operational-alert-toggle is-enabled"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="ปิดแจ้งเตือนอัตโนมัติ"
+            title="แจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
           >
-            <svg viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.8"
+                stroke-width="1.9"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
@@ -238,29 +235,16 @@
                 d="M10 21h4"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1.8"
+                stroke-width="1.9"
                 stroke-linecap="round"
               />
             </svg>
-          </span>
 
-          <span class="operational-alert-toggle__label">
-            แจ้งเตือน
-          </span>
-
-          <span
-            class="operational-alert-toggle__track"
-            aria-hidden="true"
-          >
-            <i></i>
-          </span>
-
-          <strong id="operationalAlertToggleStatus">
-            เปิด
-          </strong>
-        </button>
-
-        <div class="module-clock">
+            <span
+              id="operationalAlertToggleStatus"
+              class="sr-only"
+            >เปิด</span>
+          </button>
           <span class="module-clock__live">
             <i aria-hidden="true"></i>
             LIVE
