@@ -1,0 +1,103 @@
+/*
+ * module-snapshot-state.css
+ * PHASE 3A — Operational Board health and read-only safety state
+ */
+.module-snapshot-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #bfd7e2;
+  border-radius: 12px;
+  background: #eef8fc;
+  color: #153b4b;
+  box-sizing: border-box;
+}
+
+.module-snapshot-state__body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.module-snapshot-state__body strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.module-snapshot-state__body span,
+.module-snapshot-state__actions span {
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.module-snapshot-state__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.module-snapshot-state__actions span[data-pending="TRUE"] {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #6d4b00;
+  font-weight: 800;
+}
+
+.module-snapshot-state__retry {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.module-snapshot-state[data-state="LIVE"] {
+  border-color: #b9dfc8;
+  background: #eefaf2;
+  color: #155b32;
+}
+
+.module-snapshot-state[data-state="STALE"] {
+  border-color: #e7ca7c;
+  background: #fff8df;
+  color: #6f5000;
+}
+
+.module-snapshot-state[data-state="INTEGRITY_ERROR"],
+.module-snapshot-state[data-state="BLOCKED"] {
+  border-color: #e2a6a6;
+  background: #fff0f0;
+  color: #7f1d1d;
+}
+
+body[data-board-health="STALE"] .receiving-complete-button,
+body[data-board-health="INTEGRITY_ERROR"] .receiving-complete-button,
+body[data-board-health="BLOCKED"] .receiving-complete-button,
+body[data-board-health="LOADING"] .receiving-complete-button {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+}
+
+@media (max-width: 720px) {
+  .module-snapshot-state {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .module-snapshot-state__actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .module-snapshot-state__retry {
+    flex: 0 0 auto;
+  }
+}
