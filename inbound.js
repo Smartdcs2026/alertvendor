@@ -1,12 +1,13 @@
 /************************************************************
  * inbound.js
- * ROUND 06 PART 08 — Core Workflow Guard, Scanner Speed 250ms
+ * PHASE 2A — Durable Pending Queue, Network Recovery, Idempotent Replay
  ************************************************************/
 (function (window, document) {
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
+  const PENDING_QUEUE = window.InboundPendingQueue;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
   const INPUT_DEBOUNCE_MS = 250;
@@ -46,6 +47,17 @@
     dashboardLoadedAt: '',
     dashboardCacheRestored: false,
     dashboardRequestToken: 0,
+    queueReady: false,
+    queueSummary: {
+      pending: 0,
+      failed: 0,
+      paused: 0,
+      committed: 0,
+      online: navigator.onLine !== false,
+      storageMode: ''
+    },
+    queueRefreshTimer: 0,
+    queueUnsubscribe: null,
     slaSummary: {
       normal: 0,
       warning: 0,
@@ -86,6 +98,7 @@
       setText('inboundUser', (user.displayName || user.username || '-') + ' · ' + role);
 
       await loadModules();
+      await setupPendingQueue();
       restoreDashboardCache({silent: true});
       createScanner();
       await loadWorkflowDashboard(true, {cacheFirst: false});
@@ -112,6 +125,9 @@
     byId('inboundLogoutButton')?.addEventListener('click', logout);
     byId('inboundRefreshButton')?.addEventListener('click', () => void loadWorkflowDashboard(false, {manual: true}));
     byId('inboundFullscreenButton')?.addEventListener('click', () => void toggleInboundFullscreen());
+    byId('inboundQueueButton')?.addEventListener('click', () => void openPendingQueueDialog());
+    byId('inboundFailedQueueButton')?.addEventListener('click', () => void openPendingQueueDialog({failedFirst: true}));
+    byId('inboundRetryQueueButton')?.addEventListener('click', () => void retryPendingQueueNow());
     byId('startCameraButton')?.addEventListener('click', () => void startCamera({silent: false}));
     byId('stopCameraButton')?.addEventListener('click', stopCamera);
     byId('clearCodeButton')?.addEventListener('click', () => {
@@ -218,7 +234,11 @@
       state.moduleId = String(event.target.value || '').trim();
       clearCurrentResult();
       restoreDashboardCache({replace: true, silent: true});
+      await refreshQueueSummary();
       await loadWorkflowDashboard(false, {cacheFirst: false, moduleChanged: true});
+      if (state.queueReady && navigator.onLine !== false) {
+        void PENDING_QUEUE.flush({moduleId: state.moduleId, reason: 'MODULE_CHANGED'});
+      }
       focusCodeInput(true);
     });
 
@@ -281,8 +301,15 @@
         focusCodeInput(false);
         refreshAutoPageSize();
         void loadWorkflowDashboard(true, {cacheFirst: false});
+        if (state.queueReady && navigator.onLine !== false) {
+          void PENDING_QUEUE.flush({moduleId: state.moduleId, reason: 'PAGE_VISIBLE'});
+        }
       }
     });
+
+    window.addEventListener('online', handleNetworkOnline);
+    window.addEventListener('offline', handleNetworkOffline);
+    window.addEventListener('inboundqueueoperation', handleQueueOperationEvent);
 
     window.addEventListener('resize', debounce(() => {
       refreshAutoPageSize();
@@ -548,6 +575,7 @@
   async function processCode(rawCode, meta) {
     const cleanCode = normalizeCode(rawCode);
     const source = meta && meta.source ? String(meta.source) : 'SCAN';
+    const requestId = createStableRequestId();
 
     if (!cleanCode) {
       beep('warn');
@@ -582,12 +610,39 @@
 
     try {
       beep('scan');
-      const lookupRaw = await API.lookupInboundWorkflow(state.moduleId, cleanCode, {
-        method: 'MANUAL',
-        lookupMethod: 'MANUAL',
-        qrText: meta && meta.rawText ? meta.rawText : cleanCode,
-        scanSource: source
-      });
+
+      if (navigator.onLine === false) {
+        const queued = await queueResolveScan(cleanCode, source, requestId, meta);
+        if (queued) {
+          beep('warn');
+          blockDuplicate(cleanCode, HARD_BLOCK_AFTER_SAVE_MS);
+          setScanMessage('ออฟไลน์ · เก็บรายการไว้ในเครื่องแล้ว: ' + cleanCode, 'WARN');
+          return;
+        }
+      }
+
+      let lookupRaw;
+
+      try {
+        lookupRaw = await API.lookupInboundWorkflow(state.moduleId, cleanCode, {
+          method: 'MANUAL',
+          lookupMethod: 'MANUAL',
+          qrText: meta && meta.rawText ? meta.rawText : cleanCode,
+          scanSource: source
+        });
+      } catch (lookupError) {
+        if (isTransientQueueError(lookupError)) {
+          const queued = await queueResolveScan(cleanCode, source, requestId, meta);
+          if (queued) {
+            beep('warn');
+            blockDuplicate(cleanCode, HARD_BLOCK_AFTER_SAVE_MS);
+            setScanMessage('เครือข่ายไม่เสถียร · เก็บรายการรอตรวจสอบแล้ว: ' + cleanCode, 'WARN');
+            return;
+          }
+        }
+
+        throw lookupError;
+      }
 
       const lookup = normalizeLookup(lookupRaw);
       state.currentLookup = lookup;
@@ -597,9 +652,9 @@
 
       const action = getAutoAction(lookup);
       if (action.type === 'SUBMIT_DOCUMENT') {
-        await autoSubmitDocument(lookup, source);
+        await autoSubmitDocument(lookup, source, requestId);
       } else if (action.type === 'RETURN_DOCUMENT') {
-        await autoReturnDocument(lookup, source);
+        await autoReturnDocument(lookup, source, requestId);
       } else {
         beep(action.level === 'WARN' ? 'warn' : 'success');
         setScanMessage(action.message, action.level || 'SUCCESS');
@@ -617,60 +672,102 @@
     }
   }
 
-  async function autoSubmitDocument(lookup, source) {
+  async function autoSubmitDocument(lookup, source, requestId) {
     const autoId = lookup.record.autoId;
-    setScanMessage('พบข้อมูล กำลังบันทึกยื่นเอกสาร: ' + autoId, 'BUSY');
-    const result = await API.submitInboundDocument(state.moduleId, {
+    const payload = buildQueueWorkflowPayload(lookup, {
       entryCode: autoId,
       qrText: autoId,
       method: 'MANUAL',
+      lookupMethod: 'MANUAL',
       scanSource: source || 'SCAN',
-      note: 'บันทึกอัตโนมัติจากการสแกน Inbound'
+      note: 'บันทึกอัตโนมัติจากการสแกน Inbound',
+      clientRequestId: requestId,
+      requestId
     });
-    const updated = normalizeLookup(result, lookup.record);
-    state.currentLookup = updated;
-    renderLookupResult(updated);
-    upsertDashboardItemFromLookup(updated);
-    renderDashboard();
-    blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
 
-    if (result && (result.duplicateStage || result.noWrite)) {
-      beep('duplicate');
-      setScanMessage(result.message || 'รายการนี้ยื่นเอกสารแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId, 'WARN');
-    } else {
-      beep('success');
-      setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + autoId, 'SUCCESS');
+    setScanMessage('พบข้อมูล กำลังบันทึกยื่นเอกสาร: ' + autoId, 'BUSY');
+
+    try {
+      const result = await API.submitInboundDocument(state.moduleId, payload);
+      const updated = normalizeLookup(result, lookup.record);
+      state.currentLookup = updated;
+      renderLookupResult(updated);
+      upsertDashboardItemFromLookup(updated);
+      renderDashboard();
+      blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
+
+      if (result && (result.duplicateStage || result.noWrite)) {
+        beep('duplicate');
+        setScanMessage(result.message || 'รายการนี้ยื่นเอกสารแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId, 'WARN');
+      } else {
+        beep('success');
+        setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + autoId, 'SUCCESS');
+      }
+
+      void loadWorkflowDashboard(true);
+      return;
+    } catch (error) {
+      if (isTransientQueueError(error)) {
+        const queued = await queueSpecificAction('SUBMIT_DOCUMENT', lookup, payload);
+        if (queued) {
+          beep('warn');
+          blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
+          setScanMessage('ยังยืนยันผลไม่ได้ · เก็บงานยื่นเอกสารไว้รอส่ง: ' + autoId, 'WARN');
+          return;
+        }
+      }
+
+      throw error;
     }
-
-    void loadWorkflowDashboard(true);
   }
 
-  async function autoReturnDocument(lookup, source) {
+  async function autoReturnDocument(lookup, source, requestId) {
     const autoId = lookup.record.autoId;
-    setScanMessage('พบข้อมูล กำลังบันทึกรับเอกสารคืน: ' + autoId, 'BUSY');
-    const result = await API.returnInboundDocument(state.moduleId, {
+    const payload = buildQueueWorkflowPayload(lookup, {
       entryCode: autoId,
       qrText: autoId,
       method: 'MANUAL',
+      lookupMethod: 'MANUAL',
       scanSource: source || 'SCAN',
-      note: 'รับเอกสารคืนอัตโนมัติจากการสแกน Inbound'
+      note: 'รับเอกสารคืนอัตโนมัติจากการสแกน Inbound',
+      clientRequestId: requestId,
+      requestId
     });
-    const updated = normalizeLookup(result, lookup.record);
-    state.currentLookup = updated;
-    renderLookupResult(updated);
-    upsertDashboardItemFromLookup(updated);
-    renderDashboard();
-    blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
 
-    if (result && (result.duplicateStage || result.noWrite)) {
-      beep('duplicate');
-      setScanMessage(result.message || 'รายการนี้รับเอกสารคืนแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId, 'WARN');
-    } else {
-      beep('success');
-      setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + autoId, 'SUCCESS');
+    setScanMessage('พบข้อมูล กำลังบันทึกรับเอกสารคืน: ' + autoId, 'BUSY');
+
+    try {
+      const result = await API.returnInboundDocument(state.moduleId, payload);
+      const updated = normalizeLookup(result, lookup.record);
+      state.currentLookup = updated;
+      renderLookupResult(updated);
+      upsertDashboardItemFromLookup(updated);
+      renderDashboard();
+      blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
+
+      if (result && (result.duplicateStage || result.noWrite)) {
+        beep('duplicate');
+        setScanMessage(result.message || 'รายการนี้รับเอกสารคืนแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId, 'WARN');
+      } else {
+        beep('success');
+        setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + autoId, 'SUCCESS');
+      }
+
+      void loadWorkflowDashboard(true);
+      return;
+    } catch (error) {
+      if (isTransientQueueError(error)) {
+        const queued = await queueSpecificAction('RETURN_DOCUMENT', lookup, payload);
+        if (queued) {
+          beep('warn');
+          blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
+          setScanMessage('ยังยืนยันผลไม่ได้ · เก็บงานรับเอกสารคืนไว้รอส่ง: ' + autoId, 'WARN');
+          return;
+        }
+      }
+
+      throw error;
     }
-
-    void loadWorkflowDashboard(true);
   }
 
   function getAutoAction(lookup) {
@@ -916,6 +1013,11 @@
       success: data.success !== false,
       record: {
         autoId,
+        canonicalRecordId: text(rawRecord.canonicalRecordId),
+        canonicalIdQuality: text(rawRecord.canonicalIdQuality),
+        sourceRowNumber: Number(rawRecord.sourceRowNumber || rawRecord.rowNumber || 0) || 0,
+        timestampInEpochMs: Number(rawRecord.timestampInEpochMs || 0) || 0,
+        primaryValue: text(rawRecord.primaryValue),
         timestampIn: text(rawRecord.timestampIn || rawRecord.gateInAt || rawRecord.timestamp),
         timestampOut: text(rawRecord.timestampOut || rawRecord.gateOutAt),
         appointmentNumber: text(rawRecord.appointmentNumber || rawRecord.appointment || rawRecord.booking),
@@ -1184,6 +1286,565 @@
     `;
   }
 
+
+  /************************************************************
+   * Phase 2A — Durable Pending Queue / Network Recovery
+   ************************************************************/
+
+  async function setupPendingQueue() {
+    updateNetworkState();
+
+    if (CONFIG.INBOUND_QUEUE_ENABLED === false) {
+      state.queueReady = false;
+      renderQueueStatus({
+        pending: 0,
+        failed: 0,
+        paused: 0,
+        committed: 0,
+        online: navigator.onLine !== false,
+        storageMode: 'DISABLED'
+      });
+      return;
+    }
+
+    if (!PENDING_QUEUE || typeof PENDING_QUEUE.init !== 'function') {
+      state.queueReady = false;
+      renderQueueStatus({
+        pending: 0,
+        failed: 1,
+        paused: 0,
+        committed: 0,
+        online: navigator.onLine !== false,
+        storageMode: 'NOT_LOADED'
+      });
+      console.warn('ไม่พบ inbound-offline-queue.js');
+      return;
+    }
+
+    try {
+      await PENDING_QUEUE.init({
+        api: API,
+        getActor: getCurrentQueueActor,
+        config: {
+          maxItems: Number(CONFIG.INBOUND_QUEUE_MAX_ITEMS) || 500,
+          maxAttempts: Number(CONFIG.INBOUND_QUEUE_MAX_ATTEMPTS) || 12,
+          retryBaseMs: Number(CONFIG.INBOUND_QUEUE_RETRY_BASE_MS) || 3000,
+          retryMaxMs: Number(CONFIG.INBOUND_QUEUE_RETRY_MAX_MS) || 300000,
+          autoFlushMs: Number(CONFIG.INBOUND_QUEUE_AUTO_FLUSH_MS) || 15000,
+          committedRetentionMs:
+            (Number(CONFIG.INBOUND_QUEUE_COMMITTED_RETENTION_HOURS) || 24) * 60 * 60 * 1000,
+          failedRetentionMs:
+            (Number(CONFIG.INBOUND_QUEUE_FAILED_RETENTION_DAYS) || 7) * 24 * 60 * 60 * 1000
+        }
+      });
+
+      state.queueReady = true;
+      state.queueUnsubscribe = PENDING_QUEUE.subscribe(() => {
+        void refreshQueueSummary();
+      });
+      PENDING_QUEUE.startAutoFlush();
+      await refreshQueueSummary();
+
+      if (navigator.onLine !== false) {
+        void PENDING_QUEUE.flush({
+          moduleId: state.moduleId,
+          reason: 'PAGE_INITIALIZE'
+        });
+      }
+    } catch (error) {
+      state.queueReady = false;
+      console.error('setup pending queue failed', error);
+      renderQueueStatus({
+        pending: 0,
+        failed: 1,
+        paused: 0,
+        committed: 0,
+        online: navigator.onLine !== false,
+        storageMode: 'ERROR'
+      });
+    }
+  }
+
+  function getCurrentQueueActor() {
+    const user = state.session && state.session.user
+      ? state.session.user
+      : {};
+
+    return {
+      username: text(user.username),
+      role: normalizeRole(user.role)
+    };
+  }
+
+  async function refreshQueueSummary() {
+    if (!state.queueReady || !PENDING_QUEUE || typeof PENDING_QUEUE.getSummary !== 'function') {
+      updateNetworkState();
+      return;
+    }
+
+    try {
+      const summary = await PENDING_QUEUE.getSummary({
+        moduleId: state.moduleId
+      });
+      state.queueSummary = summary;
+      renderQueueStatus(summary);
+    } catch (error) {
+      console.warn('refresh queue summary failed', error);
+    }
+  }
+
+  function renderQueueStatus(summary) {
+    const data = summary && typeof summary === 'object'
+      ? summary
+      : state.queueSummary;
+    const online = navigator.onLine !== false;
+    const pending = Number(data.pending || 0);
+    const failed = Number(data.failed || 0);
+    const paused = Number(data.paused || 0);
+    const storageMode = text(data.storageMode || state.queueSummary.storageMode);
+
+    state.queueSummary = Object.assign({}, state.queueSummary, data, {
+      online,
+      pending,
+      failed,
+      paused,
+      storageMode
+    });
+
+    const network = byId('inboundNetworkState');
+    const detail = byId('inboundQueueDetail');
+    const queueButton = byId('inboundQueueButton');
+    const failedButton = byId('inboundFailedQueueButton');
+    const retryButton = byId('inboundRetryQueueButton');
+
+    setText('inboundPendingCount', pending);
+    setText('inboundFailedCount', failed);
+
+    if (network) {
+      if (!online) {
+        network.textContent = 'ออฟไลน์ · สแกนได้และเก็บงานรอส่ง';
+        network.dataset.state = 'OFFLINE';
+      } else if (failed > 0 || paused > 0) {
+        network.textContent = 'ออนไลน์ · มีรายการต้องตรวจสอบ';
+        network.dataset.state = 'UNSTABLE';
+      } else if (pending > 0) {
+        network.textContent = 'ออนไลน์ · กำลังรอส่งข้อมูล';
+        network.dataset.state = 'PENDING';
+      } else {
+        network.textContent = 'ออนไลน์ · ข้อมูลเชื่อมต่อปกติ';
+        network.dataset.state = 'ONLINE';
+      }
+    }
+
+    if (detail) {
+      if (!state.queueReady && CONFIG.INBOUND_QUEUE_ENABLED !== false) {
+        detail.textContent = 'ระบบรอส่งไม่พร้อม กรุณาตรวจไฟล์ inbound-offline-queue.js';
+      } else if (failed > 0) {
+        detail.textContent = 'ส่งไม่สำเร็จ ' + failed + ' รายการ · เปิดรายการรอส่งเพื่อตรวจสอบและส่งใหม่';
+      } else if (paused > 0) {
+        detail.textContent = 'มี ' + paused + ' รายการรอบัญชีเดิมหรือรอเข้าสู่ระบบ';
+      } else if (pending > 0) {
+        detail.textContent = 'เก็บในเครื่อง ' + pending + ' รายการ · ระบบจะส่งด้วย requestId เดิมเมื่อเครือข่ายพร้อม';
+      } else {
+        detail.textContent = 'ไม่มีรายการรอส่ง' + (storageMode ? ' · ' + storageMode.replace(/_/g, ' ') : '');
+      }
+    }
+
+    if (queueButton) {
+      queueButton.dataset.hasPending = pending > 0 ? 'true' : 'false';
+      queueButton.disabled = !state.queueReady;
+    }
+
+    if (failedButton) {
+      failedButton.hidden = failed <= 0;
+      failedButton.disabled = !state.queueReady;
+    }
+
+    if (retryButton) {
+      retryButton.hidden = online !== true || (pending + failed + paused) <= 0;
+      retryButton.disabled = !state.queueReady;
+    }
+
+    updateConnectionFromNetwork();
+  }
+
+  function updateNetworkState() {
+    renderQueueStatus(Object.assign({}, state.queueSummary, {
+      online: navigator.onLine !== false
+    }));
+  }
+
+  function updateConnectionFromNetwork() {
+    const user = state.session && state.session.user
+      ? state.session.user
+      : {};
+    const role = normalizeRole(user.role);
+
+    if (navigator.onLine === false) {
+      setConnection('OFFLINE · เก็บงานในเครื่อง', 'WARN');
+      return;
+    }
+
+    if (Number(state.queueSummary.failed || 0) > 0) {
+      setConnection('ONLINE · มีงานส่งไม่สำเร็จ', 'WARN');
+      return;
+    }
+
+    if (Number(state.queueSummary.pending || 0) > 0) {
+      setConnection('ONLINE · กำลังส่งรายการค้าง', 'LOADING');
+      return;
+    }
+
+    setConnection(role === 'ADMIN' ? 'ADMIN MODE' : 'INBOUND ONLINE', 'READY');
+  }
+
+  function handleNetworkOnline() {
+    updateNetworkState();
+    setScanMessage('เครือข่ายกลับมาแล้ว ระบบกำลังส่งรายการค้างตามลำดับ', 'BUSY');
+
+    if (state.queueReady) {
+      void PENDING_QUEUE.flush({
+        force: true,
+        moduleId: state.moduleId,
+        reason: 'BROWSER_ONLINE'
+      }).then(() => {
+        void refreshQueueSummary();
+        void loadWorkflowDashboard(true, {cacheFirst: false});
+      });
+    }
+  }
+
+  function handleNetworkOffline() {
+    updateNetworkState();
+    setScanMessage('ออฟไลน์ · รายการใหม่จะถูกเก็บไว้ในเครื่องและส่งเมื่อออนไลน์', 'WARN');
+  }
+
+  function handleQueueOperationEvent(event) {
+    const detail = event && event.detail && typeof event.detail === 'object'
+      ? event.detail
+      : {};
+    const operation = detail.operation || {};
+
+    void refreshQueueSummary();
+
+    if (detail.type === 'COMMITTED') {
+      const result = extractQueueLookupResult(detail.result);
+      if (
+        normalizeCode(operation.moduleId) === normalizeCode(state.moduleId) &&
+        result && result.record && result.record.autoId
+      ) {
+        const normalized = normalizeLookup(result);
+        state.currentLookup = normalized;
+        upsertDashboardItemFromLookup(normalized);
+        renderDashboard();
+      }
+
+      if (document.visibilityState === 'visible') {
+        setScanMessage('ส่งรายการค้างสำเร็จ: ' + (operation.autoId || '-'), 'SUCCESS');
+      }
+
+      scheduleQueueDashboardRefresh();
+      return;
+    }
+
+    if (detail.type === 'FAILED' && document.visibilityState === 'visible') {
+      setScanMessage(
+        'รายการรอส่งต้องตรวจสอบ: ' + (operation.autoId || '-') + ' · ' +
+          errorMessage(detail.error || operation.lastError),
+        'WARN'
+      );
+    }
+  }
+
+  function extractQueueLookupResult(result) {
+    const source = result && typeof result === 'object' ? result : {};
+
+    if (source.result && typeof source.result === 'object') {
+      return source.result;
+    }
+
+    if (source.lookup && typeof source.lookup === 'object') {
+      return source.lookup;
+    }
+
+    if (source.data && typeof source.data === 'object') {
+      return source.data;
+    }
+
+    return source;
+  }
+
+  function scheduleQueueDashboardRefresh() {
+    window.clearTimeout(state.queueRefreshTimer);
+    state.queueRefreshTimer = window.setTimeout(() => {
+      void loadWorkflowDashboard(true, {cacheFirst: false});
+    }, 700);
+  }
+
+  async function queueResolveScan(autoId, source, requestId, meta) {
+    if (!state.queueReady || !PENDING_QUEUE || typeof PENDING_QUEUE.enqueueResolveScan !== 'function') {
+      return false;
+    }
+
+    const response = await PENDING_QUEUE.enqueueResolveScan(
+      state.moduleId,
+      autoId,
+      {
+        entryCode: autoId,
+        autoId,
+        qrText: meta && meta.rawText ? meta.rawText : autoId,
+        lookupMethod: 'QUEUE_REPLAY',
+        method: 'QUEUE_REPLAY',
+        scanSource: source || 'SCAN',
+        source: source || 'SCAN',
+        note: 'รายการสแกนที่เก็บไว้ระหว่างเครือข่ายไม่พร้อม',
+        clientRequestId: requestId,
+        requestId
+      }
+    );
+
+    await refreshQueueSummary();
+    return Boolean(response && (response.queued || response.duplicate || response.revived));
+  }
+
+  async function queueSpecificAction(kind, lookup, payload) {
+    if (!state.queueReady || !PENDING_QUEUE) {
+      return false;
+    }
+
+    const action = String(kind || '').toUpperCase();
+    const autoId = normalizeCode(
+      lookup && lookup.record && lookup.record.autoId ||
+      payload && (payload.autoId || payload.entryCode)
+    );
+    const body = buildQueueWorkflowPayload(lookup, payload || {});
+    let response;
+
+    if (action === 'SUBMIT_DOCUMENT') {
+      response = await PENDING_QUEUE.enqueueSubmitDocument(state.moduleId, autoId, body);
+    } else if (action === 'RETURN_DOCUMENT') {
+      response = await PENDING_QUEUE.enqueueReturnDocument(state.moduleId, autoId, body);
+    } else if (action === 'CANCEL_STAGE') {
+      response = await PENDING_QUEUE.enqueueCancelStage(state.moduleId, autoId, body);
+    } else {
+      return false;
+    }
+
+    await refreshQueueSummary();
+    return Boolean(response && (response.queued || response.duplicate || response.revived));
+  }
+
+  function buildQueueWorkflowPayload(lookup, payload) {
+    const source = payload && typeof payload === 'object'
+      ? Object.assign({}, payload)
+      : {};
+    const record = lookup && lookup.record && typeof lookup.record === 'object'
+      ? lookup.record
+      : {};
+    const requestId = text(
+      source.clientRequestId ||
+      source.requestId ||
+      createStableRequestId()
+    );
+
+    return Object.assign({}, source, {
+      entryCode: text(source.entryCode || source.autoId || record.autoId),
+      autoId: text(source.autoId || source.entryCode || record.autoId),
+      canonicalRecordId: text(source.canonicalRecordId || record.canonicalRecordId),
+      sourceRowNumber: Number(source.sourceRowNumber || record.sourceRowNumber || 0) || '',
+      expectedTimestampIn: text(source.expectedTimestampIn || record.timestampIn),
+      expectedTimestampInEpochMs:
+        Number(source.expectedTimestampInEpochMs || record.timestampInEpochMs || 0) || '',
+      expectedPrimaryValue: text(source.expectedPrimaryValue || record.primaryValue),
+      clientRequestId: requestId,
+      requestId
+    });
+  }
+
+  function createStableRequestId() {
+    if (PENDING_QUEUE && typeof PENDING_QUEUE.createRequestId === 'function') {
+      return PENDING_QUEUE.createRequestId();
+    }
+
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+
+    return 'REQ-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+  }
+
+  function isTransientQueueError(error) {
+    if (PENDING_QUEUE && typeof PENDING_QUEUE.isTransientError === 'function') {
+      return PENDING_QUEUE.isTransientError(error);
+    }
+
+    const code = text(error && error.code).toUpperCase();
+    const status = Number(error && error.status) || 0;
+    return [
+      'NETWORK_ERROR',
+      'REQUEST_TIMEOUT',
+      'GAS_TIMEOUT',
+      'GAS_CONNECTION_FAILED',
+      'GAS_HTTP_ERROR'
+    ].includes(code) || [0, 408, 429, 500, 502, 503, 504].includes(status);
+  }
+
+  async function retryPendingQueueNow() {
+    if (!state.queueReady || !PENDING_QUEUE) {
+      await showAlert('ระบบรอส่งไม่พร้อม', 'กรุณาตรวจว่าโหลดไฟล์ inbound-offline-queue.js แล้ว', 'warning');
+      return;
+    }
+
+    if (navigator.onLine === false) {
+      await showAlert('ยังออฟไลน์', 'รายการยังปลอดภัยอยู่ในเครื่อง ระบบจะส่งเมื่อเครือข่ายกลับมา', 'info');
+      return;
+    }
+
+    try {
+      setScanMessage('กำลังส่งรายการค้างใหม่ตามลำดับ', 'BUSY');
+      await PENDING_QUEUE.retryAll({
+        moduleId: state.moduleId,
+        flush: true
+      });
+      await refreshQueueSummary();
+      await loadWorkflowDashboard(true, {cacheFirst: false});
+
+      if (Number(state.queueSummary.failed || 0) > 0) {
+        setScanMessage('ยังมีบางรายการส่งไม่สำเร็จ กรุณาเปิดรายการรอส่งเพื่อตรวจสอบ', 'WARN');
+      } else if (Number(state.queueSummary.pending || 0) > 0) {
+        setScanMessage('บางรายการยังรอส่ง ระบบจะลองใหม่อัตโนมัติ', 'WARN');
+      } else {
+        setScanMessage('ส่งรายการค้างครบแล้ว', 'SUCCESS');
+      }
+    } catch (error) {
+      setScanMessage('ส่งรายการค้างไม่สำเร็จ: ' + errorMessage(error), 'WARN');
+      await showAlert('ส่งรายการค้างไม่สำเร็จ', errorMessage(error), 'error');
+    }
+  }
+
+  async function openPendingQueueDialog(options) {
+    if (!state.queueReady || !PENDING_QUEUE || typeof PENDING_QUEUE.list !== 'function') {
+      await showAlert('ระบบรอส่งไม่พร้อม', 'ไม่พบข้อมูลคิวรอส่งในเบราว์เซอร์นี้', 'warning');
+      return;
+    }
+
+    pauseScanFocus(30000);
+
+    try {
+      const operations = await PENDING_QUEUE.list({
+        moduleId: state.moduleId
+      });
+      const active = operations
+        .filter((operation) => operation.status !== 'COMMITTED')
+        .sort((left, right) => {
+          const priority = {
+            FAILED: 0,
+            PAUSED_AUTH: 1,
+            PAUSED_ACTOR: 1,
+            UNKNOWN: 2,
+            RETRY_WAIT: 3,
+            SENDING: 4,
+            PENDING: 5
+          };
+          const leftPriority = priority[left.status] ?? 9;
+          const rightPriority = priority[right.status] ?? 9;
+          if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+          return Number(left.createdAt || 0) - Number(right.createdAt || 0);
+        });
+
+      const html = buildPendingQueueHtml(active, options);
+
+      if (!window.Swal || typeof window.Swal.fire !== 'function') {
+        window.alert(active.length
+          ? active.map((item) => item.autoId + ' · ' + queueStatusLabel(item.status)).join('\n')
+          : 'ไม่มีรายการรอส่ง');
+        return;
+      }
+
+      const result = await window.Swal.fire({
+        title: 'รายการรอส่ง Inbound',
+        html,
+        icon: active.some((item) => item.status === 'FAILED') ? 'warning' : 'info',
+        showCancelButton: true,
+        confirmButtonText: active.length && navigator.onLine !== false ? 'ส่งใหม่ตอนนี้' : 'ปิด',
+        cancelButtonText: 'ปิด',
+        showConfirmButton: true,
+        reverseButtons: true,
+        heightAuto: false,
+        customClass: {
+          popup: 'inbound-queue-popup'
+        }
+      });
+
+      if (result && result.isConfirmed && active.length && navigator.onLine !== false) {
+        await retryPendingQueueNow();
+      }
+    } catch (error) {
+      await showAlert('เปิดรายการรอส่งไม่สำเร็จ', errorMessage(error), 'error');
+    } finally {
+      keepCameraStandby();
+      focusCodeInput(false);
+    }
+  }
+
+  function buildPendingQueueHtml(operations) {
+    const list = Array.isArray(operations) ? operations : [];
+
+    if (!list.length) {
+      return '<div class="inbound-queue-empty">ไม่มีรายการรอส่งหรือรายการผิดพลาดใน Module นี้</div>';
+    }
+
+    return '<div class="inbound-queue-list">' + list.map((operation) => {
+      const errorText = operation.lastError && operation.lastError.message
+        ? operation.lastError.message
+        : '';
+      const nextAttempt = Number(operation.nextAttemptAt || 0) > Date.now()
+        ? ' · ลองใหม่ ' + formatQueueDate(operation.nextAttemptAt)
+        : '';
+
+      return `
+        <article class="inbound-queue-item" data-status="${escapeHtml(operation.status)}">
+          <div class="inbound-queue-item__main">
+            <strong>${escapeHtml(operation.autoId || '-')}</strong>
+            <span>${escapeHtml(queueKindLabel(operation.kind))} · ส่งแล้ว ${Number(operation.attempts || 0)} ครั้ง</span>
+            <small>สร้าง ${escapeHtml(formatQueueDate(operation.createdAt))}${escapeHtml(nextAttempt)}</small>
+            ${errorText ? `<small>${escapeHtml(errorText)}</small>` : ''}
+          </div>
+          <span class="inbound-queue-item__status">${escapeHtml(queueStatusLabel(operation.status))}</span>
+        </article>
+      `;
+    }).join('') + '</div>';
+  }
+
+  function queueKindLabel(kind) {
+    const value = String(kind || '').toUpperCase();
+    if (value === 'RESOLVE_SCAN') return 'ตรวจสถานะและทำขั้นตอนอัตโนมัติ';
+    if (value === 'SUBMIT_DOCUMENT') return 'ยื่นเอกสาร Inbound';
+    if (value === 'RETURN_DOCUMENT') return 'รับเอกสารคืน';
+    if (value === 'CANCEL_STAGE') return 'ยกเลิกสถานะล่าสุด';
+    return value || 'งาน Workflow';
+  }
+
+  function queueStatusLabel(status) {
+    const value = String(status || '').toUpperCase();
+    if (value === 'PENDING') return 'รอส่ง';
+    if (value === 'SENDING') return 'กำลังส่ง';
+    if (value === 'RETRY_WAIT') return 'รอลองใหม่';
+    if (value === 'UNKNOWN') return 'ยังยืนยันผลไม่ได้';
+    if (value === 'FAILED') return 'ต้องตรวจสอบ';
+    if (value === 'PAUSED_AUTH') return 'รอเข้าสู่ระบบ';
+    if (value === 'PAUSED_ACTOR') return 'รอบัญชีเดิม';
+    if (value === 'COMMITTED') return 'ส่งสำเร็จ';
+    return value || '-';
+  }
+
+  function formatQueueDate(value) {
+    const milliseconds = Number(value) || 0;
+    return milliseconds > 0
+      ? formatBangkokDateTime(new Date(milliseconds))
+      : '-';
+  }
+
   async function openRecordDetailAlert(item) {
     if (!item) return;
     pauseScanFocus(24000);
@@ -1310,13 +1971,45 @@
 
       setScanMessage('กำลังยกเลิกสถานะล่าสุด: ' + item.autoId, 'BUSY');
 
-      const response = await API.cancelInboundWorkflow(state.moduleId, {
+      const cancelRequestId = createStableRequestId();
+      const cancelPayload = {
         entryCode: item.autoId,
         autoId: item.autoId,
         reason,
         statusCode: item.statusCode,
-        cancelScope: 'CURRENT_INBOUND_STAGE'
-      });
+        stageCode: item.statusCode,
+        cancelScope: 'CURRENT_INBOUND_STAGE',
+        clientRequestId: cancelRequestId,
+        requestId: cancelRequestId
+      };
+
+      let response;
+
+      try {
+        response = await API.cancelInboundWorkflow(state.moduleId, cancelPayload);
+      } catch (cancelError) {
+        if (isTransientQueueError(cancelError)) {
+          const queued = await queueSpecificAction(
+            'CANCEL_STAGE',
+            {record: {autoId: item.autoId}},
+            cancelPayload
+          );
+
+          if (queued) {
+            beep('warn');
+            setScanMessage('ยังยืนยันผลไม่ได้ · เก็บคำสั่งยกเลิกไว้รอส่ง: ' + item.autoId, 'WARN');
+            await window.Swal.fire({
+              icon: 'info',
+              title: 'เก็บคำสั่งไว้ในเครื่องแล้ว',
+              text: 'ระบบจะส่งคำสั่งยกเลิกด้วยรหัสคำขอเดิมเมื่อเครือข่ายพร้อม',
+              confirmButtonText: 'รับทราบ'
+            });
+            return;
+          }
+        }
+
+        throw cancelError;
+      }
 
       const updated = normalizeLookup(response, item);
       state.currentLookup = updated;
@@ -1931,6 +2624,20 @@
   function destroy() {
     window.clearInterval(state.clockTimer);
     window.clearTimeout(state.inputTimer);
+    window.clearTimeout(state.queueRefreshTimer);
+
+    if (state.queueUnsubscribe) {
+      try { state.queueUnsubscribe(); } catch (error) {}
+      state.queueUnsubscribe = null;
+    }
+
+    if (PENDING_QUEUE && typeof PENDING_QUEUE.stopAutoFlush === 'function') {
+      PENDING_QUEUE.stopAutoFlush();
+    }
+
+    window.removeEventListener('online', handleNetworkOnline);
+    window.removeEventListener('offline', handleNetworkOffline);
+    window.removeEventListener('inboundqueueoperation', handleQueueOperationEvent);
     stopCamera();
   }
 
