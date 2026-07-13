@@ -101,3 +101,27 @@ body[data-board-health="LOADING"] .receiving-complete-button {
     flex: 0 0 auto;
   }
 }
+
+/************************************************************
+ * UI HOTFIX — Hide Snapshot bars without adding files
+ ************************************************************/
+
+#moduleSnapshotState,
+.module-snapshot-state {
+  display: none !important;
+}
+
+/* ซ่อนข้อมูลตรวจระบบในหัว Operational Board แต่คงปุ่ม Refresh */
+#operationalIntegrity,
+#operationalSnapshotTime {
+  display: none !important;
+}
+
+.operational-board-panel__header-actions {
+  gap: 0 !important;
+}
+
+#operationalBoardRefresh {
+  margin: 0 !important;
+}
+
