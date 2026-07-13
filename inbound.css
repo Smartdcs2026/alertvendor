@@ -1402,3 +1402,113 @@ body.inbound-page {
     justify-self: start;
   }
 }
+
+/************************************************************
+ * UI HOTFIX — Network/Queue status must not consume workspace
+ *
+ * ONLINE ปกติ: ซ่อนทั้งหมด
+ * Offline/Pending/Failed: แสดงเป็นกล่องลอย ไม่ดันกล้องหรือตาราง
+ ************************************************************/
+
+.inbound-network-bar {
+  position: fixed !important;
+  right: 12px !important;
+  bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+  z-index: 950 !important;
+
+  width: auto !important;
+  max-width: min(440px, calc(100vw - 24px)) !important;
+  min-height: 0 !important;
+
+  display: none !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 7px !important;
+
+  margin: 0 !important;
+  padding: 6px 8px !important;
+
+  border: 1px solid rgba(15, 61, 94, .18) !important;
+  border-radius: 11px !important;
+  background: rgba(255, 255, 255, .97) !important;
+  box-shadow: 0 9px 24px rgba(8, 59, 83, .16) !important;
+}
+
+.inbound-network-bar:has(#inboundNetworkState[data-state='OFFLINE']),
+.inbound-network-bar:has(#inboundNetworkState[data-state='UNSTABLE']),
+.inbound-network-bar:has(#inboundNetworkState[data-state='PENDING']),
+.inbound-network-bar:has(#inboundQueueButton[data-has-pending='true']),
+.inbound-network-bar:has(#inboundFailedQueueButton:not([hidden])),
+.inbound-network-bar:has(#inboundRetryQueueButton:not([hidden])) {
+  display: flex !important;
+}
+
+.inbound-network-bar .inbound-network-state {
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.inbound-network-bar #inboundNetworkState {
+  max-width: 210px !important;
+  overflow: hidden !important;
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.inbound-network-bar #inboundNetworkState::before {
+  width: 7px !important;
+  height: 7px !important;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, .13) !important;
+}
+
+.inbound-network-bar #inboundQueueDetail {
+  display: none !important;
+}
+
+.inbound-network-bar .inbound-queue-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.inbound-network-bar .inbound-queue-actions button {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 26px !important;
+  height: 26px !important;
+  padding: 3px 7px !important;
+  border-radius: 8px !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+}
+
+.inbound-network-bar .inbound-queue-actions strong {
+  min-width: 17px !important;
+  height: 17px !important;
+  padding: 0 4px !important;
+  font-size: 9px !important;
+}
+
+.inbound-shell > .inbound-network-bar {
+  margin-block: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .inbound-network-bar {
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  .inbound-network-bar #inboundNetworkState {
+    max-width: 120px !important;
+  }
+
+  .inbound-network-bar .inbound-queue-actions button {
+    padding-inline: 5px !important;
+  }
+}
+
