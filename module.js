@@ -18,6 +18,7 @@
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
  * - Production R17: Action Sheet CSS + Shift Handover Accuracy
  * - Production R19: OPERATIONAL ALERT เปิด/ปิดรายผู้ใช้และรายโมดูล
+ * - Production R23: ย้ายตัวควบคุมแจ้งเตือนไป Footer โดยไม่ลอยทับเนื้อหา
  */
 (function (window, document) {
   'use strict';
@@ -142,7 +143,7 @@
       document.body.dataset.shiftHandoverBuild =
         '2026.07.13-r18-workflow-wording-accuracy';
       document.body.dataset.operationalAlertBuild =
-        '2026.07.13-r22-alert-rescue';
+        '2026.07.13-r23-footer-alert-control';
     }
 
     initializeOverdueBadgeSystem();
@@ -7686,6 +7687,11 @@
     if (status) {
       status.textContent =
         enabled ? 'เปิด' : 'ปิด';
+
+      status.setAttribute(
+        'aria-hidden',
+        'true'
+      );
     }
   }
 
