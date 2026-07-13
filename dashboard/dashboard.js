@@ -1,6 +1,6 @@
 /**
  * dashboard.js
- * PHASE 4C HOTFIX 1 — Stable Fullscreen Fit without observer loop
+ * PHASE 4C HOTFIX 3 — Native Fullscreen Professional Layout
  *
  * แก้กรณี Backend ตอบ Error ระหว่าง Initial Load แล้ว Loading Overlay
  * มี z-index สูงกว่า SweetAlert ทำให้ผู้ใช้มองไม่เห็น/กดปุ่ม Error ไม่ได้
@@ -4662,9 +4662,13 @@
       }
 
       /*
-       * ตั้ง Scale = 1 และอ่าน Layout ใน JavaScript task เดียวกัน
-       * Browser จะยังไม่ Paint ค่ากลาง จึงไม่เกิดการกระพริบ
-       * จากนั้นใส่ Scale สุดท้ายเพียงครั้งเดียว
+       * ห้ามย่อทั้ง Dashboard ด้วย transform: scale()
+       * เพราะทำให้:
+       * - Font และ Icon เสียสัดส่วน
+       * - การ์ดภายในคำนวณความสูงผิด
+       * - Canvas Chart ถูกตัดหรือเบลอ
+       *
+       * Fullscreen ใช้ Native CSS Grid ตาม viewport จริงแทน
        */
       document.documentElement
         .style.setProperty(
@@ -4672,64 +4676,11 @@
           '1'
         );
 
-      const rect =
-        target.getBoundingClientRect();
+      target.dataset.fullscreenFit =
+        'NATIVE';
 
-      const availableWidth =
-        Math.max(
-          320,
-          window.innerWidth -
-          Math.max(
-            0,
-            rect.left
-          ) -
-          4
-        );
-
-      const availableHeight =
-        Math.max(
-          320,
-          window.innerHeight -
-          Math.max(
-            0,
-            rect.top
-          ) -
-          4
-        );
-
-      const naturalWidth =
-        Math.max(
-          target.scrollWidth,
-          Math.ceil(
-            rect.width
-          )
-        );
-
-      const naturalHeight =
-        Math.max(
-          target.scrollHeight,
-          Math.ceil(
-            rect.height
-          )
-        );
-
-      const scale =
-        Math.max(
-          0.42,
-          Math.min(
-            1,
-            availableWidth /
-              Math.max(
-                naturalWidth,
-                1
-              ),
-            availableHeight /
-              Math.max(
-                naturalHeight,
-                1
-              )
-          )
-        );
+      target.dataset.fullscreenScale =
+        '1.000';
 
       const view =
         document.body
@@ -4737,39 +4688,19 @@
           .dashboardView ||
         'LIVE';
 
-      document.documentElement
-        .style.setProperty(
-          '--dashboard-fullscreen-scale',
-          scale.toFixed(4)
-        );
-
-      target.dataset.fullscreenFit =
-        scale < 0.995
-          ? 'SCALED'
-          : 'NATIVE';
-
-      target.dataset.fullscreenScale =
-        scale.toFixed(3);
-
-      const scaleChanged =
-        Math.abs(
-          scale -
-          fullscreenFitLastScale
-        ) >= 0.008;
-
       const viewChanged =
         view !==
         fullscreenFitLastView;
 
       fullscreenFitLastScale =
-        scale;
+        1;
 
       fullscreenFitLastView =
         view;
 
       if (
-        scaleChanged ||
-        viewChanged
+        viewChanged ||
+        !fullscreenFitChartTimer
       ) {
         if (fullscreenFitChartTimer) {
           window.clearTimeout(
