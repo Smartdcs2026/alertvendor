@@ -37,7 +37,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260713-r19-operational-alert-control"
+    href="./styles.css?v=20260713-r20-compact-alert-header"
   >
 
   <link
@@ -88,7 +88,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260713-r19-operational-alert-control"
+    src="./module.js?v=20260713-r20-compact-alert-header"
     defer
   ></script>
 
@@ -211,6 +211,54 @@
             0
           </strong>
         </div>
+
+        <button
+          id="operationalAlertToggle"
+          class="operational-alert-toggle is-enabled"
+          type="button"
+          role="switch"
+          aria-checked="true"
+          aria-label="ปิดการแจ้งเตือนอัตโนมัติ"
+          title="การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
+        >
+          <span
+            class="operational-alert-toggle__icon"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M10 21h4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+
+          <span class="operational-alert-toggle__label">
+            แจ้งเตือน
+          </span>
+
+          <span
+            class="operational-alert-toggle__track"
+            aria-hidden="true"
+          >
+            <i></i>
+          </span>
+
+          <strong id="operationalAlertToggleStatus">
+            เปิด
+          </strong>
+        </button>
 
         <div class="module-clock">
           <span class="module-clock__live">
@@ -387,31 +435,6 @@
         <div class="operational-board-panel__header-actions">
           <span id="operationalIntegrity" class="operational-integrity" data-state="LOADING">กำลังตรวจความครบถ้วน</span>
           <span id="operationalSnapshotTime">กำลังโหลด Snapshot</span>
-
-          <button
-            id="operationalAlertToggle"
-            class="operational-alert-toggle is-enabled"
-            type="button"
-            role="switch"
-            aria-checked="true"
-            aria-label="ปิด OPERATIONAL ALERT อัตโนมัติ"
-            title="เปิดอยู่: กดเพื่อปิดเฉพาะ OPERATIONAL ALERT อัตโนมัติ"
-          >
-            <span class="operational-alert-toggle__label">
-              OPERATIONAL ALERT
-            </span>
-
-            <span
-              class="operational-alert-toggle__track"
-              aria-hidden="true"
-            >
-              <i></i>
-            </span>
-
-            <strong id="operationalAlertToggleStatus">
-              เปิด
-            </strong>
-          </button>
 
           <button id="operationalBoardRefresh" type="button">
             อัปเดตข้อมูล
