@@ -1,6 +1,7 @@
 /**
  * module-operations.js
  * ROUND 55 — Dedicated Styled Record Detail SweetAlert
+ * PRODUCTION R19 — OPERATIONAL ALERT user control
  *
  * - แสดงเลขนัดหมายและทะเบียนอย่างชัดเจน
  * - แสดงเวลา Gate In, ระยะเวลารวม, เวลาเกิน SLA และขั้นตอน
@@ -72,6 +73,11 @@
     document.addEventListener(
       'alertvendor:records-updated',
       annotateVehicleCards
+    );
+
+    document.addEventListener(
+      'alertvendor:operational-alert-changed',
+      handleOperationalAlertSetting
     );
   }
 
@@ -248,6 +254,16 @@
           ) &&
           records.length > 0
         ) {
+          if (!isOperationalAlertEnabled()) {
+            return Promise.resolve({
+              isConfirmed: false,
+              isDenied: false,
+              isDismissed: true,
+              dismiss:
+                'operational-alert-disabled'
+            });
+          }
+
           return original(
             enhanceOverdueAlert(
               options,
@@ -321,6 +337,69 @@
     );
   }
 
+
+  function isOperationalAlertEnabled() {
+    const controller =
+      window.AlertVendorOperationalAlert;
+
+    if (
+      !controller ||
+      typeof controller.isEnabled !==
+        'function'
+    ) {
+      return true;
+    }
+
+    try {
+      return controller.isEnabled() !== false;
+    } catch (error) {
+      return true;
+    }
+  }
+
+  function handleOperationalAlertSetting(
+    event
+  ) {
+    const enabled =
+      !event ||
+      !event.detail ||
+      event.detail.enabled !== false;
+
+    if (enabled) {
+      return;
+    }
+
+    state.pendingAudio = false;
+    stopAlarmVibration();
+
+    if (
+      state.audioContext &&
+      state.audioContext.state ===
+        'running' &&
+      typeof state.audioContext.suspend ===
+        'function'
+    ) {
+      state.audioContext
+        .suspend()
+        .catch(
+          () => undefined
+        );
+    }
+
+    const popup =
+      document.querySelector(
+        '.swal2-popup.av-overdue-popup-v50, .overdue-command-popup'
+      );
+
+    if (
+      popup &&
+      window.Swal &&
+      typeof window.Swal.close ===
+        'function'
+    ) {
+      window.Swal.close();
+    }
+  }
 
   function enhanceOverdueAlert(
     source,
@@ -2201,6 +2280,10 @@
     signature,
     force
   ) {
+    if (!isOperationalAlertEnabled()) {
+      return;
+    }
+
     requestAlarmVibration(
       signature,
       force
@@ -2217,6 +2300,10 @@
     signature,
     force
   ) {
+    if (!isOperationalAlertEnabled()) {
+      return false;
+    }
+
     if (
       !window.navigator ||
       typeof window.navigator.vibrate !==
@@ -2301,6 +2388,11 @@
     signature,
     force
   ) {
+    if (!isOperationalAlertEnabled()) {
+      state.pendingAudio = false;
+      return;
+    }
+
     const now =
       Date.now();
 
@@ -2924,6 +3016,11 @@
   function destroy() {
     state.destroyed =
       true;
+
+    document.removeEventListener(
+      'alertvendor:operational-alert-changed',
+      handleOperationalAlertSetting
+    );
 
     if (
       state.observer
