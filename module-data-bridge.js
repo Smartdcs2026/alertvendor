@@ -1,294 +1,159 @@
 /**
  * module-data-bridge.js
- * ROUND 54 — Full Record Data Bridge
+ * PHASE 3A — Unified Operational Board Data Bridge
  *
- * เก็บผลลัพธ์ API.getRecords แบบครบชุด
- * เพื่อให้ SweetAlert และข้อมูลเสริมไม่ขึ้นกับการ์ด
- * ที่กำลังแสดงหลังค้นหา/กรองสถานะ
+ * แหล่งข้อมูลหลักของหน้า Module ต้องเป็น Operational Board เท่านั้น
+ * ไฟล์นี้เก็บ Snapshot เต็มเพื่อให้ Detail/Controller อื่นอ่านข้อมูลชุดเดียวกัน
  */
 (function (window, document) {
   'use strict';
 
   const state = {
-    installed:
-      false,
-
-    installTimer:
-      null,
-
-    records:
-      [],
-
-    module:
-      null,
-
-    generatedAt:
-      '',
-
-    updatedAt:
-      0,
-
-    serverOffsetMs:
-      0
+    installed: false,
+    installTimer: null,
+    records: [],
+    module: null,
+    board: null,
+    generatedAt: '',
+    updatedAt: 0,
+    serverOffsetMs: 0,
+    source: 'NONE'
   };
-
 
   installWhenReady();
 
-
   function installWhenReady() {
-    const api =
-      window.VehicleAPI;
+    const api = window.VehicleAPI;
 
-    if (
-      !api ||
-      typeof api.getRecords !==
-        'function'
-    ) {
-      state.installTimer =
-        window.setTimeout(
-          installWhenReady,
-          30
-        );
-
+    if (!api) {
+      state.installTimer = window.setTimeout(installWhenReady, 30);
       return;
     }
 
-    if (
-      api.getRecords
-        .__round54DataBridge
-    ) {
-      state.installed =
-        true;
+    wrapMethod(api, 'getOperationalBoard', 'OPERATIONAL_BOARD');
 
-      return;
-    }
+    /* Legacy capture only. Production page must not call this method. */
+    wrapMethod(api, 'getRecords', 'LEGACY_RECORDS');
 
-    const original =
-      api.getRecords.bind(
-        api
-      );
-
-    const wrapped =
-      async function (...args) {
-        const result =
-          await original(
-            ...args
-          );
-
-        captureResult(
-          result
-        );
-
-        return result;
-      };
-
-    wrapped.__round54DataBridge =
-      true;
-
-    wrapped.__originalGetRecords =
-      original;
-
-    api.getRecords =
-      wrapped;
-
-    state.installed =
-      true;
+    state.installed = true;
   }
 
+  function wrapMethod(api, methodName, sourceName) {
+    const current = api && api[methodName];
 
-  function captureResult(
-    result
-  ) {
-    if (
-      !result ||
-      typeof result !==
-        'object'
-    ) {
+    if (typeof current !== 'function' || current.__phase3aDataBridge) {
       return;
     }
 
-    state.records =
-      Array.isArray(
-        result.records
-      )
-        ? result.records.slice()
-        : [];
-
-    state.module =
-      result.module &&
-      typeof result.module ===
-        'object'
-        ? {
-            ...(
-              state.module ||
-              {}
-            ),
-            ...result.module
-          }
-        : state.module;
-
-    state.generatedAt =
-      String(
-        result.generatedAt ||
-        ''
-      );
-
-    state.updatedAt =
-      Date.now();
-
-    const generatedMs =
-      parseDateTime(
-        state.generatedAt
-      );
-
-    state.serverOffsetMs =
-      Number.isFinite(
-        generatedMs
-      )
-        ? generatedMs -
-          Date.now()
-        : 0;
-
-    const detail = {
-      count:
-        state.records.length,
-
-      generatedAt:
-        state.generatedAt,
-
-      updatedAt:
-        state.updatedAt
+    const original = current.bind(api);
+    const wrapped = async function (...args) {
+      const result = await original(...args);
+      captureResult(result, sourceName);
+      return result;
     };
 
-    document.dispatchEvent(
-      new CustomEvent(
-        'alertvendor:records-updated',
-        {
-          detail
-        }
-      )
-    );
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'alertvendor:records-updated',
-        {
-          detail
-        }
-      )
-    );
+    wrapped.__phase3aDataBridge = true;
+    wrapped.__original = original;
+    api[methodName] = wrapped;
   }
 
+  function captureResult(result, sourceName) {
+    if (!result || typeof result !== 'object') {
+      return;
+    }
 
-  function parseDateTime(
-    value
-  ) {
-    const text =
-      String(
-        value ||
-        ''
-      ).trim();
+    state.records = Array.isArray(result.records)
+      ? result.records.slice()
+      : [];
 
-    const thaiMatch =
-      text.match(
-        /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/
-      );
+    state.module = result.module && typeof result.module === 'object'
+      ? { ...(state.module || {}), ...result.module }
+      : state.module;
+
+    state.board = sourceName === 'OPERATIONAL_BOARD'
+      ? result
+      : state.board;
+
+    state.generatedAt = String(result.generatedAt || '');
+    state.updatedAt = Date.now();
+    state.source = sourceName;
+
+    const generatedMs = parseDateTime(state.generatedAt);
+    state.serverOffsetMs = Number.isFinite(generatedMs)
+      ? generatedMs - Date.now()
+      : 0;
+
+    const detail = {
+      count: state.records.length,
+      generatedAt: state.generatedAt,
+      updatedAt: state.updatedAt,
+      source: state.source,
+      integrity: result.integrity || null,
+      cached: result.cached === true
+    };
+
+    document.dispatchEvent(new CustomEvent('alertvendor:records-updated', { detail }));
+    window.dispatchEvent(new CustomEvent('alertvendor:records-updated', { detail }));
+  }
+
+  function parseDateTime(value) {
+    const text = String(value || '').trim();
+    const thaiMatch = text.match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/
+    );
 
     if (thaiMatch) {
       return new Date(
-        Number(
-          thaiMatch[3]
-        ),
-        Number(
-          thaiMatch[2]
-        ) - 1,
-        Number(
-          thaiMatch[1]
-        ),
-        Number(
-          thaiMatch[4]
-        ),
-        Number(
-          thaiMatch[5]
-        ),
-        Number(
-          thaiMatch[6]
-        )
+        Number(thaiMatch[3]),
+        Number(thaiMatch[2]) - 1,
+        Number(thaiMatch[1]),
+        Number(thaiMatch[4]),
+        Number(thaiMatch[5]),
+        Number(thaiMatch[6])
       ).getTime();
     }
 
-    const parsed =
-      Date.parse(
-        text
-      );
-
-    return Number.isFinite(
-      parsed
-    )
-      ? parsed
-      : NaN;
+    const parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? parsed : NaN;
   }
-
 
   function getRecords() {
     return state.records.slice();
   }
 
-
   function getModule() {
-    return state.module
-      ? {
-          ...state.module
-        }
-      : null;
+    return state.module ? { ...state.module } : null;
   }
 
+  function getBoard() {
+    return state.board || null;
+  }
 
   function getNowMs() {
-    return (
-      Date.now() +
-      Number(
-        state.serverOffsetMs ||
-        0
-      )
-    );
+    return Date.now() + Number(state.serverOffsetMs || 0);
   }
-
 
   function getSnapshot() {
     return {
-      records:
-        getRecords(),
-
-      module:
-        getModule(),
-
-      generatedAt:
-        state.generatedAt,
-
-      updatedAt:
-        state.updatedAt,
-
-      serverOffsetMs:
-        state.serverOffsetMs
+      records: getRecords(),
+      module: getModule(),
+      board: getBoard(),
+      generatedAt: state.generatedAt,
+      updatedAt: state.updatedAt,
+      serverOffsetMs: state.serverOffsetMs,
+      source: state.source
     };
   }
-
 
   window.AlertVendorRecordBridge = {
     getRecords,
     getModule,
+    getBoard,
     getNowMs,
     getSnapshot,
-
-    isReady:
-      () =>
-        state.records.length > 0,
-
-    get updatedAt() {
-      return state.updatedAt;
-    }
+    isReady: () => state.source === 'OPERATIONAL_BOARD',
+    get updatedAt() { return state.updatedAt; },
+    get source() { return state.source; }
   };
 
 })(window, document);
