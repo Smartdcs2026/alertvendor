@@ -37,7 +37,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260713-r23-footer-alert-control"
+    href="./styles.css?v=20260713-r24-footer-alert-visual-polish"
   >
 
   <link
@@ -55,6 +55,216 @@
     rel="stylesheet"
     href="./module-alert-detail.css?v=20260713-r17-action-sheet-shift-accuracy"
   >
+
+
+  <!--
+    Production R24: Footer Alert Control owns its critical CSS here.
+    This small, page-scoped block prevents native browser button styles
+    or stale shared CSS from changing the control again.
+  -->
+  <style id="moduleFooterAlertControlStyles">
+    body.module-page > footer.app-footer.module-footer {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 12px !important;
+      width: 100% !important;
+      min-height: 38px !important;
+      margin: 0 !important;
+      padding:
+        5px max(14px, env(safe-area-inset-right))
+        calc(5px + var(--safe-bottom, 0px))
+        max(14px, env(safe-area-inset-left)) !important;
+      box-sizing: border-box !important;
+      border-top: 1px solid #d5e1e8 !important;
+      background: #eef4f7 !important;
+      text-align: left !important;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > .module-footer__brand {
+      min-width: 0;
+      color: #647985;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert {
+      all: unset;
+      -webkit-appearance: none;
+      appearance: none;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 30px;
+      min-width: 118px;
+      margin: 0;
+      padding: 3px 6px 3px 4px;
+      border: 1px solid #b9c8cf;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #415966;
+      box-shadow: 0 1px 2px rgba(15, 45, 62, 0.08);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition:
+        background-color 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.08s ease;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert:hover {
+      border-color: #88a5b2;
+      box-shadow: 0 2px 6px rgba(15, 45, 62, 0.12);
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert:focus-visible {
+      outline: 3px solid rgba(15, 118, 110, 0.24);
+      outline-offset: 2px;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert
+    > .module-footer-alert__icon {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      border-radius: 50%;
+      background: #e9eff2;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert
+    > .module-footer-alert__label {
+      white-space: nowrap;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert
+    > .module-footer-alert__status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 31px;
+      height: 20px;
+      padding: 0 7px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      background: #e6ecef;
+      color: #586e79;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-enabled {
+      border-color: #75cbb8;
+      background: #f0fcf8;
+      color: #075f53;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-enabled
+    > .module-footer-alert__icon {
+      background: #d7f5ec;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-enabled
+    > .module-footer-alert__status {
+      background: #0d8f79;
+      color: #ffffff;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-disabled {
+      border-color: #c9d2d7;
+      background: #f5f7f8;
+      color: #667a84;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-disabled
+    > .module-footer-alert__icon {
+      background: #e7ecef;
+      filter: grayscale(1);
+      opacity: 0.72;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-disabled
+    > .module-footer-alert__status {
+      background: #75858d;
+      color: #ffffff;
+    }
+
+    @media (max-width: 640px) {
+      body.module-page > footer.app-footer.module-footer {
+        min-height: 36px !important;
+        gap: 8px !important;
+        padding:
+          4px max(9px, env(safe-area-inset-right))
+          calc(4px + var(--safe-bottom, 0px))
+          max(9px, env(safe-area-inset-left)) !important;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > .module-footer__brand {
+        overflow: hidden;
+        font-size: 10px;
+        text-overflow: ellipsis;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > button.module-footer-alert {
+        min-width: 66px;
+        height: 30px;
+        gap: 4px;
+        padding: 3px 5px 3px 4px;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > button.module-footer-alert
+      > .module-footer-alert__label {
+        display: none;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > button.module-footer-alert
+      > .module-footer-alert__status {
+        min-width: 28px;
+        padding: 0 5px;
+      }
+    }
+  </style>
 
 
   <script
@@ -88,7 +298,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260713-r23-footer-alert-control"
+    src="./module.js?v=20260713-r24-footer-alert-visual-polish"
     defer
   ></script>
 
@@ -1136,7 +1346,10 @@
 
   </main>
 
-  <footer class="app-footer module-footer">
+  <footer
+    class="app-footer module-footer"
+    aria-label="ส่วนท้ายระบบ"
+  >
     <span class="module-footer__brand">
       S&amp;LP SKDC906
     </span>
@@ -1151,6 +1364,7 @@
       title="การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
     >
       <span
+        id="operationalAlertToggleIcon"
         class="module-footer-alert__icon"
         aria-hidden="true"
       >🔔</span>
@@ -1162,6 +1376,7 @@
       <span
         id="operationalAlertToggleStatus"
         class="module-footer-alert__status"
+        aria-hidden="true"
       >เปิด</span>
     </button>
   </footer>
