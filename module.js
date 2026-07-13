@@ -143,7 +143,7 @@
       document.body.dataset.shiftHandoverBuild =
         '2026.07.13-r18-workflow-wording-accuracy';
       document.body.dataset.operationalAlertBuild =
-        '2026.07.13-r23-footer-alert-control';
+        '2026.07.13-r24-footer-alert-visual-polish';
     }
 
     initializeOverdueBadgeSystem();
@@ -7647,6 +7647,11 @@
         'operationalAlertToggleStatus'
       );
 
+    const icon =
+      document.getElementById(
+        'operationalAlertToggleIcon'
+      );
+
     const enabled =
       isOperationalAlertEnabled();
 
@@ -7682,6 +7687,11 @@
         enabled
           ? 'การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด'
           : 'การแจ้งเตือนปิดอยู่ — กดเพื่อเปิด';
+    }
+
+    if (icon) {
+      icon.textContent =
+        enabled ? '🔔' : '🔕';
     }
 
     if (status) {
