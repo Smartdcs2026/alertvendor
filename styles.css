@@ -12720,6 +12720,7 @@ body.receiving-dialog-open {
     minmax(250px, 1fr)
     auto
     auto
+    auto
     auto;
   align-items: center;
   gap: 9px;
@@ -12911,7 +12912,7 @@ body.receiving-dialog-open {
 @media (max-width: 900px) {
   .module-page .module-command-bar {
     grid-template-columns:
-      auto minmax(0, 1fr) auto auto;
+      auto minmax(0, 1fr) auto auto auto;
   }
 
   .module-page .module-command-kpi {
@@ -12937,7 +12938,7 @@ body.receiving-dialog-open {
   .module-page .module-command-bar {
     min-height: 50px;
     grid-template-columns:
-      auto minmax(0, 1fr) auto;
+      auto minmax(0, 1fr) auto auto;
     gap: 6px;
   }
 
@@ -19543,56 +19544,66 @@ body.module-card-focus
  * from competing for the same SweetAlert component.
  ************************************************************/
 
-
 /************************************************************
- * PRODUCTION R19 — OPERATIONAL ALERT Control
- * Scope: module vendors only. No responsive layout changes.
+ * PRODUCTION R20 — Compact Alert Header Control
+ * One control in the sticky header: no extra content row.
  ************************************************************/
 
 .module-page .operational-alert-toggle {
-  min-height: 32px !important;
+  min-width: 116px;
+  min-height: 38px;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border: 1px solid #aabdc7 !important;
-  border-radius: 999px !important;
-  padding: 5px 9px !important;
-  color: #425d6c !important;
-  background: #f3f6f8 !important;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, .24) !important;
+  border-radius: 10px !important;
+  padding: 5px 8px !important;
+  color: #d8e9f1 !important;
+  background: rgba(255, 255, 255, .07) !important;
   box-shadow: none !important;
+  cursor: pointer;
   white-space: nowrap;
-  transition:
-    border-color .16s ease,
-    background .16s ease,
-    color .16s ease;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
 }
 
 .module-page .operational-alert-toggle:hover {
-  border-color: #5a91a4 !important;
-  background: #edf6f8 !important;
+  border-color: rgba(112, 226, 215, .65) !important;
+  background: rgba(255, 255, 255, .12) !important;
 }
 
 .module-page .operational-alert-toggle:focus-visible {
-  outline: 3px solid rgba(14, 137, 157, .22);
+  outline: 3px solid rgba(112, 226, 215, .28);
   outline-offset: 2px;
+}
+
+.module-page .operational-alert-toggle__icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  display: grid;
+  place-items: center;
+}
+
+.module-page .operational-alert-toggle__icon svg {
+  width: 17px;
+  height: 17px;
 }
 
 .module-page .operational-alert-toggle__label {
   color: inherit !important;
-  font-size: 9px !important;
+  font-size: 8px !important;
   font-weight: 950 !important;
-  letter-spacing: .045em;
 }
 
 .module-page .operational-alert-toggle__track {
   position: relative;
-  width: 31px;
-  height: 18px;
-  flex: 0 0 31px;
+  width: 27px;
+  height: 16px;
+  flex: 0 0 27px;
   border-radius: 999px;
-  background: #9eabb3;
-  box-shadow: inset 0 1px 3px rgba(20, 45, 60, .2);
+  background: #71828c;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .22);
   transition: background .16s ease;
 }
 
@@ -19600,53 +19611,105 @@ body.module-card-focus
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(20, 45, 60, .28);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
   transition: transform .16s ease;
 }
 
 .module-page .operational-alert-toggle > strong {
-  min-width: 22px;
+  min-width: 17px;
   color: inherit !important;
-  font-size: 10px !important;
+  font-size: 7px !important;
   font-weight: 950 !important;
   line-height: 1;
 }
 
 .module-page .operational-alert-toggle.is-enabled {
-  border-color: #72bcae !important;
-  color: #116a5d !important;
-  background: #eaf8f4 !important;
+  border-color: rgba(112, 226, 215, .55) !important;
+  color: #82eee3 !important;
+  background: rgba(22, 155, 132, .14) !important;
 }
 
-.module-page .operational-alert-toggle.is-enabled
-.operational-alert-toggle__track {
-  background: #169b84;
+.module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track {
+  background: #19aa8f;
 }
 
-.module-page .operational-alert-toggle.is-enabled
-.operational-alert-toggle__track i {
-  transform: translateX(13px);
+.module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track i {
+  transform: translateX(11px);
 }
 
 .module-page .operational-alert-toggle.is-disabled {
-  border-color: #c6d0d6 !important;
-  color: #687982 !important;
-  background: #f2f4f5 !important;
+  color: #bdcad1 !important;
+  background: rgba(255, 255, 255, .04) !important;
 }
 
-@media (max-width: 720px) {
+/* The board header returns to two compact rows only. */
+.module-page .operational-board-panel__header-actions {
+  grid-template-columns: minmax(0, auto) auto;
+  align-items: center;
+}
+
+.module-page #operationalIntegrity {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
   .module-page .operational-alert-toggle {
-    grid-column: 1 / -1;
-    justify-self: end;
-    min-height: 31px !important;
-    padding: 4px 8px !important;
+    min-width: 40px;
+    min-height: 38px;
+    padding: 5px 6px !important;
   }
 
-  .module-page .operational-alert-toggle__label {
-    font-size: 8px !important;
+  .module-page .operational-alert-toggle__label,
+  .module-page .operational-alert-toggle > strong {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .module-page .operational-alert-toggle {
+    width: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    gap: 3px;
+    border-radius: 9px !important;
+    padding: 0 !important;
+  }
+
+  .module-page .operational-alert-toggle__icon {
+    width: 15px;
+    height: 15px;
+    flex-basis: 15px;
+  }
+
+  .module-page .operational-alert-toggle__icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .module-page .operational-alert-toggle__track {
+    width: 14px;
+    height: 14px;
+    flex-basis: 14px;
+    background: #71828c;
+  }
+
+  .module-page .operational-alert-toggle__track i {
+    top: 3px;
+    left: 3px;
+    width: 8px;
+    height: 8px;
+  }
+
+  .module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track i {
+    transform: none;
+  }
+
+  .module-page .operational-alert-toggle.is-enabled .operational-alert-toggle__track {
+    background: #20bf9f;
+    box-shadow: 0 0 0 3px rgba(32, 191, 159, .15);
   }
 }
