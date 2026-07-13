@@ -1123,3 +1123,282 @@ body.inbound-page {
     min-width: 160px;
   }
 }
+
+/************************************************************
+ * PHASE 2A — Durable Pending Queue / Network Recovery
+ ************************************************************/
+
+.inbound-network-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(15, 61, 94, .14);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .96), rgba(239, 250, 252, .96));
+  box-shadow: 0 8px 24px rgba(8, 59, 83, .06);
+}
+
+.inbound-network-state {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+#inboundNetworkState {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  font-size: 12px;
+  font-weight: 900;
+  color: #475569;
+}
+
+#inboundNetworkState::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, .13);
+}
+
+#inboundNetworkState[data-state='ONLINE'] {
+  color: #047857;
+}
+
+#inboundNetworkState[data-state='ONLINE']::before {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, .13);
+}
+
+#inboundNetworkState[data-state='OFFLINE'] {
+  color: #b91c1c;
+}
+
+#inboundNetworkState[data-state='OFFLINE']::before {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, .13);
+}
+
+#inboundNetworkState[data-state='UNSTABLE'],
+#inboundNetworkState[data-state='PENDING'] {
+  color: #a16207;
+}
+
+#inboundNetworkState[data-state='UNSTABLE']::before,
+#inboundNetworkState[data-state='PENDING']::before {
+  background: #f59e0b;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, .14);
+}
+
+#inboundQueueDetail {
+  max-width: min(72vw, 760px);
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbound-queue-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.inbound-queue-actions button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 61, 94, .18);
+  background: #fff;
+  color: #0f3d5e;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inbound-queue-actions button:hover,
+.inbound-queue-actions button:focus-visible {
+  border-color: rgba(15, 118, 110, .45);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, .1);
+  outline: none;
+}
+
+.button--queue strong,
+.button--queue-failed strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 11px;
+}
+
+.button--queue[data-has-pending='true'] {
+  border-color: rgba(245, 158, 11, .4);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.button--queue[data-has-pending='true'] strong {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.button--queue-failed {
+  border-color: rgba(239, 68, 68, .35) !important;
+  background: #fff1f2 !important;
+  color: #991b1b !important;
+}
+
+.button--queue-failed strong {
+  background: #ef4444;
+  color: #fff;
+}
+
+.button--queue-retry {
+  border-color: rgba(14, 116, 144, .34) !important;
+  background: #ecfeff !important;
+  color: #155e75 !important;
+}
+
+.inbound-queue-popup {
+  width: min(780px, calc(100vw - 22px)) !important;
+  border-radius: 18px !important;
+}
+
+.inbound-queue-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(54vh, 520px);
+  overflow: auto;
+  padding: 2px;
+  text-align: left;
+}
+
+.inbound-queue-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  padding: 10px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.inbound-queue-item[data-status='FAILED'] {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.inbound-queue-item[data-status='UNKNOWN'],
+.inbound-queue-item[data-status='RETRY_WAIT'] {
+  border-color: #fde68a;
+  background: #fffdf4;
+}
+
+.inbound-queue-item__main {
+  min-width: 0;
+}
+
+.inbound-queue-item__main strong,
+.inbound-queue-item__main span,
+.inbound-queue-item__main small {
+  display: block;
+}
+
+.inbound-queue-item__main strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.inbound-queue-item__main span {
+  margin-top: 2px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.inbound-queue-item__main small {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.inbound-queue-item__status {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.inbound-queue-item[data-status='FAILED'] .inbound-queue-item__status {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.inbound-queue-item[data-status='UNKNOWN'] .inbound-queue-item__status,
+.inbound-queue-item[data-status='RETRY_WAIT'] .inbound-queue-item__status {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.inbound-queue-empty {
+  padding: 28px 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  font-weight: 800;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .inbound-network-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #inboundQueueDetail {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .inbound-queue-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .inbound-queue-actions button {
+    width: 100%;
+    padding-inline: 7px;
+  }
+
+  .inbound-queue-item {
+    grid-template-columns: 1fr;
+  }
+
+  .inbound-queue-item__status {
+    justify-self: start;
+  }
+}
