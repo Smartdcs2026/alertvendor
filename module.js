@@ -17,12 +17,16 @@
  * - Timeline แบบ Focus Carousel แสดงเข้า ออก และสุทธิรายชั่วโมง
  * - แสดง Info เกณฑ์สีของแต่ละ Module จากค่าที่ Admin กำหนด
  * - Production R17: Action Sheet CSS + Shift Handover Accuracy
+ * - Production R19: OPERATIONAL ALERT เปิด/ปิดรายผู้ใช้และรายโมดูล
  */
 (function (window, document) {
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
+
+  const OPERATIONAL_ALERT_STORAGE_PREFIX =
+    'alertvendor:operational-alert:v1';
 
   const OVERDUE_BADGE_ICON_URL =
     './icons/icon-192.png';
@@ -67,6 +71,8 @@
     cardNodes: new Map(),
     alertRunning: false,
     userInteracted: false,
+    operationalAlertEnabled: true,
+    operationalAlertStorageKey: '',
 
     /*
      * เก็บรายการ Active ก่อนซ่อนรายการครบ Auto Close
@@ -81,6 +87,29 @@
     destroyed: false
   };
 
+  /*
+   * Controller กลางสำหรับ module.js และ module-operations.js
+   * ปิดเฉพาะ OPERATIONAL ALERT อัตโนมัติ ไม่กระทบ Error,
+   * การยืนยันบันทึก หรือ SweetAlert สำคัญประเภทอื่น
+   */
+  window.AlertVendorOperationalAlert = {
+    isEnabled:
+      () => isOperationalAlertEnabled(),
+
+    setEnabled:
+      (enabled) =>
+        setOperationalAlertEnabled(
+          enabled,
+          {
+            persist: true,
+            emit: true
+          }
+        ),
+
+    syncUi:
+      () => syncOperationalAlertToggle()
+  };
+
   document.addEventListener('DOMContentLoaded', initializePage);
   window.addEventListener('beforeunload', destroyPage);
   document.addEventListener('pointerdown', markUserInteraction, { once: true });
@@ -92,6 +121,8 @@
         '2026.07.13-r18-workflow-wording-accuracy';
       document.body.dataset.shiftHandoverBuild =
         '2026.07.13-r18-workflow-wording-accuracy';
+      document.body.dataset.operationalAlertBuild =
+        '2026.07.13-r20-compact-alert-header';
     }
 
     initializeOverdueBadgeSystem();
@@ -139,6 +170,7 @@
       }
 
       state.session = session;
+      initializeOperationalAlertPreference();
 
       if (
         session.user &&
@@ -258,6 +290,11 @@
     const operationalRefreshButton =
       document.getElementById(
         'operationalBoardRefresh'
+      );
+
+    const operationalAlertToggle =
+      document.getElementById(
+        'operationalAlertToggle'
       );
 
     const shiftHandoverAddNoteButton =
@@ -545,6 +582,20 @@
           forceRender: true,
           forceRefresh: true
         })
+      );
+
+    operationalAlertToggle &&
+      operationalAlertToggle.addEventListener(
+        'click',
+        () => {
+          setOperationalAlertEnabled(
+            !isOperationalAlertEnabled(),
+            {
+              persist: true,
+              emit: true
+            }
+          );
+        }
       );
 
     shiftHandoverAddNoteButton &&
@@ -7438,6 +7489,174 @@
     }
   }
 
+  function initializeOperationalAlertPreference() {
+    state.operationalAlertStorageKey =
+      buildOperationalAlertStorageKey();
+
+    let enabled = true;
+
+    try {
+      const stored =
+        window.localStorage.getItem(
+          state.operationalAlertStorageKey
+        );
+
+      if (stored !== null) {
+        enabled =
+          stored !== '0' &&
+          stored !== 'false' &&
+          stored !== 'OFF';
+      }
+    } catch (error) {
+      enabled = true;
+    }
+
+    setOperationalAlertEnabled(
+      enabled,
+      {
+        persist: false,
+        emit: true,
+        forceEmit: true
+      }
+    );
+  }
+
+  function buildOperationalAlertStorageKey() {
+    const user =
+      state.session &&
+      state.session.user
+        ? state.session.user
+        : {};
+
+    const rawUserKey =
+      user.id ||
+      user.userId ||
+      user.username ||
+      user.email ||
+      user.displayName ||
+      'anonymous';
+
+    const safeUserKey =
+      String(rawUserKey)
+        .trim()
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9ก-๙@._-]+/gi,
+          '_'
+        ) ||
+      'anonymous';
+
+    return [
+      OPERATIONAL_ALERT_STORAGE_PREFIX,
+      state.moduleId || 'unknown-module',
+      safeUserKey
+    ].join(':');
+  }
+
+  function isOperationalAlertEnabled() {
+    return state.operationalAlertEnabled !== false;
+  }
+
+  function setOperationalAlertEnabled(
+    enabled,
+    options = {}
+  ) {
+    const nextEnabled =
+      enabled !== false;
+
+    const changed =
+      state.operationalAlertEnabled !==
+      nextEnabled;
+
+    state.operationalAlertEnabled =
+      nextEnabled;
+
+    if (
+      options.persist !== false &&
+      state.operationalAlertStorageKey
+    ) {
+      try {
+        window.localStorage.setItem(
+          state.operationalAlertStorageKey,
+          nextEnabled ? '1' : '0'
+        );
+      } catch (error) {
+        // Browser may block localStorage in privacy mode.
+      }
+    }
+
+    syncOperationalAlertToggle();
+
+    if (
+      options.emit !== false &&
+      (
+        changed ||
+        options.forceEmit === true
+      )
+    ) {
+      document.dispatchEvent(
+        new CustomEvent(
+          'alertvendor:operational-alert-changed',
+          {
+            detail: {
+              enabled: nextEnabled,
+              moduleId: state.moduleId
+            }
+          }
+        )
+      );
+    }
+  }
+
+  function syncOperationalAlertToggle() {
+    const button =
+      document.getElementById(
+        'operationalAlertToggle'
+      );
+
+    const status =
+      document.getElementById(
+        'operationalAlertToggleStatus'
+      );
+
+    const enabled =
+      isOperationalAlertEnabled();
+
+    if (button) {
+      button.classList.toggle(
+        'is-enabled',
+        enabled
+      );
+
+      button.classList.toggle(
+        'is-disabled',
+        !enabled
+      );
+
+      button.setAttribute(
+        'aria-checked',
+        enabled ? 'true' : 'false'
+      );
+
+      button.setAttribute(
+        'aria-label',
+        enabled
+          ? 'ปิดการแจ้งเตือนอัตโนมัติ'
+          : 'เปิดการแจ้งเตือนอัตโนมัติ'
+      );
+
+      button.title =
+        enabled
+          ? 'การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด'
+          : 'การแจ้งเตือนปิดอยู่ — กดเพื่อเปิด';
+    }
+
+    if (status) {
+      status.textContent =
+        enabled ? 'เปิด' : 'ปิด';
+    }
+  }
+
   function startAutoRefresh() {
     if (state.refreshTimer) {
       window.clearInterval(
@@ -7501,7 +7720,8 @@
     if (
       state.alertRunning ||
       !state.module ||
-      !state.module.alertEnabled
+      !state.module.alertEnabled ||
+      !isOperationalAlertEnabled()
     ) {
       return;
     }
