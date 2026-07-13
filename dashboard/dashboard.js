@@ -1,6 +1,6 @@
 /**
  * dashboard.js
- * PHASE 4C — Fullscreen One-Page Dashboard + Loading Safety
+ * PHASE 4C HOTFIX 1 — Stable Fullscreen Fit without observer loop
  *
  * แก้กรณี Backend ตอบ Error ระหว่าง Initial Load แล้ว Loading Overlay
  * มี z-index สูงกว่า SweetAlert ทำให้ผู้ใช้มองไม่เห็น/กดปุ่ม Error ไม่ได้
@@ -64,9 +64,10 @@
   };
 
   let fullscreenFitTimer = null;
-  let fullscreenFitResizeObserver = null;
-  let fullscreenFitMutationObserver = null;
+  let fullscreenFitChartTimer = null;
   let fullscreenFitApplying = false;
+  let fullscreenFitLastScale = 1;
+  let fullscreenFitLastView = '';
 
   const doughnutCenterPlugin = {
     id: 'dashboardDoughnutCenter',
@@ -1520,6 +1521,7 @@
     renderStatusChart(silent);
     renderLongestWaitingChart(silent);
     renderSystemSummary();
+    scheduleFullscreenOnePageFit();
   }
 
   function renderPeriodDependentData(silent) {
@@ -4554,64 +4556,29 @@
 
 
   function initializeFullscreenOnePageFit() {
-    const target =
-      document.querySelector(
-        '.control-main'
-      );
-
-    if (!target) {
-      return;
-    }
-
+    /*
+     * ห้ามใช้ ResizeObserver/MutationObserver กับ .control-main
+     * เพราะ Fullscreen Fit เปลี่ยนขนาดและ class ของพื้นที่เดียวกัน
+     * ทำให้เกิด feedback loop และหน้าจอกระพริบต่อเนื่อง
+     *
+     * การคำนวณจะเกิดเฉพาะ:
+     * - เข้า/ออก Fullscreen
+     * - เปลี่ยนหน้า LIVE/SHIFT/DAILY
+     * - Render ข้อมูลชุดใหม่เสร็จ
+     * - ขนาดหน้าต่างเปลี่ยนจริง
+     */
     if (
-      typeof window.ResizeObserver ===
-      'function'
+      document.fonts &&
+      document.fonts.ready
     ) {
-      fullscreenFitResizeObserver =
-        new window.ResizeObserver(
-          scheduleFullscreenOnePageFit
-        );
-
-      [
-        target,
-        document.querySelector(
-          '.control-header'
-        ),
-        document.getElementById(
-          'dashboardSnapshotBanner'
+      document.fonts.ready
+        .then(
+          () => {
+            scheduleFullscreenOnePageFit(true);
+          }
         )
-      ]
-        .filter(Boolean)
-        .forEach(
-          (element) => {
-            fullscreenFitResizeObserver
-              .observe(element);
-          }
-        );
-    }
-
-    if (
-      typeof window.MutationObserver ===
-      'function'
-    ) {
-      fullscreenFitMutationObserver =
-        new window.MutationObserver(
-          scheduleFullscreenOnePageFit
-        );
-
-      fullscreenFitMutationObserver
-        .observe(
-          target,
-          {
-            subtree: true,
-            childList: true,
-            attributes: true,
-            attributeFilter: [
-              'hidden',
-              'class',
-              'data-state'
-            ]
-          }
+        .catch(
+          () => {}
         );
     }
 
@@ -4644,7 +4611,7 @@
         },
         immediate === true
           ? 0
-          : 90
+          : 180
       );
   }
 
@@ -4694,109 +4661,81 @@
           false;
       }
 
+      /*
+       * ตั้ง Scale = 1 และอ่าน Layout ใน JavaScript task เดียวกัน
+       * Browser จะยังไม่ Paint ค่ากลาง จึงไม่เกิดการกระพริบ
+       * จากนั้นใส่ Scale สุดท้ายเพียงครั้งเดียว
+       */
       document.documentElement
         .style.setProperty(
           '--dashboard-fullscreen-scale',
           '1'
         );
 
-      target.dataset.fullscreenFit =
-        'CALCULATING';
+      const rect =
+        target.getBoundingClientRect();
 
-      let scale = 1;
-
-      for (
-        let pass = 0;
-        pass < 4;
-        pass += 1
-      ) {
-        document.documentElement
-          .style.setProperty(
-            '--dashboard-fullscreen-scale',
-            String(scale)
-          );
-
-        const rect =
-          target.getBoundingClientRect();
-
-        const availableWidth =
+      const availableWidth =
+        Math.max(
+          320,
+          window.innerWidth -
           Math.max(
-            320,
-            window.innerWidth -
-            Math.max(
-              0,
-              rect.left
-            ) -
-            4
-          );
+            0,
+            rect.left
+          ) -
+          4
+        );
 
-        const availableHeight =
+      const availableHeight =
+        Math.max(
+          320,
+          window.innerHeight -
           Math.max(
-            320,
-            window.innerHeight -
-            Math.max(
-              0,
-              rect.top
-            ) -
-            4
-          );
+            0,
+            rect.top
+          ) -
+          4
+        );
 
-        const naturalWidth =
-          Math.max(
-            target.scrollWidth,
-            Math.round(
-              rect.width /
+      const naturalWidth =
+        Math.max(
+          target.scrollWidth,
+          Math.ceil(
+            rect.width
+          )
+        );
+
+      const naturalHeight =
+        Math.max(
+          target.scrollHeight,
+          Math.ceil(
+            rect.height
+          )
+        );
+
+      const scale =
+        Math.max(
+          0.42,
+          Math.min(
+            1,
+            availableWidth /
               Math.max(
-                scale,
-                0.01
-              )
-            )
-          );
-
-        const naturalHeight =
-          Math.max(
-            target.scrollHeight,
-            Math.round(
-              rect.height /
+                naturalWidth,
+                1
+              ),
+            availableHeight /
               Math.max(
-                scale,
-                0.01
+                naturalHeight,
+                1
               )
-            )
-          );
+          )
+        );
 
-        const safeScale =
-          Math.max(
-            0.42,
-            Math.min(
-              1,
-              availableWidth /
-                Math.max(
-                  naturalWidth,
-                  1
-                ),
-              availableHeight /
-                Math.max(
-                  naturalHeight,
-                  1
-                )
-            )
-          );
-
-        if (
-          Math.abs(
-            safeScale -
-            scale
-          ) < 0.006
-        ) {
-          scale =
-            safeScale;
-          break;
-        }
-
-        scale =
-          safeScale;
-      }
+      const view =
+        document.body
+          .dataset
+          .dashboardView ||
+        'LIVE';
 
       document.documentElement
         .style.setProperty(
@@ -4812,34 +4751,43 @@
       target.dataset.fullscreenScale =
         scale.toFixed(3);
 
-      window.scrollTo(
-        0,
-        0
-      );
+      const scaleChanged =
+        Math.abs(
+          scale -
+          fullscreenFitLastScale
+        ) >= 0.008;
 
-      window.setTimeout(
-        () => {
-          resizeCharts();
+      const viewChanged =
+        view !==
+        fullscreenFitLastView;
 
-          document.dispatchEvent(
-            new CustomEvent(
-              'dashboard:fullscreen-fit-complete',
-              {
-                detail: {
-                  scale:
-                    scale,
-                  view:
-                    document.body
-                      .dataset
-                      .dashboardView ||
-                    'LIVE'
-                }
-              }
-            )
+      fullscreenFitLastScale =
+        scale;
+
+      fullscreenFitLastView =
+        view;
+
+      if (
+        scaleChanged ||
+        viewChanged
+      ) {
+        if (fullscreenFitChartTimer) {
+          window.clearTimeout(
+            fullscreenFitChartTimer
           );
-        },
-        100
-      );
+        }
+
+        fullscreenFitChartTimer =
+          window.setTimeout(
+            () => {
+              fullscreenFitChartTimer =
+                null;
+
+              resizeCharts();
+            },
+            120
+          );
+      }
 
     } finally {
       fullscreenFitApplying =
@@ -4869,6 +4817,12 @@
       delete target.dataset
         .fullscreenScale;
     }
+
+    fullscreenFitLastScale =
+      1;
+
+    fullscreenFitLastView =
+      '';
   }
 
 
@@ -4962,14 +4916,10 @@
       );
     }
 
-    if (fullscreenFitResizeObserver) {
-      fullscreenFitResizeObserver
-        .disconnect();
-    }
-
-    if (fullscreenFitMutationObserver) {
-      fullscreenFitMutationObserver
-        .disconnect();
+    if (fullscreenFitChartTimer) {
+      window.clearTimeout(
+        fullscreenFitChartTimer
+      );
     }
 
     resetFullscreenOnePageFit();
