@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * ROUND 06 PART 01: Inbound SLA Alert Rules
+ * PHASE 2A: Durable Inbound Pending Queue + Network Recovery
  */
 (function (window) {
   'use strict';
@@ -72,6 +72,34 @@
           label: 'รอ Gate Out'
         }
       },
+
+    /*
+     * Phase 2A: Durable Pending Queue สำหรับหน้า Inbound
+     * เก็บเฉพาะข้อมูลคำสั่งงาน ไม่เก็บ Token หรือ Secret
+     */
+    INBOUND_QUEUE_ENABLED:
+      true,
+
+    INBOUND_QUEUE_MAX_ITEMS:
+      500,
+
+    INBOUND_QUEUE_MAX_ATTEMPTS:
+      12,
+
+    INBOUND_QUEUE_RETRY_BASE_MS:
+      3000,
+
+    INBOUND_QUEUE_RETRY_MAX_MS:
+      300000,
+
+    INBOUND_QUEUE_AUTO_FLUSH_MS:
+      15000,
+
+    INBOUND_QUEUE_COMMITTED_RETENTION_HOURS:
+      24,
+
+    INBOUND_QUEUE_FAILED_RETENTION_DAYS:
+      7,
 
     TOKEN_STORAGE_KEY:
       'alertvendor_access_token_v2',
