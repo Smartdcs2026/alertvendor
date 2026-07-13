@@ -37,7 +37,7 @@
 
   <link
     rel="stylesheet"
-    href="./styles.css?v=20260713-r21-alert-control-fix"
+    href="./styles.css?v=20260713-r22-alert-rescue"
   >
 
   <link
@@ -88,7 +88,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260713-r21-alert-control-fix"
+    src="./module.js?v=20260713-r22-alert-rescue"
     defer
   ></script>
 
@@ -112,6 +112,85 @@
     src="./module-shift.js?v=20260703-r56-shift-phase1"
     defer
   ></script>
+  <style id="operationalAlertRescueStyle">
+    /* R22 rescue: fixed control outside header layout; no SVG, no grid impact. */
+    #operationalAlertToggle.operational-alert-fab {
+      position: fixed !important;
+      right: 12px !important;
+      bottom: max(12px, env(safe-area-inset-bottom)) !important;
+      top: auto !important;
+      left: auto !important;
+      z-index: 1040 !important;
+      width: 62px !important;
+      min-width: 62px !important;
+      max-width: 62px !important;
+      height: 36px !important;
+      min-height: 36px !important;
+      max-height: 36px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 5px !important;
+      margin: 0 !important;
+      border: 1px solid #9fb4c0 !important;
+      border-radius: 999px !important;
+      padding: 0 8px !important;
+      color: #294858 !important;
+      background: rgba(255,255,255,.96) !important;
+      box-shadow: 0 5px 16px rgba(15,41,64,.16) !important;
+      font: inherit !important;
+      font-size: 10px !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      cursor: pointer !important;
+      pointer-events: auto !important;
+      touch-action: manipulation !important;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #operationalAlertToggle.operational-alert-fab::before {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 8px;
+      border-radius: 50%;
+      background: #8da0aa;
+      content: "";
+    }
+    #operationalAlertToggle.operational-alert-fab.is-enabled {
+      border-color: #58bfa9 !important;
+      color: #075d52 !important;
+      background: #effcf8 !important;
+    }
+    #operationalAlertToggle.operational-alert-fab.is-enabled::before {
+      background: #19b879;
+      box-shadow: 0 0 0 3px rgba(25,184,121,.14);
+    }
+    #operationalAlertToggle.operational-alert-fab.is-disabled {
+      color: #667983 !important;
+      background: #f4f7f8 !important;
+    }
+    #operationalAlertToggle.operational-alert-fab:focus-visible {
+      outline: 3px solid rgba(15,118,110,.24) !important;
+      outline-offset: 2px !important;
+    }
+    #operationalAlertToggle.operational-alert-fab:active {
+      transform: scale(.96);
+    }
+    @media (max-width: 640px) {
+      #operationalAlertToggle.operational-alert-fab {
+        right: 10px !important;
+        bottom: max(10px, env(safe-area-inset-bottom)) !important;
+        width: 48px !important;
+        min-width: 48px !important;
+        max-width: 48px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        max-height: 38px !important;
+        padding: 0 5px !important;
+        font-size: 9px !important;
+      }
+    }
+  </style>
+
 </head>
 
 <body
@@ -213,38 +292,6 @@
         </div>
 
         <div class="module-clock">
-          <button
-            id="operationalAlertToggle"
-            class="operational-alert-toggle is-enabled"
-            type="button"
-            role="switch"
-            aria-checked="true"
-            aria-label="ปิดแจ้งเตือนอัตโนมัติ"
-            title="แจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M10 21h4"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-              />
-            </svg>
-
-            <span
-              id="operationalAlertToggleStatus"
-              class="sr-only"
-            >เปิด</span>
-          </button>
           <span class="module-clock__live">
             <i aria-hidden="true"></i>
             LIVE
@@ -271,6 +318,23 @@
       </div>
     </div>
   </header>
+
+  <!-- R22: ปุ่มลอยนอก Header ไม่เพิ่มความสูงหรือเปลี่ยน Grid -->
+  <button
+    id="operationalAlertToggle"
+    class="operational-alert-fab is-enabled"
+    type="button"
+    role="switch"
+    aria-checked="true"
+    aria-label="ปิดการแจ้งเตือนอัตโนมัติ"
+    title="การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
+  >
+    <span aria-hidden="true">แจ้ง</span>
+    <span
+      id="operationalAlertToggleStatus"
+      class="sr-only"
+    >เปิด</span>
+  </button>
 
   <main class="module-container">
 
@@ -419,7 +483,6 @@
         <div class="operational-board-panel__header-actions">
           <span id="operationalIntegrity" class="operational-integrity" data-state="LOADING">กำลังตรวจความครบถ้วน</span>
           <span id="operationalSnapshotTime">กำลังโหลด Snapshot</span>
-
           <button id="operationalBoardRefresh" type="button">
             อัปเดตข้อมูล
           </button>
