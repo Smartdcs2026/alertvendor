@@ -1,6 +1,9 @@
 /**
  * dashboard.js
- * ROUND 05 HOTFIX 30 — Executive Control Room Dashboard Session Fix
+ * PHASE 4A HOTFIX 1 — Dashboard Loading Overlay / SweetAlert Deadlock Fix
+ *
+ * แก้กรณี Backend ตอบ Error ระหว่าง Initial Load แล้ว Loading Overlay
+ * มี z-index สูงกว่า SweetAlert ทำให้ผู้ใช้มองไม่เห็น/กดปุ่ม Error ไม่ได้
  */
 (function (window, document) {
   'use strict';
@@ -56,7 +59,8 @@
     mobileChart: 'hourly',
     mobileRecordView: 'COMPACT',
     mobileRecordLimit: 12,
-    responsiveMobile: null
+    responsiveMobile: null,
+    initialLoadCompleted: false
   };
 
   const doughnutCenterPlugin = {
@@ -155,6 +159,12 @@
         initial: true
       });
     } catch (error) {
+      /*
+       * สำคัญ: ซ่อน Loading Overlay ก่อนเปิด SweetAlert
+       * มิฉะนั้น Overlay (z-index สูง) จะทับกล่อง Error และเกิดหน้าค้าง
+       */
+      showLoading(false);
+
       if (isAuthenticationError(error)) {
         redirectToLogin();
         return;
@@ -165,6 +175,7 @@
         'เปิด Dashboard ไม่สำเร็จ'
       );
     } finally {
+      state.initialLoadCompleted = true;
       showLoading(false);
     }
   }
@@ -987,6 +998,14 @@
         saveLastGoodDashboardSnapshot(board);
       }
     } catch (error) {
+      /*
+       * Initial load ยังมี Full-screen Overlay อยู่ ขณะที่ฟังก์ชันนี้
+       * จัดการ Error ภายในเอง จึงต้องซ่อนก่อนเรียก SweetAlert ทุกกรณี
+       */
+      if (!silent) {
+        showLoading(false);
+      }
+
       if (isAuthenticationError(error)) {
         redirectToLogin();
         return;
@@ -1049,7 +1068,9 @@
       !board.snapshotId
     ) {
       const error = new Error(
-        'Backend ยังไม่ได้ติดตั้ง ModuleOperationalBoardService.gs ของ Phase 4A'
+        'Backend ที่ใช้งานอยู่ยังไม่ส่ง Snapshot Schema ของ Phase 4A ' +
+        '(ต้องมี snapshotId, dashboard.movement และ records) ' +
+        'กรุณาวางทับ ModuleOperationalBoardService.gs แล้ว Deploy Apps Script เวอร์ชันใหม่'
       );
       error.code = 'DASHBOARD_SNAPSHOT_SCHEMA_MISSING';
       throw error;
@@ -1205,6 +1226,8 @@
   }
 
   async function showSnapshotFallbackWarning(error, ageMs) {
+    showLoading(false);
+
     if (!window.Swal) {
       return;
     }
@@ -4361,10 +4384,27 @@
   }
 
   async function showError(error, title) {
+    /* Guard กลาง: ห้าม Modal ถูก Loading Overlay บัง */
+    showLoading(false);
+
+    const message =
+      error && error.message ||
+      'เกิดข้อผิดพลาด';
+    const detailParts = [];
+
+    if (error && error.code) {
+      detailParts.push('Code: ' + String(error.code));
+    }
+
+    if (error && error.requestId) {
+      detailParts.push('Request ID: ' + String(error.requestId));
+    }
+
     if (!window.Swal) {
       window.alert(
-        error && error.message ||
-        title
+        (title || 'เกิดข้อผิดพลาด') +
+        '\n' + message +
+        (detailParts.length ? '\n' + detailParts.join(' | ') : '')
       );
       return;
     }
@@ -4372,10 +4412,12 @@
     await window.Swal.fire({
       icon: 'error',
       title: title,
-      text:
-        error && error.message ||
-        'เกิดข้อผิดพลาด',
-      confirmButtonText: 'ตกลง'
+      text: message,
+      footer: detailParts.length
+        ? escapeHtml(detailParts.join(' | '))
+        : '',
+      confirmButtonText: 'ตกลง',
+      allowOutsideClick: false
     });
   }
 
