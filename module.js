@@ -35,6 +35,13 @@
   const OVERDUE_BADGE_FAVICON_SIZE =
     64;
 
+  const OPERATIONAL_BOARD_CACHE_PREFIX =
+    'alertvendor:module-board:phase3a';
+  const OPERATIONAL_BOARD_CACHE_MAX_AGE_MS =
+    15 * 60 * 1000;
+  const OPERATIONAL_BOARD_STALE_AFTER_MS =
+    90 * 1000;
+
   const state = {
     moduleId: '',
     session: null,
@@ -42,6 +49,10 @@
     records: [],
     filteredRecords: [],
     operationalBoard: null,
+    boardHealth: 'LOADING',
+    boardError: null,
+    lastBoardSuccessAt: 0,
+    usingCachedBoard: false,
     operationalStageFilter: 'ALL',
     shiftFilter: 'ALL',
     sortMode: 'LONGEST',
@@ -871,6 +882,34 @@
         }
       }
     );
+
+    window.addEventListener(
+      'online',
+      () => {
+        if (
+          !state.refreshInProgress &&
+          !state.destroyed
+        ) {
+          void loadRecords({
+            silentError: true,
+            showSuccessToast: false,
+            forceRender: true,
+            forceRefresh: true
+          });
+        }
+      }
+    );
+
+    window.addEventListener(
+      'offline',
+      () => {
+        if (state.hasLoadedRecords) {
+          state.boardHealth = 'STALE';
+          state.usingCachedBoard = true;
+          renderModuleSnapshotState();
+        }
+      }
+    );
   }
 
   function clearQuickFilterContext(options) {
@@ -1191,62 +1230,89 @@
       );
 
     try {
-      let usingOperationalBoard =
-        typeof API.getOperationalBoard ===
-          'function';
       let result;
 
-      if (usingOperationalBoard) {
-        try {
-          result =
-            await API.getOperationalBoard(
-              state.moduleId,
-              {
-                limit: 1500,
-                forceRefresh:
-                  config.forceRefresh === true
-              }
-            );
-        } catch (error) {
-          const fallbackCodes = [
-            'ROUTE_NOT_FOUND',
-            'ACTION_NOT_FOUND',
-            'OPERATIONAL_BOARD_DEPENDENCY_MISSING',
-            'OPERATIONAL_BOARD_ERROR'
-          ];
-
-          if (
-            !fallbackCodes.includes(
-              String(error && error.code || '')
-            )
-          ) {
-            throw error;
-          }
-
-          console.warn(
-            'Operational Board ยังไม่พร้อม ใช้ Records API ชั่วคราว',
-            error
+      if (
+        !API ||
+        typeof API.getOperationalBoard !==
+          'function'
+      ) {
+        const missingError =
+          new Error(
+            'ไม่พบ Operational Board API'
           );
-          usingOperationalBoard = false;
-        }
+        missingError.code =
+          'OPERATIONAL_BOARD_API_MISSING';
+        throw missingError;
       }
 
-      if (!usingOperationalBoard) {
-        result = await API.getRecords(
-          state.moduleId,
-          {
-            mode: 'active',
-            limit: 1000
-          }
+      try {
+        result =
+          await API.getOperationalBoard(
+            state.moduleId,
+            {
+              limit: 1500,
+              forceRefresh:
+                config.forceRefresh === true
+            }
+          );
+
+        assertOperationalBoardResult(
+          result
+        );
+
+        state.operationalBoard =
+          result;
+        state.boardError = null;
+        state.lastBoardSuccessAt =
+          Date.now();
+        state.usingCachedBoard =
+          false;
+        state.boardHealth =
+          result.integrity &&
+          result.integrity.success === false
+            ? 'INTEGRITY_ERROR'
+            : 'LIVE';
+
+        if (
+          state.boardHealth === 'LIVE'
+        ) {
+          saveOperationalBoardSnapshot(
+            result
+          );
+        }
+
+      } catch (boardError) {
+        const cachedBoard =
+          readOperationalBoardSnapshot();
+
+        state.boardError =
+          boardError;
+
+        if (!cachedBoard) {
+          state.operationalBoard =
+            null;
+          state.boardHealth =
+            'BLOCKED';
+          state.usingCachedBoard =
+            false;
+          renderModuleSnapshotState();
+          throw boardError;
+        }
+
+        result = cachedBoard;
+        state.operationalBoard =
+          cachedBoard;
+        state.boardHealth =
+          'STALE';
+        state.usingCachedBoard =
+          true;
+
+        console.warn(
+          'Operational Board โหลดไม่สำเร็จ ใช้ Snapshot ล่าสุดแบบอ่านอย่างเดียว',
+          boardError
         );
       }
-
-      state.operationalBoard =
-        usingOperationalBoard &&
-        result &&
-        typeof result === 'object'
-          ? result
-          : null;
 
       if (
         result &&
@@ -1340,7 +1406,13 @@
 
       setText(
         'lastUpdated',
-        'ข้อมูลล่าสุด ' +
+        (
+          state.boardHealth === 'LIVE'
+            ? 'ข้อมูลล่าสุด '
+            : state.boardHealth === 'INTEGRITY_ERROR'
+              ? 'ข้อมูลล่าสุด แต่พบความไม่สมดุล '
+              : 'Snapshot สำรอง '
+        ) +
           (
             result &&
             result.generatedAt
@@ -1350,6 +1422,8 @@
                 )
           )
       );
+
+      renderModuleSnapshotState();
 
       state.hasLoadedRecords =
         true;
@@ -1408,6 +1482,201 @@
           'false'
         );
     }
+  }
+
+  function assertOperationalBoardResult(result) {
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !Array.isArray(result.records)
+    ) {
+      const error = new Error(
+        'Operational Board ส่งข้อมูลไม่สมบูรณ์'
+      );
+      error.code = 'OPERATIONAL_BOARD_INVALID_RESPONSE';
+      throw error;
+    }
+  }
+
+  function operationalBoardStorageKey() {
+    const username = String(
+      state.session &&
+      state.session.user &&
+      state.session.user.username ||
+      state.session &&
+      state.session.username ||
+      'anonymous'
+    ).trim().toLowerCase();
+
+    return [
+      OPERATIONAL_BOARD_CACHE_PREFIX,
+      username,
+      String(state.moduleId || '').trim().toLowerCase()
+    ].join(':');
+  }
+
+  function saveOperationalBoardSnapshot(board) {
+    try {
+      window.sessionStorage.setItem(
+        operationalBoardStorageKey(),
+        JSON.stringify({
+          savedAt: Date.now(),
+          board: board
+        })
+      );
+    } catch (error) {
+      console.warn(
+        'บันทึก Operational Board Snapshot ไม่สำเร็จ',
+        error
+      );
+    }
+  }
+
+  function readOperationalBoardSnapshot() {
+    try {
+      const raw = window.sessionStorage.getItem(
+        operationalBoardStorageKey()
+      );
+
+      if (!raw) {
+        return null;
+      }
+
+      const parsed = JSON.parse(raw);
+      const ageMs = Date.now() - Number(parsed.savedAt || 0);
+      const board = parsed.board;
+
+      if (
+        ageMs < 0 ||
+        ageMs > OPERATIONAL_BOARD_CACHE_MAX_AGE_MS ||
+        !board ||
+        !Array.isArray(board.records) ||
+        !board.integrity ||
+        board.integrity.success !== true
+      ) {
+        window.sessionStorage.removeItem(
+          operationalBoardStorageKey()
+        );
+        return null;
+      }
+
+      board.__clientSnapshotSavedAt = Number(parsed.savedAt || 0);
+      return board;
+    } catch (error) {
+      console.warn(
+        'อ่าน Operational Board Snapshot ไม่สำเร็จ',
+        error
+      );
+      return null;
+    }
+  }
+
+  function renderModuleSnapshotState() {
+    const panel = document.getElementById(
+      'moduleSnapshotState'
+    );
+    const title = document.getElementById(
+      'moduleSnapshotTitle'
+    );
+    const detail = document.getElementById(
+      'moduleSnapshotDetail'
+    );
+    const retryButton = document.getElementById(
+      'moduleSnapshotRetry'
+    );
+
+    if (!panel) {
+      return;
+    }
+
+    const generatedAt = String(
+      state.operationalBoard &&
+      state.operationalBoard.generatedAt ||
+      ''
+    );
+    const ageMs = state.lastBoardSuccessAt
+      ? Date.now() - state.lastBoardSuccessAt
+      : Number.MAX_SAFE_INTEGER;
+
+    let status = state.boardHealth;
+
+    if (
+      status === 'LIVE' &&
+      ageMs > OPERATIONAL_BOARD_STALE_AFTER_MS
+    ) {
+      status = 'STALE';
+    }
+
+    panel.dataset.state = status;
+    document.body.dataset.boardHealth = status;
+
+    const map = {
+      LOADING: {
+        title: 'กำลังตรวจสอบ Snapshot',
+        detail: 'กำลังอ่านสถานะปฏิบัติงานจาก Backend',
+        retry: false
+      },
+      LIVE: {
+        title: 'ข้อมูลสดพร้อมใช้งาน',
+        detail: generatedAt
+          ? 'Snapshot จาก Server ' + generatedAt
+          : 'Operational Board พร้อมใช้งาน',
+        retry: false
+      },
+      STALE: {
+        title: 'กำลังใช้ Snapshot สำรองแบบอ่านอย่างเดียว',
+        detail: generatedAt
+          ? 'ข้อมูลล่าสุดที่ยืนยันได้ ' + generatedAt + ' · ปิดปุ่มบันทึกชั่วคราว'
+          : 'เครือข่ายไม่พร้อม · ปิดปุ่มบันทึกชั่วคราว',
+        retry: true
+      },
+      INTEGRITY_ERROR: {
+        title: 'พบข้อมูลไม่สมดุล',
+        detail: 'ระบบปิดปุ่มบันทึกเพื่อป้องกันการเปลี่ยนสถานะผิดคัน ให้ Admin ตรวจสอบ',
+        retry: true
+      },
+      BLOCKED: {
+        title: 'ไม่สามารถยืนยันสถานะรถได้',
+        detail: 'ไม่มี Snapshot ที่เชื่อถือได้ จึงไม่แสดงข้อมูลเดาและไม่อนุญาตให้บันทึก',
+        retry: true
+      }
+    };
+
+    const info = map[status] || map.BLOCKED;
+
+    if (title) title.textContent = info.title;
+    if (detail) detail.textContent = info.detail;
+
+    if (retryButton) {
+      retryButton.hidden = !info.retry;
+      retryButton.disabled = state.refreshInProgress;
+      retryButton.onclick = info.retry
+        ? () => void loadRecords({
+            silentError: false,
+            showSuccessToast: true,
+            forceRender: true,
+            forceRefresh: true
+          })
+        : null;
+    }
+
+    document.dispatchEvent(
+      new CustomEvent(
+        'alertvendor:module-board-health',
+        {
+          detail: {
+            state: status,
+            writable: status === 'LIVE',
+            generatedAt: generatedAt,
+            errorCode: String(
+              state.boardError &&
+              state.boardError.code ||
+              ''
+            )
+          }
+        }
+      )
+    );
   }
 
   function buildRecordsSignature(records) {
@@ -3000,6 +3269,8 @@
   }
 
   function renderOperationalBoard() {
+    renderModuleSnapshotState();
+
     const board =
       state.operationalBoard || {};
     /*
@@ -3109,22 +3380,28 @@
       const integrityOk =
         integrity &&
         integrity.success === true;
-      const fallbackMode =
-        !state.operationalBoard;
+      const staleMode =
+        state.boardHealth === 'STALE';
+      const blockedMode =
+        state.boardHealth === 'BLOCKED';
 
       integrityNode.dataset.state =
-        fallbackMode
+        staleMode
           ? 'FALLBACK'
-          : integrityOk
-            ? 'OK'
-            : 'ERROR';
+          : blockedMode
+            ? 'ERROR'
+            : integrityOk
+              ? 'OK'
+              : 'ERROR';
 
       integrityNode.textContent =
-        fallbackMode
-          ? 'โหมดสำรอง: ยังไม่ใช้ Snapshot รวม'
-          : integrityOk
-            ? 'ข้อมูลครบถ้วน · 1 รายการต่อ 1 สถานะ'
-            : 'พบข้อมูลไม่สมดุล ให้ Admin ตรวจสอบ';
+        staleMode
+          ? 'Snapshot สำรอง · ปิดการบันทึกชั่วคราว'
+          : blockedMode
+            ? 'ไม่พบ Snapshot ที่เชื่อถือได้'
+            : integrityOk
+              ? 'ข้อมูลครบถ้วน · 1 รายการต่อ 1 สถานะ'
+              : 'พบข้อมูลไม่สมดุล · ปิดการบันทึกเพื่อความปลอดภัย';
     }
 
     renderOperationalShiftFilters();
@@ -9082,6 +9359,27 @@
 
     getOperationalBoard() {
       return state.operationalBoard;
+    },
+
+    getBoardState() {
+      const health = String(
+        document.body.dataset.boardHealth ||
+        state.boardHealth ||
+        'BLOCKED'
+      ).toUpperCase();
+
+      return {
+        health,
+        writable: health === 'LIVE',
+        generatedAt:
+          state.operationalBoard &&
+          state.operationalBoard.generatedAt ||
+          '',
+        integrity:
+          state.operationalBoard &&
+          state.operationalBoard.integrity ||
+          null
+      };
     }
   });
 
