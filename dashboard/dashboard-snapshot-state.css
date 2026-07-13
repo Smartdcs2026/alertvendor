@@ -1,0 +1,130 @@
+/**
+ * dashboard-snapshot-state.css
+ * PHASE 4A — Snapshot, stale and reconciliation visibility
+ */
+
+.dashboard-snapshot-banner {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(170px, .8fr) minmax(280px, 1.6fr) minmax(120px, .6fr);
+  gap: 10px;
+  width: min(1680px, calc(100% - 28px));
+  margin: 10px auto 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(14, 65, 93, .18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 8px 26px rgba(6, 44, 75, .09);
+}
+
+.dashboard-snapshot-banner.is-hidden {
+  display: none !important;
+}
+
+.dashboard-snapshot-banner__state,
+.dashboard-snapshot-banner__metric {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(230, 239, 245, .66);
+}
+
+.dashboard-snapshot-banner span {
+  display: block;
+  margin-bottom: 3px;
+  color: #678092;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.dashboard-snapshot-banner strong {
+  display: block;
+  overflow: hidden;
+  color: #16384d;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-snapshot-banner[data-state="STALE"] {
+  border-color: rgba(232, 135, 9, .45);
+  background: #fff8e8;
+}
+
+.dashboard-snapshot-banner[data-state="STALE"] .dashboard-snapshot-banner__state {
+  background: #ffe7b3;
+}
+
+.dashboard-snapshot-banner[data-state="INTEGRITY_ERROR"],
+.dashboard-snapshot-banner[data-state="BLOCKED"] {
+  border-color: rgba(227, 52, 52, .45);
+  background: #fff0f0;
+}
+
+.dashboard-snapshot-banner[data-state="INTEGRITY_ERROR"] .dashboard-snapshot-banner__state,
+.dashboard-snapshot-banner[data-state="BLOCKED"] .dashboard-snapshot-banner__state {
+  background: #ffd5d5;
+}
+
+.live-status[data-state="STALE"] {
+  border-color: rgba(232, 135, 9, .55) !important;
+  background: #fff0c7 !important;
+  color: #935400 !important;
+}
+
+.receiving-grid--canonical button[data-stage-filter="WAITING_INBOUND_DOCUMENT"] {
+  --receiving-accent: #64748b;
+}
+
+.receiving-grid--canonical button[data-stage-filter="WAITING_RECEIVING"] {
+  --receiving-accent: #2369d8;
+}
+
+.receiving-grid--canonical button[data-stage-filter="WAITING_DOCUMENT_RETURN"] {
+  --receiving-accent: #7c3aed;
+}
+
+.receiving-grid--canonical button[data-stage-filter="WAITING_GATE_OUT"] {
+  --receiving-accent: #0f9d7a;
+}
+
+@media (max-width: 980px) {
+  .dashboard-snapshot-banner {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-snapshot-banner__metric--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-snapshot-banner {
+    width: calc(100% - 16px);
+    grid-template-columns: 1fr;
+    margin-top: 8px;
+    padding: 8px;
+  }
+
+  .dashboard-snapshot-banner__metric--wide {
+    grid-column: auto;
+  }
+
+  .dashboard-snapshot-banner strong {
+    white-space: normal;
+  }
+}
+
+.dashboard-snapshot-banner[data-state="LIVE"] {
+  border-color: rgba(15, 157, 122, .32);
+  background: #f1fbf8;
+}
+
+.dashboard-snapshot-banner[data-state="LIVE"] .dashboard-snapshot-banner__state {
+  background: #d9f4eb;
+}
