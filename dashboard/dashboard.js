@@ -32,6 +32,11 @@
       records: []
     },
     receivingByRecordId: new Map(),
+    snapshot: null,
+    snapshotMode: 'BLOCKED',
+    snapshotStoredAtMs: 0,
+    reconciliation: {},
+    dataQuality: {},
     period: 'ROLLING_24',
     searchText: '',
     statusFilter: 'ALL',
@@ -165,6 +170,27 @@
   }
 
   function bindEvents() {
+    window.addEventListener('online', () => {
+      setConnectionState('LOADING', 'กำลังเชื่อมต่อ');
+      void refreshDashboard({silent: true, forceRefresh: true});
+    });
+
+    window.addEventListener('offline', () => {
+      if (state.snapshot) {
+        state.snapshotMode = 'STALE';
+        renderSnapshotState();
+        setConnectionState('STALE', 'OFFLINE');
+      } else {
+        setConnectionState('ERROR', 'OFFLINE');
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void refreshDashboard({silent: true});
+      }
+    });
+
     byId('dashboardBackButton')
       ?.addEventListener('click', goBackToModule);
 
@@ -922,20 +948,12 @@
   }
 
   async function refreshDashboard(options) {
-    if (
-      state.refreshInProgress ||
-      state.destroyed
-    ) {
+    if (state.refreshInProgress || state.destroyed) {
       return;
     }
 
-    const config =
-      options && typeof options === 'object'
-        ? options
-        : {};
-
+    const config = options && typeof options === 'object' ? options : {};
     const silent = config.silent === true;
-
     state.refreshInProgress = true;
 
     if (!silent) {
@@ -944,100 +962,63 @@
     }
 
     try {
-      const [
-        module,
-        recordsResult,
-        movement,
-        receiving
-      ] = await Promise.all([
-        API.getModule(state.moduleId),
-        API.getActiveRecords(state.moduleId),
-        API.getMovementSummary(state.moduleId),
-        API.getReceivingFlow(state.moduleId)
-      ]);
-
-      state.module = {
-        ...(module || {}),
-        ...(
-          recordsResult &&
-          recordsResult.module ||
-          {}
-        )
-      };
-
-      state.records = Array.isArray(
-        recordsResult &&
-        recordsResult.records
-      )
-        ? recordsResult.records
-        : [];
-
-      state.movement = movement || {};
-
-      state.receiving =
-        normalizeDashboardReceivingFlow(
-          receiving
-        ) || {
-          enabled: false,
-          summary: {},
-          records: []
-        };
-
-      rebuildReceivingIndex();
-
-      updateServerOffset(
-        recordsResult && recordsResult.generatedAt ||
-        state.movement.generatedAt ||
-        state.receiving.generatedAt
-      );
-
-      recalculateRecords();
-
-      const nextSignature = buildStableSignature();
-      const changed = nextSignature !== state.signature;
-      state.signature = nextSignature;
-
-      if (changed || config.initial === true) {
-        renderDashboard(silent);
-      } else {
-        updateLiveDurations();
+      if (!API || typeof API.getOperationalBoard !== 'function') {
+        throw new Error('ไม่พบ API Operational Board สำหรับ Dashboard');
       }
 
-      const generatedAt =
-        recordsResult && recordsResult.generatedAt ||
-        state.movement.generatedAt ||
-        state.receiving.generatedAt ||
-        formatBangkokDateTime(getServerNow());
-
-      setText(
-        'dashboardLastUpdated',
-        'อัปเดตล่าสุด ' + generatedAt
+      const board = await API.getOperationalBoard(
+        state.moduleId,
+        {
+          limit: Number(CONFIG.OPERATIONAL_BOARD_LIMIT) || 3000,
+          forceRefresh: config.forceRefresh === true
+        }
       );
+      const snapshot = normalizeOperationalBoardSnapshot(board);
 
-      setText(
-        'summaryLastUpdate',
-        generatedAt
-      );
+      applyOperationalBoardSnapshot(snapshot, {
+        mode: snapshot.reconciliation.success === true
+          ? 'LIVE'
+          : 'INTEGRITY_ERROR',
+        silent,
+        initial: config.initial === true
+      });
 
-      setConnectionState('ONLINE', 'LIVE');
+      if (snapshot.reconciliation.success === true) {
+        saveLastGoodDashboardSnapshot(board);
+      }
     } catch (error) {
       if (isAuthenticationError(error)) {
         redirectToLogin();
         return;
       }
 
-      if (!silent) {
-        setConnectionState('ERROR', 'ERROR');
+      const fallback = loadLastGoodDashboardSnapshot();
 
-        await showError(
-          error,
-          'โหลด Dashboard ไม่สำเร็จ'
-        );
+      if (fallback) {
+        const snapshot = normalizeOperationalBoardSnapshot(fallback.board);
+        applyOperationalBoardSnapshot(snapshot, {
+          mode: 'STALE',
+          silent: true,
+          initial: config.initial === true
+        });
+        setConnectionState('STALE', navigator.onLine ? 'STALE' : 'OFFLINE');
+
+        if (!silent) {
+          await showSnapshotFallbackWarning(error, fallback.ageMs);
+        }
+      } else if (!silent) {
+        state.snapshotMode = 'BLOCKED';
+        renderSnapshotState();
+        setConnectionState('ERROR', 'ERROR');
+        await showError(error, 'โหลด Dashboard ไม่สำเร็จ');
       } else {
-        console.warn(
-          'Dashboard silent refresh ไม่สำเร็จ',
-          error
+        state.snapshotMode = state.snapshot ? 'STALE' : 'BLOCKED';
+        renderSnapshotState();
+        setConnectionState(
+          state.snapshot ? 'STALE' : 'ERROR',
+          state.snapshot ? 'STALE' : 'ERROR'
         );
+        console.warn('Dashboard silent refresh ไม่สำเร็จ', error);
       }
     } finally {
       state.refreshInProgress = false;
@@ -1050,6 +1031,195 @@
     }
   }
 
+  function normalizeOperationalBoardSnapshot(board) {
+    if (!board || typeof board !== 'object') {
+      throw new Error('Operational Board ไม่ได้ส่ง Snapshot กลับมา');
+    }
+
+    const dashboard = board.dashboard && typeof board.dashboard === 'object'
+      ? board.dashboard
+      : null;
+    const reconciliation = board.reconciliation ||
+      dashboard && dashboard.reconciliation || {};
+
+    if (
+      !dashboard ||
+      !dashboard.movement ||
+      !Array.isArray(board.records) ||
+      !board.snapshotId
+    ) {
+      const error = new Error(
+        'Backend ยังไม่ได้ติดตั้ง ModuleOperationalBoardService.gs ของ Phase 4A'
+      );
+      error.code = 'DASHBOARD_SNAPSHOT_SCHEMA_MISSING';
+      throw error;
+    }
+
+    return {
+      board,
+      snapshotId: String(board.snapshotId || dashboard.snapshotId || ''),
+      generatedAt: String(board.generatedAt || dashboard.generatedAt || ''),
+      generatedAtEpochMs:
+        Number(board.generatedAtEpochMs || dashboard.generatedAtEpochMs) || 0,
+      module: board.module || {},
+      records: board.records,
+      movement: dashboard.movement || {},
+      receiving: createDashboardReceivingFromBoard(board, dashboard),
+      reconciliation: {
+        ...reconciliation,
+        success: reconciliation.success === true &&
+          board.integrity && board.integrity.success === true
+      },
+      dataQuality: board.dataQuality || dashboard.dataQuality || {},
+      cached: board.cached === true,
+      servedAt: board.servedAt || board.generatedAt || ''
+    };
+  }
+
+  function createDashboardReceivingFromBoard(board, dashboard) {
+    const records = (Array.isArray(board.records) ? board.records : [])
+      .map((record) => normalizeDashboardReceivingRecord(record));
+    const summary = dashboard.receiving || {};
+
+    return {
+      enabled: board.module && board.module.receivingEnabled === true,
+      generatedAt: board.generatedAt || dashboard.generatedAt || '',
+      summary: {
+        ...summary,
+        activeTotal: records.length,
+        waitingInboundDocument: Number(summary.waitingInboundDocument) || 0,
+        waitingReceiving: Number(summary.waitingReceiving) || 0,
+        waitingDocumentReturn: Number(summary.waitingDocumentReturn) || 0,
+        waitingGateOut: Number(summary.waitingGateOut) || 0,
+        dataConflict: Number(summary.dataConflict) || 0
+      },
+      records
+    };
+  }
+
+  function applyOperationalBoardSnapshot(snapshot, options) {
+    const config = options && typeof options === 'object' ? options : {};
+    state.snapshot = snapshot;
+    state.snapshotMode = String(config.mode || 'LIVE');
+    state.snapshotStoredAtMs = Date.now();
+    state.module = snapshot.module || {};
+    state.records = Array.isArray(snapshot.records) ? snapshot.records : [];
+    state.movement = snapshot.movement || {};
+    state.receiving = snapshot.receiving || {
+      enabled: false,
+      summary: {},
+      records: []
+    };
+    state.reconciliation = snapshot.reconciliation || {};
+    state.dataQuality = snapshot.dataQuality || {};
+
+    rebuildReceivingIndex();
+    updateServerOffset(snapshot.generatedAt);
+    recalculateRecords();
+
+    const nextSignature = buildStableSignature();
+    const changed = nextSignature !== state.signature;
+    state.signature = nextSignature;
+
+    if (changed || config.initial === true) {
+      renderDashboard(config.silent === true);
+    } else {
+      updateLiveDurations();
+      renderSnapshotState();
+    }
+
+    const generatedAt = snapshot.generatedAt ||
+      formatBangkokDateTime(getServerNow());
+    setText('dashboardLastUpdated', 'อัปเดตล่าสุด ' + generatedAt);
+    setText('summaryLastUpdate', generatedAt);
+
+    if (state.snapshotMode === 'LIVE') {
+      setConnectionState('ONLINE', snapshot.cached ? 'LIVE · CACHE' : 'LIVE');
+    } else if (state.snapshotMode === 'INTEGRITY_ERROR') {
+      setConnectionState('ERROR', 'DATA ERROR');
+    }
+  }
+
+  function dashboardSnapshotStorageKey() {
+    return 'alertvendor_dashboard_snapshot_v1:' + String(state.moduleId || '');
+  }
+
+  function saveLastGoodDashboardSnapshot(board) {
+    try {
+      const payload = JSON.stringify({
+        moduleId: state.moduleId,
+        storedAtMs: Date.now(),
+        board
+      });
+      const maxBytes = 4 * 1024 * 1024;
+
+      if (payload.length > maxBytes) {
+        console.warn('Snapshot ใหญ่เกินกำหนด จึงไม่เก็บ Last-known-good');
+        return;
+      }
+
+      window.sessionStorage.setItem(dashboardSnapshotStorageKey(), payload);
+    } catch (error) {
+      console.warn('เก็บ Last-known-good Dashboard Snapshot ไม่สำเร็จ', error);
+    }
+  }
+
+  function loadLastGoodDashboardSnapshot() {
+    try {
+      const raw = window.sessionStorage.getItem(dashboardSnapshotStorageKey());
+
+      if (!raw) {
+        return null;
+      }
+
+      const value = JSON.parse(raw);
+      const ageMs = Math.max(0, Date.now() - Number(value.storedAtMs || 0));
+      const ttlMs = Number(CONFIG.LAST_GOOD_SNAPSHOT_TTL_MS) || 15 * 60 * 1000;
+
+      if (
+        value.moduleId !== state.moduleId ||
+        !value.board ||
+        ageMs > ttlMs
+      ) {
+        window.sessionStorage.removeItem(dashboardSnapshotStorageKey());
+        return null;
+      }
+
+      const reconciliation = value.board.reconciliation ||
+        value.board.dashboard && value.board.dashboard.reconciliation || {};
+      const integrity = value.board.integrity || {};
+
+      if (reconciliation.success !== true || integrity.success !== true) {
+        window.sessionStorage.removeItem(dashboardSnapshotStorageKey());
+        return null;
+      }
+
+      return {
+        board: value.board,
+        ageMs
+      };
+    } catch (error) {
+      console.warn('อ่าน Last-known-good Dashboard Snapshot ไม่สำเร็จ', error);
+      return null;
+    }
+  }
+
+  async function showSnapshotFallbackWarning(error, ageMs) {
+    if (!window.Swal) {
+      return;
+    }
+
+    await window.Swal.fire({
+      icon: 'warning',
+      title: 'กำลังแสดงข้อมูลล่าสุดที่เก็บไว้',
+      text:
+        'เชื่อมต่อข้อมูลสดไม่สำเร็จ ข้อมูลนี้เก่าประมาณ ' +
+        Math.max(1, Math.round(Number(ageMs || 0) / 60000)) +
+        ' นาที กรุณาตรวจสอบอินเทอร์เน็ตและกดรีเฟรช',
+      confirmButtonText: 'รับทราบ',
+      footer: error && error.message ? escapeHtml(error.message) : ''
+    });
+  }
 
   function normalizeDashboardReceivingFlow(
     flow
@@ -1110,6 +1280,26 @@
       typeof sourceRecord === 'object'
         ? sourceRecord
         : {};
+
+    const operationalStage = String(
+      record.operationalStage || ''
+    ).trim().toUpperCase();
+
+    if (operationalStage) {
+      const stageStartMs = operationalStageStartEpochMs(record, operationalStage);
+      const nowMs = Date.now() + state.serverOffsetMs;
+
+      return {
+        ...record,
+        stageCode: operationalStage,
+        stageLabel:
+          record.operationalStageLabel ||
+          getOperationalStageLabel(operationalStage),
+        currentStageSeconds: Number.isFinite(stageStartMs)
+          ? Math.max(0, Math.floor((nowMs - stageStartMs) / 1000))
+          : Number(record.durationSeconds) || 0
+      };
+    }
 
     const isActive =
       record.isCurrentlyInArea ===
@@ -1277,6 +1467,7 @@
   }
 
   function renderDashboard(silent) {
+    renderSnapshotState();
     renderModuleHeader();
     renderThresholds();
     renderSituation();
@@ -1358,26 +1549,43 @@
 
   function renderSituation() {
     const counts = countStatuses();
-    const receivingSummary =
-      state.receiving.summary || {};
-
+    const receivingSummary = state.receiving.summary || {};
+    const reconciliation = state.reconciliation || {};
     let code = 'NORMAL';
     let count = 0;
     let label = 'สถานการณ์ปกติ';
     let message = 'ไม่มีรายการที่ต้องเร่งสั่งการ';
 
-    if (counts.OVERDUE > 0) {
+    if (
+      state.snapshotMode === 'INTEGRITY_ERROR' ||
+      reconciliation.success !== true
+    ) {
+      code = 'DATA';
+      count = Array.isArray(reconciliation.failedCheckIds)
+        ? reconciliation.failedCheckIds.length
+        : 1;
+      label = 'ข้อมูลยังไม่ Reconcile';
+      message = 'ตัวเลขและรายการไม่สมดุล ให้ Admin ตรวจสอบก่อนใช้ตัดสินใจ';
+    } else if (Number(receivingSummary.dataConflict) > 0) {
+      code = 'CRITICAL';
+      count = Number(receivingSummary.dataConflict);
+      label = 'พบข้อมูลขัดแย้ง';
+      message = count + ' รายการต้องให้ Admin ตรวจสอบ';
+    } else if (counts.OVERDUE > 0) {
       code = 'CRITICAL';
       count = counts.OVERDUE;
       label = 'ต้องเร่งดำเนินการ';
       message = count + ' รายการเกินเวลา';
     } else if (
+      Number(receivingSummary.waitingDocumentReturn) > 0 ||
       Number(receivingSummary.waitingGateOut) > 0
     ) {
       code = 'ACTION';
-      count = Number(receivingSummary.waitingGateOut);
-      label = 'ติดตาม Gate Out';
-      message = count + ' รายการรับสินค้าเสร็จแล้ว';
+      count =
+        Number(receivingSummary.waitingDocumentReturn || 0) +
+        Number(receivingSummary.waitingGateOut || 0);
+      label = 'ติดตามขั้นตอนปลายทาง';
+      message = count + ' รายการรอเอกสารคืนหรือ Gate Out';
     } else if (counts.WARNING > 0) {
       code = 'WATCH';
       count = counts.WARNING;
@@ -1440,20 +1648,13 @@
   }
 
   function renderReceiving() {
-    const section =
-      byId('dashboardReceivingSection');
+    const section = byId('dashboardReceivingSection');
+    const stageFilter = byId('dashboardStageFilter');
 
-    const stageFilter =
-      byId('dashboardStageFilter');
-
-    if (
-      !state.receiving ||
-      state.receiving.enabled !== true
-    ) {
+    if (!state.receiving || !Array.isArray(state.receiving.records)) {
       section?.classList.add('is-hidden');
       section?.setAttribute('aria-hidden', 'true');
       stageFilter?.classList.add('is-hidden');
-
       state.stageFilter = 'ALL';
       return;
     }
@@ -1465,37 +1666,28 @@
     const summary = state.receiving.summary || {};
 
     setText(
+      'kpiWaitingInboundDocument',
+      Number(summary.waitingInboundDocument) || 0
+    );
+    setText(
       'kpiWaitingReceiving',
       Number(summary.waitingReceiving) || 0
     );
-
+    setText(
+      'kpiWaitingDocumentReturn',
+      Number(summary.waitingDocumentReturn) || 0
+    );
     setText(
       'kpiWaitingGateOut',
       Number(summary.waitingGateOut) || 0
     );
-
-    setText(
-      'kpiReceivingToday',
-      Number(summary.receivingCompletedToday) || 0
-    );
-
-    setText(
-      'kpiMissingReceiving',
-      Number(summary.exitedWithoutReceivingToday) || 0
-    );
-
     setText(
       'kpiAverageStageOne',
-      durationResultText(
-        summary.averageArrivalToReceiving
-      )
+      durationResultText(summary.averageArrivalToReceiving)
     );
-
     setText(
       'kpiAverageStageTwo',
-      durationResultText(
-        summary.averageReceivingToGateOut
-      )
+      durationResultText(summary.averageReceivingToGateOut)
     );
   }
 
@@ -1626,17 +1818,25 @@
   }
 
   function buildActionItem(record) {
-    const receiving =
-      state.receivingByRecordId.get(
-        String(record.recordId || '')
-      );
+    const receiving = state.receivingByRecordId.get(
+      String(record.recordId || '')
+    );
+    const dimensions = extractRecordDimensions(record);
+    const stageCode = receiving && receiving.stageCode || '';
 
-    const dimensions =
-      extractRecordDimensions(record);
+    if (stageCode === 'DATA_CONFLICT') {
+      return {
+        priority: 0,
+        code: 'DATA_CONFLICT',
+        title: dimensions.title,
+        action: 'ข้อมูลขัดแย้ง ให้ Admin ตรวจสอบ',
+        seconds: Number(receiving.currentStageSeconds) || 0
+      };
+    }
 
     if (record.statusCode === 'OVERDUE') {
       return {
-        priority: 0,
+        priority: 1,
         code: 'OVERDUE',
         title: dimensions.title,
         action: 'เกิน SLA ต้องเร่งติดตาม',
@@ -1644,22 +1844,32 @@
       };
     }
 
-    if (
-      receiving &&
-      receiving.stageCode === 'WAITING_GATE_OUT'
-    ) {
+    const stageActions = {
+      WAITING_INBOUND_DOCUMENT: 'รอ พขร.ยื่นเอกสารที่ห้อง Inbound',
+      WAITING_RECEIVING: 'ยื่นเอกสารแล้ว รอบันทึกรับสินค้าเสร็จ',
+      WAITING_DOCUMENT_RETURN: 'รับสินค้าเสร็จแล้ว รอห้อง Inbound คืนเอกสาร',
+      WAITING_GATE_OUT: 'รับเอกสารคืนแล้ว รอ Gate Out จริง'
+    };
+    const priorities = {
+      WAITING_GATE_OUT: 2,
+      WAITING_DOCUMENT_RETURN: 3,
+      WAITING_RECEIVING: 5,
+      WAITING_INBOUND_DOCUMENT: 6
+    };
+
+    if (stageActions[stageCode]) {
       return {
-        priority: 1,
-        code: 'WAITING_GATE_OUT',
+        priority: priorities[stageCode],
+        code: stageCode,
         title: dimensions.title,
-        action: 'รับสินค้าเสร็จแล้ว รอ Gate Out',
+        action: stageActions[stageCode],
         seconds: Number(receiving.currentStageSeconds) || 0
       };
     }
 
     if (record.statusCode === 'INCOMPLETE') {
       return {
-        priority: 2,
+        priority: 4,
         code: 'INCOMPLETE',
         title: dimensions.title,
         action: 'ตรวจสอบข้อมูลต้นทาง',
@@ -1669,24 +1879,11 @@
 
     if (record.statusCode === 'WARNING') {
       return {
-        priority: 3,
+        priority: 7,
         code: 'WARNING',
         title: dimensions.title,
         action: 'ใกล้ถึงเกณฑ์เกินเวลา',
         seconds: Number(record.durationSeconds) || 0
-      };
-    }
-
-    if (
-      receiving &&
-      receiving.stageCode === 'WAITING_RECEIVING'
-    ) {
-      return {
-        priority: 4,
-        code: 'WAITING_RECEIVING',
-        title: dimensions.title,
-        action: 'รอบันทึกรับสินค้าเสร็จ',
-        seconds: Number(receiving.currentStageSeconds) || 0
       };
     }
 
@@ -1887,10 +2084,13 @@
     const stageSeconds =
       receiving &&
       (
-        receiving.stageCode ===
-          'WAITING_RECEIVING' ||
-        receiving.stageCode ===
-          'WAITING_GATE_OUT'
+        [
+          'WAITING_INBOUND_DOCUMENT',
+          'WAITING_RECEIVING',
+          'WAITING_DOCUMENT_RETURN',
+          'WAITING_GATE_OUT',
+          'DATA_CONFLICT'
+        ].includes(receiving.stageCode)
       )
         ? Number(
             receiving.currentStageSeconds
@@ -2841,19 +3041,22 @@
           record.statusCode === 'INCOMPLETE'
       ).length;
 
-    const quality = state.records.length > 0
-      ? Math.max(
-          0,
-          Math.round(
-            (
-              state.records.length -
-              incomplete
-            ) /
-            state.records.length *
-            100
+    const backendQuality = Number(state.dataQuality && state.dataQuality.score);
+    const quality = Number.isFinite(backendQuality)
+      ? Math.max(0, Math.min(100, Math.round(backendQuality)))
+      : state.records.length > 0
+        ? Math.max(
+            0,
+            Math.round(
+              (
+                state.records.length -
+                incomplete
+              ) /
+              state.records.length *
+              100
+            )
           )
-        )
-      : 100;
+        : 100;
 
     setText(
       'summaryGateIn',
@@ -2937,19 +3140,9 @@
           const receiving =
             state.receivingByRecordId.get(recordId);
 
-          let startMs =
-            Number(record.timestampInEpochMs);
-
-          if (
-            receiving &&
-            receiving.stageCode ===
-              'WAITING_GATE_OUT' &&
-            receiving.receivingCompleteEpochMs
-          ) {
-            startMs = Number(
-              receiving.receivingCompleteEpochMs
-            );
-          }
+          let startMs = receiving
+            ? operationalStageStartEpochMs(record, receiving.stageCode)
+            : Number(record.timestampInEpochMs);
 
           const seconds =
             Number.isFinite(startMs)
@@ -2965,6 +3158,102 @@
             formatDuration(seconds);
         }
       );
+  }
+
+  function renderSnapshotState() {
+    const banner = byId('dashboardSnapshotBanner');
+
+    if (!banner) {
+      return;
+    }
+
+    const snapshot = state.snapshot || {};
+    const reconciliation = state.reconciliation || {};
+    const quality = state.dataQuality || {};
+    const mode = state.snapshotMode || 'BLOCKED';
+    const labels = {
+      LIVE: 'ข้อมูลสดและ Reconcile แล้ว',
+      STALE: 'ข้อมูลสำรองแบบอ่านอย่างเดียว',
+      INTEGRITY_ERROR: 'ข้อมูลไม่สมดุล ห้ามใช้ตัดสินใจ',
+      BLOCKED: 'ยังไม่มี Snapshot ที่เชื่อถือได้'
+    };
+
+    banner.dataset.state = mode;
+    banner.classList.remove('is-hidden');
+    setText('dashboardSnapshotState', labels[mode] || labels.BLOCKED);
+    setText('dashboardSnapshotId', snapshot.snapshotId || '-');
+    setText(
+      'dashboardSnapshotReconciliation',
+      reconciliation.success === true
+        ? 'Source Active = Board = Stage (' +
+          Number(reconciliation.boardActive || 0) + ')'
+        : 'ไม่ผ่าน: ' +
+          (Array.isArray(reconciliation.failedCheckIds)
+            ? reconciliation.failedCheckIds.join(', ')
+            : 'UNKNOWN')
+    );
+    setText(
+      'dashboardSnapshotQuality',
+      Number.isFinite(Number(quality.score))
+        ? String(Math.round(Number(quality.score))) + '%'
+        : '--'
+    );
+  }
+
+  function operationalStageStartEpochMs(record, stageCode) {
+    const code = String(stageCode || '').toUpperCase();
+    const candidates = {
+      WAITING_INBOUND_DOCUMENT: [record.timestampInEpochMs, record.timestampIn],
+      WAITING_RECEIVING: [
+        record.documentSubmittedEpochMs,
+        record.documentSubmittedAt,
+        record.timestampInEpochMs,
+        record.timestampIn
+      ],
+      WAITING_DOCUMENT_RETURN: [
+        record.receivingCompleteEpochMs,
+        record.receivingCompleteAt,
+        record.timestampInEpochMs,
+        record.timestampIn
+      ],
+      WAITING_GATE_OUT: [
+        record.documentReturnedEpochMs,
+        record.documentReturnedAt,
+        record.receivingCompleteEpochMs,
+        record.receivingCompleteAt
+      ],
+      DATA_CONFLICT: [
+        record.workflowUpdatedAt,
+        record.timestampInEpochMs,
+        record.timestampIn
+      ]
+    }[code] || [record.timestampInEpochMs, record.timestampIn];
+
+    for (const value of candidates) {
+      const numeric = Number(value);
+
+      if (Number.isFinite(numeric) && numeric > 0) {
+        return numeric;
+      }
+
+      const date = parseSystemDateTime(value);
+
+      if (date) {
+        return date.getTime();
+      }
+    }
+
+    return NaN;
+  }
+
+  function getOperationalStageLabel(code) {
+    return {
+      WAITING_INBOUND_DOCUMENT: 'รอ พขร.ยื่นเอกสาร',
+      WAITING_RECEIVING: 'รอรับสินค้าเสร็จ',
+      WAITING_DOCUMENT_RETURN: 'พขร.รอรับเอกสารคืน',
+      WAITING_GATE_OUT: 'รอ Gate Out',
+      DATA_CONFLICT: 'ข้อมูลขัดแย้ง'
+    }[String(code || '').toUpperCase()] || 'ไม่ทราบขั้นตอน';
   }
 
   function getThresholds() {
@@ -3715,6 +4004,9 @@
 
   function buildStableSignature() {
     return JSON.stringify({
+      snapshotId: state.snapshot && state.snapshot.snapshotId || '',
+      snapshotMode: state.snapshotMode,
+      reconciliation: state.reconciliation || {},
       module: {
         id:
           state.module.id ||
@@ -3734,7 +4026,9 @@
             record.timestampInEpochMs,
           timestampOut:
             record.timestampOutEpochMs,
-          primary: record.primaryValue
+          primary: record.primaryValue,
+          stage: record.operationalStage || '',
+          dataHealth: record.dataHealthCode || ''
         })
       ),
 
