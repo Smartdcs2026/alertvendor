@@ -1,6 +1,5 @@
 /**
  * api.js
- * PHASE 3A — Stable Request ID for idempotent module writes
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -272,27 +271,6 @@
         .toString(36)
         .slice(2, 12)
     );
-  }
-
-  function resolveRequestId(config) {
-    const source =
-      config && typeof config === 'object'
-        ? config
-        : {};
-
-    const body =
-      source.body &&
-      typeof source.body === 'object' &&
-      !Array.isArray(source.body)
-        ? source.body
-        : {};
-
-    return String(
-      source.requestId ||
-      body.clientRequestId ||
-      body.requestId ||
-      createRequestId()
-    ).trim();
   }
 
   function buildUrl(
@@ -594,12 +572,9 @@
       'application/json'
     );
 
-    const stableRequestId =
-      resolveRequestId(config);
-
     headers.set(
       'X-Request-Id',
-      stableRequestId
+      createRequestId()
     );
 
     if (useAuthentication) {
@@ -1409,6 +1384,62 @@
     },
 
 
+    async getAdminWorkflowSlaRules(
+      moduleId
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/sla-rules'
+        );
+
+      return response.data;
+    },
+
+
+    async saveAdminWorkflowSlaRules(
+      moduleId,
+      payload
+    ) {
+      const response =
+        await request(
+          '/api/admin/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/sla-rules',
+          {
+            method:
+              'POST',
+
+            body:
+              payload || {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async setupAdminWorkflowSlaRules() {
+      const response =
+        await request(
+          '/api/admin/sla-rules/setup',
+          {
+            method:
+              'POST',
+
+            body: {}
+          }
+        );
+
+      return response.data;
+    },
+
+
     async setupAdminShiftSystem() {
       const response =
         await request(
@@ -1515,22 +1546,6 @@
       moduleId,
       record
     ) {
-      const source =
-        record &&
-        typeof record === 'object' &&
-        !Array.isArray(record)
-          ? { ...record }
-          : {};
-
-      const requestId = String(
-        source.clientRequestId ||
-        source.requestId ||
-        createRequestId()
-      ).trim();
-
-      source.clientRequestId = requestId;
-      source.requestId = requestId;
-
       const response =
         await request(
           '/api/modules/' +
@@ -1541,8 +1556,7 @@
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
-            requestId,
-            body: source
+            body: record || {}
           }
         );
 
