@@ -689,3 +689,363 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+ * ADMIN SLA & ALERT CONTROL
+ * ========================================================= */
+
+.admin-sla-heading__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-sla-card {
+  overflow: hidden;
+}
+
+.admin-sla-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(250px, 1.35fr)
+    repeat(3, minmax(150px, .65fr));
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid #dce7ed;
+  background: #f8fbfc;
+}
+
+.admin-sla-module-field {
+  margin: 0;
+}
+
+.admin-sla-status-box {
+  min-width: 0;
+  min-height: 74px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #dbe6ec;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin-sla-status-box span {
+  color: #657d89;
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.admin-sla-status-box strong {
+  overflow: hidden;
+  color: #123d51;
+  font-size: .94rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#adminSlaStatus[data-status="READY"] {
+  color: #08745c;
+}
+
+#adminSlaStatus[data-status="WARNING"] {
+  color: #a76500;
+}
+
+#adminSlaStatus[data-status="ERROR"] {
+  color: #c72f2f;
+}
+
+.admin-sla-notice {
+  display: grid;
+  gap: 4px;
+  margin: 14px 16px 0;
+  padding: 11px 13px;
+  border-left: 4px solid #0c809c;
+  border-radius: 10px;
+  background: #eff8fa;
+}
+
+.admin-sla-notice strong {
+  color: #075f78;
+}
+
+.admin-sla-notice span {
+  color: #153f51;
+  font-weight: 850;
+}
+
+.admin-sla-notice small {
+  color: #607985;
+}
+
+.admin-sla-rule-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-sla-loading {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  grid-column: 1 / -1;
+  border: 1px dashed #bad0db;
+  border-radius: 12px;
+  background: #f8fbfc;
+  color: #607985;
+  font-weight: 800;
+}
+
+.admin-sla-rule-card {
+  min-width: 0;
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid #d7e3e9;
+  border-top: 4px solid #0c809c;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(11, 60, 82, .055);
+}
+
+.admin-sla-rule-card[data-configured="FALSE"] {
+  border-top-color: #d58b13;
+  background: #fffdf8;
+}
+
+.admin-sla-rule-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-sla-rule-card__title {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-sla-rule-card__title span {
+  color: #64808e;
+  font-size: .7rem;
+  font-weight: 950;
+  letter-spacing: .05em;
+}
+
+.admin-sla-rule-card__title strong {
+  color: #103e53;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.admin-sla-source-badge {
+  flex: 0 0 auto;
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8f7f2;
+  color: #08745c;
+  font-size: .7rem;
+  font-weight: 950;
+}
+
+.admin-sla-source-badge[data-source="DEFAULT"] {
+  background: #edf2ff;
+  color: #315eb3;
+}
+
+.admin-sla-source-badge[data-source="MISSING"] {
+  background: #fff2dc;
+  color: #9a6108;
+}
+
+.admin-sla-flow {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: #eef5f8;
+}
+
+.admin-sla-flow span {
+  min-width: 0;
+  overflow: hidden;
+  color: #254e60;
+  font-size: .75rem;
+  font-weight: 850;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sla-flow b {
+  color: #0b7894;
+}
+
+.admin-sla-fields {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-sla-fields label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.admin-sla-fields label > span {
+  color: #607985;
+  font-size: .72rem;
+  font-weight: 850;
+}
+
+.admin-sla-fields input {
+  width: 100%;
+  min-height: 39px;
+  padding: 7px 9px;
+  border: 1px solid #cadbe3;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #123d51;
+  font-weight: 900;
+  box-sizing: border-box;
+}
+
+.admin-sla-toggles {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-sla-toggle {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d7e3e9;
+  border-radius: 9px;
+  background: #f8fbfc;
+  color: #274e60;
+  font-size: .76rem;
+  font-weight: 850;
+}
+
+.admin-sla-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #087f97;
+}
+
+.admin-sla-rule-card__meta {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #718692;
+  font-size: .68rem;
+}
+
+.admin-sla-rule-card__meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sla-validation {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.admin-sla-validation > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid #dce7ed;
+  border-radius: 10px;
+  background: #f8fbfc;
+}
+
+.admin-sla-validation span {
+  color: #6a818c;
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.admin-sla-validation strong {
+  color: #173f51;
+  font-size: .78rem;
+}
+
+.admin-sla-save-actions {
+  border-top: 1px solid #dce7ed;
+}
+
+@media (max-width: 1100px) {
+  .admin-sla-toolbar {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .admin-sla-rule-grid,
+  .admin-sla-validation {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sla-fields {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-sla-fields label:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-sla-heading__actions,
+  .admin-sla-heading__actions > button,
+  .admin-sla-save-actions > button {
+    width: 100%;
+  }
+
+  .admin-sla-toolbar,
+  .admin-sla-fields,
+  .admin-sla-toggles {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sla-rule-grid {
+    padding: 12px;
+  }
+
+  .admin-sla-notice {
+    margin-inline: 12px;
+  }
+}
+
