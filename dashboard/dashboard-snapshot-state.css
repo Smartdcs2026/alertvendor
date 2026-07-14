@@ -2220,3 +2220,223 @@ body.dashboard-one-page-fullscreen
   }
 }
 
+/* =========================================================
+ * PHASE 4D — SHIFT FULLSCREEN REBALANCE
+ * Graphs remain visible; lower operational details use right rail.
+ * ========================================================= */
+
+@media (min-width: 1000px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .dashboard-shift-workspace {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.72fr) minmax(310px, .72fr) !important;
+    grid-template-rows:
+      auto
+      auto
+      minmax(178px, 23vh)
+      minmax(0, 1fr)
+      auto !important;
+    grid-template-areas:
+      "shiftHead shiftHead"
+      "shiftKpi shiftKpi"
+      "shiftCards shiftCards"
+      "shiftCharts shiftLower"
+      "shiftFoot shiftFoot" !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-executive-header {
+    grid-area: shiftHead;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-executive-kpis {
+    grid-area: shiftKpi;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-comparison-grid {
+    grid-area: shiftCards;
+    min-height: 0 !important;
+    height: 100% !important;
+    gap: 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card > header {
+    padding: 4px 7px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row {
+    padding: 4px 7px !important;
+    gap: 4px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-analysis {
+    grid-area: shiftCharts;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-analysis > article {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-chart-wrap {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding-bottom: 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-lower {
+    grid-area: shiftLower;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: minmax(0, .78fr) minmax(0, 1.22fr) !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-lower > article {
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-handover-flow,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-exception-list {
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: none !important;
+    overflow: auto !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-footer {
+    grid-area: shiftFoot;
+  }
+}
+
+/* =========================================================
+ * PHASE 4D — PROCESS FULLSCREEN ONE-PAGE
+ * ========================================================= */
+
+@media (min-width: 1000px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .control-main {
+    display: grid !important;
+    grid-template-rows: var(--fs-toolbar-height) minmax(0, 1fr) !important;
+    gap: var(--fs-gap) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .control-main > :not(.dashboard-view-toolbar):not(.dashboard-shift-workspace) {
+    display: none !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .dashboard-shift-workspace {
+    min-height: 0 !important;
+    height: 100% !important;
+    display: grid !important;
+    grid-template-rows:
+      auto
+      auto
+      minmax(112px, 15vh)
+      minmax(0, 1fr)
+      auto !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-executive-header {
+    min-height: 56px !important;
+    padding: 5px 9px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-kpi-grid {
+    gap: 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-kpi {
+    min-height: 58px !important;
+    padding: 4px 6px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-stage-grid {
+    min-height: 0 !important;
+    height: 100% !important;
+    gap: 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-stage-card {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 5px 6px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-analysis-grid {
+    min-height: 0 !important;
+    height: 100% !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="PROCESS"]
+  .process-analysis-grid > article {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+}
