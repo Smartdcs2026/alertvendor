@@ -2722,3 +2722,107 @@ body.dashboard-one-page-fullscreen
   }
 }
 
+/* =========================================================
+ * PHASE 4D HOTFIX 2
+ * Final Shift card height correction
+ *
+ * Fullscreen card has six visible sections. The previous
+ * 29vh track could be smaller than the sum of its child rows.
+ * This final rule guarantees enough native height and reduces
+ * individual rows slightly without hiding any section.
+ * ========================================================= */
+
+@media (min-width: 1000px) and (min-height: 851px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .dashboard-shift-workspace {
+    grid-template-rows:
+      auto
+      auto
+      clamp(284px, 31vh, 312px)
+      minmax(0, 1fr)
+      auto !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-comparison-grid {
+    min-height: 0 !important;
+    height: 100% !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card {
+    min-height: 0 !important;
+    height: 100% !important;
+    grid-template-rows:
+      44px
+      47px
+      49px
+      60px
+      42px
+      28px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card > header {
+    min-height: 0 !important;
+    height: 44px !important;
+    padding: 4px 7px !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row {
+    min-height: 0 !important;
+    height: 60px !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-comparison {
+    min-height: 0 !important;
+    height: 42px !important;
+    padding: 3px 6px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-detail-button {
+    min-height: 0 !important;
+    height: 28px !important;
+    padding: 2px 6px !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-analysis,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-lower {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+}
+
