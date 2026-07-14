@@ -2440,3 +2440,285 @@ body.dashboard-one-page-fullscreen
     overflow: hidden !important;
   }
 }
+
+/* =========================================================
+ * PHASE 4D HOTFIX 1
+ * Historical calendar + Shift card six-row correction
+ * ========================================================= */
+
+.dashboard-calendar-button {
+  min-width: 78px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  white-space: nowrap;
+}
+
+.dashboard-calendar-button > span {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.dashboard-shift-date-controls input[type="date"] {
+  width: 150px;
+  min-width: 150px;
+  color-scheme: light;
+}
+
+.dashboard-shift-date-controls[data-mode="HISTORY"] label > span::after {
+  content: "ย้อนหลัง";
+  margin-left: 5px;
+  color: #0b718d;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+/*
+ * A Shift card has six direct children:
+ * header / flow / performance / context / comparison / detail button.
+ * Previous CSS declared only five grid rows, causing an implicit row
+ * and visible overlap when Fullscreen constrained the card height.
+ */
+@media (min-width: 1000px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .dashboard-shift-workspace {
+    grid-template-rows:
+      auto
+      auto
+      clamp(268px, 29vh, 302px)
+      minmax(0, 1fr)
+      auto !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card {
+    grid-template-rows:
+      46px
+      50px
+      50px
+      66px
+      46px
+      30px !important;
+    align-content: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card > header {
+    min-height: 0 !important;
+    height: 46px !important;
+    padding: 5px 8px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-code-block > strong {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance {
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 5px 7px !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow > div,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance > div {
+    min-height: 0 !important;
+    padding: 4px 5px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row {
+    min-height: 0 !important;
+    height: 66px !important;
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    padding: 5px 7px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row > div {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 4px 5px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row span,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row strong,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row small {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row strong,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row small {
+    white-space: nowrap;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-comparison {
+    min-height: 0 !important;
+    height: 46px !important;
+    padding: 4px 7px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-comparison > span,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-comparison > small {
+    overflow: hidden;
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-compare-line {
+    gap: 5px !important;
+    margin-top: 2px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-compare-line span {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 9px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-detail-button {
+    min-height: 0 !important;
+    height: 30px !important;
+    padding: 3px 7px !important;
+    font-size: 9px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-analysis,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-dashboard-lower {
+    min-height: 0 !important;
+  }
+}
+
+/* Compact native layout for 1366×768 class screens. */
+@media (min-width: 1000px) and (max-height: 850px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .dashboard-shift-workspace {
+    grid-template-rows:
+      auto
+      auto
+      224px
+      minmax(0, 1fr)
+      auto !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card {
+    grid-template-rows:
+      38px
+      38px
+      38px
+      50px
+      34px
+      26px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-performance-card > header {
+    height: 38px !important;
+    padding: 3px 6px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-code-block > strong {
+    width: 29px !important;
+    height: 29px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance {
+    padding: 3px 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow span,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance span {
+    font-size: 8px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-flow strong,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-performance strong {
+    font-size: 13px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row {
+    height: 50px !important;
+    padding: 3px 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-context-row small {
+    font-size: 7px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-comparison {
+    height: 34px !important;
+    padding: 3px 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="SHIFT"]
+  .shift-card-detail-button {
+    height: 26px !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .dashboard-calendar-button {
+    min-width: 38px !important;
+    width: 38px !important;
+    padding-inline: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .dashboard-calendar-button > span {
+    font-size: 17px !important;
+  }
+
+  .dashboard-shift-date-controls input[type="date"] {
+    width: 136px;
+    min-width: 136px;
+  }
+}
+
