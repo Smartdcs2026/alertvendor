@@ -33,7 +33,11 @@
     dashboardSignature: '',
     destroyed: false,
     loading: false,
-    moduleSaving: false
+    moduleSaving: false,
+    slaLoading: false,
+    slaSaving: false,
+    slaLoadedModuleId: '',
+    slaData: null
   };
 
   const LABELS = {
@@ -159,6 +163,26 @@
       'change',
       handleAdminSettingFieldChange
     );
+    byId('adminSlaModuleSelect')?.addEventListener(
+      'change',
+      () => loadAdminSlaRules(true)
+    );
+    byId('adminSlaReloadButton')?.addEventListener(
+      'click',
+      () => loadAdminSlaRules(true)
+    );
+    byId('adminSlaSetupButton')?.addEventListener(
+      'click',
+      setupAdminSlaRules
+    );
+    byId('adminSlaSaveButton')?.addEventListener(
+      'click',
+      saveAdminSlaRules
+    );
+    byId('adminSlaRuleGrid')?.addEventListener(
+      'change',
+      handleAdminSlaRuleChange
+    );
     byId('adminAuditFilterForm')?.addEventListener('submit', loadAuditFromFilter);
 
     byId('adminCloseModuleEditorButton')?.addEventListener('click', closeModuleEditor);
@@ -195,6 +219,7 @@
     renderModules();
     renderUsers();
     renderSettings();
+    renderAdminSlaModuleOptions();
     renderAudit(dashboard.recentAudit || [], 'adminRecentAudit');
     renderAudit(dashboard.recentAudit || [], 'adminAuditList');
   }
@@ -863,7 +888,904 @@
     if (tab === 'audit' && byId('adminAuditList')?.children.length === 0) {
       loadAudit({ limit: 50 });
     }
+
+    if (tab === 'sla') {
+      loadAdminSlaRules(false);
+    }
   }
+
+
+  function renderAdminSlaModuleOptions() {
+    const select =
+      byId(
+        'adminSlaModuleSelect'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    const modules =
+      Array.isArray(
+        state.dashboard &&
+        state.dashboard.modules
+      )
+        ? state.dashboard.modules
+        : [];
+
+    const previous =
+      select.value ||
+      state.slaLoadedModuleId ||
+      'DEFAULT';
+
+    select.innerHTML =
+      [
+        {
+          moduleId:
+            'DEFAULT',
+          name:
+            'ค่าเริ่มต้นทุก Module'
+        }
+      ]
+        .concat(
+          modules
+            .filter(
+              (item) =>
+                item &&
+                item.moduleId
+            )
+            .map(
+              (item) => ({
+                moduleId:
+                  item.moduleId,
+                name:
+                  item.name ||
+                  item.moduleId
+              })
+            )
+        )
+        .map(
+          (item) => `
+            <option
+              value="${escapeHtml(
+                item.moduleId
+              )}"
+            >
+              ${
+                item.moduleId ===
+                'DEFAULT'
+                  ? 'DEFAULT — '
+                  : ''
+              }${escapeHtml(
+                item.name
+              )}
+            </option>
+          `
+        )
+        .join('');
+
+    const canRestore =
+      Array.from(
+        select.options
+      ).some(
+        (option) =>
+          option.value ===
+          previous
+      );
+
+    select.value =
+      canRestore
+        ? previous
+        : 'DEFAULT';
+  }
+
+
+  async function loadAdminSlaRules(
+    force
+  ) {
+    const select =
+      byId(
+        'adminSlaModuleSelect'
+      );
+
+    const moduleId =
+      String(
+        select &&
+        select.value ||
+        'DEFAULT'
+      ).trim();
+
+    if (
+      !moduleId ||
+      state.slaLoading
+    ) {
+      return;
+    }
+
+    if (
+      force !== true &&
+      state.slaData &&
+      state.slaLoadedModuleId ===
+        moduleId
+    ) {
+      renderAdminSlaRules(
+        state.slaData
+      );
+      return;
+    }
+
+    state.slaLoading =
+      true;
+
+    setText(
+      'adminSlaStatus',
+      'กำลังโหลด'
+    );
+
+    const status =
+      byId(
+        'adminSlaStatus'
+      );
+
+    if (status) {
+      status.dataset.status =
+        'LOADING';
+    }
+
+    const grid =
+      byId(
+        'adminSlaRuleGrid'
+      );
+
+    if (grid) {
+      grid.innerHTML =
+        '<div class="admin-sla-loading">กำลังโหลดเกณฑ์รายขั้นตอน...</div>';
+    }
+
+    try {
+      const result =
+        await API
+          .getAdminWorkflowSlaRules(
+            moduleId
+          );
+
+      state.slaData =
+        result || null;
+
+      state.slaLoadedModuleId =
+        moduleId;
+
+      renderAdminSlaRules(
+        result
+      );
+
+    } catch (error) {
+      if (grid) {
+        grid.innerHTML = `
+          <div class="admin-sla-loading">
+            โหลดเกณฑ์ไม่สำเร็จ:
+            ${escapeHtml(
+              error &&
+              error.message ||
+              'ไม่ทราบสาเหตุ'
+            )}
+          </div>
+        `;
+      }
+
+      setText(
+        'adminSlaStatus',
+        'โหลดไม่สำเร็จ'
+      );
+
+      if (status) {
+        status.dataset.status =
+          'ERROR';
+      }
+
+    } finally {
+      state.slaLoading =
+        false;
+    }
+  }
+
+
+  function renderAdminSlaRules(
+    data
+  ) {
+    const result =
+      data &&
+      typeof data ===
+        'object'
+        ? data
+        : {};
+
+    const stages =
+      Array.isArray(
+        result.stages
+      )
+        ? result.stages
+        : [];
+
+    const grid =
+      byId(
+        'adminSlaRuleGrid'
+      );
+
+    if (!grid) {
+      return;
+    }
+
+    if (
+      result.setupRequired ===
+        true
+    ) {
+      grid.innerHTML = `
+        <div class="admin-sla-loading">
+          ยังไม่พบตารางเกณฑ์เวลา กรุณากด “เตรียมตารางเกณฑ์”
+        </div>
+      `;
+
+      setText(
+        'adminSlaStatus',
+        'ต้องเตรียมตาราง'
+      );
+
+      const status =
+        byId(
+          'adminSlaStatus'
+        );
+
+      if (status) {
+        status.dataset.status =
+          'WARNING';
+      }
+
+      setText(
+        'adminSlaConfiguredCount',
+        '0 / 4 ช่วง'
+      );
+
+      setText(
+        'adminSlaUpdatedAt',
+        '-'
+      );
+
+      return;
+    }
+
+    grid.innerHTML =
+      stages
+        .map(
+          (stage, index) => `
+            <article
+              class="admin-sla-rule-card"
+              data-sla-rule="${escapeHtml(
+                stage.key
+              )}"
+              data-configured="${
+                stage.configured
+                  ? 'TRUE'
+                  : 'FALSE'
+              }"
+            >
+              <header class="admin-sla-rule-card__header">
+                <div class="admin-sla-rule-card__title">
+                  <span>
+                    ขั้นตอน ${index + 1}
+                  </span>
+
+                  <strong>
+                    ${escapeHtml(
+                      stage.label ||
+                      stage.key
+                    )}
+                  </strong>
+                </div>
+
+                <span
+                  class="admin-sla-source-badge"
+                  data-source="${escapeHtml(
+                    stage.source ||
+                    'MISSING'
+                  )}"
+                >
+                  ${escapeHtml(
+                    adminSlaSourceLabel(
+                      stage.source
+                    )
+                  )}
+                </span>
+              </header>
+
+              <div class="admin-sla-flow">
+                <span>
+                  ${escapeHtml(
+                    stage.fromStatusLabel ||
+                    stage.fromStatus ||
+                    '-'
+                  )}
+                </span>
+
+                <b aria-hidden="true">
+                  →
+                </b>
+
+                <span>
+                  ${escapeHtml(
+                    stage.toStatusLabel ||
+                    stage.toStatus ||
+                    '-'
+                  )}
+                </span>
+              </div>
+
+              <div class="admin-sla-fields">
+                <label>
+                  <span>
+                    เฝ้าระวัง (นาที)
+                  </span>
+
+                  <input
+                    type="number"
+                    min="0"
+                    max="10080"
+                    step="1"
+                    data-sla-warning
+                    value="${escapeHtml(
+                      stage.warningMinutes ??
+                      ''
+                    )}"
+                  >
+                </label>
+
+                <label>
+                  <span>
+                    เกินเวลา (นาที)
+                  </span>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max="10080"
+                    step="1"
+                    data-sla-red
+                    value="${escapeHtml(
+                      stage.redMinutes ??
+                      ''
+                    )}"
+                  >
+                </label>
+
+                <label>
+                  <span>
+                    แจ้งซ้ำทุก (นาที)
+                  </span>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max="1440"
+                    step="1"
+                    data-sla-repeat
+                    value="${escapeHtml(
+                      stage.repeatMinutes ??
+                      10
+                    )}"
+                    ${
+                      stage.alertEnabled
+                        ? ''
+                        : 'disabled'
+                    }
+                  >
+                </label>
+              </div>
+
+              <div class="admin-sla-toggles">
+                <label class="admin-sla-toggle">
+                  <input
+                    type="checkbox"
+                    data-sla-enabled
+                    ${
+                      stage.enabled !==
+                        false
+                        ? 'checked'
+                        : ''
+                    }
+                  >
+
+                  <span>
+                    เปิดใช้เกณฑ์ขั้นตอนนี้
+                  </span>
+                </label>
+
+                <label class="admin-sla-toggle">
+                  <input
+                    type="checkbox"
+                    data-sla-alert
+                    ${
+                      stage.alertEnabled
+                        ? 'checked'
+                        : ''
+                    }
+                  >
+
+                  <span>
+                    เปิดการแจ้งเตือนและแจ้งซ้ำ
+                  </span>
+                </label>
+              </div>
+
+              <footer class="admin-sla-rule-card__meta">
+                <span>
+                  ${escapeHtml(
+                    stage.updatedBy
+                      ? 'แก้ไขโดย ' +
+                        stage.updatedBy
+                      : 'ยังไม่มีผู้แก้ไข'
+                  )}
+                </span>
+
+                <span>
+                  ${escapeHtml(
+                    stage.updatedAt ||
+                    '-'
+                  )}
+                </span>
+              </footer>
+            </article>
+          `
+        )
+        .join('');
+
+    const configuredCount =
+      stages.filter(
+        (stage) =>
+          stage.configured
+      ).length;
+
+    setText(
+      'adminSlaConfiguredCount',
+      configuredCount +
+      ' / ' +
+      stages.length +
+      ' ช่วง'
+    );
+
+    setText(
+      'adminSlaUpdatedAt',
+      result.updatedAt ||
+      '-'
+    );
+
+    setText(
+      'adminSlaStatus',
+      configuredCount ===
+        stages.length
+        ? 'พร้อมใช้งาน'
+        : 'ยังตั้งค่าไม่ครบ'
+    );
+
+    const status =
+      byId(
+        'adminSlaStatus'
+      );
+
+    if (status) {
+      status.dataset.status =
+        configuredCount ===
+          stages.length
+          ? 'READY'
+          : 'WARNING';
+    }
+  }
+
+
+  function adminSlaSourceLabel(
+    source
+  ) {
+    const value =
+      String(
+        source ||
+        ''
+      ).toUpperCase();
+
+    if (value === 'MODULE') {
+      return 'ค่าของ Module';
+    }
+
+    if (value === 'DEFAULT') {
+      return 'ใช้ค่า DEFAULT';
+    }
+
+    return 'ยังไม่ตั้งค่า';
+  }
+
+
+  function handleAdminSlaRuleChange(
+    event
+  ) {
+    const card =
+      event.target.closest(
+        '[data-sla-rule]'
+      );
+
+    if (!card) {
+      return;
+    }
+
+    if (
+      event.target.matches(
+        '[data-sla-alert]'
+      )
+    ) {
+      const repeat =
+        card.querySelector(
+          '[data-sla-repeat]'
+        );
+
+      if (repeat) {
+        repeat.disabled =
+          !event.target.checked;
+      }
+    }
+
+    validateAdminSlaRules(
+      false
+    );
+  }
+
+
+  function collectAdminSlaRules() {
+    return Array.from(
+      document.querySelectorAll(
+        '#adminSlaRuleGrid [data-sla-rule]'
+      )
+    ).map(
+      (card) => ({
+        key:
+          card.dataset.slaRule ||
+          '',
+        warningMinutes:
+          Number(
+            card.querySelector(
+              '[data-sla-warning]'
+            )?.value
+          ),
+        redMinutes:
+          Number(
+            card.querySelector(
+              '[data-sla-red]'
+            )?.value
+          ),
+        repeatMinutes:
+          Number(
+            card.querySelector(
+              '[data-sla-repeat]'
+            )?.value
+          ),
+        enabled:
+          Boolean(
+            card.querySelector(
+              '[data-sla-enabled]'
+            )?.checked
+          ),
+        alertEnabled:
+          Boolean(
+            card.querySelector(
+              '[data-sla-alert]'
+            )?.checked
+          )
+      })
+    );
+  }
+
+
+  function validateAdminSlaRules(
+    showDialog
+  ) {
+    const rules =
+      collectAdminSlaRules();
+
+    const errors = [];
+
+    if (rules.length !== 4) {
+      errors.push(
+        'ต้องมีเกณฑ์ครบทั้ง 4 ขั้นตอน'
+      );
+    }
+
+    rules.forEach(
+      (rule, index) => {
+        const label =
+          'ขั้นตอน ' +
+          (index + 1);
+
+        if (
+          !Number.isFinite(
+            rule.warningMinutes
+          ) ||
+          rule.warningMinutes < 0 ||
+          rule.warningMinutes > 10080
+        ) {
+          errors.push(
+            label +
+            ': เวลาเฝ้าระวังต้องอยู่ระหว่าง 0–10,080 นาที'
+          );
+        }
+
+        if (
+          !Number.isFinite(
+            rule.redMinutes
+          ) ||
+          rule.redMinutes < 1 ||
+          rule.redMinutes > 10080
+        ) {
+          errors.push(
+            label +
+            ': เวลาเกินต้องอยู่ระหว่าง 1–10,080 นาที'
+          );
+        }
+
+        if (
+          Number.isFinite(
+            rule.warningMinutes
+          ) &&
+          Number.isFinite(
+            rule.redMinutes
+          ) &&
+          rule.redMinutes <=
+            rule.warningMinutes
+        ) {
+          errors.push(
+            label +
+            ': เวลาเกินต้องมากกว่าเวลาเฝ้าระวัง'
+          );
+        }
+
+        if (
+          rule.alertEnabled &&
+          (
+            !Number.isFinite(
+              rule.repeatMinutes
+            ) ||
+            rule.repeatMinutes < 1 ||
+            rule.repeatMinutes > 1440
+          )
+        ) {
+          errors.push(
+            label +
+            ': เวลาแจ้งซ้ำต้องอยู่ระหว่าง 1–1,440 นาที'
+          );
+        }
+      }
+    );
+
+    const hint =
+      byId(
+        'adminSlaSaveHint'
+      );
+
+    if (hint) {
+      hint.textContent =
+        errors.length
+          ? errors[0]
+          : 'ข้อมูลครบ พร้อมบันทึกทั้ง 4 ขั้นตอน';
+
+      hint.dataset.status =
+        errors.length
+          ? 'ERROR'
+          : 'READY';
+    }
+
+    if (
+      errors.length &&
+      showDialog === true
+    ) {
+      showValidationErrors(
+        errors,
+        'ตรวจเกณฑ์เวลาอีกครั้ง'
+      );
+    }
+
+    return {
+      valid:
+        errors.length === 0,
+      errors:
+        errors,
+      rules:
+        rules
+    };
+  }
+
+
+  async function saveAdminSlaRules() {
+    if (
+      state.slaSaving
+    ) {
+      return;
+    }
+
+    const validation =
+      validateAdminSlaRules(
+        true
+      );
+
+    if (!validation.valid) {
+      return;
+    }
+
+    const moduleId =
+      String(
+        byId(
+          'adminSlaModuleSelect'
+        )?.value ||
+        'DEFAULT'
+      ).trim();
+
+    const confirm =
+      await Swal.fire({
+        icon:
+          'question',
+        title:
+          'บันทึกเกณฑ์รายขั้นตอน?',
+        html: `
+          <div class="admin-confirm-box">
+            <strong>
+              ${escapeHtml(
+                moduleId
+              )}
+            </strong>
+            <span>
+              บันทึกเกณฑ์และการแจ้งเตือนครบ 4 ขั้นตอน
+            </span>
+          </div>
+        `,
+        showCancelButton:
+          true,
+        confirmButtonText:
+          'บันทึก',
+        cancelButtonText:
+          'ยกเลิก'
+      });
+
+    if (!confirm.isConfirmed) {
+      return;
+    }
+
+    state.slaSaving =
+      true;
+
+    const button =
+      byId(
+        'adminSlaSaveButton'
+      );
+
+    if (button) {
+      button.disabled =
+        true;
+    }
+
+    showLoading(
+      'กำลังบันทึกเกณฑ์',
+      'ระบบกำลังตรวจสอบและบันทึกทั้ง 4 ขั้นตอน'
+    );
+
+    try {
+      const result =
+        await API
+          .saveAdminWorkflowSlaRules(
+            moduleId,
+            {
+              rules:
+                validation.rules
+            }
+          );
+
+      Swal.close();
+
+      state.slaData =
+        result || null;
+
+      state.slaLoadedModuleId =
+        moduleId;
+
+      renderAdminSlaRules(
+        result
+      );
+
+      await success(
+        'บันทึกเกณฑ์เวลาและการแจ้งเตือนแล้ว'
+      );
+
+    } catch (error) {
+      Swal.close();
+
+      await Swal.fire({
+        icon:
+          'error',
+        title:
+          'บันทึกไม่สำเร็จ',
+        text:
+          error &&
+          error.message ||
+          'เกิดข้อผิดพลาด'
+      });
+
+    } finally {
+      state.slaSaving =
+        false;
+
+      if (button) {
+        button.disabled =
+          false;
+      }
+    }
+  }
+
+
+  async function setupAdminSlaRules() {
+    const confirm =
+      await Swal.fire({
+        icon:
+          'question',
+        title:
+          'เตรียมตารางเกณฑ์เวลา?',
+        text:
+          'ระบบจะสร้างหัวตารางและค่า DEFAULT เริ่มต้นหากยังไม่มี',
+        showCancelButton:
+          true,
+        confirmButtonText:
+          'ดำเนินการ',
+        cancelButtonText:
+          'ยกเลิก'
+      });
+
+    if (!confirm.isConfirmed) {
+      return;
+    }
+
+    showLoading(
+      'กำลังเตรียมตาราง',
+      'ไม่แก้ข้อมูลโมดูลหรือข้อมูลรถ'
+    );
+
+    try {
+      await API
+        .setupAdminWorkflowSlaRules();
+
+      Swal.close();
+
+      state.slaData =
+        null;
+
+      state.slaLoadedModuleId =
+        '';
+
+      await loadAdminSlaRules(
+        true
+      );
+
+      await success(
+        'ตารางเกณฑ์เวลาพร้อมใช้งานแล้ว'
+      );
+
+    } catch (error) {
+      Swal.close();
+
+      await Swal.fire({
+        icon:
+          'error',
+        title:
+          'เตรียมตารางไม่สำเร็จ',
+        text:
+          error &&
+          error.message ||
+          'เกิดข้อผิดพลาด'
+      });
+    }
+  }
+
 
   async function handleModuleListClick(event) {
     const actionButton = event.target.closest('[data-module-action]');
