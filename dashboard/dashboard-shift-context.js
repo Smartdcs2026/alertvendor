@@ -1,6 +1,6 @@
 /**
  * dashboard-shift-context.js
- * PHASE 4D HOTFIX 1 — Historical calendar + process data coverage
+ * PHASE 4D HOTFIX 3 — Daily Fullscreen Executive Balance
  */
 (function (window, document) {
   'use strict';
@@ -1911,7 +1911,7 @@
             ${dailyHistoryTable(
               history.slice(
                 0,
-                7
+                14
               )
             )}
           </div>
