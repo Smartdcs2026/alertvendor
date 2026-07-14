@@ -24,7 +24,7 @@
 
   <link
     rel="stylesheet"
-    href="./admin-shift-panel.css?v=20260703-r59-module-loading-fix"
+    href="./admin-shift-panel.css?v=20260714-admin-sla-control-r1"
   >
 
   <script
@@ -38,12 +38,12 @@
   ></script>
 
   <script
-    src="./api.js?v=20260712-r08-workflow-server-sync"
+    src="./api.js?v=20260714-admin-sla-control-r1"
     defer
   ></script>
 
   <script
-    src="./admin.js?v=20260710-r06-07-admin-inbound-export-only"
+    src="./admin.js?v=20260714-admin-sla-control-r1"
     defer
   ></script>
 
@@ -233,6 +233,14 @@
         data-admin-tab="settings"
       >
         ตั้งค่า
+      </button>
+
+      <button
+        class="admin-tab"
+        type="button"
+        data-admin-tab="sla"
+      >
+        เกณฑ์เวลา
       </button>
 
       <button
@@ -497,6 +505,171 @@
           </button>
         </div>
       </form>
+    </section>
+
+    <section
+      id="adminPanelSla"
+      class="admin-panel is-hidden"
+      data-admin-panel="sla"
+    >
+      <div class="admin-section-heading admin-sla-heading">
+        <div>
+          <p class="eyebrow">
+            SLA &amp; ALERT CONTROL
+          </p>
+
+          <h2>
+            เกณฑ์เวลาและการแจ้งเตือนรายขั้นตอน
+          </h2>
+
+          <p>
+            กำหนดเฝ้าระวัง เกินเวลา การแจ้งเตือน และระยะเวลาแจ้งซ้ำ
+            แยกตาม Module ตั้งแต่ Gate In จนถึง Gate Out
+          </p>
+        </div>
+
+        <div class="admin-sla-heading__actions">
+          <button
+            id="adminSlaSetupButton"
+            class="button button--secondary"
+            type="button"
+          >
+            เตรียมตารางเกณฑ์
+          </button>
+
+          <button
+            id="adminSlaReloadButton"
+            class="button button--secondary"
+            type="button"
+          >
+            โหลดใหม่
+          </button>
+        </div>
+      </div>
+
+      <article class="admin-card admin-sla-card">
+        <div class="admin-sla-toolbar">
+          <label class="admin-field admin-sla-module-field">
+            <span>
+              ใช้เกณฑ์สำหรับ
+            </span>
+
+            <select id="adminSlaModuleSelect">
+              <option value="">
+                กำลังโหลด Module...
+              </option>
+            </select>
+
+            <small>
+              DEFAULT ใช้เป็นค่ากลางเมื่อ Module ยังไม่มีค่าของตนเอง
+            </small>
+          </label>
+
+          <div class="admin-sla-status-box">
+            <span>
+              สถานะการตั้งค่า
+            </span>
+
+            <strong
+              id="adminSlaStatus"
+              data-status="IDLE"
+            >
+              รอโหลดข้อมูล
+            </strong>
+          </div>
+
+          <div class="admin-sla-status-box">
+            <span>
+              ครบถ้วน
+            </span>
+
+            <strong id="adminSlaConfiguredCount">
+              0 / 4 ช่วง
+            </strong>
+          </div>
+
+          <div class="admin-sla-status-box">
+            <span>
+              แก้ไขล่าสุด
+            </span>
+
+            <strong id="adminSlaUpdatedAt">
+              -
+            </strong>
+          </div>
+        </div>
+
+        <div class="admin-sla-notice">
+          <strong>
+            ลำดับกระบวนการมาตรฐาน
+          </strong>
+
+          <span>
+            Gate In → ยื่นเอกสาร Inbound → รับสินค้าเสร็จ →
+            รับเอกสารคืน → Gate Out
+          </span>
+
+          <small>
+            Dashboard กระบวนการและระบบประเมิน SLA จะอ่านค่าจากตารางนี้
+            ไม่ใช้ค่าตายตัวในหน้าจอ
+          </small>
+        </div>
+
+        <div
+          id="adminSlaRuleGrid"
+          class="admin-sla-rule-grid"
+        >
+          <div class="admin-sla-loading">
+            เลือก Module เพื่อโหลดเกณฑ์เวลา
+          </div>
+        </div>
+
+        <div class="admin-sla-validation">
+          <div>
+            <span>
+              หลักการตรวจสอบ
+            </span>
+
+            <strong>
+              สีแดงต้องมากกว่าสีเหลือง
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              การแจ้งซ้ำ
+            </span>
+
+            <strong>
+              ใช้เฉพาะช่วงที่เปิดแจ้งเตือน
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              แหล่งข้อมูล
+            </span>
+
+            <strong>
+              กฎเวลาแจ้งเตือนงานเอกสาร
+            </strong>
+          </div>
+        </div>
+
+        <div class="admin-form-actions admin-sla-save-actions">
+          <span id="adminSlaSaveHint">
+            บันทึกครั้งเดียวทั้ง 4 ขั้นตอน
+          </span>
+
+          <button
+            id="adminSlaSaveButton"
+            class="button button--primary"
+            type="button"
+          >
+            บันทึกเกณฑ์และการแจ้งเตือน
+          </button>
+        </div>
+      </article>
     </section>
 
     <section
