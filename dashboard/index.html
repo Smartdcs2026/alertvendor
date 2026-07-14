@@ -22,7 +22,7 @@
     Vehicle Control Tower Dashboard
   </title>
 
-  <!-- PHASE 4D: shift fullscreen rebalance + process executive dashboard -->
+  <!-- PHASE 4D HOTFIX 1: history calendar, process data and shift cards -->
 
   <link
     rel="icon"
@@ -57,7 +57,7 @@
 
  <link rel="stylesheet" href="./dashboard-mobile-hotfix.css?v=20260706-r86">
 
-  <link rel="stylesheet" href="./dashboard-snapshot-state.css?v=20260714-phase4d-shift-process-layout-r1">
+  <link rel="stylesheet" href="./dashboard-snapshot-state.css?v=20260714-phase4d-hotfix1-shift-cards">
 
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
@@ -84,7 +84,7 @@
     defer
   ></script>
 
- <script src="./dashboard-shift-context.js?v=20260714-phase4d-process-r1" defer></script>
+ <script src="./dashboard-shift-context.js?v=20260714-phase4d-hotfix1-history-process" defer></script>
 
   <script src="./dashboard-executive-clean.js?v=20260712-r07-production-stability" defer></script>
 
@@ -285,8 +285,19 @@
           <input
             id="dashboardShiftDate"
             type="date"
+            aria-label="เลือกวันที่ปฏิบัติงานย้อนหลัง"
           >
         </label>
+
+        <button
+          id="dashboardShiftCalendarButton"
+          type="button"
+          class="dashboard-calendar-button"
+          aria-label="เปิดปฏิทินย้อนหลัง"
+        >
+          <span aria-hidden="true">▦</span>
+          ปฏิทิน
+        </button>
 
         <button
           id="dashboardShiftToday"
