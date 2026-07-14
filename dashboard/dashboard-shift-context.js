@@ -1,6 +1,6 @@
 /**
- * dashboard-shift.js
- * ROUND 80 — Contextual Executive Dashboard
+ * dashboard-shift-context.js
+ * PHASE 4D — Shift layout + Process Executive Dashboard
  */
 (function (window, document) {
   'use strict';
@@ -17,6 +17,9 @@
 
     selectedDate:
       '',
+
+    followCurrentBusinessDate:
+      true,
 
     data:
       null,
@@ -44,6 +47,12 @@
         null,
 
       history:
+        null,
+
+      processShare:
+        null,
+
+      processSla:
         null
     }
   };
@@ -60,7 +69,9 @@
       getModuleId();
 
     state.selectedDate =
-      todayIso();
+      normalizeBusinessDateValue(
+        todayIso()
+      );
 
     const dateInput =
       byId(
@@ -110,8 +121,13 @@
       'change',
       (event) => {
         state.selectedDate =
-          event.target.value ||
-          todayIso();
+          normalizeBusinessDateValue(
+            event.target.value ||
+            todayIso()
+          );
+
+        state.followCurrentBusinessDate =
+          false;
 
         state.data =
           null;
@@ -143,6 +159,9 @@
     )?.addEventListener(
       'click',
       () => {
+        state.followCurrentBusinessDate =
+          true;
+
         state.selectedDate =
           todayIso();
 
@@ -224,7 +243,8 @@
       [
         'LIVE',
         'SHIFT',
-        'DAILY'
+        'DAILY',
+        'PROCESS'
       ].includes(next)
         ? next
         : 'LIVE';
@@ -232,6 +252,18 @@
     document.body.dataset
       .dashboardView =
         state.view;
+
+    document.dispatchEvent(
+      new CustomEvent(
+        'dashboard:view-changed',
+        {
+          detail: {
+            view:
+              state.view
+          }
+        }
+      )
+    );
 
     document
       .querySelectorAll(
@@ -314,7 +346,11 @@
     const loadingMessage =
       force === true
         ? 'กำลังอัปเดตข้อมูลล่าสุด'
-        : 'กำลังวิเคราะห์ข้อมูลตามกะ';
+        : state.view === 'PROCESS'
+          ? 'กำลังวิเคราะห์วงจรรถและเอกสาร'
+          : state.view === 'DAILY'
+            ? 'กำลังสรุปข้อมูลรายวัน'
+            : 'กำลังวิเคราะห์ข้อมูลตามกะ';
 
     if (state.data) {
       setWorkspaceBusy(
@@ -332,10 +368,12 @@
         await API
           .getShiftDashboard(
             state.moduleId,
-            {
-              date:
-                state.selectedDate
-            }
+            state.followCurrentBusinessDate
+              ? {}
+              : {
+                  date:
+                    state.selectedDate
+                }
           );
 
       if (
@@ -347,6 +385,19 @@
 
       state.data =
         data || null;
+
+      if (
+        state.followCurrentBusinessDate &&
+        data &&
+        data.businessDate
+      ) {
+        state.selectedDate =
+          normalizeBusinessDateValue(
+            data.businessDate
+          );
+
+        syncDateInput();
+      }
 
       render();
 
@@ -406,20 +457,28 @@
     }
 
     workspace.innerHTML =
-      state.view ===
-        'DAILY'
+      state.view === 'DAILY'
         ? dailyHtml(
             state.data
           )
-        : shiftHtml(
-            state.data
-          );
+        : state.view === 'PROCESS'
+          ? processHtml(
+              state.data
+            )
+          : shiftHtml(
+              state.data
+            );
 
     if (
-      state.view ===
-      'DAILY'
+      state.view === 'DAILY'
     ) {
       renderHistoryChart(
+        state.data
+      );
+    } else if (
+      state.view === 'PROCESS'
+    ) {
+      renderProcessCharts(
         state.data
       );
     } else {
@@ -434,6 +493,20 @@
 
     bindWorkspaceEvents();
     scheduleLayoutRefresh();
+
+    document.dispatchEvent(
+      new CustomEvent(
+        'dashboard:content-ready',
+        {
+          detail: {
+            view:
+              state.view,
+            businessDate:
+              state.selectedDate
+          }
+        }
+      )
+    );
   }
 
 
@@ -858,6 +931,603 @@
     `;
   }
 
+
+  function processHtml(
+    data
+  ) {
+    const process =
+      data &&
+      data.processAnalytics &&
+      typeof data.processAnalytics ===
+        'object'
+        ? data.processAnalytics
+        : null;
+
+    if (
+      !process ||
+      process.available !== true
+    ) {
+      return `
+        <div class="shift-dashboard-message is-error">
+          <strong>
+            ยังไม่สามารถแสดงประสิทธิภาพกระบวนการ
+          </strong>
+
+          <span>
+            ${escapeHtml(
+              process &&
+              process.message ||
+              'Backend ยังไม่มี Process Analytics'
+            )}
+          </span>
+        </div>
+      `;
+    }
+
+    const overall =
+      process.overall ||
+      {};
+
+    const funnel =
+      process.funnel ||
+      {};
+
+    const stages =
+      Array.isArray(
+        process.stages
+      )
+        ? process.stages
+        : [];
+
+    const rules =
+      process.rules ||
+      {};
+
+    return `
+      <header class="process-executive-header">
+        <div>
+          <small>
+            PROCESS CONTROL TOWER
+          </small>
+
+          <div class="shift-title-line">
+            <h2>
+              ประสิทธิภาพวงจรรถและเอกสาร
+            </h2>
+          </div>
+
+          <p>
+            รถที่ Gate In ในวันปฏิบัติงาน
+            <strong>
+              ${escapeHtml(
+                process.businessDate ||
+                data.businessDate ||
+                '-'
+              )}
+            </strong>
+            ·
+            ${escapeHtml(
+              process.range &&
+              process.range.startAt ||
+              '-'
+            )}
+            –
+            ${escapeHtml(
+              process.range &&
+              process.range.endAt ||
+              '-'
+            )}
+          </p>
+        </div>
+
+        <div class="process-config-badges">
+          <span data-state="ADMIN">
+            เกณฑ์จาก Admin
+          </span>
+
+          <span
+            data-state="${
+              rules.complete === true
+                ? 'READY'
+                : 'WARNING'
+            }"
+          >
+            ${
+              rules.complete === true
+                ? 'ตั้งค่าครบ 4 ช่วง'
+                : `ขาดเกณฑ์ ${formatNumber(
+                    rules.missingRuleCount
+                  )} ช่วง`
+            }
+          </span>
+
+          <span data-state="QUALITY">
+            Data ${formatPercent(
+              overall.dataCompletenessPercent
+            )}
+          </span>
+        </div>
+      </header>
+
+      <section class="process-kpi-grid">
+        ${processKpiHtml(
+          'รถเข้า',
+          process.recordCount,
+          'รายการ',
+          ''
+        )}
+
+        ${processKpiHtml(
+          'ปิดวงจร',
+          overall.completedLifecycleCount,
+          `Gate Out จริง ${formatNumber(
+            overall.actualGateOutCount
+          )}`,
+          ''
+        )}
+
+        ${processKpiHtml(
+          'SLA ผ่าน',
+          overall.slaCompliancePercent === null
+            ? '-'
+            : formatPercent(
+                overall.slaCompliancePercent
+              ),
+          `${formatNumber(
+            overall.slaEvaluatedCount
+          )} จุดประเมิน`,
+          Number(
+            overall.slaCriticalCount
+          ) > 0
+            ? 'is-warning'
+            : ''
+        )}
+
+        ${processKpiHtml(
+          'P90 รวมจริง',
+          formatMinutes(
+            overall.p90LifecycleMinutes
+          ),
+          'ไม่รวม Auto Close',
+          ''
+        )}
+
+        ${processKpiHtml(
+          'คอขวด',
+          overall.bottleneckStageLabel ||
+          '-',
+          formatMinutes(
+            overall.bottleneckP90Minutes
+          ),
+          'is-focus'
+        )}
+
+        ${processKpiHtml(
+          'ยังไม่ปิดวงจร',
+          overall.openLifecycleCount,
+          `ข้อมูลไม่ครบ ${formatNumber(
+            overall.incompleteRecordCount
+          )}`,
+          Number(
+            overall.openLifecycleCount
+          ) > 0
+            ? 'is-danger'
+            : ''
+        )}
+      </section>
+
+      <section class="process-stage-grid">
+        ${
+          stages.length
+            ? stages
+                .map(
+                  processStageCardHtml
+                )
+                .join('')
+            : emptyPanel(
+                'ยังไม่มีข้อมูลช่วงกระบวนการ'
+              )
+        }
+      </section>
+
+      <section class="process-analysis-grid">
+        <article class="shift-analysis-panel process-time-panel">
+          <header>
+            <div>
+              <small>
+                TIME COMPOSITION
+              </small>
+
+              <h3>
+                สัดส่วนเวลาเฉลี่ยในแต่ละช่วง
+              </h3>
+            </div>
+          </header>
+
+          <div class="process-chart-wrap">
+            <canvas id="processTimeShareChart"></canvas>
+          </div>
+        </article>
+
+        <article class="shift-analysis-panel process-sla-panel">
+          <header>
+            <div>
+              <small>
+                ADMIN SLA CONTROL
+              </small>
+
+              <h3>
+                ภายในเกณฑ์ เฝ้าระวัง และเกินเวลา
+              </h3>
+            </div>
+          </header>
+
+          <div class="process-chart-wrap">
+            <canvas id="processSlaChart"></canvas>
+          </div>
+        </article>
+
+        <article class="shift-analysis-panel process-funnel-panel">
+          <header>
+            <div>
+              <small>
+                LIFECYCLE FUNNEL
+              </small>
+
+              <h3>
+                ความครบถ้วนของวงจรรถและเอกสาร
+              </h3>
+            </div>
+          </header>
+
+          <div class="process-lifecycle-funnel">
+            ${processFunnelHtml(
+              funnel
+            )}
+          </div>
+        </article>
+
+        <article class="shift-analysis-panel process-exception-panel">
+          <header>
+            <div>
+              <small>
+                BOTTLENECK EXCEPTIONS
+              </small>
+
+              <h3>
+                รายการที่เกินเงื่อนไขสูงสุด
+              </h3>
+            </div>
+
+            <span class="shift-panel-count">
+              ${formatNumber(
+                Array.isArray(
+                  process.exceptions
+                )
+                  ? process.exceptions.length
+                  : 0
+              )}
+              รายการ
+            </span>
+          </header>
+
+          <div class="process-exception-list">
+            ${processExceptionListHtml(
+              process.exceptions
+            )}
+          </div>
+        </article>
+      </section>
+
+      <footer class="shift-dashboard-footer">
+        <span>
+          อัปเดต
+          ${escapeHtml(
+            dashboardDisplayDateTime(
+              process.generatedAt ||
+              data.generatedAt
+            )
+          )}
+        </span>
+
+        <span>
+          เกณฑ์อ้างอิงจากชีท
+          ${escapeHtml(
+            rules.sourceSheet ||
+            'กฎเวลาแจ้งเตือนงานเอกสาร'
+          )}
+          เท่านั้น
+        </span>
+      </footer>
+    `;
+  }
+
+
+  function processKpiHtml(
+    label,
+    value,
+    note,
+    className
+  ) {
+    return `
+      <article class="process-kpi ${escapeHtml(
+        className ||
+        ''
+      )}">
+        <span>
+          ${escapeHtml(label)}
+        </span>
+
+        <strong>
+          ${escapeHtml(
+            value ??
+            '-'
+          )}
+        </strong>
+
+        <small>
+          ${escapeHtml(
+            note ||
+            ''
+          )}
+        </small>
+      </article>
+    `;
+  }
+
+
+  function processStageCardHtml(
+    stage
+  ) {
+    const item =
+      stage ||
+      {};
+
+    const rule =
+      item.rule ||
+      {};
+
+    const ruleText =
+      rule.configured === true
+        ? `เหลือง ${formatMinutes(
+            rule.warningMinutes
+          )} · แดง ${formatMinutes(
+            rule.redMinutes
+          )}`
+        : 'ยังไม่ตั้งเกณฑ์ใน Admin';
+
+    return `
+      <article
+        class="process-stage-card"
+        data-rule-state="${
+          rule.configured === true
+            ? 'READY'
+            : 'MISSING'
+        }"
+      >
+        <header>
+          <span>
+            ${escapeHtml(
+              item.shortLabel ||
+              item.label ||
+              '-'
+            )}
+          </span>
+
+          <em>
+            ${escapeHtml(
+              rule.source === 'MODULE'
+                ? 'Module'
+                : rule.source === 'DEFAULT'
+                  ? 'Default'
+                  : 'ไม่มีเกณฑ์'
+            )}
+          </em>
+        </header>
+
+        <div class="process-stage-card__metrics">
+          <div>
+            <span>เฉลี่ย</span>
+            <strong>${formatMinutes(
+              item.averageMinutes
+            )}</strong>
+          </div>
+
+          <div>
+            <span>P90</span>
+            <strong>${formatMinutes(
+              item.p90Minutes
+            )}</strong>
+          </div>
+
+          <div>
+            <span>เกินแดง</span>
+            <strong>${formatNumber(
+              item.criticalCount
+            )} / ${formatNumber(
+              item.evaluatedCount
+            )}</strong>
+          </div>
+        </div>
+
+        <footer>
+          <span>
+            ${escapeHtml(ruleText)}
+          </span>
+
+          <strong>
+            ${formatPercent(
+              item.averageSharePercent
+            )}
+            ของเวลาเฉลี่ย
+          </strong>
+        </footer>
+      </article>
+    `;
+  }
+
+
+  function processFunnelHtml(
+    funnel
+  ) {
+    const data =
+      funnel ||
+      {};
+
+    const base =
+      Math.max(
+        1,
+        Number(
+          data.gateIn
+        ) ||
+        0
+      );
+
+    const steps = [
+      ['Gate In', data.gateIn],
+      ['ยื่นเอกสาร', data.documentSubmitted],
+      ['รับสินค้าเสร็จ', data.receivingCompleted],
+      ['รับเอกสารคืน', data.documentReturned],
+      ['Gate Out จริง', data.gateOutActual]
+    ];
+
+    return `
+      <div class="process-funnel-steps">
+        ${steps.map(
+          function (step, index) {
+            const count =
+              Number(
+                step[1]
+              ) ||
+              0;
+
+            const percent =
+              Math.max(
+                7,
+                Math.min(
+                  100,
+                  (
+                    count /
+                    base
+                  ) *
+                  100
+                )
+              );
+
+            return `
+              <div class="process-funnel-step">
+                <span>
+                  ${escapeHtml(step[0])}
+                </span>
+
+                <i style="width:${escapeHtml(
+                  String(percent)
+                )}%"></i>
+
+                <strong>
+                  ${formatNumber(count)}
+                </strong>
+              </div>
+            `;
+          }
+        ).join('')}
+      </div>
+
+      <div class="process-funnel-summary">
+        <span>
+          Auto Close
+          <strong>${formatNumber(
+            data.autoClose
+          )}</strong>
+        </span>
+
+        <span>
+          ยังเปิดอยู่
+          <strong>${formatNumber(
+            data.open
+          )}</strong>
+        </span>
+
+        <span>
+          ยกเลิก
+          <strong>${formatNumber(
+            data.cancelled
+          )}</strong>
+        </span>
+      </div>
+    `;
+  }
+
+
+  function processExceptionListHtml(
+    exceptions
+  ) {
+    const rows =
+      Array.isArray(exceptions)
+        ? exceptions
+        : [];
+
+    if (!rows.length) {
+      return `
+        <div class="shift-empty-state">
+          ไม่พบรายการเกินเกณฑ์แดง
+        </div>
+      `;
+    }
+
+    return rows
+      .slice(0, 10)
+      .map(
+        function (item, index) {
+          return `
+            <article class="process-exception-item">
+              <b>${index + 1}</b>
+
+              <div>
+                <strong>
+                  ${escapeHtml(
+                    item.company ||
+                    item.appointmentNumber ||
+                    item.autoId ||
+                    '-'
+                  )}
+                </strong>
+
+                <span>
+                  ${escapeHtml(
+                    item.stageLabel ||
+                    '-'
+                  )}
+                  ·
+                  ${escapeHtml(
+                    item.registration ||
+                    item.autoId ||
+                    '-'
+                  )}
+                </span>
+              </div>
+
+              <div class="process-exception-time">
+                <strong>
+                  ${formatMinutes(
+                    item.elapsedMinutes
+                  )}
+                </strong>
+
+                <span>
+                  เกิน ${formatMinutes(
+                    item.overMinutes
+                  )}
+                </span>
+              </div>
+            </article>
+          `;
+        }
+      )
+      .join('');
+  }
+
+
   function dailyHtml(
     data
   ) {
@@ -920,6 +1590,19 @@
                 daily.businessDayEnd
               )
             )}
+
+            ${
+              isCrossDayWindow(
+                daily.businessDayStart,
+                daily.businessDayEnd
+              )
+                ? `
+                    <em class="shift-cross-day-badge is-business-day">
+                      วันปฏิบัติงานข้ามวัน
+                    </em>
+                  `
+                : ''
+            }
 
             ·
             <strong>
@@ -1342,7 +2025,13 @@
                 )}
               </span>
 
-              <small>
+              <small
+                title="${escapeHtml(
+                  shiftRangeTitle(
+                    card
+                  )
+                )}"
+              >
                 ${escapeHtml(
                   card.start
                 )}
@@ -1350,6 +2039,17 @@
                 ${escapeHtml(
                   card.end
                 )}
+
+                ${
+                  card.crossesMidnight ===
+                    true
+                    ? `
+                        <em class="shift-cross-day-badge">
+                          ข้ามวัน
+                        </em>
+                      `
+                    : ''
+                }
               </small>
             </div>
           </div>
@@ -3228,6 +3928,321 @@
       );
   }
 
+
+  function renderProcessCharts(
+    data
+  ) {
+    if (
+      typeof window.Chart ===
+      'undefined'
+    ) {
+      return;
+    }
+
+    const process =
+      data &&
+      data.processAnalytics ||
+      {};
+
+    const stages =
+      Array.isArray(
+        process.stages
+      )
+        ? process.stages
+        : [];
+
+    renderProcessShareChart(
+      stages
+    );
+
+    renderProcessSlaChart(
+      stages
+    );
+  }
+
+
+  function renderProcessShareChart(
+    stages
+  ) {
+    const canvas =
+      byId(
+        'processTimeShareChart'
+      );
+
+    if (!canvas) {
+      return;
+    }
+
+    const values =
+      stages.map(
+        function (stage) {
+          return Math.max(
+            0,
+            Number(
+              stage.averageMinutes
+            ) ||
+            0
+          );
+        }
+      );
+
+    const hasData =
+      values.some(
+        function (value) {
+          return value > 0;
+        }
+      );
+
+    state.charts.processShare =
+      new window.Chart(
+        canvas,
+        {
+          type:
+            'doughnut',
+          data: {
+            labels:
+              stages.map(
+                function (stage) {
+                  return stage.shortLabel ||
+                    stage.label;
+                }
+              ),
+            datasets: [
+              {
+                data:
+                  hasData
+                    ? values
+                    : stages.map(
+                        function () {
+                          return 1;
+                        }
+                      ),
+                backgroundColor: [
+                  '#0f9d7a',
+                  '#2369d8',
+                  '#7c3aed',
+                  '#e88709'
+                ],
+                borderColor:
+                  '#ffffff',
+                borderWidth:
+                  3
+              }
+            ]
+          },
+          options: {
+            responsive:
+              true,
+            maintainAspectRatio:
+              false,
+            cutout:
+              '58%',
+            plugins: {
+              legend: {
+                position:
+                  'right',
+                labels: {
+                  usePointStyle:
+                    true,
+                  boxWidth:
+                    8,
+                  color:
+                    '#294b5e',
+                  font: {
+                    size:
+                      11,
+                    weight:
+                      '700'
+                  },
+                  generateLabels:
+                    function (chart) {
+                      return chart.data.labels.map(
+                        function (label, index) {
+                          return {
+                            text:
+                              label +
+                              ' · ' +
+                              formatMinutes(
+                                values[index]
+                              ),
+                            fillStyle:
+                              chart.data.datasets[0]
+                                .backgroundColor[index],
+                            strokeStyle:
+                              '#ffffff',
+                            lineWidth:
+                              1,
+                            hidden:
+                              false,
+                            index:
+                              index,
+                            pointStyle:
+                              'circle'
+                          };
+                        }
+                      );
+                    }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label:
+                    function (context) {
+                      const stage =
+                        stages[
+                          context.dataIndex
+                        ] ||
+                        {};
+
+                      return [
+                        'เฉลี่ย ' +
+                        formatMinutes(
+                          stage.averageMinutes
+                        ),
+                        'สัดส่วน ' +
+                        formatPercent(
+                          stage.averageSharePercent
+                        )
+                      ];
+                    }
+                }
+              }
+            }
+          }
+        }
+      );
+  }
+
+
+  function renderProcessSlaChart(
+    stages
+  ) {
+    const canvas =
+      byId(
+        'processSlaChart'
+      );
+
+    if (!canvas) {
+      return;
+    }
+
+    const options =
+      chartOptions(
+        true
+      );
+
+    options.indexAxis =
+      'y';
+
+    options.scales = {
+      x: {
+        stacked:
+          true,
+        beginAtZero:
+          true,
+        grid: {
+          color:
+            '#e5edf1'
+        },
+        ticks: {
+          precision:
+            0,
+          color:
+            '#607784'
+        }
+      },
+      y: {
+        stacked:
+          true,
+        grid: {
+          display:
+            false
+        },
+        ticks: {
+          color:
+            '#294b5e',
+          font: {
+            size:
+              10,
+            weight:
+              '700'
+          }
+        }
+      }
+    };
+
+    state.charts.processSla =
+      new window.Chart(
+        canvas,
+        {
+          type:
+            'bar',
+          data: {
+            labels:
+              stages.map(
+                function (stage) {
+                  return stage.shortLabel ||
+                    stage.label;
+                }
+              ),
+            datasets: [
+              {
+                label:
+                  'ภายในเกณฑ์',
+                data:
+                  stages.map(
+                    function (stage) {
+                      return Number(
+                        stage.withinCount
+                      ) || 0;
+                    }
+                  ),
+                backgroundColor:
+                  '#0f9d7a',
+                borderRadius:
+                  4
+              },
+              {
+                label:
+                  'เฝ้าระวัง',
+                data:
+                  stages.map(
+                    function (stage) {
+                      return Number(
+                        stage.warningCount
+                      ) || 0;
+                    }
+                  ),
+                backgroundColor:
+                  '#e8a20a',
+                borderRadius:
+                  4
+              },
+              {
+                label:
+                  'เกินเวลา',
+                data:
+                  stages.map(
+                    function (stage) {
+                      return Number(
+                        stage.criticalCount
+                      ) || 0;
+                    }
+                  ),
+                backgroundColor:
+                  '#d93636',
+                borderRadius:
+                  4
+              }
+            ]
+          },
+          options:
+            options
+        }
+      );
+  }
+
+
   function renderFlowChart(
     data
   ) {
@@ -4568,6 +5583,131 @@
   }
 
 
+
+  function normalizeBusinessDateValue(
+    value
+  ) {
+    const text =
+      String(
+        value ||
+        ''
+      ).trim();
+
+    const isoMatch =
+      text.match(
+        /^(\d{4})-(\d{2})-(\d{2})/
+      );
+
+    if (isoMatch) {
+      return (
+        isoMatch[1] + '-' +
+        isoMatch[2] + '-' +
+        isoMatch[3]
+      );
+    }
+
+    const dmyMatch =
+      text.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})/
+      );
+
+    if (dmyMatch) {
+      return (
+        dmyMatch[3] + '-' +
+        dmyMatch[2] + '-' +
+        dmyMatch[1]
+      );
+    }
+
+    return todayIso();
+  }
+
+
+  function shiftRangeTitle(
+    card
+  ) {
+    const item =
+      card &&
+      typeof card ===
+        'object'
+        ? card
+        : {};
+
+    const start =
+      dashboardDisplayDateTime(
+        item.rangeStart
+      );
+
+    const end =
+      dashboardDisplayDateTime(
+        item.rangeEnd
+      );
+
+    if (
+      start !== '-' &&
+      end !== '-'
+    ) {
+      return (
+        'ช่วงจริง ' +
+        start +
+        ' – ' +
+        end +
+        (
+          item.crossesMidnight ===
+            true
+            ? ' (ข้ามวัน)'
+            : ''
+        )
+      );
+    }
+
+    return (
+      String(
+        item.start ||
+        ''
+      ) +
+      ' – ' +
+      String(
+        item.end ||
+        ''
+      )
+    ).trim();
+  }
+
+
+  function isCrossDayWindow(
+    startValue,
+    endValue
+  ) {
+    const startText =
+      dashboardDisplayDateTime(
+        startValue
+      );
+
+    const endText =
+      dashboardDisplayDateTime(
+        endValue
+      );
+
+    const startDate =
+      startText.match(
+        /^(\d{2}\/\d{2}\/\d{4})/
+      );
+
+    const endDate =
+      endText.match(
+        /^(\d{2}\/\d{2}\/\d{4})/
+      );
+
+    return Boolean(
+      startDate &&
+      endDate &&
+      startDate[1] !==
+        endDate[1]
+    );
+  }
+
+
  function dashboardDisplayDateTime(
   value
 ) {
@@ -4763,6 +5903,9 @@
         date
       );
 
+    state.followCurrentBusinessDate =
+      false;
+
     state.data =
       null;
 
@@ -4778,6 +5921,11 @@
       );
 
     if (input) {
+      state.selectedDate =
+        normalizeBusinessDateValue(
+          state.selectedDate
+        );
+
       input.value =
         state.selectedDate;
     }
@@ -4798,8 +5946,9 @@
       window.setTimeout(
         () => {
           if (
+            state.followCurrentBusinessDate ||
             state.selectedDate ===
-            todayIso()
+              todayIso()
           ) {
             loadShiftDashboard(
               true
@@ -4854,36 +6003,6 @@
       }
     );
 
-    if (
-      typeof window.ResizeObserver ===
-      'function'
-    ) {
-      state.resizeObserver =
-        new window.ResizeObserver(
-          handler
-        );
-
-      [
-        document.querySelector(
-          '.control-header'
-        ),
-        document.querySelector(
-          '.control-main'
-        ),
-        byId(
-          'dashboardShiftWorkspace'
-        )
-      ]
-        .filter(Boolean)
-        .forEach(
-          (element) => {
-            state.resizeObserver
-              .observe(
-                element
-              );
-          }
-        );
-    }
   }
 
 
@@ -4994,12 +6113,6 @@
       );
     }
 
-    if (
-      state.resizeObserver
-    ) {
-      state.resizeObserver
-        .disconnect();
-    }
   }
 
 
