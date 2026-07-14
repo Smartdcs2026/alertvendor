@@ -1,6 +1,6 @@
 /**
  * dashboard-shift-context.js
- * PHASE 4D — Shift layout + Process Executive Dashboard
+ * PHASE 4D HOTFIX 1 — Historical calendar + process data coverage
  */
 (function (window, document) {
   'use strict';
@@ -81,6 +81,9 @@
     if (dateInput) {
       dateInput.value =
         state.selectedDate;
+
+      dateInput.max =
+        todayIso();
     }
 
     document.body.dataset
@@ -116,6 +119,13 @@
     );
 
     byId(
+      'dashboardShiftCalendarButton'
+    )?.addEventListener(
+      'click',
+      openHistoricalCalendar
+    );
+
+    byId(
       'dashboardShiftDate'
     )?.addEventListener(
       'change',
@@ -131,6 +141,17 @@
 
         state.data =
           null;
+
+        if (
+          state.view ===
+          'LIVE'
+        ) {
+          setView(
+            'DAILY'
+          );
+
+          return;
+        }
 
         loadShiftDashboard();
       }
@@ -292,8 +313,13 @@
 
     if (controls) {
       controls.hidden =
+        false;
+
+      controls.dataset.mode =
         state.view ===
-        'LIVE';
+          'LIVE'
+          ? 'HISTORY'
+          : state.view;
     }
 
     if (workspace) {
@@ -983,6 +1009,10 @@
       process.rules ||
       {};
 
+    const coverage =
+      process.coverage ||
+      {};
+
     return `
       <header class="process-executive-header">
         <div>
@@ -1044,6 +1074,24 @@
           <span data-state="QUALITY">
             Data ${formatPercent(
               overall.dataCompletenessPercent
+            )}
+          </span>
+
+          <span
+            data-state="${
+              Number(
+                coverage.workflowMissingCount
+              ) > 0
+                ? 'WARNING'
+                : 'READY'
+            }"
+            title="ต้นทาง Gate In เทียบกับข้อมูล Workflow"
+          >
+            ต้นทาง ${formatNumber(
+              coverage.sourceRecordCount
+            )}
+            · Workflow ${formatNumber(
+              coverage.workflowMatchedCount
             )}
           </span>
         </div>
@@ -5910,7 +5958,52 @@
       null;
 
     syncDateInput();
+
+    if (
+      state.view ===
+      'LIVE'
+    ) {
+      setView(
+        'DAILY'
+      );
+
+      return;
+    }
+
     loadShiftDashboard();
+  }
+
+
+  function openHistoricalCalendar() {
+    const input =
+      byId(
+        'dashboardShiftDate'
+      );
+
+    if (!input) {
+      return;
+    }
+
+    input.max =
+      todayIso();
+
+    if (
+      typeof input.showPicker ===
+      'function'
+    ) {
+      try {
+        input.showPicker();
+        return;
+      } catch (error) {
+        console.warn(
+          'เปิดปฏิทินด้วย showPicker ไม่สำเร็จ',
+          error
+        );
+      }
+    }
+
+    input.focus();
+    input.click();
   }
 
 
