@@ -1324,6 +1324,57 @@
   }
 
 
+
+
+  function processStageTone_(
+    stage
+  ) {
+    const item =
+      stage ||
+      {};
+
+    const text = [
+      item.stageKey,
+      item.key,
+      item.code,
+      item.shortLabel,
+      item.label
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    if (
+      text.indexOf('return_document_to_gate_out') >= 0 ||
+      (text.indexOf('คืน') >= 0 && text.indexOf('ออก') >= 0)
+    ) {
+      return 'return-out';
+    }
+
+    if (
+      text.indexOf('receiving_to_return_document') >= 0 ||
+      (text.indexOf('รับเสร็จ') >= 0 && text.indexOf('คืน') >= 0)
+    ) {
+      return 'receive-return';
+    }
+
+    if (
+      text.indexOf('document_to_receiving') >= 0 ||
+      ((text.indexOf('ยื่น') >= 0 || text.indexOf('เอกสาร') >= 0) && text.indexOf('รับเสร็จ') >= 0)
+    ) {
+      return 'document-receive';
+    }
+
+    if (
+      text.indexOf('gate_in_to_document') >= 0 ||
+      ((text.indexOf('เข้า') >= 0 || text.indexOf('gate in') >= 0) && (text.indexOf('ยื่น') >= 0 || text.indexOf('เอกสาร') >= 0))
+    ) {
+      return 'gate-document';
+    }
+
+    return 'default';
+  }
+
   function processStageCardHtml(
     stage
   ) {
@@ -1334,6 +1385,11 @@
     const rule =
       item.rule ||
       {};
+
+    const stageTone =
+      processStageTone_(
+        item
+      );
 
     const ruleText =
       rule.configured === true
@@ -1352,6 +1408,9 @@
             ? 'READY'
             : 'MISSING'
         }"
+        data-stage-tone="${escapeHtml(
+          stageTone
+        )}"
       >
         <header>
           <span>
