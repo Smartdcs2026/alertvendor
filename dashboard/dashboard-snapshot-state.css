@@ -2826,3 +2826,688 @@ body.dashboard-one-page-fullscreen
   }
 }
 
+/* =========================================================
+ * PHASE 4D HOTFIX 3
+ * DAILY FULLSCREEN EXECUTIVE BALANCE
+ *
+ * ปัญหาเดิม:
+ * - Analysis panels สูงตามเนื้อหา ไม่ยืดตามพื้นที่ที่เหลือ
+ * - Trend / History / Insight ใช้พื้นที่แนวนอนไม่สมดุล
+ * - ตารางแจ้ง 14 วัน แต่แสดงจริงเพียง 7 วัน
+ * - เกิดพื้นที่ว่างขนาดใหญ่ก่อน Footer
+ *
+ * แนวทาง:
+ * - กำหนด Workspace เป็น 4 แถวตามหน้าที่จริง
+ * - KPI เป็น 2 แถวคงที่
+ * - Analysis กินพื้นที่ที่เหลือทั้งหมด
+ * - แบ่ง Trend / History / Insight แบบ 5 / 4 / 3
+ * - แต่ละ Panel ยืดเต็มความสูงและ Scroll ภายในเท่านั้น
+ * ========================================================= */
+
+@media (min-width: 1000px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .control-main {
+    display: grid !important;
+    grid-template-rows:
+      var(--fs-toolbar-height)
+      minmax(0, 1fr) !important;
+    gap: var(--fs-gap) !important;
+    align-content: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .dashboard-shift-workspace {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+
+    display: grid !important;
+    grid-template-rows:
+      clamp(76px, 9vh, 88px)
+      clamp(132px, 15.5vh, 148px)
+      minmax(0, 1fr)
+      24px !important;
+
+    gap: 6px !important;
+    align-content: stretch !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+
+  /* ---------- Header ---------- */
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-header {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+
+    display: grid !important;
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto !important;
+
+    align-items: center !important;
+    gap: 12px !important;
+
+    padding: 7px 11px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-header > div:first-child {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-header h2 {
+    font-size: clamp(18px, 2.15vh, 23px) !important;
+    line-height: 1.05 !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-header p {
+    margin-top: 3px !important;
+    overflow: hidden !important;
+    font-size: clamp(9px, 1.08vh, 11px) !important;
+    line-height: 1.15 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-methodology-note {
+    max-width: 100% !important;
+    margin-top: 3px !important;
+    padding: 3px 6px !important;
+    overflow: hidden !important;
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-badges {
+    max-width: 500px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    align-content: center !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-badges span {
+    min-height: 23px !important;
+    padding: 3px 7px !important;
+    font-size: 8px !important;
+  }
+
+  /* ---------- 12 KPI cards: 6 columns × 2 rows ---------- */
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+
+    display: grid !important;
+    grid-template-columns:
+      repeat(6, minmax(0, 1fr)) !important;
+    grid-template-rows:
+      repeat(2, minmax(0, 1fr)) !important;
+
+    gap: 6px !important;
+    align-items: stretch !important;
+    align-content: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid > div {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+
+    display: grid !important;
+    grid-template-rows:
+      auto
+      minmax(0, 1fr)
+      auto !important;
+
+    place-items: center !important;
+    align-content: center !important;
+
+    padding: 5px 7px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid .metric-label-line {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-content: center !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid .metric-label-line > span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    font-size: clamp(8px, .96vh, 10px) !important;
+    line-height: 1.05 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid strong {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-self: center !important;
+    overflow: hidden !important;
+    font-size: clamp(17px, 2.25vh, 23px) !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid small {
+    min-height: 10px !important;
+    overflow: hidden !important;
+    font-size: 7px !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* ---------- Main analysis fills every remaining pixel ---------- */
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-dashboard-analysis {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+
+    display: grid !important;
+    grid-template-columns:
+      minmax(0, 5fr)
+      minmax(0, 4fr)
+      minmax(0, 3fr) !important;
+    grid-template-rows:
+      minmax(0, 1fr) !important;
+    grid-template-areas:
+      "trend history insight" !important;
+
+    gap: 6px !important;
+    align-items: stretch !important;
+    align-content: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-trend-panel,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-panel,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    align-self: stretch !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-trend-panel {
+    grid-area: trend !important;
+    display: grid !important;
+    grid-template-rows:
+      50px
+      minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-panel {
+    grid-area: history !important;
+    display: grid !important;
+    grid-template-rows:
+      50px
+      minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-trend-panel > header,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-panel > header {
+    min-height: 0 !important;
+    height: 50px !important;
+    padding: 7px 10px 5px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-trend-panel h3,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-panel h3 {
+    overflow: hidden !important;
+    font-size: clamp(12px, 1.45vh, 15px) !important;
+    line-height: 1.1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* Chart canvas uses full panel height. */
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-chart-wrap {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    padding: 8px 10px 9px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  /* History table uses all vertical space and keeps header visible. */
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table-wrap {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: stable !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    background: #eef4f7 !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table th,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table td {
+    padding: 7px 5px !important;
+    overflow: hidden !important;
+    font-size: clamp(8px, .98vh, 10px) !important;
+    line-height: 1.1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table th:first-child,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table td:first-child {
+    width: 39% !important;
+  }
+
+  /* Executive insight: Header + 6 items = 4 rows exactly. */
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel {
+    grid-area: insight !important;
+
+    display: grid !important;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows:
+      50px
+      repeat(3, minmax(0, 1fr)) !important;
+
+    gap: 6px !important;
+    padding: 8px !important;
+    align-content: stretch !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > header {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 50px !important;
+    grid-column: 1 / -1 !important;
+    padding: 0 2px 5px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel h3 {
+    overflow: hidden !important;
+    font-size: clamp(13px, 1.55vh, 16px) !important;
+    line-height: 1.1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+
+    display: grid !important;
+    grid-template-rows:
+      auto
+      minmax(0, 1fr)
+      auto !important;
+
+    align-content: center !important;
+    gap: 3px !important;
+
+    padding: 7px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div span,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div strong,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div small {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div span {
+    font-size: 8px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div strong {
+    align-self: center !important;
+    font-size: clamp(14px, 1.85vh, 19px) !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div small {
+    font-size: 7px !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+  }
+
+  /* Footer always stays attached to the bottom. */
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-dashboard-footer {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 24px !important;
+    margin: 0 !important;
+    padding: 3px 8px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    font-size: 8px !important;
+    line-height: 1 !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-dashboard-footer span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* 1366×768-class screens: preserve full information without scaling. */
+@media (min-width: 1000px) and (max-height: 850px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .dashboard-shift-workspace {
+    grid-template-rows:
+      68px
+      116px
+      minmax(0, 1fr)
+      21px !important;
+    gap: 4px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-executive-header {
+    padding: 5px 8px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid {
+    gap: 4px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-summary-grid > div {
+    padding: 4px 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-dashboard-analysis {
+    gap: 4px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-trend-panel,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-panel {
+    grid-template-rows:
+      42px
+      minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-trend-panel > header,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-panel > header,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > header {
+    height: 42px !important;
+    padding-top: 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel {
+    grid-template-rows:
+      42px
+      repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 6px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div {
+    padding: 5px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table th,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-history-table td {
+    padding: 5px 4px !important;
+    font-size: 8px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .shift-dashboard-footer {
+    height: 21px !important;
+    padding-block: 2px !important;
+  }
+}
+
+/* At narrow desktop widths, give more space to the history table. */
+@media (min-width: 1000px) and (max-width: 1399px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-dashboard-analysis {
+    grid-template-columns:
+      minmax(0, 4.5fr)
+      minmax(0, 4.2fr)
+      minmax(0, 3.3fr) !important;
+  }
+}
+
+/* =========================================================
+ * PHASE 4D HOTFIX 4
+ * DAILY FULLSCREEN FULL-HEIGHT RECOVERY
+ *
+ * ปัญหา:
+ * - เมื่อกดเต็มจอ หน้า Daily แสดงผลเพียงครึ่งบนของจอ
+ * - ด้านล่างเหลือพื้นที่ว่างจำนวนมาก
+ * - สาเหตุหลักมาจาก Fullscreen base rule เดิมยัง scale .control-main
+ *   และปล่อยให้ main มีความสูง auto
+ *
+ * วิธีแก้:
+ * - ยกเลิก transform scale สำหรับ DAILY ในโหมด fullscreen
+ * - บังคับ body เป็น 2 แถว: header + main
+ * - บังคับ .control-main สูงเท่าพื้นที่ที่เหลือจริง
+ * - บังคับ workspace สูง 100% และยืดครบทุกแถว
+ * ========================================================= */
+
+@media (min-width: 1000px) {
+  html:has(body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]),
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] {
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] {
+    display: grid !important;
+    grid-template-rows: 58px minmax(0, 1fr) !important;
+    align-content: stretch !important;
+    align-items: stretch !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .control-header {
+    grid-row: 1 !important;
+    margin: 0 !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .control-main {
+    --daily-fullscreen-main-height: calc(100dvh - 58px - 6px);
+
+    grid-row: 2 !important;
+    width: calc(100vw - 12px) !important;
+    height: var(--daily-fullscreen-main-height) !important;
+    min-height: var(--daily-fullscreen-main-height) !important;
+    max-height: var(--daily-fullscreen-main-height) !important;
+    margin: 0 6px 6px !important;
+    padding: 5px 0 0 !important;
+
+    display: grid !important;
+    grid-template-rows: clamp(50px, 7vh, 56px) minmax(0, 1fr) !important;
+    align-content: stretch !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+
+    overflow: hidden !important;
+    transform: none !important;
+    transform-origin: initial !important;
+    will-change: auto !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .dashboard-view-toolbar {
+    grid-row: 1 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .dashboard-shift-workspace {
+    grid-row: 2 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .dashboard-shift-workspace[hidden] {
+    display: none !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .shift-executive-header,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .daily-summary-grid,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .daily-dashboard-analysis,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .shift-dashboard-footer {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (min-width: 1000px) and (max-height: 850px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] {
+    grid-template-rows: 56px minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .control-header {
+    height: 56px !important;
+    min-height: 56px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .control-header__inner {
+    min-height: 56px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .control-main {
+    --daily-fullscreen-main-height: calc(100dvh - 56px - 5px);
+    width: calc(100vw - 10px) !important;
+    margin: 0 5px 5px !important;
+    padding-top: 4px !important;
+    gap: 4px !important;
+    grid-template-rows: 44px minmax(0, 1fr) !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"] .dashboard-view-toolbar {
+    padding: 4px 6px !important;
+  }
+}
+
