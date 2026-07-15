@@ -40,7 +40,9 @@
     slaData: null,
     alertEngineLoading: false,
     alertEngineActionRunning: false,
-    alertEngineData: null
+    alertEngineData: null,
+    diagnosticsRunning: false,
+    diagnosticsResult: null
   };
 
   const LABELS = {
@@ -157,8 +159,11 @@
 
     byId('adminRefreshButton')?.addEventListener('click', refreshDashboard);
     byId('adminLogoutButton')?.addEventListener('click', logout);
-    byId('adminValidateQuickButton')?.addEventListener('click', validateSystem);
-    byId('adminValidateSystemButton')?.addEventListener('click', validateSystem);
+    byId('adminValidateQuickButton')?.addEventListener('click', () => validateSystem('QUICK'));
+    byId('adminDiagnosticsQuickButton')?.addEventListener('click', () => validateSystem('QUICK'));
+    byId('adminValidateSystemButton')?.addEventListener('click', () => validateSystem('DEEP'));
+    byId('adminAcceptanceButton')?.addEventListener('click', runProductionAcceptance);
+    byId('adminDiagnosticsExportButton')?.addEventListener('click', exportProductionDiagnosticReport);
     byId('adminCreateModuleButton')?.addEventListener('click', createNewModule);
     byId('adminCreateUserButton')?.addEventListener('click', () => openUserDialog(null));
     byId('adminSettingsForm')?.addEventListener('submit', saveSettings);
@@ -3692,141 +3697,36 @@
     }
   }
 
-  async function validateSystem() {
-    const button =
-      byId(
-        'adminValidateSystemButton'
-      );
-
-    const quickButton =
-      byId(
-        'adminValidateQuickButton'
-      );
-
-    setButtonLoading(
-      button,
-      true,
-      'กำลังตรวจสอบ...'
-    );
-
-    setButtonLoading(
-      quickButton,
-      true,
-      'กำลังตรวจสอบ...'
-    );
-
-    showLoading(
-      'กำลังตรวจสอบระบบทั้งหมด',
-      'กำลังตรวจ Frontend, Worker, Apps Script และแหล่งข้อมูล กรุณารอสักครู่'
-    );
-
-    try {
-      const client =
-        typeof API.getClientDiagnostics ===
-          'function'
-          ? API.getClientDiagnostics()
-          : null;
-
-      const result =
-        typeof API.runProductionDiagnostics ===
-          'function'
-          ? await API.runProductionDiagnostics({
-              includeReadProbe:
-                true
-            })
-          : await API.validateAdminSystem();
-
-      if (client) {
-        result.client =
-          client;
-
-        result.checks = [
-          buildClientDiagnosticCheck(
-            client
-          ),
-          ...(
-            Array.isArray(
-              result.checks
-            )
-              ? result.checks
-              : []
-          )
-        ];
-
-        result.summary =
-          summarizeDiagnostics(
-            result.checks
-          );
-
-        result.success =
-          result.summary.failed ===
-          0;
-      }
-
-      Swal.close();
-
-      renderValidation(
-        result
-      );
-
-      switchTab(
-        'system'
-      );
-
-      const status =
-        result &&
-        result.summary
-          ? result.summary.status
-          : result.success
-            ? 'READY'
-            : 'NOT_READY';
-
-      await Swal.fire({
-        icon:
-          status === 'READY'
-            ? 'success'
-            : status ===
-                'READY_WITH_WARNINGS'
-              ? 'warning'
-              : 'error',
-
-        title:
-          status === 'READY'
-            ? 'ระบบพร้อมใช้งาน'
-            : status ===
-                'READY_WITH_WARNINGS'
-              ? 'ระบบใช้งานได้ แต่มีคำเตือน'
-              : 'พบรายการที่ต้องแก้ไข',
-
-        text:
-          status === 'READY'
-            ? 'ทุกชั้นของระบบผ่านการตรวจสอบ'
-            : 'ดูรายละเอียดในแท็บตรวจระบบ',
-
-        confirmButtonText:
-          'ตกลง'
-      });
-
-    } catch (error) {
-      Swal.close();
-
-      await showApiError(
-        error,
-        'ตรวจสอบระบบไม่สำเร็จ'
-      );
-
-    } finally {
-      setButtonLoading(
-        button,
-        false
-      );
-
-      setButtonLoading(
-        quickButton,
-        false
-      );
-    }
+  async function validateSystem(mode) {
+    if(state.diagnosticsRunning)return;state.diagnosticsRunning=true;setDiagnosticButtons(true);showLoading('กำลังตรวจสอบระบบ','ตรวจ Frontend, Queue, Revision, SLA, Alert, Trigger และ Export');
+    try{const client=await getProductionClientDiagnostics();const result=await API.runProductionDiagnostics({mode:String(mode||'DEEP').toUpperCase(),includeReadProbe:mode!=='QUICK',includeExportProbe:mode!=='QUICK',clientDiagnostics:client});mergeClientDiagnostics(result,client);Swal.close();state.diagnosticsResult=result;renderValidation(result);updateDiagnosticMeta(result,client);switchTab('system');await diagnosticDone(result,'ตรวจระบบ');}
+    catch(error){Swal.close();await showApiError(error,'ตรวจสอบระบบไม่สำเร็จ');}finally{state.diagnosticsRunning=false;setDiagnosticButtons(false);}
   }
+
+  async function runProductionAcceptance(){
+    if(state.diagnosticsRunning)return;state.diagnosticsRunning=true;setDiagnosticButtons(true);showLoading('กำลังทดสอบ Production Acceptance','รวม Concurrency 6 คำขอพร้อมกัน');
+    try{const client=await getProductionClientDiagnostics();const result=await API.runProductionAcceptance({includeReadProbe:true,includeExportProbe:true,clientDiagnostics:client});mergeClientDiagnostics(result,client);const concurrency=await runConcurrency();result.concurrency=concurrency;result.checks=[buildConcurrencyCheck(concurrency),...(Array.isArray(result.checks)?result.checks:[])];result.summary=summarizeDiagnostics(result.checks);result.success=result.summary.failed===0;Swal.close();state.diagnosticsResult=result;renderValidation(result);updateDiagnosticMeta(result,client);switchTab('system');await diagnosticDone(result,'Production Acceptance');}
+    catch(error){Swal.close();await showApiError(error,'Production Acceptance ไม่สำเร็จ');}finally{state.diagnosticsRunning=false;setDiagnosticButtons(false);}
+  }
+
+  async function getProductionClientDiagnostics(){return typeof API.getClientProductionDiagnostics==='function'?await API.getClientProductionDiagnostics():API.getClientDiagnostics();}
+
+  async function runConcurrency(){
+    const probeId='ACCEPT-'+Date.now()+'-'+Math.random().toString(36).slice(2,9), ids=Array.from({length:6},(_,i)=>'P'+String(i+1).padStart(2,'0'));
+    const settled=await Promise.allSettled(ids.map((participantId)=>API.runProductionConcurrencyProbe({probeId,participantId,holdMs:220})));
+    let final=null;try{final=await API.finalizeProductionConcurrencyProbe(probeId);}catch(e){final={success:false,error:e.message};}
+    const ok=settled.filter(x=>x.status==='fulfilled').map(x=>x.value),bad=settled.filter(x=>x.status==='rejected').map(x=>x.reason&&x.reason.message||String(x.reason)),accepted=ok.filter(x=>x&&x.accepted===true),replayed=ok.filter(x=>x&&x.replayed===true);
+    return {success:accepted.length===1&&ok.length===6&&!bad.length,probeId,participants:6,fulfilled:ok.length,accepted:accepted.length,replayed:replayed.length,rejected:bad,winnerParticipantId:accepted[0]&&accepted[0].winnerParticipantId||'',finalRecord:final&&final.record||null,cleaned:Boolean(final&&final.cleaned)};
+  }
+
+  function mergeClientDiagnostics(result,client){if(!result||!client)return;result.client=client;const checks=(Array.isArray(result.checks)?result.checks:[]).filter(x=>x.id!=='frontend-client'&&x.id!=='client-offline-queue');result.checks=[buildClientDiagnosticCheck(client),buildQueueCheck(client.queue),...checks];result.summary=summarizeDiagnostics(result.checks);result.success=result.summary.failed===0;}
+  function buildQueueCheck(q){q=q&&typeof q==='object'?q:{};const failed=Number(q.failed||0),paused=Number(q.paused||0),pending=Number(q.pending||0),status=q.available!==true||failed?'FAIL':pending||paused?'WARN':'PASS';return {id:'client-offline-queue',group:'Inbound Queue',label:'ตรวจ Durable Queue ใน Browser',status,message:status==='PASS'?'Queue พร้อมและไม่มีงานค้าง':status==='WARN'?'มีงาน Queue ต้องติดตาม':'Queue ไม่พร้อมหรือมีงานล้มเหลว',durationMs:0,details:q};}
+  function buildConcurrencyCheck(c){return {id:'parallel-concurrency-idempotency',group:'Concurrency & Idempotency',label:'ยิง 6 คำขอพร้อมกันด้วย Probe ID เดียว',status:c&&c.success?'PASS':'FAIL',message:c&&c.success?'Accepted 1 คำขอ ที่เหลือ Replay':'Concurrency Probe ไม่ผ่าน',durationMs:0,details:c||{}};}
+  function setDiagnosticButtons(loading){['adminValidateQuickButton','adminDiagnosticsQuickButton','adminValidateSystemButton','adminAcceptanceButton'].forEach(id=>{const b=byId(id);if(b)b.disabled=Boolean(loading);});}
+  async function diagnosticDone(result,label){const s=result&&result.summary||{};await Swal.fire({icon:s.failed?'error':s.warnings?'warning':'success',title:label+(s.failed?' ไม่ผ่าน':s.warnings?' ผ่านพร้อมคำเตือน':' ผ่าน'),text:'ผ่าน '+Number(s.passed||0)+' · เตือน '+Number(s.warnings||0)+' · ไม่ผ่าน '+Number(s.failed||0),confirmButtonText:'ดูรายละเอียด'});}
+  function updateDiagnosticMeta(result,client){const p=result&&result.phase4e||result&&result.appsScript&&result.appsScript.phase4e||{};setText('adminDiagnosticModuleId',result&&result.moduleId||p.moduleId||'-');setText('adminDiagnosticDataRevision',p.boardDataRevision||'-');setText('adminDiagnosticRulesRevision',p.rulesRevision||'-');const a=findCheck(result,'alert-engine-trigger'),e=findCheck(result,'admin-export-contract'),q=client&&client.queue||{};setText('adminDiagnosticAlertStatus',a?diagnosticStatusText(a.status):'-');setText('adminDiagnosticQueueStatus',q.available?'ค้าง '+Number(q.pending||0)+' · ล้มเหลว '+Number(q.failed||0):'อ่านไม่ได้');setText('adminDiagnosticExportStatus',e?diagnosticStatusText(e.status):'ไม่ได้ตรวจ');const b=byId('adminDiagnosticsExportButton');if(b)b.disabled=!state.diagnosticsResult;}
+  function findCheck(result,id){return (Array.isArray(result&&result.checks)?result.checks:[]).find(x=>x.id===id)||null;}
+  function exportProductionDiagnosticReport(){const r=state.diagnosticsResult;if(!r)return;const rows=[['กลุ่ม','รหัส','รายการ','ผล','ข้อความ','ระยะเวลา(ms)','รายละเอียด'],...(r.checks||[]).map(c=>[c.group||'',c.id||'',c.label||'',c.status||'',c.message||'',c.durationMs||0,JSON.stringify(c.details||{})])];const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='alertvendor-production-acceptance-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
   function buildClientDiagnosticCheck(
     client
@@ -3911,6 +3811,8 @@
   }
 
   function renderValidation(result) {
+    state.diagnosticsResult = result || null;
+
     const container =
       byId(
         'adminValidationResult'
@@ -4018,6 +3920,7 @@
                     ${Number.isFinite(Number(check.durationMs))
                       ? `<small>ใช้เวลา ${escapeHtml(String(check.durationMs))} ms</small>`
                       : ''}
+                    ${check.details && Object.keys(check.details).length ? `<details><summary>ดูรายละเอียด</summary><pre>${escapeHtml(JSON.stringify(check.details, null, 2))}</pre></details>` : ''}
                   </article>
                 `).join('')}
               </div>
