@@ -1169,7 +1169,16 @@
               forceRefresh:
                 config.forceRefresh === true
                   ? 'true'
-                  : ''
+                  : '',
+
+              revisionOnly:
+                config.revisionOnly === true
+                  ? 'true'
+                  : '',
+
+              knownRevision:
+                config.knownRevision ||
+                ''
             }
           }
         );
