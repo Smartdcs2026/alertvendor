@@ -1073,3 +1073,85 @@
 @media(max-width:1100px){ .admin-alert-engine__metrics{grid-template-columns:repeat(3,minmax(0,1fr));}.admin-alert-delivery-item{grid-template-columns:70px 1fr 1.4fr;} .admin-alert-delivery-item time{display:none;} }
 @media(max-width:700px){ .admin-alert-engine{margin-inline:10px;} .admin-alert-engine>header{display:grid;} .admin-alert-engine__actions,.admin-alert-engine__actions>button{width:100%;} .admin-alert-engine__metrics{grid-template-columns:repeat(2,minmax(0,1fr));} .admin-alert-delivery-item{grid-template-columns:1fr;} }
 
+
+
+/* PHASE 4E ROUND 04 */
+.admin-diagnostic-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}.admin-diagnostic-meta-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 14px}.admin-diagnostic-meta-grid>article{min-width:0;display:grid;gap:5px;padding:11px 13px;border:1px solid #d8e4ea;border-left:4px solid #0c809c;border-radius:11px;background:#fff}.admin-diagnostic-meta-grid span{color:#687f8b;font-size:.72rem;font-weight:850}.admin-diagnostic-meta-grid strong{min-width:0;overflow:hidden;color:#103e53;font-size:.86rem;font-weight:950;text-overflow:ellipsis;white-space:nowrap}.admin-diagnostic-check details{margin-top:8px;padding-top:7px;border-top:1px dashed #d6e2e8}.admin-diagnostic-check summary{color:#486574;font-size:.72rem;font-weight:850;cursor:pointer}.admin-diagnostic-check pre{max-height:260px;margin:7px 0 0;padding:9px;overflow:auto;border-radius:8px;background:#0d2937;color:#e9f6fb;font:11px/1.45 Consolas,monospace;white-space:pre-wrap;word-break:break-word}@media(max-width:900px){.admin-diagnostic-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.admin-diagnostic-actions,.admin-diagnostic-actions>button{width:100%}.admin-diagnostic-meta-grid{grid-template-columns:1fr}}
+
+/* =========================================================
+ * PHASE 5 ROUND 01 — Management Reporting & KPI Governance
+ * ========================================================= */
+.admin-management-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.admin-management-export-card{display:grid;gap:14px}
+.admin-management-controls{display:grid;grid-template-columns:1.1fr repeat(2,minmax(170px,.7fr)) minmax(190px,.7fr);gap:10px;align-items:end}
+.admin-management-check{min-height:44px;display:flex!important;flex-direction:row!important;align-items:center;gap:9px;padding:0 12px;border:1px solid #d4e1e7;border-radius:9px;background:#f8fbfc;font-weight:800;color:#365766}
+.admin-management-check input{width:18px;height:18px}
+.admin-management-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.admin-management-metrics article{min-width:0;padding:10px 11px;border:1px solid #d5e3e9;border-left:3px solid #0c809c;border-radius:10px;background:#fff}
+.admin-management-metrics span{display:block;color:#6b818c;font-size:.68rem;font-weight:850}
+.admin-management-metrics strong{display:block;margin-top:5px;overflow:hidden;color:#0c3f56;font-size:.82rem;font-weight:950;text-overflow:ellipsis;white-space:nowrap}
+.admin-management-result{min-height:76px;padding:12px;border:1px dashed #c8d9e1;border-radius:11px;background:#f8fbfc}
+.admin-management-result.is-ready{border-style:solid;border-color:#b7e3d3;background:#f2fbf7}
+.admin-management-result h4{margin:0 0 7px;color:#0b526b}
+.admin-management-result p{margin:3px 0;color:#52707f;font-size:.78rem}
+.admin-management-result .button{margin-top:8px}
+.admin-management-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);gap:14px;margin-top:14px}
+.admin-management-kpi-list,.admin-management-history{display:grid;gap:8px;max-height:460px;overflow:auto}
+.admin-management-kpi{padding:10px 11px;border:1px solid #dbe7ec;border-left:4px solid #147f9d;border-radius:10px;background:#fff}
+.admin-management-kpi header{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.admin-management-kpi strong{color:#113f53}.admin-management-kpi code{padding:2px 6px;border-radius:6px;background:#e9f3f6;color:#0a6b85;font-size:.68rem;font-weight:900}
+.admin-management-kpi p{margin:5px 0 0;color:#607986;font-size:.74rem;line-height:1.35}.admin-management-kpi small{display:block;margin-top:5px;color:#7b909a}
+.admin-management-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:10px 11px;border:1px solid #dbe7ec;border-radius:10px;background:#fff}
+.admin-management-history-item strong{display:block;color:#113f53}.admin-management-history-item span,.admin-management-history-item small{display:block;margin-top:3px;color:#6d828d;font-size:.72rem}
+.admin-management-history-item a{align-self:center;text-decoration:none}
+.admin-pill{display:inline-flex;align-items:center;min-height:28px;padding:0 9px;border-radius:999px;background:#eaf4f7;color:#0b6981;font-size:.72rem;font-weight:900}
+@media(max-width:1180px){.admin-management-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.admin-management-controls{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:840px){.admin-management-grid{grid-template-columns:1fr}.admin-management-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:580px){.admin-management-controls,.admin-management-metrics{grid-template-columns:1fr}.admin-management-actions,.admin-management-actions .button{width:100%}}
+
+/* =========================================================
+ * PHASE 5 ROUND 02 — All Workflow Stages Export
+ * ========================================================= */
+.admin-management-controls--round02{
+  grid-template-columns:repeat(4,minmax(170px,1fr));
+}
+.admin-management-range-fields{
+  grid-column:span 2;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.admin-management-selection-note{
+  padding:9px 11px;
+  border:1px solid #cfe1e8;
+  border-left:4px solid #0c809c;
+  border-radius:9px;
+  background:#f4fafc;
+  color:#496978;
+  font-size:.76rem;
+  font-weight:750;
+  line-height:1.45;
+}
+.admin-management-result__facts{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+  margin:9px 0;
+}
+.admin-management-result__facts span{
+  display:block;
+  padding:7px 8px;
+  border-radius:8px;
+  background:#fff;
+  color:#466676;
+  font-size:.72rem;
+  font-weight:800;
+}
+@media(max-width:1180px){
+  .admin-management-controls--round02{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:650px){
+  .admin-management-controls--round02,.admin-management-range-fields,.admin-management-result__facts{grid-template-columns:1fr;}
+  .admin-management-range-fields{grid-column:auto;}
+}
+
