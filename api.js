@@ -2844,6 +2844,38 @@
     },
 
 
+    async getManagementReportingConfig(moduleId) {
+      const response = await request('/api/admin/management-report/config/' + encodeURIComponent(moduleId));
+      return response.data;
+    },
+
+    async createManagementReportPackage(moduleId, options) {
+      const response = await request('/api/admin/management-report/create/' + encodeURIComponent(moduleId), {
+        method: 'POST', timeoutMs: 240000, body: options || {}
+      });
+      return response.data;
+    },
+
+    async createAllWorkflowStagesExport(moduleId, options) {
+      const response = await request('/api/admin/management-report/all-stages/' + encodeURIComponent(moduleId), {
+        method: 'POST', timeoutMs: 300000, body: options || {}
+      });
+      return response.data;
+    },
+
+    async listManagementReportExports(moduleId, options) {
+      const config = options && typeof options === 'object' ? options : {};
+      const response = await request('/api/admin/management-report/exports/' + encodeURIComponent(moduleId), {
+        query: { limit: clampInteger(config.limit, 1, 100, 20) }, timeoutMs: 120000
+      });
+      return response.data;
+    },
+
+    async cleanupManagementReportFiles() {
+      const response = await request('/api/admin/management-report/cleanup', { method: 'POST', body: {}, timeoutMs: 120000 });
+      return response.data;
+    },
+
     async runProductionAcceptance(options) {
       const response=await request('/api/admin/diagnostics/acceptance',{method:'POST',timeoutMs:180000,body:{options:options||{}}});return response.data;
     },
