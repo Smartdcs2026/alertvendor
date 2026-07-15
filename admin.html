@@ -24,7 +24,7 @@
 
   <link
     rel="stylesheet"
-    href="./admin-shift-panel.css?v=20260715-alert-engine-r1"
+    href="./admin-shift-panel.css?v=20260715-phase5-r2-all-workflow-stages"
   >
 
   <script
@@ -38,7 +38,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260715-phase4e-r4-production-acceptance"
+    src="./api.js?v=20260715-phase5-r2-all-workflow-stages"
     defer
   ></script>
 
@@ -1094,104 +1094,100 @@
     >
       <div class="admin-section-heading">
         <div>
-          <p class="eyebrow">
-            INBOUND EXPORT
-          </p>
-
-          <h2>
-            ส่งออกข้อมูล Inbound
-          </h2>
-
-          <p>
-            ข้อมูลส่วนนี้เป็นข้อมูลสำคัญ จึงอนุญาตเฉพาะสิทธิ์ผู้ดูแลระบบเท่านั้น
-          </p>
+          <p class="eyebrow">MANAGEMENT REPORT CENTER</p>
+          <h2>ศูนย์รายงานบริหารรถและตู้สินค้า</h2>
+          <p>ส่งออกไฟล์รวมทุกขั้นตอนหรือชุดรายงาน ZIP จากข้อมูลจริง พร้อม Revision, นิยาม KPI, กะข้ามวัน และเกณฑ์ SLA ที่ Admin กำหนด</p>
         </div>
-
-        <button
-          id="adminInboundExportRefreshButton"
-          class="button button--secondary"
-          type="button"
-        >
-          โหลดข้อมูล
-        </button>
+        <div class="admin-management-actions">
+          <button id="adminInboundExportRefreshButton" class="button button--secondary" type="button">รีเฟรช</button>
+          <button id="adminManagementCleanupButton" class="button button--secondary" type="button">ล้างไฟล์หมดอายุ</button>
+        </div>
       </div>
 
-      <article class="admin-card admin-inbound-export-card">
+      <article class="admin-card admin-management-export-card">
         <div class="admin-card__header">
           <div>
-            <p class="eyebrow">
-              EXPORT CONTROL
-            </p>
+            <p class="eyebrow">ALL WORKFLOW STAGES EXPORT</p>
+            <h3>ส่งออกทุกขั้นตอนในไฟล์เดียว</h3>
+            <p>หนึ่งแถวต่อรถหรือตู้ แสดง Gate In, ยื่นเอกสาร, รับสินค้าเสร็จ, คืนเอกสาร, Gate Out, ระยะเวลาและ SLA ครบในไฟล์เดียว</p>
+          </div>
+          <button id="adminInboundExportButton" class="button button--primary" type="button">ส่งออกไฟล์</button>
+        </div>
 
-            <h3>
-              รายการ Inbound Workflow
-            </h3>
+        <div class="admin-management-controls admin-management-controls--round02">
+          <label class="form-field">
+            <span class="form-label">Module</span>
+            <select id="adminInboundExportModuleSelect"><option value="">กำลังโหลด Module...</option></select>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">ประเภทรายงาน</span>
+            <select id="adminManagementReportType">
+              <option value="ALL_STAGES_SINGLE" selected>ไฟล์เดียวรวมทุกขั้นตอน</option>
+              <option value="MANAGEMENT_PACKAGE">ชุดรายงานบริหาร ZIP</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">การเลือกช่วงข้อมูล</span>
+            <select id="adminManagementDateMode">
+              <option value="RANGE">กำหนดช่วงวันที่เอง</option>
+              <option value="MONTH">เลือกเดือน</option>
+            </select>
+          </label>
+
+          <label id="adminManagementFileFormatField" class="form-field">
+            <span class="form-label">รูปแบบไฟล์</span>
+            <select id="adminManagementFileFormat">
+              <option value="XLSX" selected>Excel (.xlsx)</option>
+              <option value="CSV">CSV (.csv)</option>
+            </select>
+          </label>
+
+          <div id="adminManagementRangeFields" class="admin-management-range-fields">
+            <label class="form-field"><span class="form-label">วันที่เริ่มต้น</span><input id="adminManagementStartDate" type="date"></label>
+            <label class="form-field"><span class="form-label">วันที่สิ้นสุด</span><input id="adminManagementEndDate" type="date"></label>
           </div>
 
-          <button
-            id="adminInboundExportButton"
-            class="button button--primary"
-            type="button"
-          >
-            ส่งออก CSV
-          </button>
-        </div>
-
-        <div class="admin-export-controls">
-          <label class="form-field">
-            <span class="form-label">
-              แหล่งข้อมูล Inbound
-            </span>
-
-            <select id="adminInboundExportModuleSelect">
-              <option value="">
-                กำลังโหลด Module...
-              </option>
-            </select>
+          <label id="adminManagementMonthField" class="form-field is-hidden">
+            <span class="form-label">เดือน</span>
+            <input id="adminManagementMonth" type="month">
           </label>
 
-          <label class="form-field"><span class="form-label">วันที่ Gate In</span><input id="adminInboundExportDate" type="date"></label>
-
-          <label class="form-field">
-            <span class="form-label">
-              สถานะ
-            </span>
-
-            <select id="adminInboundExportStatusFilter">
-              <option value="ALL">ทั้งหมด</option>
-              <option value="DOCUMENT_SUBMITTED">รอรับสินค้า</option>
-              <option value="RECEIVING_COMPLETED">รอรับเอกสารคืน</option>
-              <option value="DOCUMENT_RETURNED">คืนเอกสารแล้ว</option>
-              <option value="CANCELLED">ยกเลิก</option>
-            </select>
-          </label>
-
-          <label class="form-field">
-            <span class="form-label">
-              ค้นหา
-            </span>
-
-            <input
-              id="adminInboundExportSearchInput"
-              type="search"
-              placeholder="Auto ID / บริษัท / ทะเบียน / คนขับ"
-              autocomplete="off"
-            >
+          <label class="form-field admin-management-check">
+            <input id="adminManagementIncludeActive" type="checkbox" checked>
+            <span>รวมรายการที่ยัง Active</span>
           </label>
         </div>
 
-        <div
-          id="adminInboundExportSummary"
-          class="admin-export-summary"
-        >
-          ยังไม่ได้โหลดข้อมูล
+        <div class="admin-management-selection-note">
+          ใช้ Business Date จาก Gate In เป็นเกณฑ์เลือกช่วงข้อมูล รถที่ออกหลังเที่ยงคืนยังอยู่ในวันหรือเดือนที่รถเข้า
         </div>
 
-        <div
-          id="adminInboundExportPreview"
-          class="admin-export-preview"
-        ></div>
+        <div id="adminInboundExportSummary" class="admin-export-summary">ยังไม่ได้โหลดข้อมูล</div>
+
+        <section class="admin-management-metrics">
+          <article><span>Data Revision</span><strong id="adminManagementDataRevision">-</strong></article>
+          <article><span>Rules Revision</span><strong id="adminManagementRulesRevision">-</strong></article>
+          <article><span>Shift Version</span><strong id="adminManagementShiftVersion">-</strong></article>
+          <article><span>KPI Version</span><strong id="adminManagementKpiVersion">-</strong></article>
+          <article><span>ไฟล์ล่าสุด</span><strong id="adminManagementLatestFile">-</strong></article>
+          <article><span>หมดอายุภายใน</span><strong id="adminManagementRetention">-</strong></article>
+        </section>
+
+        <div id="adminInboundExportPreview" class="admin-management-result"></div>
       </article>
+
+      <div class="admin-management-grid">
+        <article class="admin-card">
+          <div class="admin-card__header"><div><p class="eyebrow">KPI GOVERNANCE</p><h3>นิยาม KPI ที่ใช้ในรายงาน</h3></div><span id="adminManagementKpiCount" class="admin-pill">0 KPI</span></div>
+          <div id="adminManagementKpiList" class="admin-management-kpi-list"></div>
+        </article>
+        <article class="admin-card">
+          <div class="admin-card__header"><div><p class="eyebrow">RECENT EXPORTS</p><h3>ประวัติชุดรายงานล่าสุด</h3></div></div>
+          <div id="adminManagementExportHistory" class="admin-management-history"></div>
+        </article>
+      </div>
     </section>
 
     <section
@@ -2072,7 +2068,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260715-phase4e-r4-server-export"
+    src="./admin-inbound-export.js?v=20260715-phase5-r2-all-workflow-stages"
     defer
   ></script>
 
