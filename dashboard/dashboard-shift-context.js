@@ -5278,8 +5278,11 @@
         <strong>
           ${escapeHtml(
             String(
-              value ??
-              '-'
+              value === null ||
+              value === undefined ||
+              String(value).trim() === ''
+                ? '-'
+                : value
             )
           )}
         </strong>
