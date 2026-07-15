@@ -38,12 +38,12 @@
   ></script>
 
   <script
-    src="./api.js?v=20260715-alert-engine-r1"
+    src="./api.js?v=20260715-phase4e-r4-production-acceptance"
     defer
   ></script>
 
   <script
-    src="./admin.js?v=20260715-alert-engine-r1"
+    src="./admin.js?v=20260715-phase4e-r4-production-acceptance"
     defer
   ></script>
 
@@ -1150,6 +1150,8 @@
             </select>
           </label>
 
+          <label class="form-field"><span class="form-label">วันที่ Gate In</span><input id="adminInboundExportDate" type="date"></label>
+
           <label class="form-field">
             <span class="form-label">
               สถานะ
@@ -1287,13 +1289,12 @@
           </p>
         </div>
 
-        <button
-          id="adminValidateSystemButton"
-          class="button button--primary"
-          type="button"
-        >
-          เริ่มตรวจสอบ
-        </button>
+        <div class="admin-diagnostic-actions">
+          <button id="adminDiagnosticsQuickButton" class="button button--secondary" type="button">ตรวจแบบเร็ว</button>
+          <button id="adminValidateSystemButton" class="button button--primary" type="button">ตรวจแบบละเอียด</button>
+          <button id="adminAcceptanceButton" class="button button--primary" type="button">ทดสอบ Acceptance</button>
+          <button id="adminDiagnosticsExportButton" class="button button--secondary" type="button" disabled>ส่งออกรายงาน</button>
+        </div>
       </div>
 
       <section
@@ -1319,6 +1320,15 @@
           <span>ไม่ผ่าน</span>
           <strong id="adminDiagnosticFailed">0</strong>
         </article>
+      </section>
+
+      <section class="admin-diagnostic-meta-grid">
+        <article><span>Module ที่ตรวจ</span><strong id="adminDiagnosticModuleId">-</strong></article>
+        <article><span>Data Revision</span><strong id="adminDiagnosticDataRevision">-</strong></article>
+        <article><span>Rules Revision</span><strong id="adminDiagnosticRulesRevision">-</strong></article>
+        <article><span>Alert / Trigger</span><strong id="adminDiagnosticAlertStatus">-</strong></article>
+        <article><span>Offline Queue</span><strong id="adminDiagnosticQueueStatus">-</strong></article>
+        <article><span>Export Contract</span><strong id="adminDiagnosticExportStatus">-</strong></article>
       </section>
 
       <div
@@ -2062,7 +2072,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260710-r06-07-admin-inbound-export-only"
+    src="./admin-inbound-export.js?v=20260715-phase4e-r4-server-export"
     defer
   ></script>
 
