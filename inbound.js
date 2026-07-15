@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * PHASE 2A — Durable Pending Queue, Network Recovery, Idempotent Replay
+ * PHASE 4E ROUND 01 — Admin SLA, Full Cohort Summary, Realtime Revision
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -12,9 +12,10 @@
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
   const INPUT_DEBOUNCE_MS = 250;
   const MIN_CODE_LENGTH = 12;
-  const DASHBOARD_LIMIT = 100;
+  const DASHBOARD_LIMIT = 1000;
+  const DASHBOARD_POLL_MS = 8000;
   const FOCUS_SUPPRESS_MS = 18000;
-  const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V10_';
+  const DASHBOARD_CACHE_PREFIX = 'ALERT_VENDOR_INBOUND_DASHBOARD_CACHE_V11_';
   const DASHBOARD_CACHE_MAX_ITEMS = 800;
 
   const state = {
@@ -47,6 +48,13 @@
     dashboardLoadedAt: '',
     dashboardCacheRestored: false,
     dashboardRequestToken: 0,
+    dashboardRevision: '',
+    rulesRevision: '',
+    dashboardTotalRows: 0,
+    dashboardSummary: null,
+    effectiveSlaRules: {},
+    dashboardPollTimer: 0,
+    dashboardPollBusy: false,
     queueReady: false,
     queueSummary: {
       pending: 0,
@@ -102,6 +110,7 @@
       restoreDashboardCache({silent: true});
       createScanner();
       await loadWorkflowDashboard(true, {cacheFirst: false});
+      startDashboardPolling();
       focusCodeInput();
 
       // คอมพิวเตอร์ที่เสียบเครื่องสแกนจะพร้อมรับรหัสทันที
@@ -232,6 +241,11 @@
       }
 
       state.moduleId = String(event.target.value || '').trim();
+      state.dashboardRevision = '';
+      state.rulesRevision = '';
+      state.dashboardSummary = null;
+      state.dashboardTotalRows = 0;
+      state.effectiveSlaRules = {};
       clearCurrentResult();
       restoreDashboardCache({replace: true, silent: true});
       await refreshQueueSummary();
@@ -830,7 +844,7 @@
       }
 
       const data = await API.getInboundWorkflowDashboard(state.moduleId, {
-        limit: Number(DASHBOARD_LIMIT) || 100,
+        limit: Number(DASHBOARD_LIMIT) || 1000,
         cacheBust: Date.now()
       });
 
@@ -838,24 +852,26 @@
         return;
       }
 
-      const nextItems = normalizeDashboardItems(data);
+      const payload = dashboardPayload(data);
+      applyDashboardMetadata(payload);
+      const nextItems = normalizeDashboardItems(payload);
       const hadLocalItems = state.dashboardItems.length > 0;
 
       if (nextItems.length > 0 || !hadLocalItems) {
         state.dashboardItems = nextItems;
-        state.dashboardLoadedAt = formatBangkokDateTime(new Date());
+        state.dashboardLoadedAt = payload.generatedAt || formatBangkokDateTime(new Date());
         saveDashboardCache();
         renderDashboard();
 
         if (!silent) {
-          setScanMessage('โหลดข้อมูลล่าสุดแล้ว ' + nextItems.length + ' รายการ', 'SUCCESS');
+          const total = state.dashboardTotalRows || nextItems.length;
+          setScanMessage(
+            'โหลดข้อมูลล่าสุดแล้ว ' + nextItems.length +
+            (total > nextItems.length ? ' จากทั้งหมด ' + total + ' รายการ' : ' รายการ'),
+            'SUCCESS'
+          );
         }
       } else {
-        /*
-         * ถ้า Backend ตอบกลับว่าง แต่หน้าจอยังมี cache/local state อยู่
-         * ห้ามล้างตารางทันที เพราะจะทำให้ผู้ใช้เข้าใจว่าข้อมูลหายหลัง Refresh
-         * กรณีนี้ให้คงข้อมูลเดิมไว้ แล้วแจ้งเตือนแบบไม่รบกวน
-         */
         renderDashboard();
         if (!silent) {
           setScanMessage('ไม่พบรายการใหม่จากฐานข้อมูล แต่คงข้อมูลล่าสุดบนหน้าจอไว้', 'WARN');
@@ -875,6 +891,90 @@
       }
     } finally {
       focusCodeInput(false);
+    }
+  }
+
+  function dashboardPayload(data) {
+    return data && data.data && typeof data.data === 'object'
+      ? data.data
+      : data && typeof data === 'object'
+        ? data
+        : {};
+  }
+
+  function applyDashboardMetadata(payload) {
+    const source = payload && typeof payload === 'object' ? payload : {};
+    state.dashboardRevision = text(source.dataRevision || state.dashboardRevision);
+    state.rulesRevision = text(source.rulesRevision || state.rulesRevision);
+    state.dashboardTotalRows = Number(
+      source.totalRows ||
+      source.pagination && source.pagination.totalRows ||
+      source.summary && source.summary.totalWorkflow ||
+      0
+    ) || 0;
+    state.dashboardSummary = source.summary && typeof source.summary === 'object'
+      ? source.summary
+      : state.dashboardSummary;
+    state.effectiveSlaRules = source.effectiveSlaRules && typeof source.effectiveSlaRules === 'object'
+      ? source.effectiveSlaRules
+      : state.effectiveSlaRules;
+
+    const serverSla = state.dashboardSummary && state.dashboardSummary.sla;
+    if (serverSla && typeof serverSla === 'object') {
+      state.slaSummary = {
+        normal: Number(serverSla.normal) || 0,
+        warning: Number(serverSla.warning) || 0,
+        critical: Number(serverSla.critical) || 0
+      };
+    }
+  }
+
+  function startDashboardPolling() {
+    window.clearInterval(state.dashboardPollTimer);
+    state.dashboardPollTimer = window.setInterval(() => {
+      void pollDashboardRevision();
+    }, DASHBOARD_POLL_MS);
+  }
+
+  async function pollDashboardRevision() {
+    if (
+      state.dashboardPollBusy ||
+      document.visibilityState !== 'visible' ||
+      navigator.onLine === false ||
+      !state.moduleId ||
+      !API ||
+      typeof API.getInboundWorkflowDashboard !== 'function'
+    ) {
+      return;
+    }
+
+    state.dashboardPollBusy = true;
+
+    try {
+      const data = await API.getInboundWorkflowDashboard(state.moduleId, {
+        limit: 1,
+        revisionOnly: true,
+        knownRevision: state.dashboardRevision,
+        cacheBust: Date.now()
+      });
+      const payload = dashboardPayload(data);
+      const previousRevision = state.dashboardRevision;
+      applyDashboardMetadata(payload);
+
+      if (payload.unchanged === true && previousRevision) {
+        return;
+      }
+
+      if (!previousRevision || payload.dataRevision !== previousRevision) {
+        await loadWorkflowDashboard(true, {
+          cacheFirst: false,
+          reason: 'REVISION_CHANGED'
+        });
+      }
+    } catch (error) {
+      console.warn('inbound revision poll failed', error);
+    } finally {
+      state.dashboardPollBusy = false;
     }
   }
 
@@ -906,6 +1006,15 @@
         .sort((a, b) => dateToMs(b.updatedAt) - dateToMs(a.updatedAt));
 
       state.dashboardLoadedAt = String(cached.savedAt || '');
+      state.dashboardRevision = text(cached.dataRevision);
+      state.rulesRevision = text(cached.rulesRevision);
+      state.dashboardTotalRows = Number(cached.totalRows) || state.dashboardItems.length;
+      state.dashboardSummary = cached.summary && typeof cached.summary === 'object'
+        ? cached.summary
+        : null;
+      state.effectiveSlaRules = cached.effectiveSlaRules && typeof cached.effectiveSlaRules === 'object'
+        ? cached.effectiveSlaRules
+        : {};
       state.dashboardCacheRestored = true;
       resetWorkflowPage();
       renderDashboard();
@@ -936,9 +1045,14 @@
       window.localStorage.setItem(
         key,
         JSON.stringify({
-          version: 10,
+          version: 11,
           moduleId: state.moduleId,
           savedAt: formatBangkokDateTime(new Date()),
+          dataRevision: state.dashboardRevision,
+          rulesRevision: state.rulesRevision,
+          totalRows: state.dashboardTotalRows,
+          summary: state.dashboardSummary,
+          effectiveSlaRules: state.effectiveSlaRules,
           items
         })
       );
@@ -1187,7 +1301,10 @@
           ? 'อัตโนมัติ ' + getWorkflowPageSize() + ' แถว/หน้า'
           : getWorkflowPageSize() + ' แถว/หน้า';
 
-        summary.textContent = 'แสดง ' + from + '–' + to + ' จาก ' + total + ' รายการ · ' + sizeText;
+        const serverTotal = Number(state.dashboardTotalRows) || total;
+        summary.textContent = 'แสดง ' + from + '–' + to + ' จากข้อมูลที่โหลด ' + total +
+          (serverTotal > total ? ' · ทั้งระบบ ' + serverTotal : '') +
+          ' รายการ · ' + sizeText;
       }
     }
 
@@ -2365,7 +2482,10 @@
 
   function countSummary(items) {
     const list = Array.isArray(items) ? items : [];
-    const slaSummary = {
+    const server = state.dashboardSummary && typeof state.dashboardSummary === 'object'
+      ? state.dashboardSummary
+      : null;
+    const localSla = {
       normal: 0,
       warning: 0,
       critical: 0
@@ -2374,28 +2494,40 @@
     list.forEach((item) => {
       const sla = calculateSlaState(item);
       if (!sla.enabled) return;
-      if (sla.level === 'CRITICAL') slaSummary.critical += 1;
-      else if (sla.level === 'WARNING') slaSummary.warning += 1;
-      else slaSummary.normal += 1;
+      if (sla.level === 'CRITICAL') localSla.critical += 1;
+      else if (sla.level === 'WARNING') localSla.warning += 1;
+      else localSla.normal += 1;
     });
 
-    state.slaSummary = slaSummary;
+    if (!(server && server.sla)) {
+      state.slaSummary = localSla;
+    }
 
     return {
-      total: list.length,
-      waitingReceiving: list.filter((item) => item.statusCode === 'DOCUMENT_SUBMITTED').length,
-      receivingCompleted: list.filter((item) => item.statusCode === 'RECEIVING_COMPLETED').length,
-      documentReturned: list.filter((item) => item.statusCode === 'DOCUMENT_RETURNED').length,
-      cancelled: list.filter((item) => item.cancelled || item.statusCode === 'CANCELLED').length
+      total: server ? Number(server.totalWorkflow) || 0 : list.length,
+      waitingReceiving: server
+        ? Number(server.waitingReceiving) || 0
+        : list.filter((item) => item.statusCode === 'DOCUMENT_SUBMITTED').length,
+      receivingCompleted: server
+        ? Number(server.receivingCompleted) || 0
+        : list.filter((item) => item.statusCode === 'RECEIVING_COMPLETED').length,
+      documentReturned: server
+        ? Number(server.documentReturned) || 0
+        : list.filter((item) => item.statusCode === 'DOCUMENT_RETURNED').length,
+      cancelled: server
+        ? Number(server.cancelled) || 0
+        : list.filter((item) => item.cancelled || item.statusCode === 'CANCELLED').length
     };
   }
 
   function calculateSlaState(item) {
     const statusCode = String(item && item.statusCode || '').trim().toUpperCase();
-    const rules = CONFIG.INBOUND_SLA_RULES || {};
+    const rules = state.effectiveSlaRules && typeof state.effectiveSlaRules === 'object'
+      ? state.effectiveSlaRules
+      : {};
     const rule = rules[statusCode];
 
-    if (!rule || item.cancelled) {
+    if (!rule || rule.configured !== true || rule.enabled !== true || item.cancelled) {
       return {
         enabled: false,
         level: 'NONE',
@@ -2407,9 +2539,11 @@
     }
 
     const baseTime =
-      statusCode === 'DOCUMENT_SUBMITTED'
-        ? item.documentSubmittedAt || item.updatedAt || item.gateInAt
-        : statusCode === 'RECEIVING_COMPLETED'
+      statusCode === 'GATE_IN_ONLY'
+        ? item.gateInAt || item.updatedAt
+        : statusCode === 'DOCUMENT_SUBMITTED'
+          ? item.documentSubmittedAt || item.updatedAt || item.gateInAt
+          : statusCode === 'RECEIVING_COMPLETED'
           ? item.receivingCompletedAt || item.updatedAt
           : statusCode === 'DOCUMENT_RETURNED'
             ? item.documentReturnedAt || item.updatedAt
@@ -2437,7 +2571,7 @@
       Number(rule.warningMinutes) || 0;
 
     const criticalMinutes =
-      Number(rule.criticalMinutes) || 0;
+      Number(rule.redMinutes ?? rule.criticalMinutes) || 0;
 
     let level = 'NORMAL';
 
@@ -2623,6 +2757,7 @@
 
   function destroy() {
     window.clearInterval(state.clockTimer);
+    window.clearInterval(state.dashboardPollTimer);
     window.clearTimeout(state.inputTimer);
     window.clearTimeout(state.queueRefreshTimer);
 
