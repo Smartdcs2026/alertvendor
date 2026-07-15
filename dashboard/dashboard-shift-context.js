@@ -1,6 +1,6 @@
 /**
  * dashboard-shift-context.js
- * PHASE 4D HOTFIX 3 — Daily Fullscreen Executive Balance
+ * PHASE 4D HOTFIX 7 — Expanded Daily History
  */
 (function (window, document) {
   'use strict';
@@ -1956,7 +1956,7 @@
               </small>
 
               <h3>
-                รายละเอียดรายวัน
+                รายละเอียดรายวันย้อนหลัง
               </h3>
             </div>
 
@@ -1968,87 +1968,11 @@
 
           <div class="daily-history-table-wrap">
             ${dailyHistoryTable(
-              history.slice(
-                0,
-                14
-              )
+              history
             )}
           </div>
         </article>
 
-        <article class="daily-insight-panel">
-          <header>
-            <small>
-              สรุปสำหรับผู้บริหาร
-            </small>
-
-            <h3>
-              ประเด็นสำคัญวันนี้
-            </h3>
-          </header>
-
-          ${dailyInsightItem(
-            'กะภาระงานสูงสุด',
-            executive
-              .highestWorkloadShiftCode ||
-            '-',
-            'ปริมาณรถเข้าหรือค่าประมาณสูงสุด'
-          )}
-
-          ${dailyInsightItem(
-            'กะลดคงค้างมากสุด',
-            executive
-              .backlogReductionShiftCode ||
-            '-',
-            'เปรียบเทียบปลายกะกับต้นกะ'
-          )}
-
-          ${dailyInsightItem(
-            'กะเวลารอสูงสุด',
-            executive
-              .highWaitShiftCode ||
-            '-',
-            'พิจารณาจากเวลาส่วนใหญ่'
-          )}
-
-          ${dailyInsightItem(
-            'ฐานอ้างอิงใกล้เคียง',
-            context.similarSampleCount
-              ? `${formatNumber(
-                  context
-                    .similarSampleCount
-                )} วัน`
-              : daily.status === 'LIVE'
-                ? 'รอปิดวัน'
-                : 'ข้อมูลยังน้อย',
-            'ไม่ใช้เป้าหมายเปอร์เซ็นต์ตายตัว'
-          )}
-
-          ${dailyInsightItem(
-            'เกินเกณฑ์',
-            `${metricOverCount(
-              metric
-            )} จาก ${metricEvaluated(
-              metric
-            )}`,
-            `${formatPercent(
-              metricOverPercent(
-                metric
-              )
-            )} ของฐานคำนวณ`
-          )}
-
-          ${dailyInsightItem(
-            'สถานะข้อมูล',
-            daily.statusLabel ||
-            daily.status ||
-            '-',
-            `ความครบถ้วน ${formatPercent(
-              metric
-                .dataCompletenessPercent
-            )}`
-          )}
-        </article>
       </section>
 
       <footer class="shift-dashboard-footer">
