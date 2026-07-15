@@ -3511,3 +3511,174 @@ body.dashboard-one-page-fullscreen
   }
 }
 
+/* =========================================================
+ * PHASE 4D HOTFIX 6
+ * DAILY EXECUTIVE INSIGHT VALUE VISIBILITY
+ *
+ * แก้ค่าหลักในแผง "ประเด็นสำคัญวันนี้" ถูก Grid/Overflow
+ * บีบจนหาย เหลือเพียงหัวข้อและคำอธิบาย
+ * ========================================================= */
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel {
+  isolation: isolate !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div {
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+
+  display: grid !important;
+  grid-template-rows:
+    auto
+    minmax(24px, auto)
+    auto !important;
+
+  align-content: center !important;
+  align-items: center !important;
+  gap: 5px !important;
+
+  overflow: visible !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div > span {
+  display: block !important;
+  position: relative !important;
+  z-index: 1 !important;
+
+  min-width: 0 !important;
+  max-width: 100% !important;
+
+  color: #5d7480 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  font-size: 10px !important;
+  font-weight: 850 !important;
+  line-height: 1.1 !important;
+
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div > strong {
+  display: block !important;
+  position: relative !important;
+  z-index: 3 !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  min-height: 24px !important;
+
+  align-self: center !important;
+  justify-self: stretch !important;
+
+  color: #073b57 !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  font-size: clamp(17px, 1.35vw, 23px) !important;
+  font-weight: 950 !important;
+  line-height: 1.15 !important;
+  text-align: left !important;
+
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div > small {
+  display: -webkit-box !important;
+  position: relative !important;
+  z-index: 1 !important;
+
+  min-width: 0 !important;
+  max-width: 100% !important;
+
+  color: #748993 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+
+  overflow: hidden !important;
+  white-space: normal !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+/* เพิ่มความต่างของการ์ดสรุปแต่ละประเภท */
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div:nth-of-type(1),
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div:nth-of-type(2) {
+  border-left: 3px solid #0f9d7a !important;
+  background: #f5fbf9 !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div:nth-of-type(3),
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div:nth-of-type(4) {
+  border-left: 3px solid #2369d8 !important;
+  background: #f6f9ff !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div:nth-of-type(5) {
+  border-left: 3px solid #dc3b3b !important;
+  background: #fff7f7 !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel > div:nth-of-type(6) {
+  border-left: 3px solid #7c3aed !important;
+  background: #faf8ff !important;
+}
+
+/* Fullscreen: ค่าต้องแสดง แม้ CSS readability เดิมมี !important */
+body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+.daily-insight-panel > div > strong {
+  display: block !important;
+  min-height: 25px !important;
+  color: #073b57 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: clamp(16px, 1.8vh, 21px) !important;
+  line-height: 1.15 !important;
+  text-align: left !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+@media (min-width: 1000px) and (max-height: 850px) {
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div {
+    gap: 3px !important;
+    padding: 5px 6px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div > strong {
+    min-height: 20px !important;
+    font-size: 15px !important;
+  }
+
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-insight-panel > div > small {
+    font-size: 7px !important;
+    -webkit-line-clamp: 1 !important;
+  }
+}
+
