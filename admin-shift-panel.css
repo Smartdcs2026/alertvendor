@@ -1049,3 +1049,27 @@
   }
 }
 
+/* PHASE 4E ROUND 03 — Alert Engine */
+.admin-alert-engine { margin: 14px 16px 0; padding: 14px; border: 1px solid #cee0e8; border-left: 4px solid #0b809a; border-radius: 13px; background: #f7fbfc; }
+.admin-alert-engine > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.admin-alert-engine h3 { margin:2px 0 3px; color:#0c4055; }
+.admin-alert-engine p { margin:0; color:#607985; font-size:.78rem; }
+.admin-alert-engine__actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+.admin-alert-engine__metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin-top:12px; }
+.admin-alert-engine__metrics > div { min-width:0; display:grid; gap:4px; padding:9px 10px; border:1px solid #d8e6ec; border-radius:10px; background:#fff; }
+.admin-alert-engine__metrics span { color:#69818d; font-size:.68rem; font-weight:850; }
+.admin-alert-engine__metrics strong { overflow:hidden; color:#123f52; font-size:.88rem; font-weight:950; text-overflow:ellipsis; white-space:nowrap; }
+#adminAlertEngineStatus[data-status="READY"] { color:#08745c; }
+#adminAlertEngineStatus[data-status="DISABLED"] { color:#9b6508; }
+#adminAlertEngineStatus[data-status="ERROR"] { color:#c52e2e; }
+.admin-alert-engine__notice { margin-top:9px; padding:7px 9px; border-radius:8px; background:#eaf5f8; color:#285467; font-size:.72rem; font-weight:800; }
+.admin-alert-delivery-list { max-height:210px; margin-top:9px; overflow:auto; border:1px solid #d9e5eb; border-radius:10px; background:#fff; }
+.admin-alert-delivery-item { display:grid; grid-template-columns:80px minmax(160px,1.2fr) minmax(220px,2fr) 130px; gap:8px; align-items:center; padding:8px 10px; border-bottom:1px solid #edf2f5; font-size:.72rem; }
+.admin-alert-delivery-item:last-child { border-bottom:0; }
+.admin-alert-delivery-item strong { color:#133f52; }
+.admin-alert-delivery-item[data-severity="OVERDUE"] { border-left:3px solid #dc3333; }
+.admin-alert-delivery-item[data-severity="WARNING"] { border-left:3px solid #e49408; }
+.admin-alert-delivery-item small { color:#6c838e; }
+@media(max-width:1100px){ .admin-alert-engine__metrics{grid-template-columns:repeat(3,minmax(0,1fr));}.admin-alert-delivery-item{grid-template-columns:70px 1fr 1.4fr;} .admin-alert-delivery-item time{display:none;} }
+@media(max-width:700px){ .admin-alert-engine{margin-inline:10px;} .admin-alert-engine>header{display:grid;} .admin-alert-engine__actions,.admin-alert-engine__actions>button{width:100%;} .admin-alert-engine__metrics{grid-template-columns:repeat(2,minmax(0,1fr));} .admin-alert-delivery-item{grid-template-columns:1fr;} }
+
