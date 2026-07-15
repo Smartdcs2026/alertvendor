@@ -1,2742 +1,1079 @@
 /**
- * admin-shift-panel.js
- * ROUND 58 — Integrated Shift Management in admin.html
+ * admin-shift-panel.css
+ * ROUND 58 — Shift Management inside admin.html
  */
-(function (window, document) {
-  'use strict';
 
-  const state = {
-    initialized:
-      false,
+.admin-shift-heading {
+  align-items: flex-end;
+}
 
-    initializing:
-      false,
+.admin-shift-heading__actions,
+.admin-shift-stat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
-    moduleId:
-      '',
+.admin-shift-heading__actions a {
+  text-decoration: none;
+}
 
-    modules:
-      [],
+.admin-shift-message {
+  border: 1px solid #cbdbe2;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  color: #35566a;
+  background: #f5f9fa;
+  font-size: .88rem;
+  font-weight: 800;
+}
 
-    config:
-      null,
+.admin-shift-message[hidden] {
+  display: none !important;
+}
 
-    shifts:
-      [],
+.admin-shift-message[data-status="ERROR"] {
+  border-color: #efb6b6;
+  color: #a22121;
+  background: #fff3f3;
+}
 
-    statistics:
-      [],
+.admin-shift-message[data-status="WARNING"] {
+  border-color: #efd49f;
+  color: #99600a;
+  background: #fff9e9;
+}
 
-    requestToken:
-      0
-  };
+.admin-shift-config-card,
+.admin-shift-statistics-card {
+  overflow: hidden;
+  margin-bottom: 16px;
+}
 
+.admin-shift-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1.7fr)
+    minmax(150px, .8fr)
+    minmax(150px, .8fr)
+    auto;
+  align-items: end;
+  gap: 10px;
+  border-bottom: 1px solid #dfe7eb;
+  padding: 16px;
+  background: #f7fafb;
+}
 
-  document.addEventListener(
-    'DOMContentLoaded',
-    initialize
-  );
+.admin-shift-module-field select {
+  min-height: 44px;
+  font-weight: 850;
+}
 
+.admin-shift-current-status {
+  min-height: 66px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  border: 1px solid #d8e3e8;
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: #ffffff;
+}
 
-  function initialize() {
-    bindStaticEvents();
-    observeShiftPanelVisibility();
+.admin-shift-current-status span {
+  color: #73858f;
+  font-size: .72rem;
+  font-weight: 750;
+}
 
-    const requestedTab =
-      new URLSearchParams(
-        window.location.search
-      ).get(
-        'tab'
-      );
+.admin-shift-current-status strong {
+  color: #173e54;
+  font-size: .95rem;
+  overflow-wrap: anywhere;
+}
 
-    if (
-      requestedTab ===
-        'shifts' ||
-      window.location.hash ===
-        '#shifts'
-    ) {
-      window.setTimeout(
-        function () {
-          document
-            .querySelector(
-              '[data-admin-tab="shifts"]'
-            )
-            ?.click();
-        },
-        350
-      );
-    }
+#adminShiftStatusBadge {
+  width: max-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #5d707b;
+  background: #eaf0f2;
+  font-size: .78rem;
+}
+
+#adminShiftStatusBadge[data-status="ENABLED"] {
+  color: #08734f;
+  background: #dcf6e9;
+}
+
+#adminShiftStatusBadge[data-status="DISABLED"] {
+  color: #9b2828;
+  background: #ffe9e9;
+}
+
+.admin-shift-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 12px;
+}
+
+.admin-shift-config-header h3 {
+  margin: 4px 0;
+}
+
+.admin-shift-config-header p {
+  margin: 0;
+  color: #70828d;
+}
+
+.admin-shift-enable {
+  min-width: 220px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #cbdbe2;
+  border-radius: 999px;
+  padding: 9px 14px;
+  color: #264b5e;
+  background: #f1f7f8;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.admin-shift-enable input {
+  width: 20px;
+  height: 20px;
+  accent-color: #087d66;
+}
+
+.admin-shift-general-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 8px 20px 20px;
+}
+
+.admin-shift-general-grid .admin-field {
+  min-width: 0;
+}
+
+.admin-shift-general-grid input {
+  width: 100%;
+}
+
+.admin-shift-general-grid small {
+  color: #7b8c95;
+  font-size: .7rem;
+  line-height: 1.45;
+}
+
+.admin-shift-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid #dde6ea;
+  border-bottom: 1px solid #dde6ea;
+  padding: 12px 20px;
+  background: #f7f9fa;
+}
+
+.admin-shift-list-heading strong,
+.admin-shift-list-heading span {
+  display: block;
+}
+
+.admin-shift-list-heading strong {
+  color: #183f54;
+  font-size: 1rem;
+}
+
+.admin-shift-list-heading span {
+  margin-top: 3px;
+  color: #748690;
+  font-size: .76rem;
+}
+
+.admin-shift-rows {
+  display: grid;
+  padding: 7px 20px;
+}
+
+.admin-shift-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    90px minmax(150px, 1.4fr)
+    132px 132px 100px 72px;
+  align-items: end;
+  gap: 9px;
+  border-bottom: 1px solid #e2e9ec;
+  padding: 10px 0;
+}
+
+.admin-shift-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-shift-row .admin-field {
+  min-width: 0;
+}
+
+.admin-shift-row .admin-field input {
+  width: 100%;
+  min-height: 41px;
+}
+
+.admin-shift-active-toggle {
+  min-height: 41px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #d3dfe4;
+  border-radius: 9px;
+  padding: 8px;
+  color: #345566;
+  background: #f5f8f9;
+  cursor: pointer;
+  font-size: .8rem;
+  font-weight: 850;
+}
+
+.admin-shift-active-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #087d66;
+}
+
+.admin-shift-remove {
+  min-height: 41px;
+  border: 1px solid #e9b7b7;
+  border-radius: 9px;
+  color: #a72525;
+  background: #fff5f5;
+  cursor: pointer;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 850;
+}
+
+.admin-shift-remove:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.admin-shift-validation {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border-top: 1px solid #dde6ea;
+  padding: 12px 20px;
+  background: #f7fafb;
+}
+
+.admin-shift-validation > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  border: 1px solid #dbe5e9;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.admin-shift-validation span {
+  color: #748690;
+  font-size: .7rem;
+}
+
+.admin-shift-validation strong {
+  color: #26495b;
+  font-size: .84rem;
+  overflow-wrap: anywhere;
+}
+
+#adminShiftValidationStatus[data-status="VALID"] {
+  color: #08734f;
+}
+
+#adminShiftValidationStatus[data-status="WARNING"] {
+  color: #b16a05;
+}
+
+#adminShiftValidationStatus[data-status="ERROR"] {
+  color: #c52626;
+}
+
+.admin-shift-save-actions {
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #dfe7eb;
+  padding: 14px 20px;
+}
+
+.admin-shift-save-actions > span {
+  color: #6e818c;
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.admin-shift-statistics-card .admin-card__header p {
+  margin: 4px 0 0;
+  color: #71838d;
+  font-size: .78rem;
+}
+
+.admin-shift-summary-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 14px 16px;
+}
+
+.admin-shift-summary-grid > div {
+  min-width: 0;
+  min-height: 78px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 1px solid #d7e2e7;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafb;
+  text-align: center;
+}
+
+.admin-shift-summary-grid span {
+  color: #72848e;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.admin-shift-summary-grid strong {
+  color: #173f55;
+  font-size: 1.15rem;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.admin-shift-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid #e0e8eb;
+}
+
+.admin-shift-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.admin-shift-table th,
+.admin-shift-table td {
+  border-bottom: 1px solid #e3eaed;
+  padding: 10px 9px;
+  color: #3e5b6b;
+  font-size: .76rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-shift-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #5d7380;
+  background: #f4f7f8;
+  font-weight: 900;
+}
+
+.admin-shift-table td:first-child {
+  font-weight: 850;
+}
+
+.admin-shift-table td:nth-child(2) strong,
+.admin-shift-table td:nth-child(2) small {
+  display: block;
+}
+
+.admin-shift-table td:nth-child(2) small {
+  margin-top: 2px;
+  color: #7c8d96;
+  font-size: .66rem;
+}
+
+.admin-shift-table tbody tr:hover {
+  background: #f8fbfc;
+}
+
+.admin-shift-table-status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #5b707c;
+  background: #eaf0f2;
+  font-size: .68rem;
+  font-weight: 900;
+}
+
+.admin-shift-table-status[data-status="FINAL"] {
+  color: #08704e;
+  background: #def5e9;
+}
+
+.admin-shift-table-status[data-status="PROVISIONAL"] {
+  color: #a66507;
+  background: #fff0ce;
+}
+
+.admin-shift-danger-text {
+  color: #c82828;
+}
+
+.admin-shift-loading {
+  min-height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #6f818b;
+  font-size: .86rem;
+  font-weight: 800;
+}
+
+.admin-shift-loading span {
+  width: 25px;
+  height: 25px;
+  border: 3px solid #d8e5e9;
+  border-top-color: #0d7189;
+  border-radius: 50%;
+  animation:
+    adminShiftSpin
+    .8s linear infinite;
+}
+
+.admin-shift-result {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.admin-shift-result span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #dce5e9;
+  border-radius: 8px;
+  padding: 9px;
+  color: #5c717e;
+  background: #f7f9fa;
+}
+
+.admin-shift-result strong {
+  color: #173f55;
+  font-size: 1rem;
+}
+
+@keyframes adminShiftSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1050px) {
+  .admin-shift-toolbar {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
-
-  function bindStaticEvents() {
-    document
-      .querySelector(
-        '[data-admin-tab="shifts"]'
-      )
-      ?.addEventListener(
-        'click',
-        function () {
-          updateLocation();
-
-          ensureInitialized();
-        }
-      );
-
-    byId(
-      'adminShiftModuleSelect'
-    )?.addEventListener(
-      'change',
-      async function (event) {
-        state.moduleId =
-          String(
-            event.target.value ||
-            ''
-          ).trim();
-
-        await loadModuleData();
-      }
-    );
-
-    byId(
-      'adminShiftReloadButton'
-    )?.addEventListener(
-      'click',
-      loadModuleData
-    );
-
-    byId(
-      'adminShiftAddButton'
-    )?.addEventListener(
-      'click',
-      addShift
-    );
-
-    byId(
-      'adminShiftSaveButton'
-    )?.addEventListener(
-      'click',
-      saveConfiguration
-    );
-
-    byId(
-      'adminShiftSetupButton'
-    )?.addEventListener(
-      'click',
-      setupShiftSystem
-    );
-
-    byId(
-      'adminShiftSnapshotButton'
-    )?.addEventListener(
-      'click',
-      runSnapshot
-    );
-
-    byId(
-      'adminShiftStatsRefreshButton'
-    )?.addEventListener(
-      'click',
-      loadStatistics
-    );
-
-    byId(
-      'adminShiftRows'
-    )?.addEventListener(
-      'input',
-      handleShiftRowsChange
-    );
-
-    byId(
-      'adminShiftRows'
-    )?.addEventListener(
-      'change',
-      handleShiftRowsChange
-    );
-
-    byId(
-      'adminShiftRows'
-    )?.addEventListener(
-      'click',
-      handleShiftRowsClick
-    );
-
-    byId(
-      'adminShiftMessageRetry'
-    )?.addEventListener(
-      'click',
-      function () {
-        state.initialized =
-          false;
-
-        state.initializing =
-          false;
-
-        ensureInitialized();
-      }
-    );
+  .admin-shift-row {
+    grid-template-columns:
+      80px minmax(150px, 1fr)
+      120px 120px;
   }
 
-
-  async function ensureInitialized() {
-    if (
-      state.initialized ||
-      state.initializing
-    ) {
-      return;
-    }
-
-    state.initializing =
-      true;
-
-    showPanelMessage(
-      'กำลังเตรียมข้อมูล Module จากหน้า Admin',
-      'LOADING',
-      false
-    );
-
-    try {
-      await waitForAdminReady();
-
-      assertApi();
-
-      await loadModules();
-
-      state.initialized =
-        true;
-
-      hidePanelMessage();
-
-    } catch (error) {
-      showPanelMessage(
-        errorMessage(
-          error
-        ),
-        'ERROR',
-        true
-      );
-
-      renderModuleLoadFailure(
-        error
-      );
-
-      await showError(
-        error,
-        'โหลดระบบกะไม่สำเร็จ'
-      );
-
-    } finally {
-      state.initializing =
-        false;
-
-      setButtonLoading(
-        byId(
-          'adminShiftReloadButton'
-        ),
-        false
-      );
-    }
+  .admin-shift-active-toggle,
+  .admin-shift-remove {
+    min-height: 38px;
   }
 
-  function assertApi() {
-    const API =
-      window.VehicleAPI;
-
-    if (!API) {
-      throw new Error(
-        'ไม่พบ VehicleAPI กรุณาตรวจสอบไฟล์ api.js'
-      );
-    }
-
-    const shiftMethods = [
-      'getAdminShiftConfig',
-      'saveAdminShiftConfig',
-      'setupAdminShiftSystem',
-      'runAdminShiftSnapshots',
-      'getAdminShiftStatistics'
-    ];
-
-    const missing =
-      shiftMethods.filter(
-        function (method) {
-          return (
-            typeof API[method] !==
-              'function'
-          );
-        }
-      );
-
-    if (missing.length) {
-      throw new Error(
-        'api.js ยังขาดฟังก์ชันระบบกะ: ' +
-        missing.join(', ')
-      );
-    }
-
-    if (
-      typeof API.getAdminDashboard !==
-        'function' &&
-      typeof API.getModules !==
-        'function'
-    ) {
-      throw new Error(
-        'ไม่พบฟังก์ชันสำหรับอ่านรายการ Module'
-      );
-    }
+  .admin-shift-validation {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
-  async function loadModules() {
-    const reloadButton =
-      byId(
-        'adminShiftReloadButton'
-      );
+  .admin-shift-validation > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
 
-    setButtonLoading(
-      reloadButton,
-      true,
-      'กำลังโหลด'
-    );
-
-    const select =
-      byId(
-        'adminShiftModuleSelect'
-      );
-
-    try {
-      if (select) {
-        select.innerHTML = `
-          <option value="">
-            กำลังอ่าน Module จากหน้า Admin...
-          </option>
-        `;
-      }
-
-      let modules =
-        readModulesFromAdminPage();
-
-      if (!modules.length) {
-        modules =
-          await loadModulesFromAdminApi();
-      }
-
-      if (!modules.length) {
-        modules =
-          await loadModulesFromPublicApi();
-      }
-
-      state.modules =
-        normalizeModules(
-          modules
-        );
-
-      if (!select) {
-        return;
-      }
-
-      if (!state.modules.length) {
-        select.innerHTML = `
-          <option value="">
-            ไม่พบ Module
-          </option>
-        `;
-
-        throw new Error(
-          'หน้า Admin ไม่พบรายการ Module ที่สามารถตั้งค่ากะได้'
-        );
-      }
-
-      select.innerHTML =
-        state.modules
-          .map(
-            function (module) {
-              return `
-                <option
-                  value="${escapeHtml(
-                    module.moduleId
-                  )}"
-                >
-                  ${escapeHtml(
-                    module.name
-                  )}
-                  (${escapeHtml(
-                    module.moduleId
-                  )})
-                </option>
-              `;
-            }
-          )
-          .join('');
-
-      state.moduleId =
-        state.moduleId &&
-        state.modules.some(
-          function (module) {
-            return (
-              module.moduleId ===
-              state.moduleId
-            );
-          }
-        )
-          ? state.moduleId
-          : state.modules[0]
-              .moduleId;
-
-      select.value =
-        state.moduleId;
-
-      showPanelMessage(
-        'พบ ' +
-        state.modules.length +
-        ' Module กำลังโหลดการตั้งค่ากะ',
-        'LOADING',
-        false
-      );
-
-      await withTimeout(
-        loadModuleData(),
-        30000,
-        'โหลดการตั้งค่ากะใช้เวลานานเกินกำหนด'
-      );
-
-    } finally {
-      setButtonLoading(
-        reloadButton,
-        false
-      );
-    }
+@media (max-width: 760px) {
+  .admin-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
   }
 
-
-  function readModulesFromAdminPage() {
-    const cards =
-      Array.from(
-        document.querySelectorAll(
-          '#adminModuleList .admin-module-card[data-module-id]'
-        )
-      );
-
-    return cards
-      .map(
-        function (card) {
-          const moduleId =
-            String(
-              card.dataset
-                .moduleId ||
-              ''
-            ).trim();
-
-          const name =
-            String(
-              card.querySelector(
-                'h3'
-              )?.textContent ||
-              moduleId
-            ).trim();
-
-          return {
-            moduleId:
-              moduleId,
-
-            name:
-              name
-          };
-        }
-      )
-      .filter(
-        function (module) {
-          return module.moduleId;
-        }
-      );
+  .admin-tab {
+    flex: 0 0 auto;
   }
 
-
-  async function loadModulesFromAdminApi() {
-    const API =
-      window.VehicleAPI;
-
-    if (
-      typeof API.getAdminDashboard !==
-      'function'
-    ) {
-      return [];
-    }
-
-    try {
-      const dashboard =
-        await withTimeout(
-          API.getAdminDashboard({
-            auditLimit:
-              1
-          }),
-          20000,
-          'Admin Dashboard ไม่ตอบกลับ'
-        );
-
-      return Array.isArray(
-        dashboard &&
-        dashboard.modules
-      )
-        ? dashboard.modules
-        : [];
-
-    } catch (error) {
-      console.warn(
-        '[Shift Admin] getAdminDashboard failed',
-        error
-      );
-
-      return [];
-    }
+  .admin-shift-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-
-  async function loadModulesFromPublicApi() {
-    const API =
-      window.VehicleAPI;
-
-    if (
-      typeof API.getModules !==
-      'function'
-    ) {
-      return [];
-    }
-
-    try {
-      const data =
-        await withTimeout(
-          API.getModules(),
-          15000,
-          'รายการ Module ไม่ตอบกลับ'
-        );
-
-      return Array.isArray(data)
-        ? data
-        : Array.isArray(
-            data &&
-            data.modules
-          )
-          ? data.modules
-          : [];
-
-    } catch (error) {
-      console.warn(
-        '[Shift Admin] getModules failed',
-        error
-      );
-
-      return [];
-    }
+  .admin-shift-heading__actions,
+  .admin-shift-stat-actions {
+    width: 100%;
+    justify-content: stretch;
   }
 
-
-  function normalizeModules(
-    modules
-  ) {
-    const map =
-      new Map();
-
-    (
-      Array.isArray(modules)
-        ? modules
-        : []
-    ).forEach(
-      function (module) {
-        if (!module) {
-          return;
-        }
-
-        const moduleId =
-          String(
-            module.moduleId ||
-            module.id ||
-            ''
-          ).trim();
-
-        if (!moduleId) {
-          return;
-        }
-
-        if (
-          !map.has(
-            moduleId
-          )
-        ) {
-          map.set(
-            moduleId,
-            {
-              moduleId:
-                moduleId,
-
-              name:
-                String(
-                  module.name ||
-                  module.moduleName ||
-                  moduleId
-                ).trim()
-            }
-          );
-        }
-      }
-    );
-
-    return Array.from(
-      map.values()
-    );
+  .admin-shift-heading__actions > *,
+  .admin-shift-stat-actions > * {
+    flex: 1 1 150px;
   }
 
-  async function loadModuleData() {
-    if (!state.moduleId) {
-      return;
-    }
-
-    const token =
-      ++state.requestToken;
-
-    setConfigLoading(
-      true
-    );
-
-    try {
-      const results =
-        await Promise.all([
-          withTimeout(
-            window.VehicleAPI
-              .getAdminShiftConfig(
-                state.moduleId
-              ),
-            25000,
-            'โหลดการตั้งค่ากะไม่สำเร็จภายในเวลาที่กำหนด'
-          ),
-
-          withTimeout(
-            window.VehicleAPI
-              .getAdminShiftStatistics({
-                moduleId:
-                  state.moduleId,
-
-                limit:
-                  50
-              }),
-            25000,
-            'โหลดสถิติกะไม่สำเร็จภายในเวลาที่กำหนด'
-          )
-        ]);
-
-      if (
-        token !==
-        state.requestToken
-      ) {
-        return;
-      }
-
-      state.config =
-        results[0] ||
-        {};
-
-      state.shifts =
-        Array.isArray(
-          state.config.shifts
-        )
-          ? state.config.shifts.map(
-              function (shift) {
-                return {
-                  code:
-                    String(
-                      shift.code ||
-                      ''
-                    ),
-
-                  name:
-                    String(
-                      shift.name ||
-                      ''
-                    ),
-
-                  start:
-                    String(
-                      shift.start ||
-                      '00:00'
-                    ),
-
-                  end:
-                    String(
-                      shift.end ||
-                      '00:00'
-                    ),
-
-                  active:
-                    shift.active !==
-                      false
-                };
-              }
-            )
-          : defaultShifts();
-
-      state.statistics =
-        Array.isArray(
-          results[1] &&
-          results[1]
-            .shiftSummaries
-        )
-          ? results[1]
-              .shiftSummaries
-          : [];
-
-      renderConfiguration();
-      renderStatistics();
-
-      hidePanelMessage();
-
-    } catch (error) {
-      showPanelMessage(
-        errorMessage(
-          error
-        ),
-        'ERROR'
-      );
-
-      await showError(
-        error,
-        'โหลดข้อมูลกะไม่สำเร็จ'
-      );
-
-    } finally {
-      if (
-        token ===
-        state.requestToken
-      ) {
-        setConfigLoading(
-          false
-        );
-      }
-    }
+  .admin-shift-toolbar,
+  .admin-shift-general-grid {
+    grid-template-columns: 1fr;
   }
 
-
-  function renderConfiguration() {
-    const config =
-      state.config ||
-      {};
-
-    const enabled =
-      config.enabled ===
-      true;
-
-    setChecked(
-      'adminShiftEnabled',
-      enabled
-    );
-
-    setValue(
-      'adminShiftTimezone',
-      config.timezone ||
-      'Asia/Bangkok'
-    );
-
-    setValue(
-      'adminShiftBusinessStart',
-      config.businessDayStart ||
-      '06:00'
-    );
-
-    setValue(
-      'adminShiftEffectiveDate',
-      dateToIso(
-        config.effectiveFrom
-      ) ||
-      todayIso()
-    );
-
-    setText(
-      'adminShiftVersion',
-      config.version ||
-      'DEFAULT'
-    );
-
-    setText(
-      'adminShiftUpdatedAt',
-      [
-        config.updatedAt ||
-          '-',
-
-        config.updatedBy
-          ? 'โดย ' +
-            config.updatedBy
-          : ''
-      ]
-        .filter(Boolean)
-        .join(' ')
-    );
-
-    const status =
-      byId(
-        'adminShiftStatusBadge'
-      );
-
-    if (status) {
-      status.textContent =
-        enabled
-          ? 'เปิดใช้งาน'
-          : 'ปิดใช้งาน';
-
-      status.dataset.status =
-        enabled
-          ? 'ENABLED'
-          : 'DISABLED';
-    }
-
-    renderShiftRows();
+  .admin-shift-config-header {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-
-  function renderShiftRows() {
-    const container =
-      byId(
-        'adminShiftRows'
-      );
-
-    if (!container) {
-      return;
-    }
-
-    if (!state.shifts.length) {
-      state.shifts =
-        defaultShifts();
-    }
-
-    container.innerHTML =
-      state.shifts
-        .map(
-          function (
-            shift,
-            index
-          ) {
-            return `
-              <div
-                class="admin-shift-row"
-                data-shift-index="${index}"
-              >
-                <label class="admin-field">
-                  <span>
-                    รหัสกะ
-                  </span>
-
-                  <input
-                    type="text"
-                    maxlength="8"
-                    data-shift-field="code"
-                    value="${escapeHtml(
-                      shift.code
-                    )}"
-                  >
-                </label>
-
-                <label class="admin-field">
-                  <span>
-                    ชื่อกะ
-                  </span>
-
-                  <input
-                    type="text"
-                    maxlength="60"
-                    data-shift-field="name"
-                    value="${escapeHtml(
-                      shift.name
-                    )}"
-                  >
-                </label>
-
-                <label class="admin-field">
-                  <span>
-                    เวลาเริ่ม
-                  </span>
-
-                  <input
-                    type="time"
-                    data-shift-field="start"
-                    value="${escapeHtml(
-                      shift.start
-                    )}"
-                  >
-                </label>
-
-                <label class="admin-field">
-                  <span>
-                    เวลาสิ้นสุด
-                  </span>
-
-                  <input
-                    type="time"
-                    data-shift-field="end"
-                    value="${escapeHtml(
-                      shift.end
-                    )}"
-                  >
-                </label>
-
-                <label class="admin-shift-active-toggle">
-                  <input
-                    type="checkbox"
-                    data-shift-field="active"
-                    ${
-                      shift.active
-                        ? 'checked'
-                        : ''
-                    }
-                  >
-
-                  <span>
-                    ใช้งาน
-                  </span>
-                </label>
-
-                <button
-                  class="admin-shift-remove"
-                  type="button"
-                  data-remove-shift="${index}"
-                  ${
-                    state.shifts.length <=
-                    2
-                      ? 'disabled'
-                      : ''
-                  }
-                >
-                  ลบ
-                </button>
-              </div>
-            `;
-          }
-        )
-        .join('');
-
-    updateValidation();
+  .admin-shift-enable {
+    min-width: 0;
+    width: 100%;
   }
 
-
-  function handleShiftRowsChange(
-    event
-  ) {
-    const input =
-      event.target.closest(
-        '[data-shift-field]'
-      );
-
-    if (!input) {
-      return;
-    }
-
-    const row =
-      input.closest(
-        '[data-shift-index]'
-      );
-
-    const index =
-      Number(
-        row &&
-        row.dataset
-          .shiftIndex
-      );
-
-    const shift =
-      state.shifts[index];
-
-    if (!shift) {
-      return;
-    }
-
-    const field =
-      input.dataset
-        .shiftField;
-
-    shift[field] =
-      input.type ===
-        'checkbox'
-        ? input.checked
-        : input.value;
-
-    updateValidation();
+  .admin-shift-row {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    border: 1px solid #dce5e9;
+    border-radius: 10px;
+    margin: 5px 0;
+    padding: 10px;
+    background: #ffffff;
   }
 
-
-  function handleShiftRowsClick(
-    event
-  ) {
-    const button =
-      event.target.closest(
-        '[data-remove-shift]'
-      );
-
-    if (!button) {
-      return;
-    }
-
-    const index =
-      Number(
-        button.dataset
-          .removeShift
-      );
-
-    if (
-      state.shifts.length <=
-      2
-    ) {
-      return;
-    }
-
-    state.shifts.splice(
-      index,
-      1
-    );
-
-    renderShiftRows();
+  .admin-shift-active-toggle,
+  .admin-shift-remove {
+    min-height: 41px;
   }
 
-
-  function addShift() {
-    if (
-      state.shifts.length >=
-      4
-    ) {
-      showError(
-        new Error(
-          'กำหนดได้ไม่เกิน 4 กะ'
-        ),
-        'ไม่สามารถเพิ่มกะได้'
-      );
-
-      return;
-    }
-
-    const usedCodes =
-      new Set(
-        state.shifts.map(
-          function (shift) {
-            return String(
-              shift.code ||
-              ''
-            ).toUpperCase();
-          }
-        )
-      );
-
-    const code =
-      [
-        'A',
-        'B',
-        'C',
-        'D'
-      ].find(
-        function (item) {
-          return !usedCodes.has(
-            item
-          );
-        }
-      ) ||
-      'S' +
-      (
-        state.shifts.length +
-        1
-      );
-
-    state.shifts.push({
-      code:
-        code,
-
-      name:
-        'กะ ' +
-        code,
-
-      start:
-        '00:00',
-
-      end:
-        '00:00',
-
-      active:
-        true
-    });
-
-    renderShiftRows();
+  .admin-shift-validation,
+  .admin-shift-summary-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
-
-  function updateValidation() {
-    const result =
-      validateShifts(
-        state.shifts
-      );
-
-    setText(
-      'adminShiftCoverage',
-      result.coverageHours
-        .toFixed(1) +
-      ' ชั่วโมง' +
-      (
-        result.coverageMinutes ===
-          1440
-          ? ' · ครบ 24 ชั่วโมง'
-          : ' · ยังไม่ครบ 24 ชั่วโมง'
-      )
-    );
-
-    const element =
-      byId(
-        'adminShiftValidationStatus'
-      );
-
-    if (element) {
-      element.textContent =
-        result.message;
-
-      element.dataset.status =
-        result.valid
-          ? (
-              result.coverageMinutes ===
-                1440
-                ? 'VALID'
-                : 'WARNING'
-            )
-          : 'ERROR';
-    }
-
-    const hint =
-      byId(
-        'adminShiftSaveHint'
-      );
-
-    if (hint) {
-      hint.textContent =
-        result.valid
-          ? (
-              result.coverageMinutes ===
-                1440
-                ? 'ช่วงกะต่อเนื่องครบ 24 ชั่วโมง พร้อมบันทึก'
-                : 'บันทึกได้ แต่มีช่วงเวลาที่ไม่ถูกกำหนดเป็นกะ'
-            )
-          : result.message;
-    }
-
-    return result;
+  .admin-shift-validation > div:last-child {
+    grid-column: auto;
   }
 
-
-  function validateShifts(
-    shifts
-  ) {
-    const active =
-      shifts.filter(
-        function (shift) {
-          return shift.active;
-        }
-      );
-
-    if (
-      shifts.length < 2 ||
-      shifts.length > 4
-    ) {
-      return invalidValidation(
-        'ต้องกำหนดทั้งหมด 2–4 กะ'
-      );
-    }
-
-    if (
-      active.length < 2
-    ) {
-      return invalidValidation(
-        'ต้องมีกะที่เปิดใช้งานอย่างน้อย 2 กะ'
-      );
-    }
-
-    const codes =
-      new Set();
-
-    for (
-      let index = 0;
-      index < shifts.length;
-      index += 1
-    ) {
-      const shift =
-        shifts[index];
-
-      const code =
-        String(
-          shift.code ||
-          ''
-        )
-          .trim()
-          .toUpperCase();
-
-      if (!code) {
-        return invalidValidation(
-          'กรุณาระบุรหัสกะให้ครบ'
-        );
-      }
-
-      if (
-        codes.has(
-          code
-        )
-      ) {
-        return invalidValidation(
-          'รหัสกะห้ามซ้ำกัน'
-        );
-      }
-
-      codes.add(code);
-
-      if (
-        !String(
-          shift.name ||
-          ''
-        ).trim()
-      ) {
-        return invalidValidation(
-          'กรุณาระบุชื่อกะให้ครบ'
-        );
-      }
-
-      if (
-        !validTime(
-          shift.start
-        ) ||
-        !validTime(
-          shift.end
-        )
-      ) {
-        return invalidValidation(
-          'เวลาเริ่มหรือเวลาสิ้นสุดไม่ถูกต้อง'
-        );
-      }
-
-      if (
-        shift.start ===
-        shift.end
-      ) {
-        return invalidValidation(
-          'เวลาเริ่มและเวลาสิ้นสุดกะห้ามเท่ากัน'
-        );
-      }
-    }
-
-    const occupied =
-      new Array(
-        1440
-      ).fill('');
-
-    for (
-      let index = 0;
-      index < active.length;
-      index += 1
-    ) {
-      const shift =
-        active[index];
-
-      const start =
-        timeMinutes(
-          shift.start
-        );
-
-      const end =
-        timeMinutes(
-          shift.end
-        );
-
-      let cursor =
-        start;
-
-      let count =
-        0;
-
-      while (
-        cursor !==
-          end &&
-        count <
-          1440
-      ) {
-        if (
-          occupied[cursor]
-        ) {
-          return invalidValidation(
-            'ช่วงเวลาของกะ ' +
-            shift.code +
-            ' ทับกับกะ ' +
-            occupied[cursor]
-          );
-        }
-
-        occupied[cursor] =
-          shift.code;
-
-        cursor =
-          (
-            cursor +
-            1
-          ) %
-          1440;
-
-        count += 1;
-      }
-    }
-
-    const coverageMinutes =
-      occupied.filter(
-        Boolean
-      ).length;
-
-    return {
-      valid:
-        true,
-
-      coverageMinutes:
-        coverageMinutes,
-
-      coverageHours:
-        coverageMinutes /
-        60,
-
-      message:
-        coverageMinutes ===
-          1440
-          ? 'ช่วงเวลาไม่ทับกันและครบ 24 ชั่วโมง'
-          : 'ช่วงเวลาไม่ทับกัน แต่ยังมีช่วงว่าง'
-    };
+  .admin-shift-save-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-
-  function invalidValidation(
-    message
-  ) {
-    return {
-      valid:
-        false,
-
-      coverageMinutes:
-        0,
-
-      coverageHours:
-        0,
-
-      message:
-        message
-    };
+  .admin-shift-save-actions button {
+    width: 100%;
   }
 
+  .admin-shift-statistics-card
+  .admin-card__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 
-  async function saveConfiguration() {
-    if (!state.moduleId) {
-      return;
-    }
-
-    syncRowsFromDom();
-
-    const validation =
-      updateValidation();
-
-    if (!validation.valid) {
-      await showError(
-        new Error(
-          validation.message
-        ),
-        'ยังบันทึกไม่ได้'
-      );
-
-      return;
-    }
-
-    if (
-      validation.coverageMinutes !==
-      1440
-    ) {
-      const confirm =
-        await window.Swal.fire({
-          icon:
-            'warning',
-
-          title:
-            'ช่วงกะยังไม่ครบ 24 ชั่วโมง',
-
-          text:
-            'ระบบจะไม่สามารถระบุกะให้ข้อมูลที่เกิดในช่วงเวลาว่างได้ ต้องการบันทึกต่อหรือไม่',
-
-          showCancelButton:
-            true,
-
-          confirmButtonText:
-            'บันทึกต่อ',
-
-          cancelButtonText:
-            'กลับไปแก้ไข',
-
-          reverseButtons:
-            true
-        });
-
-      if (!confirm.isConfirmed) {
-        return;
-      }
-    }
-
-    const button =
-      byId(
-        'adminShiftSaveButton'
-      );
-
-    setButtonLoading(
-      button,
-      true,
-      'กำลังบันทึก'
-    );
-
-    try {
-      const result =
-        await window.VehicleAPI
-          .saveAdminShiftConfig(
-            state.moduleId,
-            {
-              config: {
-                enabled:
-                  byId(
-                    'adminShiftEnabled'
-                  )?.checked ===
-                  true,
-
-                timezone:
-                  byId(
-                    'adminShiftTimezone'
-                  )?.value ||
-                  'Asia/Bangkok',
-
-                businessDayStart:
-                  byId(
-                    'adminShiftBusinessStart'
-                  )?.value ||
-                  '06:00',
-
-                effectiveFrom:
-                  byId(
-                    'adminShiftEffectiveDate'
-                  )?.value ||
-                  todayIso(),
-
-                shifts:
-                  state.shifts.map(
-                    function (
-                      shift,
-                      index
-                    ) {
-                      return {
-                        code:
-                          String(
-                            shift.code ||
-                            ''
-                          )
-                            .trim()
-                            .toUpperCase(),
-
-                        name:
-                          String(
-                            shift.name ||
-                            ''
-                          ).trim(),
-
-                        start:
-                          shift.start,
-
-                        end:
-                          shift.end,
-
-                        active:
-                          shift.active ===
-                            true,
-
-                        order:
-                          index + 1
-                      };
-                    }
-                  )
-              }
-            }
-          );
-
-      await window.Swal.fire({
-        icon:
-          'success',
-
-        title:
-          'บันทึกการตั้งค่ากะแล้ว',
-
-        html: `
-          <div>
-            Module
-            <strong>
-              ${escapeHtml(
-                state.moduleId
-              )}
-            </strong>
-            <br>
-
-            เวอร์ชัน
-            <strong>
-              ${escapeHtml(
-                result.version ||
-                '-'
-              )}
-            </strong>
-          </div>
-        `,
-
-        confirmButtonText:
-          'รับทราบ'
-      });
-
-      await loadModuleData();
-
-    } catch (error) {
-      await showError(
-        error,
-        'บันทึกการตั้งค่ากะไม่สำเร็จ'
-      );
-
-    } finally {
-      setButtonLoading(
-        button,
-        false
-      );
-    }
+@media (max-width: 420px) {
+  .admin-shift-toolbar,
+  .admin-shift-general-grid,
+  .admin-shift-rows,
+  .admin-shift-validation,
+  .admin-shift-summary-grid {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
-
-  async function setupShiftSystem() {
-    const button =
-      byId(
-        'adminShiftSetupButton'
-      );
-
-    setButtonLoading(
-      button,
-      true,
-      'กำลังเตรียมชีท'
-    );
-
-    try {
-      const result =
-        await window.VehicleAPI
-          .setupAdminShiftSystem();
-
-      await window.Swal.fire({
-        icon:
-          'success',
-
-        title:
-          'เตรียมระบบกะสำเร็จ',
-
-        text:
-          'ตรวจสอบหรือสร้างชีทแล้ว ' +
-          (
-            Array.isArray(
-              result.sheets
-            )
-              ? result.sheets.length
-              : 0
-          ) +
-          ' ชีท',
-
-        confirmButtonText:
-          'รับทราบ'
-      });
-
-      await loadModules();
-
-    } catch (error) {
-      await showError(
-        error,
-        'เตรียมระบบกะไม่สำเร็จ'
-      );
-
-    } finally {
-      setButtonLoading(
-        button,
-        false
-      );
-    }
+  .admin-shift-config-header,
+  .admin-shift-list-heading,
+  .admin-shift-save-actions {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
-
-  async function runSnapshot() {
-    if (!state.moduleId) {
-      return;
-    }
-
-    const confirm =
-      await window.Swal.fire({
-        icon:
-          'question',
-
-        title:
-          'บันทึก Snapshot ตอนนี้',
-
-        text:
-          'ระบบจะตรวจสอบกะที่ถึงเวลาปิดและบันทึกสถิติของ Module ' +
-          state.moduleId,
-
-        showCancelButton:
-          true,
-
-        confirmButtonText:
-          'เริ่มประมวลผล',
-
-        cancelButtonText:
-          'ยกเลิก'
-      });
-
-    if (!confirm.isConfirmed) {
-      return;
-    }
-
-    const button =
-      byId(
-        'adminShiftSnapshotButton'
-      );
-
-    setButtonLoading(
-      button,
-      true,
-      'กำลังประมวลผล'
-    );
-
-    try {
-      const result =
-        await window.VehicleAPI
-          .runAdminShiftSnapshots({
-            moduleId:
-              state.moduleId
-          });
-
-      await window.Swal.fire({
-        icon:
-          result.success
-            ? 'success'
-            : 'warning',
-
-        title:
-          'ประมวลผล Snapshot แล้ว',
-
-        html: `
-          <div class="admin-shift-result">
-            <span>
-              สรุปกะ
-              <strong>
-                ${formatNumber(
-                  result.shiftSnapshots
-                )}
-              </strong>
-            </span>
-
-            <span>
-              สรุปรายวัน
-              <strong>
-                ${formatNumber(
-                  result.dailySnapshots
-                )}
-              </strong>
-            </span>
-
-            <span>
-              รายชั่วโมง
-              <strong>
-                ${formatNumber(
-                  result.hourlyRows
-                )}
-              </strong>
-            </span>
-
-            <span>
-              ข้อยกเว้น
-              <strong>
-                ${formatNumber(
-                  result.exceptionRows
-                )}
-              </strong>
-            </span>
-          </div>
-        `,
-
-        confirmButtonText:
-          'รับทราบ'
-      });
-
-      await loadStatistics();
-
-    } catch (error) {
-      await showError(
-        error,
-        'สร้าง Snapshot ไม่สำเร็จ'
-      );
-
-    } finally {
-      setButtonLoading(
-        button,
-        false
-      );
-    }
+  .admin-shift-row {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
-
-  async function loadStatistics() {
-    if (!state.moduleId) {
-      return;
-    }
-
-    const button =
-      byId(
-        'adminShiftStatsRefreshButton'
-      );
-
-    setButtonLoading(
-      button,
-      true,
-      'กำลังโหลด'
-    );
-
-    try {
-      const data =
-        await window.VehicleAPI
-          .getAdminShiftStatistics({
-            moduleId:
-              state.moduleId,
-
-            limit:
-              50
-          });
-
-      state.statistics =
-        Array.isArray(
-          data &&
-          data.shiftSummaries
-        )
-          ? data.shiftSummaries
-          : [];
-
-      renderStatistics();
-
-    } catch (error) {
-      await showError(
-        error,
-        'โหลดสถิติกะไม่สำเร็จ'
-      );
-
-    } finally {
-      setButtonLoading(
-        button,
-        false
-      );
-    }
+  .admin-shift-current-status {
+    min-height: 58px;
   }
 
-
-  function renderStatistics() {
-    const rows =
-      state.statistics ||
-      [];
-
-    setText(
-      'adminShiftSnapshotCount',
-      formatNumber(
-        rows.length
-      )
-    );
-
-    setText(
-      'adminShiftFinalCount',
-      formatNumber(
-        rows.filter(
-          function (row) {
-            return (
-              String(
-                row.SnapshotStatus ||
-                ''
-              ).toUpperCase() ===
-              'FINAL'
-            );
-          }
-        ).length
-      )
-    );
-
-    setText(
-      'adminShiftLatestDate',
-      rows.length
-        ? displayDate(
-            rows[0]
-              .BusinessDate
-          )
-        : '-'
-    );
-
-    setText(
-      'adminShiftLatestCode',
-      rows.length
-        ? String(
-            rows[0]
-              .ShiftCode ||
-            '-'
-          )
-        : '-'
-    );
-
-    const body =
-      byId(
-        'adminShiftStatsBody'
-      );
-
-    if (!body) {
-      return;
-    }
-
-    if (!rows.length) {
-      body.innerHTML = `
-        <tr>
-          <td colspan="10">
-            ยังไม่มี Snapshot ของ Module นี้
-          </td>
-        </tr>
-      `;
-
-      return;
-    }
-
-    body.innerHTML =
-      rows
-        .map(
-          function (row) {
-            const status =
-              String(
-                row.SnapshotStatus ||
-                '-'
-              ).toUpperCase();
-
-            return `
-              <tr>
-                <td>
-                  ${escapeHtml(
-                    displayDate(
-                      row.BusinessDate
-                    )
-                  )}
-                </td>
-
-                <td>
-                  <strong>
-                    ${escapeHtml(
-                      row.ShiftCode ||
-                      '-'
-                    )}
-                  </strong>
-
-                  <small>
-                    ${escapeHtml(
-                      row.ShiftName ||
-                      ''
-                    )}
-                  </small>
-                </td>
-
-                <td>
-                  <span
-                    class="admin-shift-table-status"
-                    data-status="${escapeHtml(
-                      status
-                    )}"
-                  >
-                    ${escapeHtml(
-                      statusLabel(
-                        status
-                      )
-                    )}
-                  </span>
-                </td>
-
-                <td>
-                  ${formatNumber(
-                    row.GateIn
-                  )}
-                </td>
-
-                <td>
-                  ${formatNumber(
-                    row.GateOutActual
-                  )}
-                </td>
-
-                <td>
-                  ${formatNumber(
-                    row.AutoClose
-                  )}
-                </td>
-
-                <td>
-                  ${formatNumber(
-                    row.ClosingBalance
-                  )}
-                </td>
-
-                <td>
-                  <strong class="${
-                    Number(
-                      row.OverdueAtEnd
-                    ) > 0
-                      ? 'admin-shift-danger-text'
-                      : ''
-                  }">
-                    ${formatNumber(
-                      row.OverdueAtEnd
-                    )}
-                  </strong>
-                </td>
-
-                <td>
-                  ${formatNumber(
-                    row.SLACompliancePercent
-                  )}%
-                </td>
-
-                <td>
-                  ${formatNumber(
-                    row.AverageDwellMinutes
-                  )}
-                  นาที
-                </td>
-              </tr>
-            `;
-          }
-        )
-        .join('');
+  .admin-shift-summary-grid > div {
+    min-height: 65px;
   }
 
+  .admin-shift-summary-grid strong {
+    font-size: .96rem;
+  }
+}
 
-  function syncRowsFromDom() {
-    document
-      .querySelectorAll(
-        '#adminShiftRows [data-shift-index]'
-      )
-      .forEach(
-        function (row) {
-          const index =
-            Number(
-              row.dataset
-                .shiftIndex
-            );
 
-          const shift =
-            state.shifts[index];
+/* ROUND 59 — Module loading recovery */
+.admin-shift-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 
-          if (!shift) {
-            return;
-          }
+.admin-shift-message[hidden] {
+  display: none !important;
+}
 
-          row
-            .querySelectorAll(
-              '[data-shift-field]'
-            )
-            .forEach(
-              function (input) {
-                const field =
-                  input.dataset
-                    .shiftField;
+.admin-shift-message > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
-                shift[field] =
-                  input.type ===
-                    'checkbox'
-                    ? input.checked
-                    : input.value;
-              }
-            );
-        }
-      );
+.admin-shift-message > button {
+  flex: 0 0 auto;
+}
+
+.admin-shift-load-error {
+  min-height: 150px;
+  flex-direction: column;
+  color: #9f2828;
+  text-align: center;
+}
+
+.admin-shift-load-error strong,
+.admin-shift-load-error span {
+  display: block;
+}
+
+.admin-shift-load-error span {
+  max-width: 680px;
+  color: #735454;
+  font-size: .78rem;
+  font-weight: 650;
+}
+
+@media (max-width: 600px) {
+  .admin-shift-message {
+    align-items: stretch;
+    flex-direction: column;
   }
 
+  .admin-shift-message > button {
+    width: 100%;
+  }
+}
 
-  function setConfigLoading(
-    loading
-  ) {
-    const container =
-      byId(
-        'adminShiftRows'
-      );
+/* =========================================================
+ * ADMIN SLA & ALERT CONTROL
+ * ========================================================= */
 
-    if (
-      loading &&
-      container
-    ) {
-      container.innerHTML = `
-        <div class="admin-shift-loading">
-          <span></span>
-          กำลังโหลดการตั้งค่าของ Module
-        </div>
-      `;
-    }
+.admin-sla-heading__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-    [
-      'adminShiftSaveButton',
-      'adminShiftSnapshotButton',
-      'adminShiftStatsRefreshButton'
-    ].forEach(
-      function (id) {
-        const element =
-          byId(id);
+.admin-sla-card {
+  overflow: hidden;
+}
 
-        if (element) {
-          element.disabled =
-            loading;
-        }
-      }
-    );
+.admin-sla-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(250px, 1.35fr)
+    repeat(3, minmax(150px, .65fr));
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid #dce7ed;
+  background: #f8fbfc;
+}
+
+.admin-sla-module-field {
+  margin: 0;
+}
+
+.admin-sla-status-box {
+  min-width: 0;
+  min-height: 74px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #dbe6ec;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin-sla-status-box span {
+  color: #657d89;
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.admin-sla-status-box strong {
+  overflow: hidden;
+  color: #123d51;
+  font-size: .94rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#adminSlaStatus[data-status="READY"] {
+  color: #08745c;
+}
+
+#adminSlaStatus[data-status="WARNING"] {
+  color: #a76500;
+}
+
+#adminSlaStatus[data-status="ERROR"] {
+  color: #c72f2f;
+}
+
+.admin-sla-notice {
+  display: grid;
+  gap: 4px;
+  margin: 14px 16px 0;
+  padding: 11px 13px;
+  border-left: 4px solid #0c809c;
+  border-radius: 10px;
+  background: #eff8fa;
+}
+
+.admin-sla-notice strong {
+  color: #075f78;
+}
+
+.admin-sla-notice span {
+  color: #153f51;
+  font-weight: 850;
+}
+
+.admin-sla-notice small {
+  color: #607985;
+}
+
+.admin-sla-rule-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-sla-loading {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  grid-column: 1 / -1;
+  border: 1px dashed #bad0db;
+  border-radius: 12px;
+  background: #f8fbfc;
+  color: #607985;
+  font-weight: 800;
+}
+
+.admin-sla-rule-card {
+  min-width: 0;
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid #d7e3e9;
+  border-top: 4px solid #0c809c;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(11, 60, 82, .055);
+}
+
+.admin-sla-rule-card[data-configured="FALSE"] {
+  border-top-color: #d58b13;
+  background: #fffdf8;
+}
+
+.admin-sla-rule-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-sla-rule-card__title {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-sla-rule-card__title span {
+  color: #64808e;
+  font-size: .7rem;
+  font-weight: 950;
+  letter-spacing: .05em;
+}
+
+.admin-sla-rule-card__title strong {
+  color: #103e53;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.admin-sla-source-badge {
+  flex: 0 0 auto;
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8f7f2;
+  color: #08745c;
+  font-size: .7rem;
+  font-weight: 950;
+}
+
+.admin-sla-source-badge[data-source="DEFAULT"] {
+  background: #edf2ff;
+  color: #315eb3;
+}
+
+.admin-sla-source-badge[data-source="MISSING"] {
+  background: #fff2dc;
+  color: #9a6108;
+}
+
+.admin-sla-flow {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: #eef5f8;
+}
+
+.admin-sla-flow span {
+  min-width: 0;
+  overflow: hidden;
+  color: #254e60;
+  font-size: .75rem;
+  font-weight: 850;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sla-flow b {
+  color: #0b7894;
+}
+
+.admin-sla-fields {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-sla-fields label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.admin-sla-fields label > span {
+  color: #607985;
+  font-size: .72rem;
+  font-weight: 850;
+}
+
+.admin-sla-fields input {
+  width: 100%;
+  min-height: 39px;
+  padding: 7px 9px;
+  border: 1px solid #cadbe3;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #123d51;
+  font-weight: 900;
+  box-sizing: border-box;
+}
+
+.admin-sla-toggles {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-sla-toggle {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d7e3e9;
+  border-radius: 9px;
+  background: #f8fbfc;
+  color: #274e60;
+  font-size: .76rem;
+  font-weight: 850;
+}
+
+.admin-sla-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #087f97;
+}
+
+.admin-sla-rule-card__meta {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #718692;
+  font-size: .68rem;
+}
+
+.admin-sla-rule-card__meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sla-validation {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.admin-sla-validation > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid #dce7ed;
+  border-radius: 10px;
+  background: #f8fbfc;
+}
+
+.admin-sla-validation span {
+  color: #6a818c;
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.admin-sla-validation strong {
+  color: #173f51;
+  font-size: .78rem;
+}
+
+.admin-sla-save-actions {
+  border-top: 1px solid #dce7ed;
+}
+
+@media (max-width: 1100px) {
+  .admin-sla-toolbar {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .admin-sla-rule-grid,
+  .admin-sla-validation {
+    grid-template-columns: 1fr;
   }
 
-
-  function showPanelMessage(
-    message,
-    status,
-    retryVisible
-  ) {
-    const element =
-      byId(
-        'adminShiftMessage'
-      );
-
-    const text =
-      byId(
-        'adminShiftMessageText'
-      );
-
-    const retry =
-      byId(
-        'adminShiftMessageRetry'
-      );
-
-    if (!element) {
-      return;
-    }
-
-    element.hidden =
-      false;
-
-    if (text) {
-      text.textContent =
-        message;
-    } else {
-      element.textContent =
-        message;
-    }
-
-    element.dataset.status =
-      status ||
-      'INFO';
-
-    if (retry) {
-      retry.hidden =
-        retryVisible !==
-        true;
-    }
+  .admin-sla-fields {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
+  .admin-sla-fields label:last-child {
+    grid-column: 1 / -1;
+  }
+}
 
-  function hidePanelMessage() {
-    const element =
-      byId(
-        'adminShiftMessage'
-      );
-
-    const retry =
-      byId(
-        'adminShiftMessageRetry'
-      );
-
-    if (element) {
-      element.hidden =
-        true;
-    }
-
-    if (retry) {
-      retry.hidden =
-        true;
-    }
+@media (max-width: 600px) {
+  .admin-sla-heading__actions,
+  .admin-sla-heading__actions > button,
+  .admin-sla-save-actions > button {
+    width: 100%;
   }
 
-
-  function renderModuleLoadFailure(
-    error
-  ) {
-    const select =
-      byId(
-        'adminShiftModuleSelect'
-      );
-
-    if (select) {
-      select.innerHTML = `
-        <option value="">
-          โหลด Module ไม่สำเร็จ
-        </option>
-      `;
-    }
-
-    const rows =
-      byId(
-        'adminShiftRows'
-      );
-
-    if (rows) {
-      rows.innerHTML = `
-        <div class="admin-shift-loading admin-shift-load-error">
-          <strong>
-            ไม่สามารถโหลดการตั้งค่ากะได้
-          </strong>
-
-          <span>
-            ${escapeHtml(
-              errorMessage(
-                error
-              )
-            )}
-          </span>
-        </div>
-      `;
-    }
+  .admin-sla-toolbar,
+  .admin-sla-fields,
+  .admin-sla-toggles {
+    grid-template-columns: 1fr;
   }
 
-
-  function observeShiftPanelVisibility() {
-    const panel =
-      byId(
-        'adminPanelShifts'
-      );
-
-    if (!panel) {
-      return;
-    }
-
-    const check =
-      function () {
-        if (
-          isElementVisible(
-            panel
-          )
-        ) {
-          ensureInitialized();
-        }
-      };
-
-    const observer =
-      new MutationObserver(
-        check
-      );
-
-    observer.observe(
-      panel,
-      {
-        attributes:
-          true,
-
-        attributeFilter: [
-          'class',
-          'hidden',
-          'style'
-        ]
-      }
-    );
-
-    window.setTimeout(
-      check,
-      500
-    );
+  .admin-sla-rule-grid {
+    padding: 12px;
   }
 
-
-  async function waitForAdminReady() {
-    const startedAt =
-      Date.now();
-
-    while (
-      Date.now() -
-      startedAt <
-      20000
-    ) {
-      const loading =
-        byId(
-          'adminPageLoading'
-        );
-
-      const userText =
-        String(
-          byId(
-            'adminCurrentUser'
-          )?.textContent ||
-          ''
-        ).trim();
-
-      const loadingHidden =
-        !loading ||
-        !isElementVisible(
-          loading
-        );
-
-      const userReady =
-        userText &&
-        userText !==
-          'กำลังโหลด...';
-
-      if (
-        loadingHidden &&
-        userReady
-      ) {
-        return;
-      }
-
-      await delay(
-        150
-      );
-    }
-
-    throw new Error(
-      'หน้า Admin ยังโหลดสิทธิ์ผู้ดูแลระบบไม่เสร็จ'
-    );
+  .admin-sla-notice {
+    margin-inline: 12px;
   }
-
-
-  function isElementVisible(
-    element
-  ) {
-    if (!element) {
-      return false;
-    }
-
-    if (
-      element.hidden ||
-      element.classList
-        .contains(
-          'is-hidden'
-        )
-    ) {
-      return false;
-    }
-
-    const style =
-      window.getComputedStyle(
-        element
-      );
-
-    return (
-      style.display !==
-        'none' &&
-      style.visibility !==
-        'hidden'
-    );
-  }
-
-
-  function withTimeout(
-    promise,
-    timeoutMs,
-    message
-  ) {
-    return Promise.race([
-      Promise.resolve(
-        promise
-      ),
-
-      new Promise(
-        function (
-          _resolve,
-          reject
-        ) {
-          window.setTimeout(
-            function () {
-              reject(
-                new Error(
-                  message ||
-                  'การเชื่อมต่อใช้เวลานานเกินกำหนด'
-                )
-              );
-            },
-            timeoutMs
-          );
-        }
-      )
-    ]);
-  }
-
-
-  function delay(
-    milliseconds
-  ) {
-    return new Promise(
-      function (resolve) {
-        window.setTimeout(
-          resolve,
-          milliseconds
-        );
-      }
-    );
-  }
-
-  function updateLocation() {
-    try {
-      const url =
-        new URL(
-          window.location.href
-        );
-
-      url.searchParams.set(
-        'tab',
-        'shifts'
-      );
-
-      url.hash =
-        'shifts';
-
-      window.history
-        .replaceState(
-          {},
-          '',
-          url
-        );
-    } catch (_) {
-      // ไม่กระทบการทำงานหลัก
-    }
-  }
-
-
-  function defaultShifts() {
-    return [
-      {
-        code:
-          'A',
-
-        name:
-          'กะ A',
-
-        start:
-          '06:00',
-
-        end:
-          '14:00',
-
-        active:
-          true
-      },
-
-      {
-        code:
-          'B',
-
-        name:
-          'กะ B',
-
-        start:
-          '14:00',
-
-        end:
-          '22:00',
-
-        active:
-          true
-      },
-
-      {
-        code:
-          'C',
-
-        name:
-          'กะ C',
-
-        start:
-          '22:00',
-
-        end:
-          '06:00',
-
-        active:
-          true
-      }
-    ];
-  }
-
-
-  function validTime(
-    value
-  ) {
-    return /^([01]\d|2[0-3]):[0-5]\d$/
-      .test(
-        String(
-          value ||
-          ''
-        )
-      );
-  }
-
-
-  function timeMinutes(
-    value
-  ) {
-    const parts =
-      String(
-        value ||
-        '00:00'
-      ).split(
-        ':'
-      );
-
-    return (
-      Number(
-        parts[0]
-      ) *
-        60 +
-      Number(
-        parts[1]
-      )
-    );
-  }
-
-
-  function dateToIso(
-    value
-  ) {
-    const text =
-      String(
-        value ||
-        ''
-      ).trim();
-
-    let match =
-      text.match(
-        /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
-      );
-
-    if (match) {
-      return [
-        match[3],
-        String(
-          match[2]
-        ).padStart(
-          2,
-          '0'
-        ),
-        String(
-          match[1]
-        ).padStart(
-          2,
-          '0'
-        )
-      ].join(
-        '-'
-      );
-    }
-
-    match =
-      text.match(
-        /^(\d{4})-(\d{2})-(\d{2})$/
-      );
-
-    return match
-      ? text
-      : '';
-  }
-
-
-  function todayIso() {
-    const date =
-      new Date();
-
-    return [
-      date.getFullYear(),
-      String(
-        date.getMonth() +
-        1
-      ).padStart(
-        2,
-        '0'
-      ),
-      String(
-        date.getDate()
-      ).padStart(
-        2,
-        '0'
-      )
-    ].join(
-      '-'
-    );
-  }
-
-
-  function displayDate(
-    value
-  ) {
-    if (
-      value instanceof Date &&
-      !isNaN(
-        value.getTime()
-      )
-    ) {
-      return new Intl.DateTimeFormat(
-        'th-TH',
-        {
-          day:
-            '2-digit',
-
-          month:
-            '2-digit',
-
-          year:
-            'numeric'
-        }
-      ).format(
-        value
-      );
-    }
-
-    return String(
-      value ||
-      '-'
-    );
-  }
-
-
-  function statusLabel(
-    status
-  ) {
-    const map = {
-      FINAL:
-        'ปิดกะแล้ว',
-
-      PROVISIONAL:
-        'สรุปเบื้องต้น',
-
-      CALCULATED:
-        'คำนวณแล้ว',
-
-      RECALCULATED:
-        'คำนวณใหม่'
-    };
-
-    return (
-      map[status] ||
-      status ||
-      '-'
-    );
-  }
-
-
-  function setButtonLoading(
-    button,
-    loading,
-    label
-  ) {
-    if (!button) {
-      return;
-    }
-
-    if (loading) {
-      if (
-        !button.dataset
-          .originalText
-      ) {
-        button.dataset
-          .originalText =
-            button.textContent
-              .trim();
-      }
-
-      button.disabled =
-        true;
-
-      button.textContent =
-        label ||
-        'กำลังดำเนินการ';
-
-      return;
-    }
-
-    button.disabled =
-      false;
-
-    if (
-      button.dataset
-        .originalText
-    ) {
-      button.textContent =
-        button.dataset
-          .originalText;
-    }
-  }
-
-
-  async function showError(
-    error,
-    title
-  ) {
-    if (
-      window.Swal &&
-      typeof window.Swal.fire ===
-        'function'
-    ) {
-      await window.Swal.fire({
-        icon:
-          'error',
-
-        title:
-          title ||
-          'เกิดข้อผิดพลาด',
-
-        text:
-          errorMessage(
-            error
-          ),
-
-        confirmButtonText:
-          'รับทราบ'
-      });
-
-      return;
-    }
-
-    window.alert(
-      (
-        title ||
-        'เกิดข้อผิดพลาด'
-      ) +
-      '\n' +
-      errorMessage(
-        error
-      )
-    );
-  }
-
-
-  function errorMessage(
-    error
-  ) {
-    return (
-      error &&
-      error.message
-        ? error.message
-        : String(
-            error ||
-            'ไม่สามารถดำเนินการได้'
-          )
-    );
-  }
-
-
-  function formatNumber(
-    value
-  ) {
-    const numeric =
-      Number(
-        value
-      );
-
-    return Number.isFinite(
-      numeric
-    )
-      ? new Intl.NumberFormat(
-          'th-TH',
-          {
-            maximumFractionDigits:
-              2
-          }
-        ).format(
-          numeric
-        )
-      : '0';
-  }
-
-
-  function setText(
-    id,
-    value
-  ) {
-    const element =
-      byId(id);
-
-    if (element) {
-      element.textContent =
-        String(
-          value ??
-          ''
-        );
-    }
-  }
-
-
-  function setValue(
-    id,
-    value
-  ) {
-    const element =
-      byId(id);
-
-    if (element) {
-      element.value =
-        String(
-          value ??
-          ''
-        );
-    }
-  }
-
-
-  function setChecked(
-    id,
-    checked
-  ) {
-    const element =
-      byId(id);
-
-    if (element) {
-      element.checked =
-        checked ===
-        true;
-    }
-  }
-
-
-  function byId(
-    id
-  ) {
-    return document
-      .getElementById(
-        id
-      );
-  }
-
-
-  function escapeHtml(
-    value
-  ) {
-    return String(
-      value ??
-      ''
-    )
-      .replace(
-        /&/g,
-        '&amp;'
-      )
-      .replace(
-        /</g,
-        '&lt;'
-      )
-      .replace(
-        />/g,
-        '&gt;'
-      )
-      .replace(
-        /"/g,
-        '&quot;'
-      )
-      .replace(
-        /'/g,
-        '&#039;'
-      );
-  }
-
-})(window, document);
+}
+
+/* PHASE 4E ROUND 03 — Alert Engine */
+.admin-alert-engine { margin: 14px 16px 0; padding: 14px; border: 1px solid #cee0e8; border-left: 4px solid #0b809a; border-radius: 13px; background: #f7fbfc; }
+.admin-alert-engine > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.admin-alert-engine h3 { margin:2px 0 3px; color:#0c4055; }
+.admin-alert-engine p { margin:0; color:#607985; font-size:.78rem; }
+.admin-alert-engine__actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+.admin-alert-engine__metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin-top:12px; }
+.admin-alert-engine__metrics > div { min-width:0; display:grid; gap:4px; padding:9px 10px; border:1px solid #d8e6ec; border-radius:10px; background:#fff; }
+.admin-alert-engine__metrics span { color:#69818d; font-size:.68rem; font-weight:850; }
+.admin-alert-engine__metrics strong { overflow:hidden; color:#123f52; font-size:.88rem; font-weight:950; text-overflow:ellipsis; white-space:nowrap; }
+#adminAlertEngineStatus[data-status="READY"] { color:#08745c; }
+#adminAlertEngineStatus[data-status="DISABLED"] { color:#9b6508; }
+#adminAlertEngineStatus[data-status="ERROR"] { color:#c52e2e; }
+.admin-alert-engine__notice { margin-top:9px; padding:7px 9px; border-radius:8px; background:#eaf5f8; color:#285467; font-size:.72rem; font-weight:800; }
+.admin-alert-delivery-list { max-height:210px; margin-top:9px; overflow:auto; border:1px solid #d9e5eb; border-radius:10px; background:#fff; }
+.admin-alert-delivery-item { display:grid; grid-template-columns:80px minmax(160px,1.2fr) minmax(220px,2fr) 130px; gap:8px; align-items:center; padding:8px 10px; border-bottom:1px solid #edf2f5; font-size:.72rem; }
+.admin-alert-delivery-item:last-child { border-bottom:0; }
+.admin-alert-delivery-item strong { color:#133f52; }
+.admin-alert-delivery-item[data-severity="OVERDUE"] { border-left:3px solid #dc3333; }
+.admin-alert-delivery-item[data-severity="WARNING"] { border-left:3px solid #e49408; }
+.admin-alert-delivery-item small { color:#6c838e; }
+@media(max-width:1100px){ .admin-alert-engine__metrics{grid-template-columns:repeat(3,minmax(0,1fr));}.admin-alert-delivery-item{grid-template-columns:70px 1fr 1.4fr;} .admin-alert-delivery-item time{display:none;} }
+@media(max-width:700px){ .admin-alert-engine{margin-inline:10px;} .admin-alert-engine>header{display:grid;} .admin-alert-engine__actions,.admin-alert-engine__actions>button{width:100%;} .admin-alert-engine__metrics{grid-template-columns:repeat(2,minmax(0,1fr));} .admin-alert-delivery-item{grid-template-columns:1fr;} }
+
+
+
+/* PHASE 4E ROUND 04 */
+.admin-diagnostic-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}.admin-diagnostic-meta-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 14px}.admin-diagnostic-meta-grid>article{min-width:0;display:grid;gap:5px;padding:11px 13px;border:1px solid #d8e4ea;border-left:4px solid #0c809c;border-radius:11px;background:#fff}.admin-diagnostic-meta-grid span{color:#687f8b;font-size:.72rem;font-weight:850}.admin-diagnostic-meta-grid strong{min-width:0;overflow:hidden;color:#103e53;font-size:.86rem;font-weight:950;text-overflow:ellipsis;white-space:nowrap}.admin-diagnostic-check details{margin-top:8px;padding-top:7px;border-top:1px dashed #d6e2e8}.admin-diagnostic-check summary{color:#486574;font-size:.72rem;font-weight:850;cursor:pointer}.admin-diagnostic-check pre{max-height:260px;margin:7px 0 0;padding:9px;overflow:auto;border-radius:8px;background:#0d2937;color:#e9f6fb;font:11px/1.45 Consolas,monospace;white-space:pre-wrap;word-break:break-word}@media(max-width:900px){.admin-diagnostic-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.admin-diagnostic-actions,.admin-diagnostic-actions>button{width:100%}.admin-diagnostic-meta-grid{grid-template-columns:1fr}}
