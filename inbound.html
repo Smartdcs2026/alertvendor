@@ -6,17 +6,27 @@
   <meta name="theme-color" content="#073b59">
   <meta name="color-scheme" content="light">
   <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
-  <!-- PHASE 2A: Durable pending queue, unstable-network recovery, idempotent replay -->
+  <!-- PHASE 4E R1: Admin SLA, full-cohort summary, revision-aware realtime -->
 
-  <link rel="stylesheet" href="./inbound.css?v=20260713-hide-snapshot-bars-r1">
+  <link rel="stylesheet" href="./inbound.css?v=20260713-phase2a-inbound-resilience-r1">
+
+  <link
+    rel="stylesheet"
+    href="./inbound-status-compact.css?v=20260713-compact-workspace-r1"
+  >
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
-  <script src="./api.js?v=20260713-phase1a-canonical-lifecycle-r1" defer></script>
+  <script src="./api.js?v=20260715-phase4e-r1-inbound-revision" defer></script>
   <script src="./inbound-offline-queue.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
   <script src="./inbound-scanner.js?v=20260710-r06-08-core-workflow-guard" defer></script>
-  <script src="./inbound.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
+  <script src="./inbound.js?v=20260715-phase4e-r1-admin-sla-realtime" defer></script>
+
+  <script
+    src="./inbound-status-compact.js?v=20260713-compact-workspace-r1"
+    defer
+  ></script>
 
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
