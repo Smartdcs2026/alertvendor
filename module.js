@@ -1,6 +1,6 @@
 /**
  * module.js
- * PHASE 4E ROUND 02 — Shared Stage SLA + Single Snapshot Revision
+ * PHASE 4E ROUND 03 — Server Alert Delivery + Shared Stage SLA
  *
  * ปรับปรุง:
  * - Auto Refresh แบบเงียบ ไม่แสดง Spinner/Toast
@@ -85,6 +85,9 @@
     lastAutoClosePersistAttemptMs: 0,
     cardNodes: new Map(),
     alertRunning: false,
+    serverAlertCheckInProgress: false,
+    lastServerAlertCheckAt: 0,
+    lastServerAlertDeliveryEpochMs: 0,
     userInteracted: false,
     operationalAlertEnabled: true,
     operationalAlertStorageKey: '',
@@ -7989,121 +7992,65 @@
   }
 
   async function checkOverdueAlerts() {
-    if (
-      state.alertRunning ||
-      !state.module ||
-      !state.module.alertEnabled ||
-      !isOperationalAlertEnabled()
-    ) {
-      return;
-    }
-
+    if (state.alertRunning || state.serverAlertCheckInProgress || !state.module || !state.module.alertEnabled || !isOperationalAlertEnabled()) return;
     const now = Date.now();
-
-    const repeatMs = Math.max(
-      1,
-      Number(
-        state.module.alertRepeatMinutes ||
-        10
-      )
-    ) * 60 * 1000;
-
-    const overdueRecords =
-      state.records.filter((record) => {
-        if (
-          record.statusCode !== 'OVERDUE'
-        ) {
-          return false;
-        }
-
-        const key =
-          getAlertStorageKey(
-            record.recordId
-          );
-
-        const lastShown =
-          Number(
-            sessionStorage.getItem(key) ||
-            0
-          );
-
-        return (
-          now -
-          lastShown >=
-          repeatMs
-        );
+    if (now - state.lastServerAlertCheckAt < 15000) return;
+    state.lastServerAlertCheckAt = now;
+    state.serverAlertCheckInProgress = true;
+    try {
+      const result = await API.getInboundWorkflowSlaAlerts(state.moduleId, {
+        limit: 50,
+        sinceEpochMs: state.lastServerAlertDeliveryEpochMs,
+        evaluate: true
       });
-
-    if (overdueRecords.length === 0) {
-      return;
+      const deliveries = result && Array.isArray(result.deliveries) ? result.deliveries : [];
+      if (Number(result && result.latestDeliveryEpochMs) > state.lastServerAlertDeliveryEpochMs) {
+        state.lastServerAlertDeliveryEpochMs = Number(result.latestDeliveryEpochMs);
+      }
+      const overdueDeliveries = deliveries.filter((row) => String(row['ระดับ'] || '').toUpperCase() === 'OVERDUE');
+      if (!overdueDeliveries.length) return;
+      const active = result && Array.isArray(result.activeAlerts) ? result.activeAlerts : [];
+      const keys = new Set(overdueDeliveries.map((row) => String(row['รหัสแจ้งเตือน'] || '')));
+      const alerts = active.filter((row) => keys.has(String(row['รหัสแจ้งเตือน'] || ''))).slice(0, 8);
+      state.alertRunning = true;
+      notifyDevice();
+      const html = document.createElement('div'); html.className = 'overdue-alert-list';
+      (alerts.length ? alerts : overdueDeliveries).slice(0, 8).forEach((row) => {
+        const item = document.createElement('div'); item.className = 'overdue-alert-item';
+        const title = document.createElement('strong'); title.textContent = row['บริษัท'] || row['ข้อความ'] || 'พบรายการเกินเวลา';
+        const detail = document.createElement('span'); detail.textContent = [row['ชื่อขั้นตอน'] || row['ขั้นตอน'] || '', row['เลขนัดหมาย'] ? ('นัดหมาย ' + row['เลขนัดหมาย']) : '', row['เวลาค้าง (วินาที)'] ? ('ค้าง ' + Math.floor(Number(row['เวลาค้าง (วินาที)']) / 60) + ' นาที') : ''].filter(Boolean).join(' • ');
+        item.appendChild(title); item.appendChild(detail); html.appendChild(item);
+      });
+      await Swal.fire({ icon: 'warning', title: 'Alert Engine พบงานเกินเวลา', html, confirmButtonText: 'รับทราบ', allowOutsideClick: false });
+    } catch (error) {
+      console.warn('โหลด Server Alert ไม่สำเร็จ ใช้ Local Fallback', error);
+      await checkOverdueAlertsLocalFallback();
+    } finally {
+      state.serverAlertCheckInProgress = false;
+      state.alertRunning = false;
     }
+  }
 
-    state.alertRunning = true;
-
-    overdueRecords.forEach((record) => {
-      sessionStorage.setItem(
-        getAlertStorageKey(record.recordId),
-        String(now)
-      );
+  async function checkOverdueAlertsLocalFallback() {
+    const now = Date.now();
+    const overdueRecords = state.records.filter((record) => {
+      if (record.statusCode !== 'OVERDUE') return false;
+      const repeatMinutes = Math.max(1, Number(record.stageSla && record.stageSla.repeatMinutes) || 10);
+      const key = getAlertStorageKey(record.recordId);
+      const lastShown = Number(sessionStorage.getItem(key) || 0);
+      return now - lastShown >= repeatMinutes * 60 * 1000;
     });
-
+    if (!overdueRecords.length) return;
+    overdueRecords.forEach((record) => sessionStorage.setItem(getAlertStorageKey(record.recordId), String(now)));
     notifyDevice();
-
-    const html = document.createElement('div');
-    html.className = 'overdue-alert-list';
-
-    overdueRecords
-      .slice(0, 5)
-      .forEach((record) => {
-        const item = document.createElement('div');
-        item.className = 'overdue-alert-item';
-
-        const title = document.createElement('strong');
-        title.textContent =
-          record.primaryValue ||
-          'ไม่พบข้อมูลหลัก';
-
-        const detail = document.createElement('span');
-        detail.textContent =
-          'เข้า ' +
-          (
-            record.timestampIn ||
-            '-'
-          ) +
-          ' • ' +
-          (
-            record.durationDisplay ||
-            '-'
-          );
-
-        item.appendChild(title);
-        item.appendChild(detail);
-        html.appendChild(item);
-      });
-
-    if (overdueRecords.length > 5) {
-      const more = document.createElement('div');
-      more.className = 'overdue-alert-more';
-      more.textContent =
-        'และอีก ' +
-        (
-          overdueRecords.length -
-          5
-        ) +
-        ' รายการ';
-
-      html.appendChild(more);
-    }
-
-    await Swal.fire({
-      icon: 'warning',
-      title: 'พบรถอยู่ในพื้นที่เกินกำหนด',
-      html,
-      confirmButtonText: 'รับทราบ',
-      allowOutsideClick: false
+    const html = document.createElement('div'); html.className = 'overdue-alert-list';
+    overdueRecords.slice(0, 5).forEach((record) => {
+      const item = document.createElement('div'); item.className = 'overdue-alert-item';
+      const title = document.createElement('strong'); title.textContent = record.primaryValue || record.companyName || 'ไม่พบข้อมูลหลัก';
+      const detail = document.createElement('span'); detail.textContent = (record.operationalStageLabel || '') + ' • ' + (record.statusLabel || 'เกินเวลา');
+      item.appendChild(title); item.appendChild(detail); html.appendChild(item);
     });
-
-    state.alertRunning = false;
+    await Swal.fire({ icon: 'warning', title: 'พบงานเกินเวลา', html, confirmButtonText: 'รับทราบ', allowOutsideClick: false });
   }
 
   function getAlertStorageKey(recordId) {
