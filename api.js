@@ -1449,6 +1449,37 @@
     },
 
 
+    async getAdminAlertEngineStatus() {
+      const response = await request('/api/admin/alert-engine/status');
+      return response.data;
+    },
+
+    async setupAdminAlertEngine(options) {
+      const response = await request('/api/admin/alert-engine/setup', { method: 'POST', body: options || {} });
+      return response.data;
+    },
+
+    async enableAdminAlertEngine(options) {
+      const response = await request('/api/admin/alert-engine/enable', { method: 'POST', body: options || {} });
+      return response.data;
+    },
+
+    async disableAdminAlertEngine() {
+      const response = await request('/api/admin/alert-engine/disable', { method: 'POST', body: {} });
+      return response.data;
+    },
+
+    async runAdminAlertEngine(options) {
+      const response = await request('/api/admin/alert-engine/run', { method: 'POST', timeoutMs: 120000, body: options || {} });
+      return response.data;
+    },
+
+    async getAdminAlertDeliveries(options) {
+      const config = options && typeof options === 'object' ? options : {};
+      const response = await request('/api/admin/alert-engine/deliveries', { query: { limit: clampInteger(config.limit, 1, 500, 100), moduleId: config.moduleId || '' } });
+      return response.data;
+    },
+
     async setupAdminShiftSystem() {
       const response =
         await request(
@@ -1881,7 +1912,13 @@
                   1,
                   200,
                   50
-                )
+                ),
+              sinceEpochMs:
+                Math.max(0, Number(config.sinceEpochMs) || 0),
+              evaluate:
+                config.evaluate === false
+                  ? 'false'
+                  : 'true'
             }
           }
         );
