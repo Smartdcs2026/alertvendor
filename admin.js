@@ -37,7 +37,10 @@
     slaLoading: false,
     slaSaving: false,
     slaLoadedModuleId: '',
-    slaData: null
+    slaData: null,
+    alertEngineLoading: false,
+    alertEngineActionRunning: false,
+    alertEngineData: null
   };
 
   const LABELS = {
@@ -183,6 +186,10 @@
       'change',
       handleAdminSlaRuleChange
     );
+    byId('adminAlertEngineSetupButton')?.addEventListener('click', setupAdminAlertEngine);
+    byId('adminAlertEngineToggleButton')?.addEventListener('click', toggleAdminAlertEngine);
+    byId('adminAlertEngineRunButton')?.addEventListener('click', runAdminAlertEngineNow);
+    byId('adminAlertEngineRefreshButton')?.addEventListener('click', () => loadAdminAlertEngine(true));
     byId('adminAuditFilterForm')?.addEventListener('submit', loadAuditFromFilter);
 
     byId('adminCloseModuleEditorButton')?.addEventListener('click', closeModuleEditor);
@@ -891,6 +898,7 @@
 
     if (tab === 'sla') {
       loadAdminSlaRules(false);
+      loadAdminAlertEngine(false);
     }
   }
 
@@ -1786,6 +1794,74 @@
     }
   }
 
+
+  async function loadAdminAlertEngine(force) {
+    if (state.alertEngineLoading) return;
+    if (!force && state.alertEngineData) { renderAdminAlertEngine(state.alertEngineData); return; }
+    state.alertEngineLoading = true;
+    try {
+      const results = await Promise.all([API.getAdminAlertEngineStatus(), API.getAdminAlertDeliveries({ limit: 80 })]);
+      state.alertEngineData = { status: results[0] || {}, deliveries: results[1] || {} };
+      renderAdminAlertEngine(state.alertEngineData);
+    } catch (error) {
+      setText('adminAlertEngineStatus', 'โหลดไม่สำเร็จ');
+      const el = byId('adminAlertEngineStatus'); if (el) el.dataset.status = 'ERROR';
+      const list = byId('adminAlertDeliveryList'); if (list) list.innerHTML = '<div class="admin-sla-loading">' + escapeHtml(error && error.message || 'โหลดข้อมูลไม่สำเร็จ') + '</div>';
+    } finally { state.alertEngineLoading = false; }
+  }
+
+  function renderAdminAlertEngine(data) {
+    const status = data && data.status || {};
+    const trigger = status.trigger || {};
+    setText('adminAlertEngineStatus', status.enabled ? 'กำลังทำงาน' : 'ปิดใช้งาน');
+    const statusEl = byId('adminAlertEngineStatus'); if (statusEl) statusEl.dataset.status = status.enabled ? 'READY' : 'DISABLED';
+    setText('adminAlertEngineTrigger', trigger.installed ? ('ทุก ' + (status.triggerMinutes || trigger.minutes || '-') + ' นาที') : 'ยังไม่มี Trigger');
+    setText('adminAlertEngineActive', String(status.activeAlertCount || 0));
+    setText('adminAlertEngineOverdue', String(status.overdueCount || 0));
+    setText('adminAlertEngineDeliveryCount', String(status.deliveryCount || 0));
+    const lastRun = status.lastRun || {};
+    setText('adminAlertEngineLastRun', lastRun.finishedAt || lastRun.checkedAt || '-');
+    const toggle = byId('adminAlertEngineToggleButton'); if (toggle) toggle.textContent = status.enabled ? 'ปิดใช้งาน' : 'เปิดใช้งาน';
+    setText('adminAlertEngineNotice', 'In-App: พร้อม · Webhook: ' + (status.webhookConfigured ? 'ตั้งค่าแล้ว' : 'ยังไม่ตั้ง') + ' · Sheet: ' + (status.sheetsReady ? 'พร้อม' : 'ต้องเตรียมระบบ'));
+    const list = byId('adminAlertDeliveryList'); if (!list) return;
+    const rows = data && data.deliveries && Array.isArray(data.deliveries.rows) ? data.deliveries.rows : [];
+    list.innerHTML = rows.length ? rows.map((row) => `
+      <div class="admin-alert-delivery-item" data-severity="${escapeHtml(row['ระดับ'] || '')}">
+        <strong>${escapeHtml(row['ระดับ'] || '-')}</strong>
+        <span>${escapeHtml((row['รหัสโมดูล'] || '-') + ' · ' + (row['ขั้นตอน'] || '-'))}</span>
+        <small>${escapeHtml(row['ข้อความ'] || '-')}</small>
+        <time>${escapeHtml(row['วันที่เวลาส่งสำเร็จ'] || row['วันที่เวลาพยายามส่ง'] || '-')}</time>
+      </div>`).join('') : '<div class="admin-sla-loading">ยังไม่มีประวัติการส่ง</div>';
+  }
+
+  async function alertEngineAction(action, title) {
+    if (state.alertEngineActionRunning) return;
+    state.alertEngineActionRunning = true;
+    showLoading(title, 'ระบบกำลังอัปเดต Alert Engine');
+    try {
+      let result;
+      if (action === 'SETUP') result = await API.setupAdminAlertEngine({ installTrigger: true, enable: true });
+      else if (action === 'ENABLE') result = await API.enableAdminAlertEngine({});
+      else if (action === 'DISABLE') result = await API.disableAdminAlertEngine();
+      else result = await API.runAdminAlertEngine({});
+      Swal.close();
+      state.alertEngineData = null;
+      await loadAdminAlertEngine(true);
+      await success(title + 'สำเร็จ');
+      return result;
+    } catch (error) {
+      Swal.close();
+      await Swal.fire({ icon: 'error', title: title + 'ไม่สำเร็จ', text: error && error.message || 'เกิดข้อผิดพลาด' });
+      return null;
+    } finally { state.alertEngineActionRunning = false; }
+  }
+
+  async function setupAdminAlertEngine() { return alertEngineAction('SETUP', 'เตรียมระบบแจ้งเตือน'); }
+  async function toggleAdminAlertEngine() {
+    const enabled = Boolean(state.alertEngineData && state.alertEngineData.status && state.alertEngineData.status.enabled);
+    return alertEngineAction(enabled ? 'DISABLE' : 'ENABLE', enabled ? 'ปิด Alert Engine' : 'เปิด Alert Engine');
+  }
+  async function runAdminAlertEngineNow() { return alertEngineAction('RUN', 'ประมวลผลแจ้งเตือน'); }
 
   async function handleModuleListClick(event) {
     const actionButton = event.target.closest('[data-module-action]');
