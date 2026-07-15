@@ -1,6 +1,6 @@
 /**
  * module.js
- * หน้าแสดงสถานะรถ/ตู้สินค้าแบบ Dynamic
+ * PHASE 4E ROUND 02 — Shared Stage SLA + Single Snapshot Revision
  *
  * ปรับปรุง:
  * - Auto Refresh แบบเงียบ ไม่แสดง Spinner/Toast
@@ -71,6 +71,9 @@
     movementSummarySignature: '',
     movementRefreshInProgress: false,
     movementLoaded: false,
+    dataRevision: '',
+    rulesRevision: '',
+    revisionCheckInProgress: false,
     movementScope: 'CURRENT_ROUND',
     timelineMode: 'ROLLING_24',
     selectedTimelineStartMs: null,
@@ -225,17 +228,11 @@
       state.module = await API.getModule(state.moduleId);
       renderModuleHeader();
 
-      await Promise.all([
-        loadRecords({
-          silentError: false,
-          showSuccessToast: false,
-          forceRender: true
-        }),
-        loadMovementSummary({
-          silentError: true,
-          forceRender: true
-        })
-      ]);
+      await loadRecords({
+        silentError: false,
+        showSuccessToast: false,
+        forceRender: true
+      });
 
       startDurationTimer();
       startAutoRefresh();
@@ -868,17 +865,7 @@
           !state.movementRefreshInProgress &&
           state.hasLoadedRecords
         ) {
-          await Promise.all([
-            loadRecords({
-              silentError: true,
-              showSuccessToast: false,
-              forceRender: false
-            }),
-            loadMovementSummary({
-              silentError: true,
-              forceRender: false
-            })
-          ]);
+          await checkOperationalBoardRevision();
         }
       }
     );
@@ -1081,9 +1068,48 @@
 
 
 
+  function applyEmbeddedMovementSnapshot(board) {
+    const movement =
+      board &&
+      board.dashboard &&
+      board.dashboard.movement &&
+      typeof board.dashboard.movement === 'object'
+        ? board.dashboard.movement
+        : null;
+
+    if (!movement) {
+      return false;
+    }
+
+    const signature = buildMovementSummarySignature(movement);
+    const changed =
+      !state.movementLoaded ||
+      signature !== state.movementSummarySignature;
+
+    state.movementSummary = movement;
+    state.movementSummarySignature = signature;
+    state.movementLoaded = true;
+    state.movementRefreshInProgress = false;
+
+    renderModuleThresholdInfo();
+    renderMovementOverview();
+
+    if (changed) {
+      renderTimeline();
+    }
+
+    return true;
+  }
+
   async function loadMovementSummary(
     options
   ) {
+    if (
+      applyEmbeddedMovementSnapshot(state.operationalBoard)
+    ) {
+      return;
+    }
+
     if (
       state.movementRefreshInProgress ||
       state.destroyed ||
@@ -1330,6 +1356,14 @@
         result &&
         result.generatedAt
       );
+
+      state.dataRevision = String(
+        result && result.dataRevision || ''
+      );
+      state.rulesRevision = String(
+        result && result.rulesRevision || ''
+      );
+      applyEmbeddedMovementSnapshot(result);
 
       const nextRecords =
         result &&
@@ -1725,6 +1759,18 @@
           operationalStage:
             record.operationalStage || '',
 
+          statusCode:
+            record.statusCode || '',
+
+          statusStartedAtEpochMs:
+            Number(record.statusStartedAtEpochMs) || 0,
+
+          stageRuleKey:
+            record.stageSla && record.stageSla.ruleKey || '',
+
+          stageRulesRevision:
+            record.stageSla && record.stageSla.rulesRevision || '',
+
           dataHealthCode:
             record.dataHealthCode || '',
 
@@ -1795,152 +1841,116 @@
     if (
       !record ||
       !record.isCurrentlyInArea ||
-      !Number.isFinite(
-        Number(
-          record.timestampInEpochMs
-        )
-      )
+      !Number.isFinite(Number(record.timestampInEpochMs))
     ) {
       if (record) {
-        record.statusCode =
-          'INCOMPLETE';
-
-        record.statusLabel =
-          getStatusLabel(
-            'INCOMPLETE'
-          );
-
-        record.priorityText =
-          'ตรวจสอบข้อมูลเวลาเข้า';
-
-        record.progressPercent =
-          0;
+        record.statusCode = 'INCOMPLETE';
+        record.statusLabel = getStatusLabel('INCOMPLETE');
+        record.priorityText = 'ตรวจสอบข้อมูลเวลาเข้า';
+        record.progressPercent = 0;
       }
-
       return;
     }
 
-    const durationSeconds =
-      Math.max(
-        0,
-        Math.floor(
-          (
-            nowMs -
-            Number(
-              record.timestampInEpochMs
-            )
-          ) / 1000
-        )
-      );
+    const totalDurationSeconds = Math.max(
+      0,
+      Math.floor(
+        (nowMs - Number(record.timestampInEpochMs)) / 1000
+      )
+    );
+    const stageThresholds = getRecordStageThresholds(record, nowMs);
+    const autoCloseThresholds = getModuleThresholds();
+    const autoCloseRemainingSeconds = Math.max(
+      0,
+      autoCloseThresholds.autoCloseSeconds - totalDurationSeconds
+    );
 
-    const thresholds =
-      getModuleThresholds();
-
-    const statusCode =
-      calculateStatusCode(
-        durationSeconds
-      );
-
-    const autoCloseRemainingSeconds =
-      Math.max(
-        0,
-        thresholds.autoCloseSeconds -
-        durationSeconds
-      );
-
-    record.durationSeconds =
-      durationSeconds;
-
-    record.durationDisplay =
-      formatDurationSeconds(
-        durationSeconds
-      );
-
-    record.statusCode =
-      statusCode;
-
-    record.statusLabel =
-      getStatusLabel(
-        statusCode
-      );
-
-    record.statusColor =
-      getStatusColor(
-        statusCode
-      );
-
-    record.isOverdue =
-      statusCode === 'OVERDUE';
-
+    record.durationSeconds = totalDurationSeconds;
+    record.durationDisplay = formatDurationSeconds(totalDurationSeconds);
+    record.statusElapsedSeconds = stageThresholds.elapsedSeconds;
+    record.statusCode = stageThresholds.statusCode;
+    record.statusLabel = getStatusLabel(stageThresholds.statusCode);
+    record.statusColor = getStatusColor(stageThresholds.statusCode);
+    record.isOverdue = stageThresholds.statusCode === 'OVERDUE';
     record.isExpired36H =
-      durationSeconds >=
-      thresholds.autoCloseSeconds;
-
-    record.autoCloseRemainingSeconds =
-      autoCloseRemainingSeconds;
-
+      totalDurationSeconds >= autoCloseThresholds.autoCloseSeconds;
+    record.autoCloseRemainingSeconds = autoCloseRemainingSeconds;
     record.isNearAutoClose =
       !record.isExpired36H &&
-      autoCloseRemainingSeconds <=
-        thresholds.nearAutoCloseSeconds;
-
-    record.progressPercent =
-      calculateProgressPercent(
-        durationSeconds,
-        thresholds
-      );
-
+      autoCloseRemainingSeconds <= autoCloseThresholds.nearAutoCloseSeconds;
+    record.progressPercent = calculateProgressPercent(
+      stageThresholds.elapsedSeconds,
+      stageThresholds
+    );
     record.warningMarkerPercent =
-      thresholds.redSeconds > 0
+      stageThresholds.redSeconds > 0
         ? Math.max(
             0,
             Math.min(
               100,
-              (
-                thresholds.warningSeconds /
-                thresholds.redSeconds
-              ) * 100
+              (stageThresholds.warningSeconds /
+                stageThresholds.redSeconds) * 100
             )
           )
         : 0;
-
-    record.priorityText =
-      buildPriorityText(
-        record,
-        thresholds
-      );
-
-    record.priorityScore =
-      calculatePriorityScore(
-        record,
-        thresholds
-      );
+    record.priorityText = buildPriorityText(record, stageThresholds);
+    record.priorityScore = calculatePriorityScore(record, stageThresholds);
   }
 
-  function calculateStatusCode(durationSeconds) {
-    if (!state.module) {
-      return 'INCOMPLETE';
-    }
-
-    const thresholds =
-      getModuleThresholds();
+  function getRecordStageThresholds(record, nowMs) {
+    const stageSla =
+      record &&
+      record.stageSla &&
+      typeof record.stageSla === 'object'
+        ? record.stageSla
+        : {};
+    const configured = stageSla.configured === true;
+    const startedAtEpochMs = Number(
+      stageSla.startedAtEpochMs ||
+      record.statusStartedAtEpochMs
+    );
+    const warningMinutes = Number(stageSla.warningMinutes);
+    const redMinutes = Number(stageSla.redMinutes);
 
     if (
-      Number(durationSeconds) >=
-      thresholds.redSeconds
+      !configured ||
+      !Number.isFinite(startedAtEpochMs) ||
+      !Number.isFinite(warningMinutes) ||
+      !Number.isFinite(redMinutes) ||
+      redMinutes <= warningMinutes
     ) {
-      return 'OVERDUE';
+      return {
+        configured: false,
+        elapsedSeconds: 0,
+        warningSeconds: 0,
+        redSeconds: 0,
+        statusCode: 'INCOMPLETE'
+      };
     }
 
-    if (
-      Number(durationSeconds) >=
-      thresholds.warningSeconds
-    ) {
-      return 'WARNING';
-    }
+    const elapsedSeconds = Math.max(
+      0,
+      Math.floor((Number(nowMs) - startedAtEpochMs) / 1000)
+    );
+    const warningSeconds = warningMinutes * 60;
+    const redSeconds = redMinutes * 60;
 
-    return 'NORMAL';
+    return {
+      configured: true,
+      elapsedSeconds,
+      warningSeconds,
+      redSeconds,
+      warningMinutes,
+      redMinutes,
+      statusCode:
+        elapsedSeconds >= redSeconds
+          ? 'OVERDUE'
+          : elapsedSeconds >= warningSeconds
+            ? 'WARNING'
+            : 'NORMAL'
+    };
   }
+
 
 
   function getModuleThresholds() {
@@ -1953,41 +1963,9 @@
         ? state.movementSummary.thresholds
         : {};
 
-    const greenMinutes =
-      Math.max(
-        0,
-        Number(
-          movementThresholds.greenStartMinutes
-        ) ||
-        Number(
-          module.greenStartMinutes
-        ) ||
-        0
-      );
-
-    const warningMinutes =
-      Math.max(
-        greenMinutes,
-        Number(
-          movementThresholds.warningStartMinutes
-        ) ||
-        Number(
-          module.warningStartMinutes
-        ) ||
-        45
-      );
-
-    const redMinutes =
-      Math.max(
-        warningMinutes + 1,
-        Number(
-          movementThresholds.redStartMinutes
-        ) ||
-        Number(
-          module.redStartMinutes
-        ) ||
-        60
-      );
+    const greenMinutes = 0;
+    const warningMinutes = 0;
+    const redMinutes = 1;
 
     const autoCloseHours =
       Math.max(
@@ -2080,7 +2058,7 @@
       return (
         'เกินเกณฑ์สีแดง ' +
         formatCompactDuration(
-          record.durationSeconds -
+          Number(record.statusElapsedSeconds || 0) -
           thresholds.redSeconds
         )
       );
@@ -2094,7 +2072,7 @@
         'เหลือ ' +
         formatCompactDuration(
           thresholds.redSeconds -
-          record.durationSeconds
+          Number(record.statusElapsedSeconds || 0)
         ) +
         ' ก่อนเข้าสีแดง'
       );
@@ -2104,7 +2082,7 @@
       'เหลือ ' +
       formatCompactDuration(
         thresholds.warningSeconds -
-        record.durationSeconds
+        Number(record.statusElapsedSeconds || 0)
       ) +
       ' ก่อนเข้าสีส้ม'
     );
@@ -2139,7 +2117,7 @@
         1 * 1000000000 -
         Math.max(
           0,
-          record.durationSeconds
+          Number(record.statusElapsedSeconds || 0)
         )
       );
     }
@@ -2153,7 +2131,7 @@
         Math.max(
           0,
           thresholds.redSeconds -
-          record.durationSeconds
+          Number(record.statusElapsedSeconds || 0)
         )
       );
     }
@@ -2271,17 +2249,11 @@
             return;
           }
 
-          await Promise.all([
-            loadRecords({
+          await loadRecords({
               silentError: true,
               showSuccessToast: false,
               forceRender: false
-            }),
-            loadMovementSummary({
-              silentError: true,
-              forceRender: false
-            })
-          ]);
+            });
         },
         600
       );
@@ -2351,118 +2323,64 @@
 
 
   function renderModuleThresholdInfo() {
-    const container =
-      document.getElementById(
-        'moduleThresholdInfo'
-      );
+    const container = document.getElementById('moduleThresholdInfo');
+    if (!container) return;
 
-    if (!container) {
-      return;
-    }
+    const autoClose = getModuleThresholds();
+    const effectiveSla =
+      state.operationalBoard &&
+      state.operationalBoard.effectiveSla ||
+      {};
+    const coverage = effectiveSla.coverage || {};
 
-    const thresholds =
-      getModuleThresholds();
-
-    const normalEnd =
-      Math.max(
-        thresholds.greenMinutes,
-        thresholds.warningMinutes - 1
-      );
-
-    const warningEnd =
-      Math.max(
-        thresholds.warningMinutes,
-        thresholds.redMinutes - 1
-      );
-
-    setText(
-      'thresholdNormalText',
-      thresholds.greenMinutes +
-      '–' +
-      normalEnd +
-      ' นาที'
-    );
-
+    setText('thresholdNormalText', 'ตามขั้นตอน');
     setText(
       'thresholdWarningText',
-      thresholds.warningMinutes +
-      '–' +
-      warningEnd +
-      ' นาที'
+      Number(coverage.configuredCount) + '/' +
+      Number(coverage.totalCount || 4) + ' กฎ'
     );
-
-    setText(
-      'thresholdOverdueText',
-      thresholds.redMinutes +
-      ' นาทีขึ้นไป'
-    );
-
-    setText(
-      'thresholdAutoCloseText',
-      thresholds.autoCloseHours +
-      ' ชั่วโมง'
-    );
-
-    setText(
-      'controlNearAutoCloseLabel',
-      'ใกล้ครบ ' +
-      thresholds.autoCloseHours +
-      ' ชม.'
-    );
-
-    setText(
-      'timelineAutoCloseLegend',
-      'ใกล้ครบ ' +
-      thresholds.autoCloseHours +
-      ' ชม.'
-    );
+    setText('thresholdOverdueText', 'Admin กำหนด');
+    setText('thresholdAutoCloseText', autoClose.autoCloseHours + ' ชั่วโมง');
+    setText('controlNearAutoCloseLabel', 'ใกล้ครบ ' + autoClose.autoCloseHours + ' ชม.');
+    setText('timelineAutoCloseLegend', 'ใกล้ครบ ' + autoClose.autoCloseHours + ' ชม.');
   }
 
 
   async function openThresholdInfo() {
-    const thresholds =
-      getModuleThresholds();
-
-    const normalEnd =
-      Math.max(
-        thresholds.greenMinutes,
-        thresholds.warningMinutes - 1
-      );
-
-    const warningEnd =
-      Math.max(
-        thresholds.warningMinutes,
-        thresholds.redMinutes - 1
-      );
+    const effectiveSla =
+      state.operationalBoard &&
+      state.operationalBoard.effectiveSla ||
+      {};
+    const rules = Array.isArray(effectiveSla.rules)
+      ? effectiveSla.rules
+      : [];
+    const autoClose = getModuleThresholds();
+    const rows = rules.map((rule) => `
+      <div data-status="${rule.configured ? 'NORMAL' : 'INCOMPLETE'}">
+        <span>${escapeHtml(rule.label || rule.key || '-')}</span>
+        <strong>${rule.configured
+            ? escapeHtml(String(rule.warningMinutes)) +
+              ' / ' +
+              escapeHtml(String(rule.redMinutes)) +
+              ' นาที'
+            : 'ยังไม่ตั้งค่า'}
+        </strong>
+      </div>
+    `);
 
     await Swal.fire({
       icon: 'info',
-      title: 'เกณฑ์สถานะของโมดูลนี้',
+      title: 'เกณฑ์ SLA รายขั้นตอนจาก Admin',
       html: `
         <div class="threshold-info-dialog">
-          <div data-status="NORMAL">
-            <span>ปกติ</span>
-            <strong>${escapeHtml(String(thresholds.greenMinutes))}–${escapeHtml(String(normalEnd))} นาที</strong>
-          </div>
-
-          <div data-status="WARNING">
-            <span>เฝ้าระวัง</span>
-            <strong>${escapeHtml(String(thresholds.warningMinutes))}–${escapeHtml(String(warningEnd))} นาที</strong>
-          </div>
-
-          <div data-status="OVERDUE">
-            <span>เกินเวลา</span>
-            <strong>${escapeHtml(String(thresholds.redMinutes))} นาทีขึ้นไป</strong>
-          </div>
-
+          ${rows.join('') || '<p>ยังไม่พบเกณฑ์ SLA</p>'}
           <div data-status="AUTO_CLOSE">
             <span>เคลียร์อัตโนมัติ</span>
-            <strong>ครบ ${escapeHtml(String(thresholds.autoCloseHours))} ชั่วโมง</strong>
+            <strong>ครบ ${escapeHtml(String(autoClose.autoCloseHours))} ชั่วโมง</strong>
           </div>
-
           <p>
-            ระบบเริ่มคำนวณจากเวลาเข้าพื้นที่ของแต่ละรายการ
-            และใช้เกณฑ์ที่ผู้ดูแลกำหนดแยกตามแต่ละ Module
+            สีของรถคำนวณจากเวลาที่เริ่มขั้นตอนปัจจุบัน ไม่ใช่เวลารวมตั้งแต่ Gate In
+            · Rules Revision ${escapeHtml(state.rulesRevision || '-')}
           </p>
         </div>
       `,
@@ -6220,13 +6138,22 @@
       'vehicle-progress__labels';
 
     const thresholds =
-      getModuleThresholds();
+      getRecordStageThresholds(
+        record,
+        getCurrentServerTimeMs()
+      );
 
-    progressLabels.innerHTML = `
-      <span>0</span>
-      <span>ส้ม ${escapeHtml(String(thresholds.warningMinutes))} นาที</span>
-      <span>แดง ${escapeHtml(String(thresholds.redMinutes))} นาที</span>
-    `;
+    progressLabels.innerHTML = thresholds.configured
+      ? `
+          <span>เริ่มขั้นตอน</span>
+          <span>เฝ้าระวัง ${escapeHtml(String(thresholds.warningMinutes))} นาที</span>
+          <span>เกินเวลา ${escapeHtml(String(thresholds.redMinutes))} นาที</span>
+        `
+      : `
+          <span>เริ่มขั้นตอน</span>
+          <span>ยังไม่ตั้งเกณฑ์</span>
+          <span>ตรวจสอบใน Admin</span>
+        `;
 
     progress.appendChild(
       progressTrack
@@ -7984,49 +7911,69 @@
 
   function startAutoRefresh() {
     if (state.refreshTimer) {
-      window.clearInterval(
-        state.refreshTimer
-      );
+      window.clearInterval(state.refreshTimer);
     }
 
-    const seconds = Math.max(
-      10,
-      Number(
-        state.module &&
-        state.module.refreshSeconds
-      ) || 30
+    state.refreshTimer = window.setInterval(
+      () => {
+        if (
+          state.destroyed ||
+          document.visibilityState !== 'visible' ||
+          state.refreshInProgress ||
+          state.revisionCheckInProgress
+        ) {
+          return;
+        }
+
+        void checkOperationalBoardRevision();
+      },
+      8000
     );
-
-    state.refreshTimer =
-      window.setInterval(
-        async () => {
-          if (
-            state.destroyed ||
-            document.visibilityState !==
-              'visible' ||
-            state.refreshInProgress ||
-            state.movementRefreshInProgress
-          ) {
-            return;
-          }
-
-          await Promise.all([
-            loadRecords({
-              silentError: true,
-              showSuccessToast: false,
-              forceRender: false
-            }),
-            loadMovementSummary({
-              silentError: true,
-              forceRender: false
-            })
-          ]);
-        },
-        seconds * 1000
-      );
 
     updateAutoRefreshStatus();
   }
+
+  async function checkOperationalBoardRevision() {
+    if (
+      state.revisionCheckInProgress ||
+      state.refreshInProgress ||
+      state.destroyed ||
+      !navigator.onLine
+    ) {
+      return;
+    }
+
+    state.revisionCheckInProgress = true;
+
+    try {
+      const revision = await API.getOperationalBoard(
+        state.moduleId,
+        {
+          revisionOnly: true,
+          knownRevision: state.dataRevision || ''
+        }
+      );
+
+      if (
+        revision &&
+        revision.unchanged === true
+      ) {
+        return;
+      }
+
+      await loadRecords({
+        silentError: true,
+        showSuccessToast: false,
+        forceRender: false,
+        forceRefresh: true
+      });
+    } catch (error) {
+      console.warn('ตรวจ Board Revision ไม่สำเร็จ', error);
+    } finally {
+      state.revisionCheckInProgress = false;
+    }
+  }
+
 
   function updateAutoRefreshStatus() {
     const element =
@@ -8320,17 +8267,11 @@
         confirmButtonText: 'ตกลง'
       });
 
-      await Promise.all([
-        loadRecords({
+      await loadRecords({
           silentError: false,
           showSuccessToast: false,
           forceRender: true
-        }),
-        loadMovementSummary({
-          silentError: true,
-          forceRender: true
-        })
-      ]);
+        });
 
     } catch (error) {
       Swal.close();
@@ -8349,17 +8290,11 @@
           error && error.code
         )
       ) {
-        await Promise.all([
-          loadRecords({
+        await loadRecords({
             silentError: true,
             showSuccessToast: false,
             forceRender: true
-          }),
-          loadMovementSummary({
-            silentError: true,
-            forceRender: true
-          })
-        ]);
+          });
       }
 
     } finally {
