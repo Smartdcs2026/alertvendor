@@ -6,7 +6,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - Production R15: Consolidated Operational Board + Automatic Shift Handover
+ * - Production R16: Phase 4E Revision-aware Inbound Dashboard
  */
 (function (window) {
   'use strict';
@@ -1833,6 +1833,13 @@
                   1000,
                   500
                 ),
+              revisionOnly:
+                config.revisionOnly === true
+                  ? 'true'
+                  : '',
+              knownRevision:
+                config.knownRevision ||
+                '',
               _:
                 config.cacheBust ||
                 ''
