@@ -923,6 +923,25 @@
     };
   }
 
+  async function getClientProductionDiagnostics() {
+    const base=getClientDiagnostics();
+    const queue=await inspectInboundQueueStorage();
+    return {...base,queue};
+  }
+
+  async function inspectInboundQueueStorage() {
+    const fallbackKey='ALERT_VENDOR_INBOUND_PENDING_QUEUE_V2', dbName='alertvendor_inbound_pending_queue_v2', storeName='operations';
+    function summarize(items,mode){const counts={pending:0,failed:0,paused:0,committed:0};(items||[]).forEach((x)=>{const s=String(x&&x.status||'').toUpperCase();if(['PENDING','SENDING','RETRY_WAIT','UNKNOWN'].includes(s))counts.pending++;else if(s==='FAILED')counts.failed++;else if(['PAUSED_AUTH','PAUSED_ACTOR'].includes(s))counts.paused++;else if(s==='COMMITTED')counts.committed++;});return {available:true,storageMode:mode,total:(items||[]).length,...counts,inspectedAt:new Date().toISOString()};}
+    try {
+      if (window.indexedDB) {
+        const databases=typeof indexedDB.databases==='function'?await indexedDB.databases():null;
+        const exists=!databases||databases.some((x)=>x&&x.name===dbName);
+        if(exists){const items=await new Promise((resolve,reject)=>{const req=indexedDB.open(dbName,1);req.onerror=()=>reject(req.error||new Error('INDEXEDDB_OPEN_FAILED'));req.onsuccess=()=>{const db=req.result;if(!db.objectStoreNames.contains(storeName)){db.close();resolve([]);return;}const tx=db.transaction(storeName,'readonly'),getAll=tx.objectStore(storeName).getAll();getAll.onerror=()=>reject(getAll.error||new Error('INDEXEDDB_READ_FAILED'));getAll.onsuccess=()=>{db.close();resolve(Array.isArray(getAll.result)?getAll.result:[]);};};});return summarize(items,'INDEXED_DB');}
+      }
+      const raw=window.localStorage.getItem(fallbackKey),items=raw?JSON.parse(raw):[];return summarize(Array.isArray(items)?items:[],'LOCAL_STORAGE');
+    } catch(error){return {available:false,storageMode:'',total:0,pending:0,failed:0,paused:0,committed:0,error:error&&error.message?error.message:String(error),inspectedAt:new Date().toISOString()};}
+  }
+
   /************************************************************
    * Public API
    ************************************************************/
@@ -939,6 +958,8 @@
       clearAccessToken,
 
     getClientDiagnostics,
+
+    getClientProductionDiagnostics,
 
     hasSession() {
       return Boolean(
@@ -2028,17 +2049,10 @@
             method: 'POST',
             timeoutMs: 120000,
             body: {
-              date:
-                config.date ||
-                config.reportDate ||
-                '',
-              limit:
-                clampInteger(
-                  config.limit,
-                  1,
-                  5000,
-                  500
-                )
+              date: config.date || config.reportDate || '',
+              status: config.status || config.statusCode || '',
+              query: config.query || config.search || '',
+              limit: clampInteger(config.limit, 1, 5000, 500)
             }
           }
         );
@@ -2829,6 +2843,18 @@
       return response.data;
     },
 
+
+    async runProductionAcceptance(options) {
+      const response=await request('/api/admin/diagnostics/acceptance',{method:'POST',timeoutMs:180000,body:{options:options||{}}});return response.data;
+    },
+
+    async runProductionConcurrencyProbe(payload) {
+      const response=await request('/api/admin/diagnostics/concurrency',{method:'POST',timeoutMs:60000,body:payload||{}});return response.data;
+    },
+
+    async finalizeProductionConcurrencyProbe(probeId) {
+      const response=await request('/api/admin/diagnostics/concurrency/finalize',{method:'POST',timeoutMs:60000,body:{probeId:String(probeId||'').trim()}});return response.data;
+    },
 
     async runProductionDiagnostics(
       options
