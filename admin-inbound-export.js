@@ -1,12 +1,225 @@
-/** PHASE 4E ROUND 04 — Server-side Inbound Export */
-(function(window,document){'use strict';const API=window.VehicleAPI,PREVIEW_LIMIT=100,EXPORT_LIMIT=5000,state={session:null,modules:[],moduleId:'',items:[],totalRows:0,exporting:false};document.addEventListener('DOMContentLoaded',init);
-async function init(){bind();try{if(!API)return;const s=await API.me();state.session=s;if(!isAdmin(s)){document.querySelector('[data-admin-tab="exports"]')?.classList.add('is-hidden');return;}await modules();await preview();}catch(e){console.warn(e);}}
-function bind(){byId('adminInboundExportRefreshButton')?.addEventListener('click',preview);byId('adminInboundExportButton')?.addEventListener('click',doExport);byId('adminInboundExportModuleSelect')?.addEventListener('change',async e=>{state.moduleId=text(e.target.value);await preview();});['adminInboundExportDate','adminInboundExportStatusFilter'].forEach(id=>byId(id)?.addEventListener('change',render));byId('adminInboundExportSearchInput')?.addEventListener('input',debounce(render,180));}
-async function modules(){const d=await API.getModules(),list=Array.isArray(d)?d:Array.isArray(d&&d.modules)?d.modules:[];state.modules=list.map(x=>({moduleId:text(x.moduleId||x.id),name:text(x.name||x.moduleName||x.moduleId||x.id)})).filter(x=>x.moduleId);state.moduleId=(state.modules.find(x=>x.moduleId.toLowerCase()==='vendors')||state.modules[0]||{}).moduleId||'';const s=byId('adminInboundExportModuleSelect');if(s)s.innerHTML=state.modules.map(x=>`<option value="${esc(x.moduleId)}" ${x.moduleId===state.moduleId?'selected':''}>${esc(x.name)}</option>`).join('');}
-async function preview(){if(!state.moduleId)return;summary('กำลังโหลด Preview...');try{const d=unwrap(await API.getInboundWorkflowDashboard(state.moduleId,{limit:PREVIEW_LIMIT,cacheBust:Date.now()}));state.items=normalize(d);state.totalRows=Number(d.totalRows||d.summary&&d.summary.totalWorkflow||state.items.length);render();}catch(e){summary('โหลด Preview ไม่สำเร็จ: '+err(e));}}
-function render(){const items=filtered();summary(`Preview ${items.length} รายการ · ยอดทั้งระบบ ${state.totalRows} รายการ · Export จาก Server สูงสุด ${EXPORT_LIMIT} แถว`);const p=byId('adminInboundExportPreview');if(!p)return;p.innerHTML=items.length?items.slice(0,20).map(x=>`<div class="admin-export-row"><strong>${esc(x.autoId||'-')}</strong><span>${esc(x.companyName||'-')}</span><span>${esc(x.driverName||'-')}</span><small>${esc(x.statusName||x.statusCode||'-')} · ${esc(x.updatedAt||x.gateInAt||'-')}</small></div>`).join(''):'<div class="empty-state"><strong>ไม่พบข้อมูลใน Preview</strong></div>';}
-async function doExport(){if(state.exporting||!state.moduleId)return;state.exporting=true;const b=byId('adminInboundExportButton');if(b){b.disabled=true;b.textContent='กำลังส่งออก...';}try{const r=await API.exportInboundWorkflowCsv(state.moduleId,{date:val('adminInboundExportDate'),status:val('adminInboundExportStatusFilter'),query:val('adminInboundExportSearchInput'),limit:EXPORT_LIMIT});if(!r||r.success!==true)throw new Error('Server ไม่ยืนยัน Export');if(r.base64)download64(r.filename||'workflow.csv',r.base64,r.mimeType||'text/csv;charset=utf-8');else if(r.csv)download(r.filename||'workflow.csv',new Blob([r.csv],{type:r.mimeType||'text/csv;charset=utf-8'}));else throw new Error('ไม่พบ CSV');summary(`ส่งออก ${Number(r.rowCount||0)} แถว จากข้อมูลตรงเงื่อนไข ${Number(r.matchedCount||r.rowCount||0)} แถว${r.truncated?' · ถูกตัดที่ '+EXPORT_LIMIT+' แถว':' · ข้อมูลครบตามเงื่อนไข'}`);toast(r.truncated?'ส่งออกแล้วแต่ข้อมูลเกินขีดจำกัด':'ส่งออก CSV แล้ว',r.truncated?'warning':'success');}catch(e){toast('ส่งออกไม่สำเร็จ: '+err(e),'error');}finally{state.exporting=false;if(b){b.disabled=false;b.textContent='ส่งออก CSV';}}}
-function filtered(){const status=val('adminInboundExportStatusFilter').toUpperCase(),q=val('adminInboundExportSearchInput').toLowerCase(),date=val('adminInboundExportDate'),thai=date?date.slice(8,10)+'/'+date.slice(5,7)+'/'+date.slice(0,4):'';return state.items.filter(x=>(!status||status==='ALL'||x.statusCode===status||(status==='CANCELLED'&&x.cancelled))&&(!thai||String(x.gateInAt||'').startsWith(thai))&&(!q||[x.autoId,x.companyName,x.driverName,x.registration,x.statusName].join(' ').toLowerCase().includes(q)));}
-function normalize(d){const list=[...(d.items||[]),...(d.waitingReceiving||[]),...(d.receivingCompleted||[]),...(d.documentReturned||[])],m=new Map();list.forEach(r=>{const x={autoId:text(r.autoId||r.entryCode||r.recordId||r.record&&r.record.autoId),companyName:text(r.companyName||r.company||r.record&&r.record.companyName),driverName:text(r.driverName||r.record&&r.record.driverName),registration:text(r.registration||r.record&&r.record.registration),statusCode:text(r.statusCode||r.status).toUpperCase(),statusName:text(r.statusName||r.statusLabel),gateInAt:text(r.gateInAt||r.timestampIn||r.record&&r.record.timestampIn),updatedAt:text(r.updatedAt||r.latestAt||r.gateInAt),cancelled:r.cancelled===true};if(x.autoId)m.set(x.autoId,x);});return [...m.values()];}
-function unwrap(d){return d&&d.data&&typeof d.data==='object'?d.data:d&&typeof d==='object'?d:{};}function download64(n,b,m){const s=atob(b),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);download(n,new Blob([a],{type:m}));}function download(n,blob){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}function summary(s){const e=byId('adminInboundExportSummary');if(e)e.textContent=s;}function toast(s,i){if(window.Swal)Swal.fire({toast:true,position:'top-end',timer:3000,showConfirmButton:false,icon:i||'info',title:s});}function isAdmin(s){const u=s&&s.user?s.user:s||{};return text(u.role).toUpperCase()==='ADMIN';}function byId(i){return document.getElementById(i);}function val(i){return text(byId(i)?.value);}function text(v){return v==null?'':String(v).trim();}function err(e){return e&&e.message?e.message:String(e||'ผิดพลาด');}function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}function debounce(f,d){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>f(...a),d);};}
+/**
+ * admin-inbound-export.js
+ * PHASE 5 ROUND 02 — All Workflow Stages Export
+ */
+(function(window,document){
+  'use strict';
+  const API=window.VehicleAPI;
+  const state={session:null,modules:[],moduleId:'',config:null,lastResult:null,loading:false};
+  document.addEventListener('DOMContentLoaded',initialize);
+
+  async function initialize(){
+    bind();
+    try{
+      if(!API||typeof API.me!=='function')return;
+      const session=await API.me();
+      state.session=session;
+      if(!isAdmin(session)){hide();return;}
+      await loadModules();
+      await loadConfig();
+      updateControlVisibility();
+    }catch(error){
+      console.warn('management reporting init failed',error);
+      setSummary('โหลดศูนย์รายงานไม่สำเร็จ: '+message(error));
+    }
+  }
+
+  function bind(){
+    byId('adminInboundExportRefreshButton')?.addEventListener('click',loadConfig);
+    byId('adminInboundExportButton')?.addEventListener('click',createReport);
+    byId('adminManagementCleanupButton')?.addEventListener('click',cleanup);
+    byId('adminInboundExportModuleSelect')?.addEventListener('change',async event=>{state.moduleId=text(event.target.value);await loadConfig();});
+    byId('adminManagementReportType')?.addEventListener('change',updateControlVisibility);
+    byId('adminManagementDateMode')?.addEventListener('change',updateControlVisibility);
+    byId('adminManagementFileFormat')?.addEventListener('change',updateButtonLabel);
+  }
+
+  function hide(){
+    document.querySelector('[data-admin-tab="exports"]')?.classList.add('is-hidden');
+    byId('adminPanelExports')?.classList.add('is-hidden');
+  }
+
+  async function loadModules(){
+    const data=await API.getModules();
+    const list=Array.isArray(data)?data:Array.isArray(data&&data.modules)?data.modules:[];
+    state.modules=list.map(item=>({moduleId:text(item.moduleId||item.id),name:text(item.name||item.moduleName||item.moduleId||item.id)})).filter(item=>item.moduleId);
+    const preferred=state.modules.find(item=>item.moduleId.toLowerCase()==='vendors');
+    state.moduleId=(preferred||state.modules[0]||{}).moduleId||'';
+    renderModules();
+  }
+
+  function renderModules(){
+    const element=byId('adminInboundExportModuleSelect');
+    if(!element)return;
+    element.innerHTML=state.modules.length?state.modules.map(item=>`<option value="${esc(item.moduleId)}" ${item.moduleId===state.moduleId?'selected':''}>${esc(item.name||item.moduleId)}</option>`).join(''):'<option value="">ไม่พบ Module</option>';
+  }
+
+  async function loadConfig(){
+    if(!state.moduleId||state.loading)return;
+    state.loading=true;
+    setSummary('กำลังโหลด Governance และประวัติรายงาน...');
+    try{
+      const data=await API.getManagementReportingConfig(state.moduleId);
+      state.config=data;
+      applyDefaults(data);
+      renderConfig(data);
+      setSummary('พร้อมส่งออก · ใช้ Business Date จาก Gate In และเกณฑ์ SLA ที่ Admin กำหนด');
+    }catch(error){
+      setSummary('โหลดข้อมูลไม่สำเร็จ: '+message(error));
+    }finally{
+      state.loading=false;
+    }
+  }
+
+  function applyDefaults(data){
+    const range=data&&data.defaultRange||{};
+    const start=byId('adminManagementStartDate');
+    const end=byId('adminManagementEndDate');
+    if(start&&!start.value)start.value=range.startDate||'';
+    if(end&&!end.value)end.value=range.endDate||'';
+    const month=byId('adminManagementMonth');
+    if(month&&!month.value){
+      const source=(range.endDate||new Date().toISOString().slice(0,10));
+      month.value=String(source).slice(0,7);
+    }
+  }
+
+  function renderConfig(data){
+    const governance=data&&data.governance||{};
+    set('adminManagementDataRevision',governance.dataRevision||'-');
+    set('adminManagementRulesRevision',governance.rulesRevision||'-');
+    set('adminManagementShiftVersion',governance.shiftVersion||'-');
+    set('adminManagementKpiVersion',governance.kpiVersion||'-');
+    set('adminManagementRetention',String(data.retentionHours||24)+' ชั่วโมง');
+    renderKpis(data.kpis||[]);
+    renderHistory(data.recentExports||[]);
+  }
+
+  function renderKpis(items){
+    set('adminManagementKpiCount',items.length+' KPI');
+    const element=byId('adminManagementKpiList');
+    if(!element)return;
+    element.innerHTML=items.length?items.map(item=>`<article class="admin-management-kpi"><header><strong>${esc(item['ชื่อ KPI']||'-')}</strong><code>${esc(item['รหัส KPI']||'-')}</code></header><p>${esc(item['นิยาม']||'')}</p><small>${esc(item['สูตร/ฐานคำนวณ']||'')} · ${esc(item['หน่วย']||'')}</small></article>`).join(''):'<div class="empty-state">ยังไม่มีนิยาม KPI</div>';
+  }
+
+  function renderHistory(items){
+    const element=byId('adminManagementExportHistory');
+    if(!element)return;
+    element.innerHTML=items.length?items.map(item=>{
+      const type=item.reportType==='ALL_STAGES_SINGLE'?'ไฟล์เดียวทุกขั้นตอน':'ชุด ZIP';
+      const format=item.fileFormat||'ZIP';
+      return `<article class="admin-management-history-item"><div><strong>${esc(item.filename||'-')}</strong><span>${esc(item.startDate||'')} → ${esc(item.endDate||'')} · ${esc(type)} · ${esc(format)} · รถ ${Number(item.vehicleCount||0)} รายการ</span><small>${esc(item.createdAt||'')} · หมดอายุ ${esc(item.expiresAt||'-')}</small></div>${item.downloadUrl?`<a class="button button--secondary button--compact" href="${escAttr(item.downloadUrl)}" target="_blank" rel="noopener">ดาวน์โหลด</a>`:''}</article>`;
+    }).join(''):'<div class="empty-state">ยังไม่มีประวัติรายงาน</div>';
+  }
+
+  function updateControlVisibility(){
+    const reportType=value('adminManagementReportType')||'ALL_STAGES_SINGLE';
+    const dateMode=value('adminManagementDateMode')||'RANGE';
+    const rangeFields=byId('adminManagementRangeFields');
+    const monthField=byId('adminManagementMonthField');
+    const formatField=byId('adminManagementFileFormatField');
+    rangeFields?.classList.toggle('is-hidden',dateMode==='MONTH');
+    monthField?.classList.toggle('is-hidden',dateMode!=='MONTH');
+    formatField?.classList.toggle('is-hidden',reportType!=='ALL_STAGES_SINGLE');
+    updateButtonLabel();
+  }
+
+  function updateButtonLabel(){
+    const button=byId('adminInboundExportButton');
+    if(!button||state.loading)return;
+    const reportType=value('adminManagementReportType')||'ALL_STAGES_SINGLE';
+    const format=value('adminManagementFileFormat')||'XLSX';
+    button.textContent=reportType==='MANAGEMENT_PACKAGE'?'สร้างชุดรายงาน ZIP':`ส่งออก ${format==='CSV'?'CSV':'Excel'}`;
+  }
+
+  function collectSelection(){
+    const dateMode=value('adminManagementDateMode')||'RANGE';
+    const selection={
+      dateMode,
+      startDate:value('adminManagementStartDate'),
+      endDate:value('adminManagementEndDate'),
+      month:value('adminManagementMonth'),
+      includeActive:Boolean(byId('adminManagementIncludeActive')?.checked)
+    };
+    if(dateMode==='MONTH'){
+      if(!selection.month)throw new Error('กรุณาเลือกเดือน');
+    }else if(!selection.startDate||!selection.endDate){
+      throw new Error('กรุณาเลือกวันที่เริ่มต้นและวันที่สิ้นสุด');
+    }
+    return selection;
+  }
+
+  async function createReport(){
+    if(!state.moduleId||state.loading)return;
+    let selection;
+    try{selection=collectSelection();}catch(error){toast(message(error),'warning');return;}
+    const reportType=value('adminManagementReportType')||'ALL_STAGES_SINGLE';
+    const fileFormat=value('adminManagementFileFormat')||'XLSX';
+    state.loading=true;
+    buttonBusy(true);
+    setSummary(reportType==='MANAGEMENT_PACKAGE'?'กำลังรวบรวมข้อมูลและสร้าง ZIP บน Google Drive...':`กำลังสร้างไฟล์ ${fileFormat} รวมทุกขั้นตอน...`);
+    try{
+      let result;
+      if(reportType==='MANAGEMENT_PACKAGE'){
+        result=await API.createManagementReportPackage(state.moduleId,selection);
+      }else{
+        result=await API.createAllWorkflowStagesExport(state.moduleId,{...selection,fileFormat});
+      }
+      state.lastResult=result;
+      renderResult(result);
+      set('adminManagementLatestFile',result.filename||'-');
+      if(result.reportType==='ALL_STAGES_SINGLE'){
+        setSummary(`สร้างไฟล์สำเร็จ · ${Number(result.rowCount||0)} แถว · ${Number(result.columnCount||0)} คอลัมน์ · ${result.fileFormat||'-'}`);
+      }else{
+        setSummary('สร้างชุดรายงานสำเร็จ · รถ '+Number(result.counts&&result.counts.vehicleDetails||0)+' รายการ · รายวัน '+Number(result.counts&&result.counts.dailyRows||0)+' วัน · รายกะ '+Number(result.counts&&result.counts.shiftRows||0)+' แถว');
+      }
+      toast('สร้างไฟล์รายงานแล้ว','success');
+      await loadHistoryOnly();
+    }catch(error){
+      setSummary('สร้างรายงานไม่สำเร็จ: '+message(error));
+      toast(message(error),'error');
+    }finally{
+      state.loading=false;
+      buttonBusy(false);
+    }
+  }
+
+  function renderResult(result){
+    const element=byId('adminInboundExportPreview');
+    if(!element)return;
+    const single=result.reportType==='ALL_STAGES_SINGLE';
+    const facts=single
+      ? `<div class="admin-management-result__facts"><span>รูปแบบ ${esc(result.fileFormat||'-')}</span><span>${Number(result.rowCount||0)} แถว</span><span>${Number(result.columnCount||0)} คอลัมน์</span></div>`
+      : `<div class="admin-management-result__facts"><span>รถ ${Number(result.counts&&result.counts.vehicleDetails||0)}</span><span>รายวัน ${Number(result.counts&&result.counts.dailyRows||0)}</span><span>รายกะ ${Number(result.counts&&result.counts.shiftRows||0)}</span></div>`;
+    element.classList.add('is-ready');
+    element.innerHTML=`<h4>สร้างไฟล์สำเร็จ</h4><p><strong>${esc(result.filename||'-')}</strong></p>${facts}<p>ช่วง ${esc(result.startDate||'')} → ${esc(result.endDate||'')} · ${esc(result.dateMode==='MONTH'?'เลือกเดือน':'กำหนดช่วงวันที่')}</p><p>ไฟล์เป็น Private ใน Google Drive และหมดอายุ ${esc(result.expiresAt||'-')}</p><p>Rules ${esc(result.governance&&result.governance.rulesRevision||'-')} · Shift ${esc(result.governance&&result.governance.shiftVersion||'-')} · KPI ${esc(result.governance&&result.governance.kpiVersion||'-')}</p>${result.downloadUrl?`<a class="button button--primary" href="${escAttr(result.downloadUrl)}" target="_blank" rel="noopener">ดาวน์โหลด ${esc(result.fileFormat||'ไฟล์')}</a>`:''}`;
+  }
+
+  async function loadHistoryOnly(){
+    try{const data=await API.listManagementReportExports(state.moduleId,{limit:20});renderHistory(data.exports||[]);}catch(error){console.warn(error);}
+  }
+
+  async function cleanup(){
+    if(state.loading)return;
+    state.loading=true;
+    try{const result=await API.cleanupManagementReportFiles();toast('ตรวจ '+Number(result.checked||0)+' ไฟล์ · ลบ '+Number(result.trashed||0)+' ไฟล์','success');await loadHistoryOnly();}catch(error){toast(message(error),'error');}finally{state.loading=false;}
+  }
+
+  function buttonBusy(busy){
+    const button=byId('adminInboundExportButton');
+    if(!button)return;
+    button.disabled=busy;
+    if(busy)button.textContent='กำลังสร้างไฟล์...';else updateButtonLabel();
+  }
+
+  function setSummary(textValue){set('adminInboundExportSummary',textValue);}
+  function set(id,textValue){const element=byId(id);if(element)element.textContent=textValue;}
+  function value(id){return text(byId(id)?.value);}
+  function byId(id){return document.getElementById(id);}
+  function text(input){return input===null||input===undefined?'':String(input).trim();}
+  function message(error){return error&&error.message?error.message:String(error||'เกิดข้อผิดพลาด');}
+  function isAdmin(session){const user=session&&session.user?session.user:session||{};return text(user.role).toUpperCase()==='ADMIN';}
+  function esc(input){return text(input).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+  function escAttr(input){return esc(input);}
+  function toast(title,icon){if(window.Swal)Swal.fire({toast:true,position:'top-end',timer:3200,showConfirmButton:false,icon:icon||'info',title});}
 })(window,document);
