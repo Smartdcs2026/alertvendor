@@ -24,7 +24,7 @@
 
   <link
     rel="stylesheet"
-    href="./admin-shift-panel.css?v=20260714-admin-sla-control-r1"
+    href="./admin-shift-panel.css?v=20260715-alert-engine-r1"
   >
 
   <script
@@ -38,12 +38,12 @@
   ></script>
 
   <script
-    src="./api.js?v=20260714-admin-sla-control-r1"
+    src="./api.js?v=20260715-alert-engine-r1"
     defer
   ></script>
 
   <script
-    src="./admin.js?v=20260714-admin-sla-control-r1"
+    src="./admin.js?v=20260715-alert-engine-r1"
     defer
   ></script>
 
@@ -614,6 +614,32 @@
             ไม่ใช้ค่าตายตัวในหน้าจอ
           </small>
         </div>
+
+        <section class="admin-alert-engine" aria-labelledby="adminAlertEngineTitle">
+          <header>
+            <div>
+              <span class="eyebrow">ALERT ENGINE</span>
+              <h3 id="adminAlertEngineTitle">สถานะเครื่องแจ้งเตือนและประวัติการส่ง</h3>
+              <p>ประเมินเกณฑ์รายขั้นตอน ป้องกันส่งซ้ำ และบันทึก Delivery Log กลาง</p>
+            </div>
+            <div class="admin-alert-engine__actions">
+              <button id="adminAlertEngineSetupButton" class="button button--secondary" type="button">เตรียมระบบ</button>
+              <button id="adminAlertEngineToggleButton" class="button button--secondary" type="button">เปิดใช้งาน</button>
+              <button id="adminAlertEngineRunButton" class="button button--primary" type="button">ประมวลผลตอนนี้</button>
+              <button id="adminAlertEngineRefreshButton" class="button button--secondary" type="button">รีเฟรช</button>
+            </div>
+          </header>
+          <div class="admin-alert-engine__metrics">
+            <div><span>สถานะ</span><strong id="adminAlertEngineStatus" data-status="IDLE">รอโหลด</strong></div>
+            <div><span>Trigger</span><strong id="adminAlertEngineTrigger">-</strong></div>
+            <div><span>Alert Active</span><strong id="adminAlertEngineActive">0</strong></div>
+            <div><span>เกินเวลา</span><strong id="adminAlertEngineOverdue">0</strong></div>
+            <div><span>ส่งทั้งหมด</span><strong id="adminAlertEngineDeliveryCount">0</strong></div>
+            <div><span>รอบล่าสุด</span><strong id="adminAlertEngineLastRun">-</strong></div>
+          </div>
+          <div class="admin-alert-engine__notice" id="adminAlertEngineNotice">In-App พร้อมใช้งาน · Webhook ตั้งผ่าน Script Properties</div>
+          <div class="admin-alert-delivery-list" id="adminAlertDeliveryList"><div class="admin-sla-loading">กำลังโหลดประวัติการส่ง...</div></div>
+        </section>
 
         <div
           id="adminSlaRuleGrid"
