@@ -3682,3 +3682,183 @@ body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
   }
 }
 
+/* =========================================================
+ * PHASE 4D HOTFIX 7
+ * DAILY HISTORY EXPANDED — REMOVE EXECUTIVE INSIGHT
+ *
+ * นำการ์ดสรุปผู้บริหารด้านขวาออก
+ * และให้ข้อมูลย้อนหลังใช้พื้นที่เดิมทั้งหมด
+ * ========================================================= */
+
+body[data-dashboard-view="DAILY"]
+.daily-insight-panel {
+  display: none !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-dashboard-analysis {
+  display: grid !important;
+  grid-template-columns:
+    minmax(360px, 5fr)
+    minmax(520px, 7fr) !important;
+  grid-template-rows:
+    minmax(0, 1fr) !important;
+  grid-template-areas:
+    "trend history" !important;
+  align-items: stretch !important;
+  align-content: stretch !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-trend-panel {
+  grid-area: trend !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-panel {
+  grid-area: history !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table-wrap {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable both-edges !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table {
+  width: 100% !important;
+  min-width: 860px !important;
+  table-layout: fixed !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table th,
+body[data-dashboard-view="DAILY"]
+.daily-history-table td {
+  padding-inline: 7px !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(1),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(1) {
+  width: 22% !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(2),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(2),
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(3),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(3),
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(4),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(4) {
+  width: 8% !important;
+  text-align: center !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(5),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(5) {
+  width: 12% !important;
+  text-align: center !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(6),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(6),
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(7),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(7) {
+  width: 13% !important;
+  text-align: right !important;
+}
+
+body[data-dashboard-view="DAILY"]
+.daily-history-table th:nth-child(8),
+body[data-dashboard-view="DAILY"]
+.daily-history-table td:nth-child(8) {
+  width: 11% !important;
+  text-align: center !important;
+}
+
+/* Fullscreen: History ใช้พื้นที่ Insight เดิมทั้งหมด */
+body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+.daily-dashboard-analysis {
+  grid-template-columns:
+    minmax(390px, 5fr)
+    minmax(620px, 7fr) !important;
+  grid-template-areas:
+    "trend history" !important;
+}
+
+body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+.daily-history-panel {
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+.daily-history-table-wrap {
+  height: 100% !important;
+  max-height: none !important;
+}
+
+body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+.daily-history-table {
+  min-width: 900px !important;
+}
+
+/* Medium desktop: กราฟและตารางยังสมดุล */
+@media (min-width: 1000px) and (max-width: 1399px) {
+  body[data-dashboard-view="DAILY"]
+  .daily-dashboard-analysis,
+  body.dashboard-one-page-fullscreen[data-dashboard-view="DAILY"]
+  .daily-dashboard-analysis {
+    grid-template-columns:
+      minmax(330px, 4fr)
+      minmax(560px, 8fr) !important;
+  }
+
+  body[data-dashboard-view="DAILY"]
+  .daily-history-table {
+    min-width: 820px !important;
+  }
+}
+
+/* Mobile/Tablet: เรียงกราฟก่อน แล้วตามด้วยข้อมูลย้อนหลัง */
+@media (max-width: 999px) {
+  body[data-dashboard-view="DAILY"]
+  .daily-dashboard-analysis {
+    display: grid !important;
+    grid-template-columns:
+      minmax(0, 1fr) !important;
+    grid-template-rows:
+      auto
+      minmax(360px, auto) !important;
+    grid-template-areas:
+      "trend"
+      "history" !important;
+  }
+
+  body[data-dashboard-view="DAILY"]
+  .daily-history-table {
+    min-width: 820px !important;
+  }
+}
+
