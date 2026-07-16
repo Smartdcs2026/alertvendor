@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.17-r16-fast-commit-durable-recovery';
+    '2026.07.17-r17-runtime-fix-visible-progress';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
@@ -25,6 +25,14 @@
 
   const inFlight = new Set();
   let recoveryRunning = false;
+
+  const progressState = {
+    open: false,
+    recordId: '',
+    startedAt: 0,
+    elapsedTimer: null,
+    stage: ''
+  };
 
   document.addEventListener(
     'DOMContentLoaded',
@@ -223,7 +231,6 @@
         Date.now()
     };
   }
-
   async function executeReceiving(
     payload,
     record,
@@ -232,381 +239,258 @@
   ) {
     const config =
       options &&
-      typeof options ===
-        'object'
+      typeof options === 'object'
         ? options
         : {};
 
-    const recordId =
-      String(
-        payload.recordId ||
-        ''
-      );
+    const interactive =
+      config.interactive !== false;
 
-    if (
-      !recordId ||
-      inFlight.has(
-        recordId
-      )
-    ) {
+    const recordId = String(payload.recordId || '');
+
+    if (!recordId || inFlight.has(recordId)) {
       return;
     }
 
-    const moduleId =
-      getModuleId();
+    const moduleId = getModuleId();
 
     if (!moduleId) {
-      removePendingRequest(
-        recordId
-      );
-
-      if (
-        config.interactive !==
-        false
-      ) {
-        await showError(
-          'ไม่พบรหัส Module',
-          'MODULE_ID_MISSING'
-        );
+      removePendingRequest(recordId);
+      if (interactive) {
+        await showError('ไม่พบรหัส Module','MODULE_ID_MISSING');
       }
-
       return;
     }
 
-    if (
-      !API ||
-      typeof API.completeReceiving !==
-        'function'
-    ) {
-      if (
-        config.interactive !==
-        false
-      ) {
+    if (!API || typeof API.completeReceiving !== 'function') {
+      if (interactive) {
         await showError(
           'ไม่พบ API สำหรับบันทึกรับสินค้าเสร็จ',
           'RECEIVING_API_MISSING'
         );
       }
-
       return;
     }
 
-    inFlight.add(
-      recordId
+    inFlight.add(recordId);
+    setButtonLoading(button,true);
+    setCardLiveStatus(
+      recordId,
+      'SAVING',
+      'กำลังเตรียมคำขอและตรวจสอบข้อมูลรถ...'
     );
 
-    setButtonLoading(
-      button,
-      true
-    );
+    if (interactive) {
+      openSavingProgress(record,payload);
+    }
 
     try {
       let result;
+      updateSavingProgress(
+        'PREPARE',
+        'กำลังตรวจสอบข้อมูลรถและป้องกันการบันทึกซ้ำ',
+        18
+      );
 
       try {
-        result =
-          await commitWithRetry(
-            moduleId,
-            payload
-          );
-
+        result = await commitWithRetry(moduleId,payload,recordId);
       } catch (error) {
-        const verified =
-          await verifyCommit(
-            moduleId,
-            payload
-          );
+        updateSavingProgress(
+          'VERIFY',
+          'ยังไม่ได้รับคำยืนยัน กำลังตรวจสอบผลจาก Server',
+          68
+        );
+        setCardLiveStatus(
+          recordId,
+          'VERIFYING',
+          'กำลังตรวจสอบว่าข้อมูลถูกบันทึกแล้วหรือยัง...'
+        );
 
-        if (
-          verified &&
-          verified.completed ===
-            true
-        ) {
+        const verified = await verifyCommit(moduleId,payload);
+
+        if (verified && verified.completed === true) {
           result = {
-            success:
-              true,
-
-            committed:
-              true,
-
-            alreadyCompleted:
-              true,
-
-            verifiedAfterError:
-              true,
-
-            message:
-              'Server ยืนยันว่าบันทึกรับสินค้าเสร็จแล้ว',
-
-            receivingCompleteAt:
-              verified
-                .receivingCompleteAt ||
-              '',
-
+            success: true,
+            committed: true,
+            alreadyCompleted: true,
+            verifiedAfterError: true,
+            message: 'Server ยืนยันว่าบันทึกรับสินค้าเสร็จแล้ว',
+            receivingCompleteAt: verified.receivingCompleteAt || '',
             receivingCompleteEpochMs:
-              Number(
-                verified
-                  .receivingCompleteEpochMs
-              ) || 0,
-
-            requestId:
-              verified.requestId ||
-              payload.clientRequestId,
-
+              Number(verified.receivingCompleteEpochMs) || 0,
+            requestId: verified.requestId || payload.clientRequestId,
             workflowSync:
               verified.workflowSync &&
-              typeof verified.workflowSync ===
-                'object'
+              typeof verified.workflowSync === 'object'
                 ? verified.workflowSync
                 : {
-                    success:
-                      false,
-
-                    verificationOnly:
-                      true,
-
-                    code:
-                      'WORKFLOW_SYNC_NOT_CONFIRMED'
+                    success: false,
+                    verificationOnly: true,
+                    code: 'WORKFLOW_SYNC_NOT_CONFIRMED'
                   }
           };
-
         } else if (
-          isTemporaryError(
-            error
-          ) ||
-          navigator.onLine ===
-            false
+          isTemporaryError(error) ||
+          navigator.onLine === false
         ) {
-          /*
-           * ทั้ง Network/Timeout และ Server Busy เป็นสถานะชั่วคราว
-           * เก็บ Request ID เดิมไว้ แล้ว Replay โดยไม่สร้างข้อมูลซ้ำ
-           */
-          setButtonQueued(
-            button
+          closeSavingProgress();
+          setButtonQueued(button);
+          setCardLiveStatus(
+            recordId,
+            'QUEUED',
+            navigator.onLine === false
+              ? 'อุปกรณ์ออฟไลน์ เก็บคำขอไว้และจะส่งเมื่อออนไลน์'
+              : 'Server ยังไม่ยืนยันผล ระบบจะตรวจสอบและลองใหม่อัตโนมัติ'
           );
 
-          if (
-            config.interactive !==
-            false
-          ) {
-            await showQueued(
-              error
-            );
+          if (interactive) {
+            await showQueued(error);
           }
 
-          if (
-            navigator.onLine !==
-            false
-          ) {
+          if (navigator.onLine !== false) {
             window.setTimeout(
-              () => {
-                void recoverPendingRequests();
-              },
-              Math.max(
-                900,
-                retryDelay(
-                  error,
-                  1
-                )
-              )
+              () => void recoverPendingRequests(),
+              Math.max(900,retryDelay(error,1))
             );
           }
-
           return;
-
         } else {
-          removePendingRequest(
-            recordId
-          );
-
+          removePendingRequest(recordId);
           throw error;
         }
       }
 
-      removePendingRequest(
-        recordId
+      updateSavingProgress(
+        'SYNC',
+        'บันทึกเวลาแล้ว กำลังซิงก์สถานะกับ Inbound',
+        86
+      );
+      setCardLiveStatus(
+        recordId,
+        'SYNCING',
+        'บันทึกข้อมูลหลักแล้ว กำลังซิงก์สถานะ Inbound...'
       );
 
-      applyCommittedState(
-        recordId,
-        result,
-        button
+      removePendingRequest(recordId);
+      applyCommittedState(recordId,result,button);
+      updateSavingProgress(
+        'DONE',
+        'บันทึกสำเร็จและอัปเดตสถานะเรียบร้อย',
+        100
       );
+      await delay(220);
+      closeSavingProgress();
 
       if (
         result &&
         result.workflowSync &&
-        result.workflowSync.success ===
-          false
+        result.workflowSync.success === false
       ) {
-        scheduleWorkflowRepair(
-          moduleId,
-          payload
-        );
-
-        if (
-          config.interactive !==
-            false
-        ) {
-          await showCommittedWithSyncPending(
-            result
-          );
+        scheduleWorkflowRepair(moduleId,payload);
+        if (interactive) {
+          await showCommittedWithSyncPending(result);
         }
-
-      } else if (
-        config.interactive !==
-        false
-      ) {
-        await showSuccess(
-          result
-        );
-
+      } else if (interactive) {
+        await showSuccess(result);
       } else {
-        showRecoveryToast(
-          'ส่งคำขอรับสินค้าเสร็จที่ค้างไว้สำเร็จ'
-        );
+        showRecoveryToast('ส่งคำขอรับสินค้าเสร็จที่ค้างไว้สำเร็จ');
       }
 
       scheduleBoardRefresh();
-
     } catch (error) {
-      if (
-        config.interactive !==
-          false
-      ) {
-        await showSaveError(
-          error
-        );
-      }
-
-    } finally {
-      inFlight.delete(
-        recordId
+      closeSavingProgress();
+      setCardLiveStatus(
+        recordId,
+        'ERROR',
+        'บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อความแจ้งเตือน'
       );
-
-      if (
-        !hasPendingRequest(
-          recordId
-        )
-      ) {
-        setButtonLoading(
-          button,
-          false
-        );
+      window.setTimeout(
+        () => clearCardLiveStatus(recordId,'ERROR'),
+        9000
+      );
+      if (interactive) {
+        await showSaveError(error);
+      }
+    } finally {
+      inFlight.delete(recordId);
+      if (!hasPendingRequest(recordId)) {
+        setButtonLoading(button,false);
       }
     }
   }
-
   async function commitWithRetry(
     moduleId,
-    payload
+    payload,
+    recordId
   ) {
-    let lastError =
-      null;
+    let lastError = null;
 
-    for (
-      let attempt = 0;
-      attempt <
-        MAX_COMMIT_ATTEMPTS;
-      attempt += 1
-    ) {
+    for (let attempt=0; attempt<MAX_COMMIT_ATTEMPTS; attempt+=1) {
+      const attemptNumber = attempt + 1;
+      updateSavingProgress(
+        'COMMIT',
+        attempt === 0
+          ? 'กำลังส่งคำขอและบันทึกเวลาใน Server'
+          : 'Server ยังไม่พร้อม กำลังลองซ้ำครั้งที่ ' + attemptNumber,
+        Math.min(58,30 + attempt * 12)
+      );
+      setCardLiveStatus(
+        recordId,
+        'SAVING',
+        attempt === 0
+          ? 'กำลังบันทึกเวลาใน Server...'
+          : 'กำลังลองบันทึกซ้ำครั้งที่ ' + attemptNumber + '...'
+      );
+
       try {
-        return await API
-          .completeReceiving(
-            moduleId,
-            payload
-          );
-
+        return await API.completeReceiving(moduleId,payload);
       } catch (error) {
-        lastError =
-          error;
-
+        lastError = error;
         if (
-          !isTemporaryError(
-            error
-          ) ||
-          attempt >=
-            MAX_COMMIT_ATTEMPTS -
-              1 ||
-          navigator.onLine ===
-            false
+          !isTemporaryError(error) ||
+          attempt >= MAX_COMMIT_ATTEMPTS - 1 ||
+          navigator.onLine === false
         ) {
           throw error;
         }
-
-        await delay(
-          retryDelay(
-            error,
-            attempt
-          )
-        );
+        await delay(retryDelay(error,attempt));
       }
     }
 
-    throw lastError ||
-    new Error(
-      'บันทึกรับสินค้าเสร็จไม่สำเร็จ'
-    );
+    throw lastError || new Error('บันทึกรับสินค้าเสร็จไม่สำเร็จ');
   }
-
   async function verifyCommit(
     moduleId,
     payload
   ) {
     if (
       !API ||
-      typeof API
-        .getReceivingCommitStatus !==
-        'function' ||
-      navigator.onLine ===
-        false
+      typeof API.getReceivingCommitStatus !== 'function' ||
+      navigator.onLine === false
     ) {
       return null;
     }
 
-    for (
-      let attempt = 0;
-      attempt <
-        VERIFY_ATTEMPTS;
-      attempt += 1
-    ) {
+    for (let attempt=0; attempt<VERIFY_ATTEMPTS; attempt+=1) {
+      updateSavingProgress(
+        'VERIFY',
+        'ตรวจสอบผลการบันทึกกับ Server ครั้งที่ ' + (attempt + 1),
+        Math.min(80,66 + attempt * 4)
+      );
       try {
-        const result =
-          await API
-            .getReceivingCommitStatus(
-              moduleId,
-              payload
-            );
-
-        if (
-          result &&
-          result.completed ===
-            true
-        ) {
+        const result = await API.getReceivingCommitStatus(moduleId,payload);
+        if (result && result.completed === true) {
           return result;
         }
-
       } catch (error) {
-        if (
-          isAuthenticationError(
-            error
-          )
-        ) {
+        if (isAuthenticationError(error)) {
           throw error;
         }
       }
-
-      if (
-        attempt <
-        VERIFY_ATTEMPTS - 1
-      ) {
-        await delay(
-          450 +
-          attempt * 550
-        );
+      if (attempt < VERIFY_ATTEMPTS - 1) {
+        await delay(450 + attempt * 550);
       }
     }
-
     return null;
   }
 
@@ -762,6 +646,10 @@
       sourceButton.textContent =
         'รับสินค้าเสร็จแล้ว';
     }
+
+    clearCardLiveStatus(
+      recordId
+    );
 
     const card =
       findVehicleCard(
@@ -1063,7 +951,6 @@
         'รับทราบ'
     });
   }
-
   async function showQueued(
     error
   ) {
@@ -1071,38 +958,36 @@
       return;
     }
 
+    const code = String(
+      error && error.code || 'NETWORK_PENDING'
+    ).toUpperCase();
+    const offline = navigator.onLine === false;
+    const busy = code.includes('BUSY');
+
     await Swal.fire({
-      icon:
-        'info',
-
+      icon: 'info',
       title:
-        'เก็บคำขอไว้แล้ว',
-
-      text:
-        navigator.onLine ===
-          false
-          ? 'อุปกรณ์ออฟไลน์ ระบบจะส่งคำขอนี้อัตโนมัติเมื่ออินเทอร์เน็ตกลับมา'
-          : (
-              String(
-                error &&
-                error.code ||
-                ''
-              ).toUpperCase().includes(
-                'BUSY'
-              )
-                ? 'ระบบกำลังเขียนข้อมูลจากคำขออื่น คำขอนี้ถูกเก็บไว้และจะลองใหม่อัตโนมัติโดยไม่สร้างข้อมูลซ้ำ'
-                : 'การตอบกลับไม่แน่นอน ระบบจะตรวจสอบและส่งซ้ำโดยไม่สร้างข้อมูลซ้ำ'
-            ),
-
-      footer:
-        escapeHtml(
-          error &&
-          error.code ||
-          'NETWORK_PENDING'
-        ),
-
-      confirmButtonText:
-        'รับทราบ'
+        offline
+          ? 'เก็บคำขอไว้ในอุปกรณ์แล้ว'
+          : busy
+            ? 'Server กำลังเขียนข้อมูล'
+            : 'ยังไม่ได้รับคำยืนยันจาก Server',
+      html: `
+        <p>
+          ${
+            offline
+              ? 'ระบบจะส่งคำขอเดิมอัตโนมัติเมื่ออินเทอร์เน็ตกลับมา'
+              : busy
+                ? 'ระบบจะตรวจสอบผลและลองใหม่อัตโนมัติ โดยไม่สร้างข้อมูลซ้ำ'
+                : 'ระบบเก็บ Request ID เดิมไว้ และจะตรวจสอบผลก่อนส่งซ้ำ'
+          }
+        </p>
+        <div class="receiving-queued-note">
+          ไม่ต้องกดปุ่มซ้ำ และสามารถดูสถานะบนการ์ดได้
+        </div>
+        <small class="receiving-warning-code">${escapeHtml(code)}</small>
+      `,
+      confirmButtonText: 'รับทราบ'
     });
   }
 
@@ -1145,83 +1030,45 @@
       });
     }
   }
-
   async function showSaveError(
     error
   ) {
-    const code =
-      String(
-        error &&
-        error.code ||
-        'RECEIVING_SAVE_FAILED'
-      );
+    const code = String(
+      error && error.code || 'RECEIVING_SAVE_FAILED'
+    ).toUpperCase();
+    const message = String(
+      error && error.message || 'บันทึกรับสินค้าเสร็จไม่สำเร็จ'
+    );
 
-    const message =
-      String(
-        error &&
-        error.message ||
-        'บันทึกรับสินค้าเสร็จไม่สำเร็จ'
-      );
-
-    let guidance =
-      '';
-
-    if (
-      code ===
-        'RECEIVING_BUSY' ||
-      code ===
-        'INBOUND_WORKFLOW_BUSY'
-    ) {
-      guidance =
-        'ระบบตรวจสอบและลองซ้ำอัตโนมัติแล้ว แต่ยังมีงานเขียนค้างอยู่ กรุณากดใหม่อีกครั้ง';
-    } else if (
-      code ===
-        'RECORD_CHANGED' ||
-      code ===
-        'RECORD_NO_LONGER_ACTIVE'
-    ) {
-      guidance =
-        'ข้อมูลรายการเปลี่ยนแล้ว ระบบจะโหลด Snapshot ล่าสุด';
-    } else if (
-      code ===
-        'DOCUMENT_SUBMIT_REQUIRED' ||
-      code ===
-        'WORKFLOW_STAGE_ORDER_INVALID'
-    ) {
-      guidance =
-        'ให้ Inbound ยื่นเอกสารก่อน แล้วรีเฟรชข้อมูล';
+    let guidance = 'ตรวจสอบข้อมูลรายการแล้วลองใหม่อีกครั้ง';
+    if (code === 'RECEIVING_BUSY' || code === 'INBOUND_WORKFLOW_BUSY') {
+      guidance = 'ระบบยังมีงานเขียนค้างอยู่ กรุณารอประมาณ 2 วินาทีแล้วกดใหม่';
+    } else if (code === 'RECORD_CHANGED' || code === 'RECORD_NO_LONGER_ACTIVE') {
+      guidance = 'ข้อมูลรายการเปลี่ยนแล้ว ระบบจะโหลด Snapshot ล่าสุด';
+    } else if (code === 'DOCUMENT_SUBMIT_REQUIRED' || code === 'WORKFLOW_STAGE_ORDER_INVALID') {
+      guidance = 'ให้ Inbound ยื่นเอกสารก่อน แล้วรีเฟรชข้อมูล';
+    } else if (code === 'INTERNAL_ERROR') {
+      guidance = 'เกิดข้อผิดพลาดใน Backend ระบบไม่ได้ถือว่าเป็นงานค้าง กรุณาแจ้ง Admin พร้อมเวลาที่เกิดเหตุ';
     }
 
     if (window.Swal) {
       await Swal.fire({
-        icon:
-          'error',
-
-        title:
-          'บันทึกรับสินค้าเสร็จไม่สำเร็จ',
-
+        icon: 'error',
+        title: 'บันทึกรับสินค้าเสร็จไม่สำเร็จ',
         html: `
           <p>${escapeHtml(message)}</p>
-          ${guidance ? `<p>${escapeHtml(guidance)}</p>` : ''}
-          <div class="receiving-error-code">
-            รหัส: ${escapeHtml(code)}
-          </div>
+          <p>${escapeHtml(guidance)}</p>
+          <div class="receiving-error-code">รหัส: ${escapeHtml(code)}</div>
         `,
-
-        confirmButtonText:
-          'ตกลง'
+        confirmButtonText: 'ตกลง'
       });
     }
 
-    if (
-      [
-        'RECORD_CHANGED',
-        'RECORD_NO_LONGER_ACTIVE',
-        'RECEIVING_ALREADY_COMPLETED'
-      ].includes(
-        code
-      )
-    ) {
+    if ([
+      'RECORD_CHANGED',
+      'RECORD_NO_LONGER_ACTIVE',
+      'RECEIVING_ALREADY_COMPLETED'
+    ].includes(code)) {
       scheduleBoardRefresh();
     }
   }
@@ -1250,18 +1097,22 @@
       });
     }
   }
-
   function isTemporaryError(
     error
   ) {
-    const code =
-      String(
-        error &&
-        error.code ||
-        ''
-      ).toUpperCase();
+    const code = String(
+      error && error.code || ''
+    ).toUpperCase();
 
-    return [
+    if ([
+      'INTERNAL_ERROR',
+      'RECEIVING_RUNTIME_ERROR',
+      'APPS_SCRIPT_ERROR'
+    ].includes(code)) {
+      return false;
+    }
+
+    if ([
       'RECEIVING_BUSY',
       'INBOUND_WORKFLOW_BUSY',
       'REQUEST_TIMEOUT',
@@ -1270,21 +1121,12 @@
       'INVALID_JSON_RESPONSE',
       'UPSTREAM_TIMEOUT',
       'GAS_TIMEOUT'
-    ].includes(
-      code
-    ) ||
-    [
-      408,
-      409,
-      429,
-      502,
-      503,
-      504
-    ].includes(
-      Number(
-        error &&
-        error.status
-      )
+    ].includes(code)) {
+      return true;
+    }
+
+    return !code && [408,409,429,502,503,504].includes(
+      Number(error && error.status)
     );
   }
 
@@ -1369,7 +1211,6 @@
     ][attempt] ||
     1500;
   }
-
   function setButtonLoading(
     button,
     loading
@@ -1379,61 +1220,187 @@
     }
 
     if (loading) {
-      button.dataset.originalText =
-        button.textContent ||
-        '';
-
-      button.disabled =
-        true;
-
-      button.setAttribute(
-        'aria-busy',
-        'true'
-      );
-
-      button.textContent =
-        'กำลังบันทึก...';
-
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.textContent || '';
+      }
+      button.disabled = true;
+      button.setAttribute('aria-busy','true');
+      button.classList.add('is-receiving-saving');
+      button.textContent = 'กำลังตรวจสอบ...';
       return;
     }
 
-    button.removeAttribute(
-      'aria-busy'
-    );
+    button.removeAttribute('aria-busy');
+    button.classList.remove('is-receiving-saving');
+    button.classList.remove('is-receiving-queued');
 
-    if (
-      button.isConnected &&
-      button.dataset.canComplete ===
-        'TRUE'
-    ) {
-      button.disabled =
-        false;
-
+    if (button.isConnected && button.dataset.canComplete === 'TRUE') {
+      button.disabled = false;
       button.textContent =
-        button.dataset
-          .originalText ||
-        'บันทึกรับสินค้าเสร็จ';
+        button.dataset.originalText || 'บันทึกรับสินค้าเสร็จ';
     }
   }
-
   function setButtonQueued(
     button
   ) {
     if (!button) {
       return;
     }
-
-    button.disabled =
-      true;
-
-    button.setAttribute(
-      'aria-busy',
-      'true'
-    );
-
+    button.disabled = true;
+    button.setAttribute('aria-busy','true');
+    button.classList.remove('is-receiving-saving');
+    button.classList.add('is-receiving-queued');
     button.textContent =
-      'รอส่งเมื่อออนไลน์';
+      navigator.onLine === false
+        ? 'รออินเทอร์เน็ต'
+        : 'กำลังตรวจสอบผล';
   }
+
+  function openSavingProgress(
+    record,
+    payload
+  ) {
+    if (!window.Swal || typeof Swal.fire !== 'function') {
+      return;
+    }
+
+    closeSavingProgress();
+
+    const appointment =
+      record && (
+        record.appointmentNumber ||
+        record.appointment ||
+        record.primaryValue
+      ) || payload.expectedPrimaryValue || '-';
+    const company =
+      record && (record.companyName || record.company) || '-';
+
+    progressState.open = true;
+    progressState.recordId = String(payload.recordId || '');
+    progressState.startedAt = Date.now();
+    progressState.stage = 'PREPARE';
+
+    void Swal.fire({
+      title: '',
+      html: `
+        <section class="receiving-progress-panel">
+          <div class="receiving-progress-spinner" aria-hidden="true"></div>
+          <p class="receiving-progress-eyebrow">RECEIVING FAST COMMIT</p>
+          <h2>กำลังบันทึกรับสินค้าเสร็จ</h2>
+          <div class="receiving-progress-identity">
+            <span>เลขนัดหมาย<strong>${escapeHtml(appointment)}</strong></span>
+            <span>บริษัท<strong>${escapeHtml(company)}</strong></span>
+          </div>
+          <div class="receiving-progress-meter"><i data-receiving-progress-bar></i></div>
+          <p class="receiving-progress-message" data-receiving-progress-message>กำลังเตรียมคำขอ...</p>
+          <div class="receiving-progress-steps">
+            <div data-receiving-progress-step="PREPARE"><b>1</b><span>ตรวจสอบรายการ</span></div>
+            <div data-receiving-progress-step="COMMIT"><b>2</b><span>บันทึกเวลาใน Server</span></div>
+            <div data-receiving-progress-step="VERIFY"><b>3</b><span>ยืนยันผลการบันทึก</span></div>
+            <div data-receiving-progress-step="SYNC"><b>4</b><span>ซิงก์สถานะ Inbound</span></div>
+          </div>
+          <small data-receiving-progress-elapsed>ใช้เวลา 0 วินาที</small>
+          <p class="receiving-progress-hint">กรุณาอย่ากดซ้ำหรือปิดหน้านี้ ระบบป้องกันข้อมูลซ้ำให้อัตโนมัติ</p>
+        </section>
+      `,
+      showConfirmButton: false,
+      showCloseButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      returnFocus: false,
+      heightAuto: false,
+      customClass: {
+        popup: 'receiving-progress-popup',
+        htmlContainer: 'receiving-progress-html'
+      },
+      didOpen: () => {
+        updateSavingProgress('PREPARE','กำลังเตรียมคำขอและตรวจสอบรายการ',10);
+        progressState.elapsedTimer = window.setInterval(updateProgressElapsed,1000);
+      },
+      willClose: () => {
+        if (progressState.elapsedTimer) {
+          window.clearInterval(progressState.elapsedTimer);
+          progressState.elapsedTimer = null;
+        }
+        progressState.open = false;
+      }
+    });
+  }
+
+  function updateSavingProgress(stage,message,percent) {
+    progressState.stage = String(stage || progressState.stage || 'PREPARE').toUpperCase();
+    const popup = window.Swal && typeof Swal.getPopup === 'function'
+      ? Swal.getPopup()
+      : null;
+    if (!popup || !popup.classList.contains('receiving-progress-popup')) {
+      return;
+    }
+    const messageNode = popup.querySelector('[data-receiving-progress-message]');
+    if (messageNode) messageNode.textContent = message || 'กำลังดำเนินการ...';
+    const bar = popup.querySelector('[data-receiving-progress-bar]');
+    if (bar) {
+      bar.style.width = Math.max(4,Math.min(100,Number(percent || 0))) + '%';
+    }
+    const order=['PREPARE','COMMIT','VERIFY','SYNC','DONE'];
+    const currentIndex=order.indexOf(progressState.stage);
+    popup.querySelectorAll('[data-receiving-progress-step]').forEach((node) => {
+      const nodeIndex=order.indexOf(node.getAttribute('data-receiving-progress-step'));
+      node.classList.toggle('is-active',nodeIndex===currentIndex);
+      node.classList.toggle(
+        'is-done',
+        progressState.stage==='DONE' || (nodeIndex>=0 && currentIndex>=0 && nodeIndex<currentIndex)
+      );
+    });
+  }
+
+  function updateProgressElapsed() {
+    if (!progressState.open) return;
+    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+    const node = popup && popup.querySelector('[data-receiving-progress-elapsed]');
+    if (!node) return;
+    const seconds=Math.max(0,Math.floor((Date.now()-progressState.startedAt)/1000));
+    node.textContent='ใช้เวลา '+seconds+' วินาที';
+  }
+
+  function closeSavingProgress() {
+    if (progressState.elapsedTimer) {
+      window.clearInterval(progressState.elapsedTimer);
+      progressState.elapsedTimer=null;
+    }
+    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+    if (popup && popup.classList.contains('receiving-progress-popup') && typeof Swal.close === 'function') {
+      Swal.close();
+    }
+    progressState.open=false;
+    progressState.recordId='';
+    progressState.stage='';
+  }
+
+  function setCardLiveStatus(recordId,status,message) {
+    const card=findVehicleCard(recordId);
+    if (!card) return;
+    let element=card.querySelector('.receiving-live-status');
+    if (!element) {
+      element=document.createElement('div');
+      element.className='receiving-live-status';
+      const stage=card.querySelector('.vehicle-operational-stage');
+      (stage || card).appendChild(element);
+    }
+    element.dataset.state=String(status || 'SAVING').toUpperCase();
+    element.innerHTML=`<i aria-hidden="true"></i><span>${escapeHtml(message || 'กำลังดำเนินการ...')}</span>`;
+    card.dataset.receivingSaveState=element.dataset.state;
+  }
+
+  function clearCardLiveStatus(recordId,onlyState) {
+    const card=findVehicleCard(recordId);
+    if (!card) return;
+    const element=card.querySelector('.receiving-live-status');
+    if (element && (!onlyState || element.dataset.state===onlyState)) {
+      element.remove();
+    }
+    delete card.dataset.receivingSaveState;
+  }
+
 
   function getReceivingButtons(
     recordId
