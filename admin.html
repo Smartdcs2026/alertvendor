@@ -208,22 +208,6 @@
       line-height: 1.5;
     }
 
-    .admin-simple-advanced {
-      padding: 11px 13px;
-      border: 1px solid #d9e5eb;
-      border-radius: 11px;
-      background: #fbfdfe;
-    }
-
-    .admin-simple-advanced > summary {
-      color: #315668;
-      font-weight: 900;
-      cursor: pointer;
-    }
-
-    .admin-simple-advanced[open] > summary {
-      margin-bottom: 13px;
-    }
 
     .admin-management-history-item button {
       flex: 0 0 auto;
@@ -1275,12 +1259,12 @@
             </p>
 
             <h3>
-              หนึ่งรถต่อหนึ่งแถว ครบทุกขั้นตอน
+              สรุปเวลาแต่ละขั้นตอนของรถ/ตู้
             </h3>
 
             <p>
-              Gate In, ยื่นเอกสาร, รับสินค้าเสร็จ, คืนเอกสาร,
-              Gate Out, ระยะเวลา และผล SLA อยู่ในไฟล์เดียว
+              แสดงข้อมูลรถ/ตู้, Gate In, วันเวลาของแต่ละจุด,
+              เวลาที่ใช้, เกณฑ์ Admin และ Gate Out ในไฟล์เดียว
             </p>
           </div>
         </div>
@@ -1319,15 +1303,15 @@
             </span>
 
             <select id="adminManagementFileFormat">
-              <option
-                value="XLSX"
-                selected
-              >
+              <option value="XLSX">
                 Excel (.xlsx)
               </option>
 
-              <option value="CSV">
-                CSV (.csv)
+              <option
+                value="CSV"
+                selected
+              >
+                CSV (.csv) — เร็วที่สุด
               </option>
             </select>
           </label>
@@ -1426,13 +1410,13 @@
             class="button button--primary admin-simple-download-button"
             type="button"
           >
-            สร้างและดาวน์โหลด Excel
+            สร้างและดาวน์โหลด CSV
           </button>
         </div>
 
         <div class="admin-management-selection-note">
-          ใช้ Business Date จาก Gate In เป็นเกณฑ์เลือกรายการ
-          รถที่ออกหลังเที่ยงคืนยังอยู่ในวันหรือเดือนที่รถเข้า
+          ใช้วันเวลา Gate In จริงเป็นเกณฑ์เลือกรายการ
+          ส่วน Gate Out และเวลาทุกขั้นตอนจะแสดงครบในแถวเดียว
         </div>
 
         <div
@@ -1454,67 +1438,7 @@
           class="admin-management-result"
         ></div>
 
-        <details class="admin-simple-advanced">
-          <summary>
-            ดู Revision และนิยาม KPI
-          </summary>
-
-          <section class="admin-management-metrics">
-            <article>
-              <span>Data Revision</span>
-              <strong id="adminManagementDataRevision">-</strong>
-            </article>
-
-            <article>
-              <span>Rules Revision</span>
-              <strong id="adminManagementRulesRevision">-</strong>
-            </article>
-
-            <article>
-              <span>Shift Version</span>
-              <strong id="adminManagementShiftVersion">-</strong>
-            </article>
-
-            <article>
-              <span>KPI Version</span>
-              <strong id="adminManagementKpiVersion">-</strong>
-            </article>
-
-            <article>
-              <span>ไฟล์ล่าสุด</span>
-              <strong id="adminManagementLatestFile">-</strong>
-            </article>
-
-            <article>
-              <span>หมดอายุภายใน</span>
-              <strong id="adminManagementRetention">-</strong>
-            </article>
-          </section>
-
-          <div class="admin-card__header">
-            <div>
-              <p class="eyebrow">
-                KPI GOVERNANCE
-              </p>
-
-              <h3>
-                นิยาม KPI ที่ใช้ในไฟล์
-              </h3>
-            </div>
-
-            <span
-              id="adminManagementKpiCount"
-              class="admin-pill"
-            >
-              0 KPI
-            </span>
-          </div>
-
-          <div
-            id="adminManagementKpiList"
-            class="admin-management-kpi-list"
-          ></div>
-        </details>
+        
       </article>
 
       <article class="admin-card">
@@ -2420,7 +2344,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260716-phase5-r2-hotfix03-simple-secure"
+    src="./admin-inbound-export.js?v=20260716-phase5-r2-hotfix04-fast-timeline"
     defer
   ></script>
 
