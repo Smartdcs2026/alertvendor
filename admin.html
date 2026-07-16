@@ -38,7 +38,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260715-phase5-r2-hotfix02-async-export"
+    src="./api.js?v=20260716-phase5-r2-hotfix03-secure-export"
     defer
   ></script>
 
@@ -102,6 +102,145 @@
       .admin-export-controls,
       .admin-export-row {
         grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+
+  <style>
+    /* PHASE 5 R2 HOTFIX 03 — SIMPLE SECURE EXPORT */
+    .admin-simple-export-card {
+      display: grid;
+      gap: 16px;
+    }
+
+    .admin-simple-export-heading h3 {
+      margin: 3px 0 6px;
+      color: #0d3952;
+      font-size: 1.18rem;
+    }
+
+    .admin-simple-export-heading p {
+      margin: 0;
+      color: #5f7480;
+      line-height: 1.55;
+    }
+
+    .admin-simple-export-grid {
+      display: grid;
+      grid-template-columns:
+        minmax(220px, 1fr)
+        minmax(180px, .65fr);
+      gap: 12px;
+    }
+
+    .admin-simple-period {
+      display: grid;
+      gap: 8px;
+    }
+
+    .admin-simple-period-buttons {
+      display: grid;
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .admin-simple-period-buttons button {
+      min-height: 44px;
+      border: 1px solid #cbdce4;
+      border-radius: 10px;
+      background: #fff;
+      color: #325367;
+      font: inherit;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .admin-simple-period-buttons button.is-active {
+      border-color: #0b6f92;
+      background: #0b5877;
+      color: #fff;
+      box-shadow: 0 7px 18px rgba(11, 88, 119, .18);
+    }
+
+    .admin-simple-export-options {
+      display: grid;
+      grid-template-columns:
+        minmax(220px, 1fr)
+        minmax(240px, .72fr);
+      align-items: center;
+      gap: 12px;
+    }
+
+    .admin-simple-checkbox {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 13px;
+      border: 1px solid #d4e2e8;
+      border-radius: 11px;
+      background: #f7fbfd;
+      color: #36596a;
+      font-weight: 850;
+    }
+
+    .admin-simple-checkbox input {
+      width: 19px;
+      height: 19px;
+    }
+
+    .admin-simple-download-button {
+      min-height: 50px;
+      font-size: 1rem;
+      font-weight: 950;
+    }
+
+    .admin-simple-source-note {
+      padding: 10px 13px;
+      border-left: 4px solid #0b8e82;
+      border-radius: 8px;
+      background: #f2fbf9;
+      color: #365f61;
+      font-size: .84rem;
+      font-weight: 750;
+      line-height: 1.5;
+    }
+
+    .admin-simple-advanced {
+      padding: 11px 13px;
+      border: 1px solid #d9e5eb;
+      border-radius: 11px;
+      background: #fbfdfe;
+    }
+
+    .admin-simple-advanced > summary {
+      color: #315668;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .admin-simple-advanced[open] > summary {
+      margin-bottom: 13px;
+    }
+
+    .admin-management-history-item button {
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 760px) {
+      .admin-simple-export-grid,
+      .admin-simple-export-options {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-simple-period-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-simple-download-button {
+        width: 100%;
       }
     }
   </style>
@@ -1094,100 +1233,313 @@
     >
       <div class="admin-section-heading">
         <div>
-          <p class="eyebrow">MANAGEMENT REPORT CENTER</p>
-          <h2>ศูนย์รายงานบริหารรถและตู้สินค้า</h2>
-          <p>ส่งออกไฟล์รวมทุกขั้นตอนหรือชุดรายงาน ZIP จากข้อมูลจริง พร้อม Revision, นิยาม KPI, กะข้ามวัน และเกณฑ์ SLA ที่ Admin กำหนด</p>
+          <p class="eyebrow">
+            SIMPLE EXPORT
+          </p>
+
+          <h2>
+            ส่งออกข้อมูลทุกขั้นตอน
+          </h2>
+
+          <p>
+            เลือกช่วงเวลาและรูปแบบไฟล์ จากนั้นกดสร้างและดาวน์โหลดเพียงครั้งเดียว
+          </p>
         </div>
+
         <div class="admin-management-actions">
-          <button id="adminInboundExportRefreshButton" class="button button--secondary" type="button">รีเฟรช</button>
-          <button id="adminManagementCleanupButton" class="button button--secondary" type="button">ล้างไฟล์หมดอายุ</button>
+          <button
+            id="adminInboundExportRefreshButton"
+            class="button button--secondary"
+            type="button"
+          >
+            รีเฟรช
+          </button>
+
+          <button
+            id="adminManagementCleanupButton"
+            class="button button--secondary"
+            type="button"
+          >
+            ล้างไฟล์หมดอายุ
+          </button>
         </div>
       </div>
 
-      <article class="admin-card admin-management-export-card">
-        <div class="admin-card__header">
+      <article
+        class="admin-card admin-simple-export-card"
+      >
+        <div class="admin-simple-export-heading">
           <div>
-            <p class="eyebrow">ALL WORKFLOW STAGES EXPORT</p>
-            <h3>ส่งออกทุกขั้นตอนในไฟล์เดียว</h3>
-            <p>หนึ่งแถวต่อรถหรือตู้ แสดง Gate In, ยื่นเอกสาร, รับสินค้าเสร็จ, คืนเอกสาร, Gate Out, ระยะเวลาและ SLA ครบในไฟล์เดียว</p>
+            <p class="eyebrow">
+              ONE FILE · ALL WORKFLOW STAGES
+            </p>
+
+            <h3>
+              หนึ่งรถต่อหนึ่งแถว ครบทุกขั้นตอน
+            </h3>
+
+            <p>
+              Gate In, ยื่นเอกสาร, รับสินค้าเสร็จ, คืนเอกสาร,
+              Gate Out, ระยะเวลา และผล SLA อยู่ในไฟล์เดียว
+            </p>
           </div>
-          <button id="adminInboundExportButton" class="button button--primary" type="button">ส่งออกไฟล์</button>
         </div>
 
-        <div class="admin-management-controls admin-management-controls--round02">
-          <label class="form-field">
-            <span class="form-label">Module</span>
-            <select id="adminInboundExportModuleSelect"><option value="">กำลังโหลด Module...</option></select>
-          </label>
+        <input
+          id="adminManagementReportType"
+          type="hidden"
+          value="ALL_STAGES_SINGLE"
+        >
 
+        <input
+          id="adminManagementDateMode"
+          type="hidden"
+          value="TODAY"
+        >
+
+        <div class="admin-simple-export-grid">
           <label class="form-field">
-            <span class="form-label">ประเภทรายงาน</span>
-            <select id="adminManagementReportType">
-              <option value="ALL_STAGES_SINGLE" selected>ไฟล์เดียวรวมทุกขั้นตอน</option>
-              <option value="MANAGEMENT_PACKAGE">ชุดรายงานบริหาร ZIP</option>
+            <span class="form-label">
+              ข้อมูลของ Module
+            </span>
+
+            <select id="adminInboundExportModuleSelect">
+              <option value="">
+                กำลังโหลด Module...
+              </option>
             </select>
           </label>
 
-          <label class="form-field">
-            <span class="form-label">การเลือกช่วงข้อมูล</span>
-            <select id="adminManagementDateMode">
-              <option value="RANGE">กำหนดช่วงวันที่เอง</option>
-              <option value="MONTH">เลือกเดือน</option>
-            </select>
-          </label>
+          <label
+            id="adminManagementFileFormatField"
+            class="form-field"
+          >
+            <span class="form-label">
+              รูปแบบไฟล์
+            </span>
 
-          <label id="adminManagementFileFormatField" class="form-field">
-            <span class="form-label">รูปแบบไฟล์</span>
             <select id="adminManagementFileFormat">
-              <option value="XLSX" selected>Excel (.xlsx)</option>
-              <option value="CSV">CSV (.csv)</option>
+              <option
+                value="XLSX"
+                selected
+              >
+                Excel (.xlsx)
+              </option>
+
+              <option value="CSV">
+                CSV (.csv)
+              </option>
             </select>
           </label>
+        </div>
 
-          <div id="adminManagementRangeFields" class="admin-management-range-fields">
-            <label class="form-field"><span class="form-label">วันที่เริ่มต้น</span><input id="adminManagementStartDate" type="date"></label>
-            <label class="form-field"><span class="form-label">วันที่สิ้นสุด</span><input id="adminManagementEndDate" type="date"></label>
+        <div class="admin-simple-period">
+          <span class="form-label">
+            เลือกช่วงข้อมูล
+          </span>
+
+          <div
+            class="admin-simple-period-buttons"
+            role="group"
+            aria-label="เลือกช่วงข้อมูล"
+          >
+            <button
+              class="is-active"
+              type="button"
+              data-export-date-mode="TODAY"
+            >
+              วันนี้
+            </button>
+
+            <button
+              type="button"
+              data-export-date-mode="RANGE"
+            >
+              เลือกช่วงวันที่
+            </button>
+
+            <button
+              type="button"
+              data-export-date-mode="MONTH"
+            >
+              เลือกเดือน
+            </button>
           </div>
+        </div>
 
-          <label id="adminManagementMonthField" class="form-field is-hidden">
-            <span class="form-label">เดือน</span>
-            <input id="adminManagementMonth" type="month">
+        <div
+          id="adminManagementRangeFields"
+          class="admin-management-range-fields is-hidden"
+        >
+          <label class="form-field">
+            <span class="form-label">
+              วันที่เริ่มต้น
+            </span>
+
+            <input
+              id="adminManagementStartDate"
+              type="date"
+            >
           </label>
 
-          <label class="form-field admin-management-check">
-            <input id="adminManagementIncludeActive" type="checkbox" checked>
-            <span>รวมรายการที่ยัง Active</span>
+          <label class="form-field">
+            <span class="form-label">
+              วันที่สิ้นสุด
+            </span>
+
+            <input
+              id="adminManagementEndDate"
+              type="date"
+            >
           </label>
+        </div>
+
+        <label
+          id="adminManagementMonthField"
+          class="form-field is-hidden"
+        >
+          <span class="form-label">
+            เดือน
+          </span>
+
+          <input
+            id="adminManagementMonth"
+            type="month"
+          >
+        </label>
+
+        <div class="admin-simple-export-options">
+          <label class="admin-simple-checkbox">
+            <input
+              id="adminManagementIncludeActive"
+              type="checkbox"
+              checked
+            >
+
+            <span>
+              รวมรถที่ยังดำเนินงานอยู่
+            </span>
+          </label>
+
+          <button
+            id="adminInboundExportButton"
+            class="button button--primary admin-simple-download-button"
+            type="button"
+          >
+            สร้างและดาวน์โหลด Excel
+          </button>
         </div>
 
         <div class="admin-management-selection-note">
-          ใช้ Business Date จาก Gate In เป็นเกณฑ์เลือกช่วงข้อมูล รถที่ออกหลังเที่ยงคืนยังอยู่ในวันหรือเดือนที่รถเข้า
+          ใช้ Business Date จาก Gate In เป็นเกณฑ์เลือกรายการ
+          รถที่ออกหลังเที่ยงคืนยังอยู่ในวันหรือเดือนที่รถเข้า
         </div>
 
-        <div id="adminInboundExportSummary" class="admin-export-summary">ยังไม่ได้โหลดข้อมูล</div>
+        <div
+          id="adminManagementSources"
+          class="admin-simple-source-note"
+        >
+          กำลังตรวจสอบชีตที่ใช้สร้างไฟล์...
+        </div>
 
-        <section class="admin-management-metrics">
-          <article><span>Data Revision</span><strong id="adminManagementDataRevision">-</strong></article>
-          <article><span>Rules Revision</span><strong id="adminManagementRulesRevision">-</strong></article>
-          <article><span>Shift Version</span><strong id="adminManagementShiftVersion">-</strong></article>
-          <article><span>KPI Version</span><strong id="adminManagementKpiVersion">-</strong></article>
-          <article><span>ไฟล์ล่าสุด</span><strong id="adminManagementLatestFile">-</strong></article>
-          <article><span>หมดอายุภายใน</span><strong id="adminManagementRetention">-</strong></article>
-        </section>
+        <div
+          id="adminInboundExportSummary"
+          class="admin-export-summary"
+        >
+          พร้อมส่งออก
+        </div>
 
-        <div id="adminInboundExportPreview" class="admin-management-result"></div>
+        <div
+          id="adminInboundExportPreview"
+          class="admin-management-result"
+        ></div>
+
+        <details class="admin-simple-advanced">
+          <summary>
+            ดู Revision และนิยาม KPI
+          </summary>
+
+          <section class="admin-management-metrics">
+            <article>
+              <span>Data Revision</span>
+              <strong id="adminManagementDataRevision">-</strong>
+            </article>
+
+            <article>
+              <span>Rules Revision</span>
+              <strong id="adminManagementRulesRevision">-</strong>
+            </article>
+
+            <article>
+              <span>Shift Version</span>
+              <strong id="adminManagementShiftVersion">-</strong>
+            </article>
+
+            <article>
+              <span>KPI Version</span>
+              <strong id="adminManagementKpiVersion">-</strong>
+            </article>
+
+            <article>
+              <span>ไฟล์ล่าสุด</span>
+              <strong id="adminManagementLatestFile">-</strong>
+            </article>
+
+            <article>
+              <span>หมดอายุภายใน</span>
+              <strong id="adminManagementRetention">-</strong>
+            </article>
+          </section>
+
+          <div class="admin-card__header">
+            <div>
+              <p class="eyebrow">
+                KPI GOVERNANCE
+              </p>
+
+              <h3>
+                นิยาม KPI ที่ใช้ในไฟล์
+              </h3>
+            </div>
+
+            <span
+              id="adminManagementKpiCount"
+              class="admin-pill"
+            >
+              0 KPI
+            </span>
+          </div>
+
+          <div
+            id="adminManagementKpiList"
+            class="admin-management-kpi-list"
+          ></div>
+        </details>
       </article>
 
-      <div class="admin-management-grid">
-        <article class="admin-card">
-          <div class="admin-card__header"><div><p class="eyebrow">KPI GOVERNANCE</p><h3>นิยาม KPI ที่ใช้ในรายงาน</h3></div><span id="adminManagementKpiCount" class="admin-pill">0 KPI</span></div>
-          <div id="adminManagementKpiList" class="admin-management-kpi-list"></div>
-        </article>
-        <article class="admin-card">
-          <div class="admin-card__header"><div><p class="eyebrow">RECENT EXPORTS</p><h3>ประวัติชุดรายงานล่าสุด</h3></div></div>
-          <div id="adminManagementExportHistory" class="admin-management-history"></div>
-        </article>
-      </div>
+      <article class="admin-card">
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">
+              RECENT EXPORTS
+            </p>
+
+            <h3>
+              ไฟล์ที่สร้างล่าสุด
+            </h3>
+
+            <p>
+              ดาวน์โหลดผ่านระบบ Admin โดยตรง
+              ไม่เปิดลิงก์ Google Drive Private
+            </p>
+          </div>
+        </div>
+
+        <div
+          id="adminManagementExportHistory"
+          class="admin-management-history"
+        ></div>
+      </article>
     </section>
 
     <section
@@ -2068,7 +2420,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260715-phase5-r2-hotfix02-async-export"
+    src="./admin-inbound-export.js?v=20260716-phase5-r2-hotfix03-simple-secure"
     defer
   ></script>
 
