@@ -2863,6 +2863,14 @@
       return response.data;
     },
 
+    async getManagementReportJobStatus(jobId) {
+      const response = await request(
+        '/api/admin/management-report/job/' + encodeURIComponent(jobId),
+        { timeoutMs: 60000 }
+      );
+      return response.data;
+    },
+
     async listManagementReportExports(moduleId, options) {
       const config = options && typeof options === 'object' ? options : {};
       const response = await request('/api/admin/management-report/exports/' + encodeURIComponent(moduleId), {
