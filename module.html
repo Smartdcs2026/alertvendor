@@ -314,7 +314,7 @@
 
 
   <script
-    src="./receiving.js?v=20260717-phase5-r3-durable-recovery"
+    src="./receiving.js?v=20260717-phase5-r3-hotfix01-runtime-progress"
     defer
   ></script>
 
@@ -338,6 +338,40 @@
     defer
   ></script>
 
+
+
+  <style id="receivingProgressHotfixStyles">
+    .receiving-progress-popup { width:min(620px,calc(100vw - 24px)) !important; border-radius:22px !important; padding:0 !important; overflow:hidden !important; }
+    .receiving-progress-html { margin:0 !important; padding:0 !important; }
+    .receiving-progress-panel { display:grid; gap:14px; padding:26px 28px 24px; color:#123a50; text-align:center; }
+    .receiving-progress-spinner { width:58px; height:58px; margin:0 auto; border:6px solid #dceaf0; border-top-color:#087c9e; border-radius:50%; animation:receiving-spin .8s linear infinite; }
+    .receiving-progress-eyebrow { margin:0; color:#087d78; font-size:11px; font-weight:950; letter-spacing:.12em; }
+    .receiving-progress-panel h2 { margin:-6px 0 0; color:#082f49; font-size:clamp(1.3rem,3vw,1.75rem); }
+    .receiving-progress-identity { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .receiving-progress-identity span { display:grid; gap:3px; padding:10px 12px; border:1px solid #d7e5eb; border-radius:12px; background:#f7fbfd; color:#647b87; font-size:12px; text-align:left; }
+    .receiving-progress-identity strong { overflow:hidden; color:#0b3954; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
+    .receiving-progress-meter { height:9px; overflow:hidden; border-radius:999px; background:#dce9ef; }
+    .receiving-progress-meter i { display:block; width:6%; height:100%; border-radius:inherit; background:linear-gradient(90deg,#0b7898,#10a37f); transition:width .25s ease; }
+    .receiving-progress-message { min-height:24px; margin:0; color:#153f55; font-size:15px; font-weight:900; }
+    .receiving-progress-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+    .receiving-progress-steps>div { display:grid; place-items:center; align-content:start; gap:6px; min-height:76px; padding:8px 5px; border:1px solid #dce7ec; border-radius:11px; background:#f7fafc; color:#84949d; font-size:10px; font-weight:850; line-height:1.25; }
+    .receiving-progress-steps b { display:grid; place-items:center; width:27px; height:27px; border-radius:50%; background:#e2ebef; color:#637782; font-size:12px; }
+    .receiving-progress-steps>div.is-active { border-color:#42a5be; background:#eaf8fc; color:#075b77; }
+    .receiving-progress-steps>div.is-active b { background:#087c9e; color:#fff; box-shadow:0 0 0 4px rgba(8,124,158,.12); }
+    .receiving-progress-steps>div.is-done { border-color:#79cdb5; background:#edf9f5; color:#08745b; }
+    .receiving-progress-steps>div.is-done b { background:#0d9b75; color:#fff; }
+    .receiving-progress-panel>small { color:#5e7784; font-weight:800; }
+    .receiving-progress-hint { margin:0; padding:9px 11px; border-radius:10px; background:#fff8e8; color:#7e5c16; font-size:12px; font-weight:800; }
+    .receiving-live-status { display:flex; align-items:center; justify-content:center; gap:8px; min-height:36px; margin-top:8px; padding:8px 10px; border:1px solid #7fc5d7; border-radius:10px; background:#eaf8fc; color:#075b77; font-size:11px; font-weight:900; text-align:center; }
+    .receiving-live-status i { width:14px; height:14px; flex:0 0 auto; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:receiving-spin .7s linear infinite; }
+    .receiving-live-status[data-state="QUEUED"] { border-color:#e9bd5c; background:#fff8e7; color:#8a5a00; }
+    .receiving-live-status[data-state="ERROR"] { border-color:#ef9b9b; background:#fff0f0; color:#a62020; }
+    .receiving-complete-button.is-receiving-saving,.receiving-complete-button.is-receiving-queued { position:relative; opacity:1 !important; }
+    .receiving-queued-note { margin:10px 0; padding:9px 12px; border-radius:10px; background:#eef6f9; color:#355b6c; font-weight:800; }
+    @keyframes receiving-spin { to { transform:rotate(360deg); } }
+    @media (max-width:560px) { .receiving-progress-panel { gap:11px; padding:20px 14px 18px; } .receiving-progress-identity { grid-template-columns:1fr; } .receiving-progress-steps { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (prefers-reduced-motion:reduce) { .receiving-progress-spinner,.receiving-live-status i { animation-duration:1.8s; } }
+  </style>
 
 </head>
 
