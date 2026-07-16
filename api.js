@@ -1,5 +1,6 @@
 /**
  * api.js
+ * PHASE 5 ROUND 03 — Receiving Fast Commit + Verification
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -1601,8 +1602,6 @@
 
       return response.data;
     },
-
-
     async completeReceiving(
       moduleId,
       record
@@ -1610,14 +1609,55 @@
       const response =
         await request(
           '/api/modules/' +
-          encodeURIComponent(moduleId) +
+          encodeURIComponent(
+            moduleId
+          ) +
           '/receiving-complete',
           {
-            method: 'POST',
+            method:
+              'POST',
+
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
-              90000,
-            body: record || {}
+              60000,
+
+            body:
+              record ||
+              {}
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getReceivingCommitStatus(
+      moduleId,
+      record
+    ) {
+      const response =
+        await request(
+          '/api/modules/' +
+          encodeURIComponent(
+            moduleId
+          ) +
+          '/receiving-status',
+          {
+            method:
+              'POST',
+
+            timeoutMs:
+              Math.min(
+                Number(
+                  CONFIG.API_TIMEOUT_MS ||
+                  30000
+                ),
+                30000
+              ),
+
+            body:
+              record ||
+              {}
           }
         );
 
