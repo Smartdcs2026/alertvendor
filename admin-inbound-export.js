@@ -548,12 +548,12 @@
     element.textContent =
       names.length
         ? (
-            'อ่านข้อมูลจาก: ' +
+            'ใช้ข้อมูลจริงจาก: ' +
             names.join(
               ' · '
             )
           )
-        : 'อ่านจากชีต Gate In, สถานะ Workflow และเกณฑ์ SLA';
+        : 'ใช้ข้อมูลรถ/ตู้, สถานะล่าสุดรถ และเกณฑ์ SLA จาก Admin';
   }
 
 
@@ -830,7 +830,7 @@
       value(
         'adminManagementFileFormat'
       ) ||
-      'XLSX';
+      'CSV';
 
     state.loading =
       true;
@@ -1121,7 +1121,7 @@
 
     element.innerHTML = `
       <h4>
-        ไฟล์พร้อมดาวน์โหลด
+        ไฟล์สรุป Timeline พร้อมดาวน์โหลด
       </h4>
 
       <p>
@@ -1420,7 +1420,7 @@
       value(
         'adminManagementFileFormat'
       ) ||
-      'XLSX';
+      'CSV';
 
     button.textContent =
       'สร้างและดาวน์โหลด ' +
