@@ -14,17 +14,20 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.17-r17-runtime-fix-visible-progress';
+    '2026.07.17-r18-fast-response-background-sync';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
   const PENDING_MAX_AGE_MS =
     48 * 60 * 60 * 1000;
   const STORAGE_PREFIX =
-    'alertvendor:receiving-pending:v2:';
+    'alertvendor:receiving-pending:v3:';
+  const SYNC_STORAGE_PREFIX =
+    'alertvendor:receiving-sync:v1:';
 
   const inFlight = new Set();
   let recoveryRunning = false;
+  let workflowRecoveryRunning = false;
 
   const progressState = {
     open: false,
@@ -38,31 +41,22 @@
     'DOMContentLoaded',
     initialize
   );
-
-  function initialize() {
+function initialize() {
     if (document.body) {
-      document.body.dataset.receivingUiBuild =
-        BUILD;
+      document.body.dataset.receivingUiBuild = BUILD;
     }
 
-    document.addEventListener(
-      'click',
-      handleClick
-    );
+    document.addEventListener('click', handleClick);
 
-    window.addEventListener(
-      'online',
-      () => {
-        void recoverPendingRequests();
-      }
-    );
+    window.addEventListener('online', () => {
+      void recoverPendingRequests();
+      void recoverPendingWorkflowSyncs();
+    });
 
-    window.setTimeout(
-      () => {
-        void recoverPendingRequests();
-      },
-      700
-    );
+    window.setTimeout(() => {
+      void recoverPendingRequests();
+      void recoverPendingWorkflowSyncs();
+    }, 700);
   }
 
   async function handleClick(event) {
@@ -231,21 +225,17 @@
         Date.now()
     };
   }
-  async function executeReceiving(
+async function executeReceiving(
     payload,
     record,
     button,
     options
   ) {
     const config =
-      options &&
-      typeof options === 'object'
+      options && typeof options === 'object'
         ? options
         : {};
-
-    const interactive =
-      config.interactive !== false;
-
+    const interactive = config.interactive !== false;
     const recordId = String(payload.recordId || '');
 
     if (!recordId || inFlight.has(recordId)) {
@@ -257,7 +247,7 @@
     if (!moduleId) {
       removePendingRequest(recordId);
       if (interactive) {
-        await showError('ไม่พบรหัส Module','MODULE_ID_MISSING');
+        await showError('ไม่พบรหัส Module', 'MODULE_ID_MISSING');
       }
       return;
     }
@@ -273,45 +263,46 @@
     }
 
     inFlight.add(recordId);
-    setButtonLoading(button,true);
+    setButtonLoading(button, true);
     setCardLiveStatus(
       recordId,
       'SAVING',
-      'กำลังเตรียมคำขอและตรวจสอบข้อมูลรถ...'
+      'กำลังตรวจสอบรายการและเตรียมบันทึก...'
     );
 
     if (interactive) {
-      openSavingProgress(record,payload);
+      openSavingProgress(record, payload);
     }
 
     try {
       let result;
       updateSavingProgress(
         'PREPARE',
-        'กำลังตรวจสอบข้อมูลรถและป้องกันการบันทึกซ้ำ',
+        'กำลังตรวจสอบข้อมูลล่าสุดและป้องกันข้อมูลซ้ำ',
         18
       );
 
       try {
-        result = await commitWithRetry(moduleId,payload,recordId);
+        result = await commitWithRetry(moduleId, payload, recordId);
       } catch (error) {
         updateSavingProgress(
           'VERIFY',
-          'ยังไม่ได้รับคำยืนยัน กำลังตรวจสอบผลจาก Server',
-          68
+          'คำตอบจาก Server ไม่แน่นอน กำลังตรวจยืนยันผลจริง',
+          66
         );
         setCardLiveStatus(
           recordId,
           'VERIFYING',
-          'กำลังตรวจสอบว่าข้อมูลถูกบันทึกแล้วหรือยัง...'
+          'กำลังตรวจสอบว่าคำขอถูกบันทึกแล้วหรือยัง...'
         );
 
-        const verified = await verifyCommit(moduleId,payload);
+        const verified = await verifyCommit(moduleId, payload);
 
         if (verified && verified.completed === true) {
           result = {
             success: true,
             committed: true,
+            accepted: true,
             alreadyCompleted: true,
             verifiedAfterError: true,
             message: 'Server ยืนยันว่าบันทึกรับสินค้าเสร็จแล้ว',
@@ -319,16 +310,14 @@
             receivingCompleteEpochMs:
               Number(verified.receivingCompleteEpochMs) || 0,
             requestId: verified.requestId || payload.clientRequestId,
-            workflowSync:
-              verified.workflowSync &&
-              typeof verified.workflowSync === 'object'
-                ? verified.workflowSync
-                : {
-                    success: false,
-                    verificationOnly: true,
-                    code: 'WORKFLOW_SYNC_NOT_CONFIRMED'
-                  }
+            workflowSync: {
+              success: false,
+              pending: true,
+              code: 'WORKFLOW_SYNC_PENDING'
+            }
           };
+        } else if (verified && verified.staleRecord === true) {
+          result = verified;
         } else if (
           isTemporaryError(error) ||
           navigator.onLine === false
@@ -340,7 +329,7 @@
             'QUEUED',
             navigator.onLine === false
               ? 'อุปกรณ์ออฟไลน์ เก็บคำขอไว้และจะส่งเมื่อออนไลน์'
-              : 'Server ยังไม่ยืนยันผล ระบบจะตรวจสอบและลองใหม่อัตโนมัติ'
+              : 'ยังไม่ได้รับคำยืนยัน ระบบจะตรวจสอบและลองใหม่โดยใช้ Request ID เดิม'
           );
 
           if (interactive) {
@@ -350,7 +339,7 @@
           if (navigator.onLine !== false) {
             window.setTimeout(
               () => void recoverPendingRequests(),
-              Math.max(900,retryDelay(error,1))
+              Math.max(900, retryDelay(error, 1))
             );
           }
           return;
@@ -360,43 +349,76 @@
         }
       }
 
+      if (
+        result &&
+        result.staleRecord === true &&
+        result.committed !== true
+      ) {
+        removePendingRequest(recordId);
+        updateSavingProgress(
+          'SYNC',
+          'ข้อมูลรายการเปลี่ยนแล้ว กำลังโหลด Snapshot ล่าสุด',
+          100
+        );
+        await delay(180);
+        closeSavingProgress();
+        applyStaleRecordState(recordId, result, button);
+        scheduleBoardRefresh();
+
+        if (interactive) {
+          await showStaleRecord(result);
+        }
+        return;
+      }
+
+      if (!result || result.committed !== true) {
+        throw createLocalError(
+          result && result.code || 'RECEIVING_NOT_COMMITTED',
+          result && result.message || 'Server ไม่ยืนยันการบันทึก'
+        );
+      }
+
       updateSavingProgress(
-        'SYNC',
-        'บันทึกเวลาแล้ว กำลังซิงก์สถานะกับ Inbound',
-        86
+        'VERIFY',
+        'บันทึกเวลาใน Server สำเร็จแล้ว',
+        82
       );
       setCardLiveStatus(
         recordId,
-        'SYNCING',
-        'บันทึกข้อมูลหลักแล้ว กำลังซิงก์สถานะ Inbound...'
+        'COMMITTED',
+        'บันทึกเวลาสำเร็จ กำลังอัปเดตหน้าจอ...'
       );
 
       removePendingRequest(recordId);
-      applyCommittedState(recordId,result,button);
+      applyCommittedState(recordId, result, button);
+
+      updateSavingProgress(
+        'SYNC',
+        'อัปเดตการ์ดแล้ว ระบบจะซิงก์ Workflow เบื้องหลัง',
+        96
+      );
+      await delay(180);
       updateSavingProgress(
         'DONE',
-        'บันทึกสำเร็จและอัปเดตสถานะเรียบร้อย',
+        'บันทึกสำเร็จ ไม่ต้องรอการโหลดข้อมูลทั้งหน้า',
         100
       );
-      await delay(220);
+      await delay(180);
       closeSavingProgress();
 
-      if (
-        result &&
-        result.workflowSync &&
-        result.workflowSync.success === false
-      ) {
-        scheduleWorkflowRepair(moduleId,payload);
-        if (interactive) {
-          await showCommittedWithSyncPending(result);
-        }
-      } else if (interactive) {
+      enqueueWorkflowSync(moduleId, payload, result);
+
+      if (interactive) {
         await showSuccess(result);
       } else {
         showRecoveryToast('ส่งคำขอรับสินค้าเสร็จที่ค้างไว้สำเร็จ');
       }
 
-      scheduleBoardRefresh();
+      window.setTimeout(
+        () => void recoverPendingWorkflowSyncs(),
+        150
+      );
+
     } catch (error) {
       closeSavingProgress();
       setCardLiveStatus(
@@ -405,19 +427,21 @@
         'บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อความแจ้งเตือน'
       );
       window.setTimeout(
-        () => clearCardLiveStatus(recordId,'ERROR'),
+        () => clearCardLiveStatus(recordId, 'ERROR'),
         9000
       );
+
       if (interactive) {
         await showSaveError(error);
       }
     } finally {
       inFlight.delete(recordId);
       if (!hasPendingRequest(recordId)) {
-        setButtonLoading(button,false);
+        setButtonLoading(button, false);
       }
     }
   }
+
   async function commitWithRetry(
     moduleId,
     payload,
@@ -459,7 +483,7 @@
 
     throw lastError || new Error('บันทึกรับสินค้าเสร็จไม่สำเร็จ');
   }
-  async function verifyCommit(
+async function verifyCommit(
     moduleId,
     payload
   ) {
@@ -471,15 +495,26 @@
       return null;
     }
 
-    for (let attempt=0; attempt<VERIFY_ATTEMPTS; attempt+=1) {
+    for (let attempt = 0; attempt < VERIFY_ATTEMPTS; attempt += 1) {
       updateSavingProgress(
         'VERIFY',
-        'ตรวจสอบผลการบันทึกกับ Server ครั้งที่ ' + (attempt + 1),
-        Math.min(80,66 + attempt * 4)
+        'ตรวจสอบผลจริงกับ Server ครั้งที่ ' + (attempt + 1),
+        Math.min(82, 66 + attempt * 4)
       );
+
       try {
-        const result = await API.getReceivingCommitStatus(moduleId,payload);
-        if (result && result.completed === true) {
+        const result = await API.getReceivingCommitStatus(
+          moduleId,
+          payload
+        );
+
+        if (
+          result &&
+          (
+            result.completed === true ||
+            result.staleRecord === true
+          )
+        ) {
           return result;
         }
       } catch (error) {
@@ -487,42 +522,173 @@
           throw error;
         }
       }
+
       if (attempt < VERIFY_ATTEMPTS - 1) {
-        await delay(450 + attempt * 550);
+        await delay(500 + attempt * 600);
       }
     }
+
     return null;
   }
-
-  function scheduleWorkflowRepair(
+function enqueueWorkflowSync(
     moduleId,
-    payload
+    payload,
+    result
   ) {
-    window.setTimeout(
-      async () => {
+    const item = {
+      ...payload,
+      moduleId: moduleId,
+      receivingCompleteAt:
+        result && result.receivingCompleteAt || '',
+      receivingCompleteEpochMs:
+        Number(result && result.receivingCompleteEpochMs) || 0,
+      queuedAt: Date.now(),
+      attempts: 0
+    };
+
+    saveWorkflowSyncRequest(item);
+    setCardLiveStatus(
+      payload.recordId,
+      'SYNCING',
+      'บันทึกสำเร็จแล้ว กำลังซิงก์สถานะ Workflow เบื้องหลัง'
+    );
+  }
+
+  async function recoverPendingWorkflowSyncs() {
+    if (
+      workflowRecoveryRunning ||
+      navigator.onLine === false ||
+      !API ||
+      typeof API.syncReceivingWorkflow !== 'function'
+    ) {
+      return;
+    }
+
+    const items = readWorkflowSyncRequests();
+
+    if (!items.length) {
+      return;
+    }
+
+    workflowRecoveryRunning = true;
+
+    try {
+      for (const item of items) {
         if (
-          navigator.onLine ===
-            false
+          Date.now() - Number(item.queuedAt || 0) > PENDING_MAX_AGE_MS
         ) {
-          return;
+          removeWorkflowSyncRequest(item.recordId);
+          continue;
         }
 
         try {
-          await API.completeReceiving(
-            moduleId,
-            payload
+          const result = await API.syncReceivingWorkflow(
+            item.moduleId || getModuleId(),
+            item
           );
-          scheduleBoardRefresh();
+
+          if (result && result.success === true) {
+            removeWorkflowSyncRequest(item.recordId);
+            setCardLiveStatus(
+              item.recordId,
+              'SYNCED',
+              'บันทึกและซิงก์สถานะครบแล้ว'
+            );
+            window.setTimeout(
+              () => clearCardLiveStatus(item.recordId, 'SYNCED'),
+              1600
+            );
+            scheduleBoardRefresh();
+            continue;
+          }
+
+          throw createLocalError(
+            result && result.code || 'WORKFLOW_SYNC_PENDING',
+            result && result.message || 'ยังซิงก์ Workflow ไม่สำเร็จ'
+          );
 
         } catch (error) {
-          console.warn(
-            'Workflow repair retry ยังไม่สำเร็จ',
-            error
+          const next = {
+            ...item,
+            attempts: Number(item.attempts || 0) + 1,
+            lastErrorCode: String(error && error.code || ''),
+            lastErrorAt: Date.now()
+          };
+          saveWorkflowSyncRequest(next);
+          setCardLiveStatus(
+            item.recordId,
+            'SYNC_PENDING',
+            'บันทึกเวลาแล้ว แต่กำลังรอซิงก์สถานะอัตโนมัติ'
           );
+
+          if (isAuthenticationError(error)) {
+            break;
+          }
         }
-      },
-      1800
+      }
+    } finally {
+      workflowRecoveryRunning = false;
+    }
+  }
+
+  function workflowSyncStorageKey() {
+    return SYNC_STORAGE_PREFIX + getModuleId();
+  }
+
+  function readWorkflowSyncMap() {
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(workflowSyncStorageKey()) || '{}'
+      );
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed
+        : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function readWorkflowSyncRequests() {
+    return Object.values(readWorkflowSyncMap()).sort(
+      (left, right) =>
+        Number(left.queuedAt || 0) - Number(right.queuedAt || 0)
     );
+  }
+
+  function saveWorkflowSyncRequest(payload) {
+    try {
+      const map = readWorkflowSyncMap();
+      map[payload.recordId] = payload;
+      localStorage.setItem(
+        workflowSyncStorageKey(),
+        JSON.stringify(map)
+      );
+    } catch (error) {
+      console.warn('เก็บ Workflow Sync Queue ไม่สำเร็จ', error);
+    }
+  }
+
+  function removeWorkflowSyncRequest(recordId) {
+    try {
+      const map = readWorkflowSyncMap();
+      delete map[recordId];
+      if (Object.keys(map).length) {
+        localStorage.setItem(
+          workflowSyncStorageKey(),
+          JSON.stringify(map)
+        );
+      } else {
+        localStorage.removeItem(workflowSyncStorageKey());
+      }
+    } catch (error) {
+      console.warn('ล้าง Workflow Sync Queue ไม่สำเร็จ', error);
+    }
+  }
+
+  function createLocalError(code, message) {
+    const error = new Error(message || 'เกิดข้อผิดพลาด');
+    error.code = code || 'LOCAL_ERROR';
+    return error;
   }
 
   async function recoverPendingRequests() {
@@ -872,7 +1038,54 @@
       true;
   }
 
-  async function showSuccess(
+  function applyStaleRecordState(
+    recordId,
+    result,
+    sourceButton
+  ) {
+    getReceivingButtons(recordId).forEach((button) => {
+      button.disabled = true;
+      button.dataset.canComplete = 'FALSE';
+      button.classList.remove('is-receiving-saving');
+      button.classList.remove('is-receiving-queued');
+      button.textContent = 'ข้อมูลเปลี่ยนแล้ว';
+    });
+
+    setCardLiveStatus(
+      recordId,
+      'STALE',
+      result && result.code === 'RECORD_NO_LONGER_ACTIVE'
+        ? 'รายการออกจากพื้นที่แล้ว กำลังโหลดข้อมูลล่าสุด'
+        : 'ข้อมูลรายการเปลี่ยนแล้ว กำลังโหลดข้อมูลล่าสุด'
+    );
+
+    window.setTimeout(
+      () => clearCardLiveStatus(recordId, 'STALE'),
+      4500
+    );
+  }
+
+  async function showStaleRecord(result) {
+    if (!window.Swal) {
+      return;
+    }
+
+    const code = String(result && result.code || 'RECORD_STATE_CHANGED');
+
+    await Swal.fire({
+      icon: 'info',
+      title: 'ข้อมูลรายการเปลี่ยนแล้ว',
+      html: `
+        <p>${escapeHtml(result && result.message || 'ระบบพบข้อมูลใหม่กว่าบนหน้าจอ')}</p>
+        <p>ระบบไม่ได้สร้างข้อมูลซ้ำ และกำลังโหลด Snapshot ล่าสุด</p>
+        <div class="receiving-error-code">รหัส: ${escapeHtml(code)}</div>
+      `,
+      confirmButtonText: 'รับทราบ',
+      timer: 1800,
+      timerProgressBar: true
+    });
+  }
+async function showSuccess(
     result
   ) {
     if (!window.Swal) {
@@ -880,37 +1093,20 @@
     }
 
     const alreadyCompleted =
-      result &&
-      result.alreadyCompleted ===
-        true;
+      result && result.alreadyCompleted === true;
 
     await Swal.fire({
-      icon:
-        'success',
-
-      title:
-        alreadyCompleted
-          ? 'รายการนี้บันทึกไว้แล้ว'
-          : 'บันทึกรับสินค้าเสร็จแล้ว',
-
-      text:
-        result &&
-        result.message ||
-        'เปลี่ยนสถานะเป็นรอรับเอกสารคืนแล้ว',
-
-      confirmButtonText:
-        'ตกลง',
-
-      timer:
-        alreadyCompleted
-          ? 1200
-          : 900,
-
-      timerProgressBar:
-        true,
-
-      showConfirmButton:
-        false
+      icon: 'success',
+      title: alreadyCompleted
+        ? 'รายการนี้บันทึกไว้แล้ว'
+        : 'บันทึกรับสินค้าเสร็จแล้ว',
+      html: `
+        <p>${escapeHtml(result && result.message || 'บันทึกเวลาใน Server สำเร็จ')}</p>
+        <p class="receiving-success-subtext">หน้าจออัปเดตแล้ว ส่วน Workflow จะซิงก์เบื้องหลังอัตโนมัติ</p>
+      `,
+      timer: alreadyCompleted ? 1100 : 1250,
+      timerProgressBar: true,
+      showConfirmButton: false
     });
   }
 
@@ -1119,6 +1315,9 @@
       'NETWORK_ERROR',
       'EMPTY_RESPONSE',
       'INVALID_JSON_RESPONSE',
+      'GAS_INVALID_RESPONSE',
+      'GAS_CONNECTION_FAILED',
+      'GAS_HTTP_ERROR',
       'UPSTREAM_TIMEOUT',
       'GAS_TIMEOUT'
     ].includes(code)) {
@@ -1145,6 +1344,9 @@
       'NETWORK_ERROR',
       'EMPTY_RESPONSE',
       'INVALID_JSON_RESPONSE',
+      'GAS_INVALID_RESPONSE',
+      'GAS_CONNECTION_FAILED',
+      'GAS_HTTP_ERROR',
       'UPSTREAM_TIMEOUT',
       'GAS_TIMEOUT'
     ].includes(
@@ -1297,10 +1499,10 @@
             <div data-receiving-progress-step="PREPARE"><b>1</b><span>ตรวจสอบรายการ</span></div>
             <div data-receiving-progress-step="COMMIT"><b>2</b><span>บันทึกเวลาใน Server</span></div>
             <div data-receiving-progress-step="VERIFY"><b>3</b><span>ยืนยันผลการบันทึก</span></div>
-            <div data-receiving-progress-step="SYNC"><b>4</b><span>ซิงก์สถานะ Inbound</span></div>
+            <div data-receiving-progress-step="SYNC"><b>4</b><span>อัปเดตหน้าจอ</span></div>
           </div>
           <small data-receiving-progress-elapsed>ใช้เวลา 0 วินาที</small>
-          <p class="receiving-progress-hint">กรุณาอย่ากดซ้ำหรือปิดหน้านี้ ระบบป้องกันข้อมูลซ้ำให้อัตโนมัติ</p>
+          <p class="receiving-progress-hint">ระบบจะยืนยันการบันทึกก่อน แล้วซิงก์ Workflow เบื้องหลังโดยไม่ให้ผู้ใช้รอนาน</p>
         </section>
       `,
       showConfirmButton: false,
