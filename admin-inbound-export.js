@@ -1,11 +1,12 @@
 /**
  * admin-inbound-export.js
- * PHASE 5 ROUND 02 — All Workflow Stages Export
+ * PHASE 5 ROUND 02 HOTFIX 02 — Async Chunked Export
  */
 (function(window,document){
   'use strict';
   const API=window.VehicleAPI;
-  const state={session:null,modules:[],moduleId:'',config:null,lastResult:null,loading:false};
+  const state={session:null,modules:[],moduleId:'',config:null,lastResult:null,loading:false,activeJobId:'',polling:false};
+  const ACTIVE_JOB_KEY='alertvendor_management_export_active_job_v1';
   document.addEventListener('DOMContentLoaded',initialize);
 
   async function initialize(){
@@ -18,6 +19,7 @@
       await loadModules();
       await loadConfig();
       updateControlVisibility();
+      await resumeActiveExportJob();
     }catch(error){
       console.warn('management reporting init failed',error);
       setSummary('โหลดศูนย์รายงานไม่สำเร็จ: '+message(error));
@@ -157,13 +159,19 @@
     const fileFormat=value('adminManagementFileFormat')||'XLSX';
     state.loading=true;
     buttonBusy(true);
-    setSummary(reportType==='MANAGEMENT_PACKAGE'?'กำลังรวบรวมข้อมูลและสร้าง ZIP บน Google Drive...':`กำลังสร้างไฟล์ ${fileFormat} รวมทุกขั้นตอน...`);
+    setSummary(reportType==='MANAGEMENT_PACKAGE'
+      ?'กำลังรวบรวมข้อมูลและสร้าง ZIP บน Google Drive...'
+      :`กำลังส่งงานสร้างไฟล์ ${fileFormat} แบบแบ่งชุด...`);
     try{
       let result;
       if(reportType==='MANAGEMENT_PACKAGE'){
         result=await API.createManagementReportPackage(state.moduleId,selection);
       }else{
         result=await API.createAllWorkflowStagesExport(state.moduleId,{...selection,fileFormat});
+        if(result&&result.async&&result.jobId){
+          saveActiveJob(result.jobId,state.moduleId);
+          result=await monitorExportJob(result.jobId,result);
+        }
       }
       state.lastResult=result;
       renderResult(result);
@@ -173,6 +181,7 @@
       }else{
         setSummary('สร้างชุดรายงานสำเร็จ · รถ '+Number(result.counts&&result.counts.vehicleDetails||0)+' รายการ · รายวัน '+Number(result.counts&&result.counts.dailyRows||0)+' วัน · รายกะ '+Number(result.counts&&result.counts.shiftRows||0)+' แถว');
       }
+      clearActiveJob();
       toast('สร้างไฟล์รายงานแล้ว','success');
       await loadHistoryOnly();
     }catch(error){
@@ -183,6 +192,80 @@
       buttonBusy(false);
     }
   }
+
+  async function monitorExportJob(jobId,initial){
+    if(state.polling)throw new Error('มีงานส่งออกกำลังติดตามอยู่');
+    state.polling=true;
+    state.activeJobId=jobId;
+    let latest=initial||{};
+    const started=Date.now();
+    try{
+      while(Date.now()-started<45*60*1000){
+        latest=await API.getManagementReportJobStatus(jobId);
+        renderJobProgress(latest);
+        const status=text(latest.status).toUpperCase();
+        if(status==='READY')return latest;
+        if(status==='FAILED'){
+          clearActiveJob();
+          throw new Error(latest.errorMessage||'งานส่งออกล้มเหลว');
+        }
+        if(status==='CANCELLED'){
+          clearActiveJob();
+          throw new Error('งานส่งออกถูกยกเลิก');
+        }
+        await sleep(4000);
+      }
+      throw new Error('งานยังประมวลผลอยู่ กรุณากลับมาตรวจสอบอีกครั้ง');
+    }finally{
+      state.polling=false;
+      state.activeJobId='';
+    }
+  }
+
+  function renderJobProgress(job){
+    const progress=Math.max(0,Math.min(100,Number(job.progressPercent||0)));
+    const status=text(job.status)||'QUEUED';
+    const phase=text(job.phase)||'BUILD';
+    setSummary(`กำลังสร้างไฟล์ ${progress}% · ${phase} · ประมวลผล ${Number(job.processedSourceRows||0)} แถว · ส่งออก ${Number(job.rowCount||0)} แถว`);
+    const element=byId('adminInboundExportPreview');
+    if(!element)return;
+    element.classList.add('is-ready');
+    element.innerHTML=`<h4>กำลังสร้างไฟล์แบบแบ่งชุด</h4><p><strong>${esc(job.filename||job.jobId||'-')}</strong></p><div class="admin-management-result__facts"><span>สถานะ ${esc(status)}</span><span>${progress}%</span><span>${Number(job.rowCount||0)} แถว</span></div><p>สามารถเปิดหน้านี้ค้างไว้ได้ ระบบจะประมวลผลต่อโดยไม่รอคำขอเดียวจนหมดเวลา</p>`;
+  }
+
+  async function resumeActiveExportJob(){
+    const saved=readActiveJob();
+    if(!saved||!saved.jobId||saved.moduleId!==state.moduleId)return;
+    if(state.loading)return;
+    state.loading=true;
+    buttonBusy(true);
+    try{
+      const result=await monitorExportJob(saved.jobId,{jobId:saved.jobId});
+      state.lastResult=result;
+      renderResult(result);
+      set('adminManagementLatestFile',result.filename||'-');
+      setSummary(`สร้างไฟล์สำเร็จ · ${Number(result.rowCount||0)} แถว · ${result.fileFormat||'-'}`);
+      clearActiveJob();
+      await loadHistoryOnly();
+    }catch(error){
+      setSummary('ติดตามงานส่งออกไม่สำเร็จ: '+message(error));
+    }finally{
+      state.loading=false;
+      buttonBusy(false);
+    }
+  }
+
+  function saveActiveJob(jobId,moduleId){
+    try{localStorage.setItem(ACTIVE_JOB_KEY,JSON.stringify({jobId,moduleId,storedAt:Date.now()}));}catch(error){}
+  }
+  function readActiveJob(){
+    try{return JSON.parse(localStorage.getItem(ACTIVE_JOB_KEY)||'null');}catch(error){return null;}
+  }
+  function clearActiveJob(){
+    try{localStorage.removeItem(ACTIVE_JOB_KEY);}catch(error){}
+  }
+  function sleep(ms){return new Promise(resolve=>window.setTimeout(resolve,ms));}
+
 
   function renderResult(result){
     const element=byId('adminInboundExportPreview');
