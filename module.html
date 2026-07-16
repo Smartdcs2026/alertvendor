@@ -288,7 +288,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260717-phase5-r3-receiving-fast-commit"
+    src="./api.js?v=20260717-phase5-r3-hotfix02-fast-response"
     defer
   ></script>
 
@@ -314,7 +314,7 @@
 
 
   <script
-    src="./receiving.js?v=20260717-phase5-r3-hotfix01-runtime-progress"
+    src="./receiving.js?v=20260717-phase5-r3-hotfix02-response-reconcile"
     defer
   ></script>
 
@@ -366,6 +366,10 @@
     .receiving-live-status i { width:14px; height:14px; flex:0 0 auto; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:receiving-spin .7s linear infinite; }
     .receiving-live-status[data-state="QUEUED"] { border-color:#e9bd5c; background:#fff8e7; color:#8a5a00; }
     .receiving-live-status[data-state="ERROR"] { border-color:#ef9b9b; background:#fff0f0; color:#a62020; }
+    .receiving-live-status[data-state="COMMITTED"],.receiving-live-status[data-state="SYNCED"] { border-color:#69c9ad; background:#ecfaf5; color:#08745b; }
+    .receiving-live-status[data-state="SYNC_PENDING"] { border-color:#efc363; background:#fff8e7; color:#825600; }
+    .receiving-live-status[data-state="STALE"] { border-color:#a8bac3; background:#f2f6f8; color:#506874; }
+    .receiving-success-subtext { margin-top:8px; color:#55717e; font-size:13px; font-weight:750; }
     .receiving-complete-button.is-receiving-saving,.receiving-complete-button.is-receiving-queued { position:relative; opacity:1 !important; }
     .receiving-queued-note { margin:10px 0; padding:9px 12px; border-radius:10px; background:#eef6f9; color:#355b6c; font-weight:800; }
     @keyframes receiving-spin { to { transform:rotate(360deg); } }
