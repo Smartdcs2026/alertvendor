@@ -1618,8 +1618,10 @@
               'POST',
 
             timeoutMs:
-              CONFIG.SAVE_TIMEOUT_MS ||
-              60000,
+              Math.min(
+                Number(CONFIG.SAVE_TIMEOUT_MS || 60000),
+                45000
+              ),
 
             body:
               record ||
@@ -1660,6 +1662,28 @@
               {}
           }
         );
+
+      return response.data;
+    },
+
+
+    async syncReceivingWorkflow(
+      moduleId,
+      record
+    ) {
+      const response = await request(
+        '/api/modules/' +
+        encodeURIComponent(moduleId) +
+        '/receiving-workflow-sync',
+        {
+          method: 'POST',
+          timeoutMs: Math.min(
+            Number(CONFIG.SAVE_TIMEOUT_MS || 60000),
+            45000
+          ),
+          body: record || {}
+        }
+      );
 
       return response.data;
     },
