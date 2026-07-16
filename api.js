@@ -2871,6 +2871,242 @@
       return response.data;
     },
 
+    async getManagementReportDownloadMeta(
+      exportId
+    ) {
+      const response =
+        await request(
+          '/api/admin/management-report/download/' +
+          encodeURIComponent(
+            exportId
+          ) +
+          '/meta',
+          {
+            timeoutMs:
+              60000
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async getManagementReportDownloadChunk(
+      exportId,
+      offset,
+      size
+    ) {
+      const response =
+        await request(
+          '/api/admin/management-report/download/' +
+          encodeURIComponent(
+            exportId
+          ) +
+          '/chunk',
+          {
+            query: {
+              offset:
+                Number(
+                  offset ||
+                  0
+                ),
+
+              size:
+                Number(
+                  size ||
+                  524288
+                )
+            },
+
+            timeoutMs:
+              90000
+          }
+        );
+
+      return response.data;
+    },
+
+
+    async downloadManagementReportFile(
+      exportId,
+      options
+    ) {
+      const config =
+        options &&
+        typeof options ===
+          'object'
+          ? options
+          : {};
+
+      const meta =
+        await this
+          .getManagementReportDownloadMeta(
+            exportId
+          );
+
+      const chunkSize =
+        Number(
+          meta.chunkSize ||
+          524288
+        );
+
+      const sizeBytes =
+        Number(
+          meta.sizeBytes ||
+          0
+        );
+
+      const chunks = [];
+      let offset =
+        0;
+
+      while (
+        offset <
+        sizeBytes
+      ) {
+        const data =
+          await this
+            .getManagementReportDownloadChunk(
+              exportId,
+              offset,
+              chunkSize
+            );
+
+        const binary =
+          window.atob(
+            String(
+              data.base64 ||
+              ''
+            )
+          );
+
+        const bytes =
+          new Uint8Array(
+            binary.length
+          );
+
+        for (
+          let index = 0;
+          index <
+            binary.length;
+          index += 1
+        ) {
+          bytes[index] =
+            binary.charCodeAt(
+              index
+            );
+        }
+
+        chunks.push(
+          bytes
+        );
+
+        const nextOffset =
+          Number(
+            data.nextOffset
+          );
+
+        if (
+          !Number.isFinite(
+            nextOffset
+          ) ||
+          nextOffset <=
+            offset
+        ) {
+          throw new VehicleAPIError(
+            'ระบบดาวน์โหลดส่งตำแหน่งไฟล์ไม่ถูกต้อง',
+            'DOWNLOAD_PROGRESS_INVALID',
+            0,
+            {
+              offset:
+                offset,
+              nextOffset:
+                nextOffset
+            }
+          );
+        }
+
+        offset =
+          nextOffset;
+
+        if (
+          typeof config.onProgress ===
+            'function'
+        ) {
+          config.onProgress({
+            loadedBytes:
+              offset,
+
+            totalBytes:
+              sizeBytes,
+
+            percent:
+              sizeBytes > 0
+                ? Math.min(
+                    100,
+                    Math.round(
+                      (
+                        offset /
+                        sizeBytes
+                      ) *
+                      100
+                    )
+                  )
+                : 100
+          });
+        }
+      }
+
+      const blob =
+        new Blob(
+          chunks,
+          {
+            type:
+              meta.mimeType ||
+              'application/octet-stream'
+          }
+        );
+
+      const url =
+        URL.createObjectURL(
+          blob
+        );
+
+      const anchor =
+        document.createElement(
+          'a'
+        );
+
+      anchor.href =
+        url;
+
+      anchor.download =
+        meta.filename ||
+        'AlertVendor-Export';
+
+      document.body.appendChild(
+        anchor
+      );
+
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(
+        () =>
+          URL.revokeObjectURL(
+            url
+          ),
+        5000
+      );
+
+      return {
+        ...meta,
+        downloaded:
+          true
+      };
+    },
+
+
     async listManagementReportExports(moduleId, options) {
       const config = options && typeof options === 'object' ? options : {};
       const response = await request('/api/admin/management-report/exports/' + encodeURIComponent(moduleId), {
