@@ -1,7 +1,7 @@
 /**
  * module-workspace-compact.css
  * ROUND 3 — Mobile-first Responsive Workspace
- * Build: 2026.07.17-round3-responsive-r2-mobile-two-cards
+ * Build: 2026.07.17-round3-responsive-r3-mobile-two-cards-status-dock
  */
 
 :root {
@@ -865,5 +865,190 @@ body.module-page.is-native-fullscreen .module-container {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+
+/************************************************************
+ * ROUND 3 REVISION 3 — COMPACT SERVER STATUS DOCK
+ * ซ่อนข้อความ Snapshot ออกจากพื้นที่รายการหลัก
+ * แสดงเพียงจุดสถานะเล็กบนปุ่ม Dashboard/ส่วนหัว
+ ************************************************************/
+body.module-page .module-clock {
+  position: relative;
+  overflow: visible !important;
+}
+
+body.module-page .module-snapshot-state--compact {
+  position: absolute !important;
+  z-index: 12;
+  top: -4px;
+  right: -4px;
+  display: block !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  outline: none;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.module-page .module-snapshot-state--compact:focus-visible {
+  outline: 3px solid rgba(93, 223, 210, .35);
+  outline-offset: 2px;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__dot {
+  position: absolute;
+  inset: 3px;
+  display: block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, .96);
+  border-radius: 999px;
+  background: #7b8b95;
+  box-shadow:
+    0 0 0 2px rgba(12, 51, 73, .18),
+    0 2px 5px rgba(4, 35, 51, .22);
+}
+
+body.module-page .module-snapshot-state--compact[data-state="LIVE"]
+.module-snapshot-state__dot {
+  background: #12a879;
+}
+
+body.module-page .module-snapshot-state--compact[data-state="LOADING"]
+.module-snapshot-state__dot {
+  background: #4b9cc4;
+  animation: module-snapshot-dot-pulse 1.25s ease-in-out infinite;
+}
+
+body.module-page .module-snapshot-state--compact[data-state="STALE"]
+.module-snapshot-state__dot {
+  background: #e39016;
+  animation: module-snapshot-dot-pulse 1.8s ease-in-out infinite;
+}
+
+body.module-page .module-snapshot-state--compact[data-state="INTEGRITY_ERROR"]
+.module-snapshot-state__dot,
+body.module-page .module-snapshot-state--compact[data-state="BLOCKED"]
+.module-snapshot-state__dot {
+  background: #dc3545;
+  animation: module-snapshot-dot-pulse 1.15s ease-in-out infinite;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__popover {
+  position: absolute;
+  top: 24px;
+  right: 0;
+  display: none;
+  width: min(292px, calc(100vw - 18px));
+  margin: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(18, 64, 87, .16);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .985);
+  color: #16384c;
+  box-shadow: 0 12px 28px rgba(4, 36, 54, .22);
+  text-align: left;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__body {
+  display: block;
+  padding: 9px 11px 8px;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__body strong,
+body.module-page .module-snapshot-state--compact .module-snapshot-state__body span {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__body strong {
+  margin: 0 0 3px;
+  font-size: .76rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__body span {
+  color: #5d7480;
+  font-size: .66rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 9px 9px;
+}
+
+body.module-page .module-snapshot-state--compact .module-snapshot-state__retry {
+  min-height: 34px;
+  margin: 0;
+  padding: 5px 9px;
+  font-size: .67rem;
+  font-weight: 900;
+}
+
+body.module-page .module-snapshot-state--compact.is-open
+.module-snapshot-state__popover,
+body.module-page .module-snapshot-state--compact:focus-within
+.module-snapshot-state__popover,
+body.module-page .module-snapshot-state--compact:hover
+.module-snapshot-state__popover {
+  display: block;
+}
+
+body.module-page .module-snapshot-state--compact
+.module-snapshot-state__retry[hidden] {
+  display: none !important;
+}
+
+@keyframes module-snapshot-dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 2px rgba(12, 51, 73, .18),
+      0 2px 5px rgba(4, 35, 51, .22);
+  }
+  50% {
+    transform: scale(.82);
+    box-shadow:
+      0 0 0 5px rgba(55, 151, 190, .14),
+      0 2px 5px rgba(4, 35, 51, .18);
+  }
+}
+
+@media (max-width: 760px) {
+  body.module-page .module-snapshot-state--compact {
+    top: -3px;
+    right: -3px;
+  }
+
+  body.module-page .module-snapshot-state--compact .module-snapshot-state__popover {
+    position: fixed;
+    top: calc(var(--module-header-measured) + 6px);
+    right: 8px;
+    width: min(280px, calc(100vw - 16px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.module-page .module-snapshot-state--compact .module-snapshot-state__dot {
+    animation: none !important;
   }
 }
