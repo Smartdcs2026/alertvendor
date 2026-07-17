@@ -1,0 +1,686 @@
+/**
+ * module-workspace-compact.css
+ * ROUND 3 — Mobile-first Responsive Workspace
+ * Build: 2026.07.17-round3-responsive-r1
+ */
+
+:root {
+  --module-page-gap: clamp(8px, 1.1vw, 16px);
+  --module-card-min: 252px;
+  --module-card-radius: clamp(13px, 1.2vw, 18px);
+  --module-touch-min: 42px;
+  --module-header-measured: 58px;
+  --module-footer-measured: 38px;
+}
+
+html {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body.module-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+}
+
+body.module-page *,
+body.module-page *::before,
+body.module-page *::after {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+body.module-page img,
+body.module-page svg,
+body.module-page canvas {
+  max-width: 100%;
+}
+
+body.module-page .module-header {
+  position: sticky;
+  z-index: 80;
+  top: 0;
+  width: 100%;
+  margin: 0;
+  padding-top: env(safe-area-inset-top);
+  backdrop-filter: saturate(1.08) blur(12px);
+  -webkit-backdrop-filter: saturate(1.08) blur(12px);
+}
+
+body.module-page .module-header__inner,
+body.module-page .module-container {
+  width: min(100%, 1920px);
+  margin-inline: auto;
+}
+
+body.module-page .module-header__inner {
+  padding-inline: clamp(8px, 1.3vw, 20px);
+}
+
+body.module-page .module-command-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: clamp(6px, 0.8vw, 12px);
+  min-height: 52px;
+}
+
+body.module-page .module-command-brand {
+  overflow: hidden;
+}
+
+body.module-page .module-command-brand__text,
+body.module-page #moduleTitle,
+body.module-page #moduleDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.module-page #moduleTitle {
+  font-size: clamp(0.94rem, 1.4vw, 1.24rem);
+  line-height: 1.2;
+}
+
+body.module-page #moduleDescription {
+  font-size: clamp(0.68rem, 0.9vw, 0.82rem);
+}
+
+body.module-page .module-command-back,
+body.module-page .module-command-logout,
+body.module-page .vehicle-tool-button,
+body.module-page .operational-board-panel button,
+body.module-page .mobile-workspace-tabs button,
+body.module-page .module-focus-toolbar button,
+body.module-page .vehicle-card button {
+  min-height: var(--module-touch-min);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.module-page .module-container {
+  container-name: module-workspace;
+  container-type: inline-size;
+  display: grid;
+  gap: var(--module-page-gap);
+  padding:
+    var(--module-page-gap)
+    clamp(8px, 1.3vw, 20px)
+    calc(var(--module-page-gap) + var(--module-footer-measured) + env(safe-area-inset-bottom));
+}
+
+body.module-page .module-threshold-info,
+body.module-page .module-focus-toolbar,
+body.module-page .operational-board-panel,
+body.module-page .shift-handover-panel,
+body.module-page .vehicle-tools,
+body.module-page .vehicle-result-header,
+body.module-page .warehouse-control-tower,
+body.module-page .receiving-flow-panel,
+body.module-page .movement-overview,
+body.module-page .hourly-timeline-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+body.module-page .module-threshold-info__chips,
+body.module-page .module-focus-statuses,
+body.module-page .operational-stage-filters,
+body.module-page .operational-shift-filters,
+body.module-page .movement-scope-group,
+body.module-page .timeline-mode-group,
+body.module-page .receiving-flow-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+body.module-page .module-threshold-info__chips > *,
+body.module-page .module-focus-statuses > *,
+body.module-page .operational-stage-filters > *,
+body.module-page .operational-shift-filters > *,
+body.module-page .movement-scope-group > *,
+body.module-page .timeline-mode-group > *,
+body.module-page .receiving-flow-filters > * {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+body.module-page .mobile-workspace-tabs {
+  position: sticky;
+  z-index: 55;
+  top: var(--module-header-measured);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 5px;
+  width: 100%;
+  padding: 5px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #ffffff 92%, transparent);
+  box-shadow: 0 3px 14px rgba(10, 45, 65, 0.09);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body.module-page .mobile-workspace-tabs button {
+  width: 100%;
+  padding: 7px 8px;
+  overflow: hidden;
+  font-size: clamp(0.72rem, 1.6vw, 0.83rem);
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.module-page .operational-board-panel__header,
+body.module-page .shift-handover-panel__header,
+body.module-page .movement-overview__header,
+body.module-page .vehicle-result-header,
+body.module-page .vehicle-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+body.module-page .operational-board-panel__header > :first-child,
+body.module-page .movement-overview__header > :first-child,
+body.module-page .vehicle-result-header > :first-child {
+  flex: 1 1 210px;
+}
+
+body.module-page .operational-board-panel__header-actions,
+body.module-page .shift-handover-panel__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body.module-page .vehicle-tools {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto;
+  align-items: stretch;
+}
+
+body.module-page .vehicle-search,
+body.module-page .vehicle-filter,
+body.module-page .vehicle-sort {
+  width: 100%;
+}
+
+body.module-page .vehicle-search input,
+body.module-page .vehicle-filter select,
+body.module-page .vehicle-sort select {
+  width: 100%;
+  min-height: var(--module-touch-min);
+}
+
+body.module-page .vehicle-grid {
+  display: grid !important;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--module-card-min)), 1fr)
+  ) !important;
+  align-items: start;
+  gap: clamp(8px, 1vw, 14px) !important;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+body.module-page .vehicle-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(7px, 0.75vw, 11px);
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(11px, 1vw, 16px);
+  overflow: hidden;
+  border-radius: var(--module-card-radius);
+  contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 360px;
+}
+
+body.module-page .vehicle-card:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
+}
+
+body.module-page .vehicle-card__header,
+body.module-page .vehicle-card__status-line,
+body.module-page .vehicle-card__footer,
+body.module-page .vehicle-operational-stage__heading,
+body.module-page .vehicle-operational-stage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+body.module-page .vehicle-card__title-wrap {
+  flex: 1 1 100%;
+  overflow: hidden;
+}
+
+body.module-page .vehicle-card__title,
+body.module-page .vehicle-card__company,
+body.module-page .vehicle-card__priority-text,
+body.module-page .vehicle-operational-stage p,
+body.module-page .vehicle-in-time strong,
+body.module-page .vehicle-field strong,
+body.module-page .vehicle-field a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+body.module-page .vehicle-card__title {
+  margin-block: 1px;
+  font-size: clamp(1rem, 1.8vw, 1.28rem);
+  line-height: 1.2;
+}
+
+body.module-page .vehicle-card__company {
+  display: -webkit-box;
+  margin-block: 1px;
+  overflow: hidden;
+  font-size: clamp(0.82rem, 1.25vw, 0.96rem);
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+body.module-page .vehicle-card__status-line {
+  justify-content: space-between;
+  margin-top: 5px;
+}
+
+body.module-page .vehicle-card__timer {
+  font-size: clamp(0.92rem, 1.6vw, 1.12rem);
+  font-variant-numeric: tabular-nums;
+}
+
+body.module-page .vehicle-progress__labels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  font-size: clamp(0.58rem, 0.8vw, 0.7rem);
+}
+
+body.module-page .vehicle-progress__labels span:nth-child(2) {
+  text-align: center;
+}
+
+body.module-page .vehicle-progress__labels span:last-child {
+  text-align: right;
+}
+
+body.module-page .vehicle-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+body.module-page .vehicle-field {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 48px;
+  padding: 7px 8px;
+}
+
+body.module-page .vehicle-field span {
+  font-size: 0.68rem;
+}
+
+body.module-page .vehicle-field strong,
+body.module-page .vehicle-field a {
+  font-size: clamp(0.75rem, 1vw, 0.87rem);
+  line-height: 1.25;
+}
+
+body.module-page .vehicle-operational-stage {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: clamp(8px, 0.8vw, 11px);
+  overflow: hidden;
+}
+
+body.module-page .vehicle-operational-stage__timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
+  gap: 5px;
+}
+
+body.module-page .vehicle-operational-stage__timeline > div {
+  min-height: 48px;
+  padding: 6px;
+}
+
+body.module-page .vehicle-operational-stage__actions {
+  justify-content: stretch;
+}
+
+body.module-page .vehicle-operational-stage__actions > button,
+body.module-page .vehicle-card__footer > button {
+  flex: 1 1 132px;
+  width: auto;
+  max-width: 100%;
+}
+
+body.module-page .vehicle-card__footer {
+  margin-top: auto;
+  align-items: stretch;
+}
+
+body.module-page .vehicle-in-time {
+  flex: 1 1 170px;
+}
+
+body.module-page .operational-shift-summary-grid,
+body.module-page .movement-primary-metrics,
+body.module-page .movement-overview__summary,
+body.module-page .warehouse-control-tower__metrics,
+body.module-page .receiving-flow-summary,
+body.module-page .shift-handover-panel__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr));
+  gap: 7px;
+}
+
+body.module-page .movement-chart-panel,
+body.module-page .movement-mini-chart,
+body.module-page .hourly-timeline-panel,
+body.module-page #hourlyTimeline {
+  max-width: 100%;
+}
+
+body.module-page #hourlyTimeline {
+  overscroll-behavior-inline: contain;
+}
+
+/* Card-level transaction progress: locks only the active card action. */
+body.module-page .vehicle-card.is-receiving-busy {
+  border-color: #45a8bc;
+  box-shadow: 0 0 0 3px rgba(17, 135, 158, 0.12), 0 8px 22px rgba(8, 48, 70, 0.12);
+}
+
+body.module-page .vehicle-card[data-receiving-save-state] .receiving-complete-button,
+body.module-page .vehicle-card.is-receiving-busy .receiving-complete-button {
+  pointer-events: none;
+}
+
+body.module-page .receiving-card-progress {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #80c8d7;
+  border-radius: 11px;
+  background: #eefafd;
+  color: #0c5368;
+}
+
+body.module-page .receiving-card-progress__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+body.module-page .receiving-card-progress__head > div {
+  display: grid;
+  gap: 1px;
+}
+
+body.module-page .receiving-card-progress__head small {
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+
+body.module-page .receiving-card-progress__head strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.module-page .receiving-card-progress__head > span {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+body.module-page .receiving-card-progress__meter {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d6e9ee;
+}
+
+body.module-page .receiving-card-progress__meter i {
+  display: block;
+  width: 4%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #087c9e, #0d9b75);
+  transition: width 180ms ease;
+}
+
+body.module-page .receiving-card-progress > p {
+  min-height: 1.2em;
+  margin: 0;
+  font-size: 0.73rem;
+  font-weight: 850;
+}
+
+body.module-page .receiving-card-progress__steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+body.module-page .receiving-card-progress__steps span {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  min-height: 46px;
+  padding: 4px 2px;
+  border-radius: 8px;
+  background: #e2eef2;
+  color: #68808a;
+  font-size: 0.61rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+body.module-page .receiving-card-progress__steps b {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #cddce2;
+  font-size: 0.65rem;
+}
+
+body.module-page .receiving-card-progress__steps .is-active {
+  background: #d8f2f8;
+  color: #075b77;
+}
+
+body.module-page .receiving-card-progress__steps .is-active b {
+  background: #087c9e;
+  color: #fff;
+}
+
+body.module-page .receiving-card-progress__steps .is-done {
+  background: #dcf5eb;
+  color: #08745b;
+}
+
+body.module-page .receiving-card-progress__steps .is-done b {
+  background: #0d9b75;
+  color: #fff;
+}
+
+body.module-page .receiving-live-status {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+body.module-page:fullscreen,
+body.module-page.is-native-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  background: #f4f8fa;
+}
+
+body.module-page:fullscreen .module-container,
+body.module-page.is-native-fullscreen .module-container {
+  width: 100%;
+  max-width: none;
+}
+
+@container module-workspace (max-width: 720px) {
+  body.module-page .vehicle-tools {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  body.module-page .vehicle-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@container module-workspace (max-width: 480px) {
+  body.module-page .vehicle-tools {
+    grid-template-columns: 1fr;
+  }
+
+  body.module-page .vehicle-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.module-page .vehicle-operational-stage__timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --module-card-min: 238px;
+    --module-touch-min: 44px;
+  }
+
+  body.module-page .module-command-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 48px;
+  }
+
+  body.module-page .module-clock {
+    display: none;
+  }
+
+  body.module-page .module-user {
+    display: contents;
+  }
+
+  body.module-page .module-command-back span,
+  body.module-page .module-command-logout span {
+    display: none;
+  }
+
+  body.module-page .module-command-back,
+  body.module-page .module-command-logout {
+    width: 44px;
+    min-width: 44px;
+    padding-inline: 8px;
+  }
+
+  body.module-page .module-command-kpi {
+    max-width: 72px;
+  }
+
+  body.module-page .module-container {
+    padding-inline: 8px;
+  }
+
+  body.module-page .operational-board-panel__header-actions,
+  body.module-page .shift-handover-panel__actions {
+    width: 100%;
+  }
+
+  body.module-page .operational-board-panel__header-actions > *,
+  body.module-page .shift-handover-panel__actions > * {
+    flex: 1 1 120px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --module-card-min: 100%;
+  }
+
+  body.module-page .module-command-brand__icon,
+  body.module-page .eyebrow {
+    display: none;
+  }
+
+  body.module-page #moduleDescription {
+    display: none;
+  }
+
+  body.module-page .mobile-workspace-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.module-page .vehicle-card {
+    padding: 10px;
+    contain-intrinsic-size: 410px;
+  }
+
+  body.module-page .vehicle-detail-grid {
+    gap: 5px;
+  }
+
+  body.module-page .vehicle-field {
+    min-height: 44px;
+    padding: 6px;
+  }
+
+  body.module-page .receiving-card-progress__steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1700px) {
+  :root {
+    --module-card-min: 292px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.module-page *,
+  body.module-page *::before,
+  body.module-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
