@@ -1,6 +1,6 @@
 /**
  * receiving.js
- * ROUND 3 — Card-level Progress + Durable Recovery
+ * PHASE 5 ROUND 03 — Fast Commit + Durable Recovery
  *
  * - ป้องกันกดซ้ำใน Browser
  * - ใช้ clientRequestId เดิมทุกครั้ง
@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.17-round3-card-progress-responsive';
+    '2026.07.17-r18-fast-response-background-sync';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
@@ -23,17 +23,19 @@
   const STORAGE_PREFIX =
     'alertvendor:receiving-pending:v3:';
   const SYNC_STORAGE_PREFIX =
-    'alertvendor:receiving-sync:v2:';
-  const TAB_LEASE_PREFIX =
-    'alertvendor:receiving-lease:v1:';
-  const TAB_LEASE_MS = 45000;
-  const RECOVERY_BATCH_SIZE = 10;
+    'alertvendor:receiving-sync:v1:';
 
   const inFlight = new Set();
   let recoveryRunning = false;
   let workflowRecoveryRunning = false;
 
-  const progressState = new Map();
+  const progressState = {
+    open: false,
+    recordId: '',
+    startedAt: 0,
+    elapsedTimer: null,
+    stage: ''
+  };
 
   document.addEventListener(
     'DOMContentLoaded',
@@ -220,12 +222,7 @@ function initialize() {
         createRequestId(),
 
       queuedAt:
-        Date.now(),
-
-      attempts: 0,
-      nextAttemptAt: 0,
-      status: 'PENDING',
-      lastErrorCode: ''
+        Date.now()
     };
   }
 async function executeReceiving(
@@ -265,28 +262,12 @@ async function executeReceiving(
       return;
     }
 
-    const lease = acquireRecordLease(recordId,payload.clientRequestId);
-    if (!lease.acquired) {
-      setCardLiveStatus(
-        recordId,
-        'VERIFYING',
-        'อีกแท็บกำลังส่งรายการนี้ ระบบจะตรวจยืนยันผลแทนการส่งซ้ำ'
-      );
-      const verified = await verifyCommit(moduleId,payload,recordId);
-      if (verified && verified.completed === true) {
-        removePendingRequest(recordId);
-        applyCommittedState(recordId,verified,button);
-        enqueueWorkflowSync(moduleId,payload,verified);
-      }
-      return;
-    }
-
     inFlight.add(recordId);
     setButtonLoading(button, true);
     setCardLiveStatus(
       recordId,
       'SAVING',
-      'กำลังตรวจสอบรายการและเตรียมบันทึก...'
+      'กำลังตรวจสอบข้อมูลและเตรียมบันทึก...'
     );
 
     if (interactive) {
@@ -297,9 +278,8 @@ async function executeReceiving(
       let result;
       updateSavingProgress(
         'PREPARE',
-        'กำลังตรวจสอบข้อมูลล่าสุดและป้องกันข้อมูลซ้ำ',
-        18,
-        recordId
+        'กำลังตรวจสอบข้อมูลล่าสุด',
+        18
       );
 
       try {
@@ -307,17 +287,16 @@ async function executeReceiving(
       } catch (error) {
         updateSavingProgress(
           'VERIFY',
-          'คำตอบจาก Server ไม่แน่นอน กำลังตรวจยืนยันผลจริง',
-          66,
-          recordId
+          'กำลังยืนยันผลการบันทึกกับระบบ',
+          66
         );
         setCardLiveStatus(
           recordId,
           'VERIFYING',
-          'กำลังตรวจสอบว่าคำขอถูกบันทึกแล้วหรือยัง...'
+          'กำลังตรวจสอบว่าระบบบันทึกรายการนี้แล้วหรือยัง...'
         );
 
-        const verified = await verifyCommit(moduleId, payload, recordId);
+        const verified = await verifyCommit(moduleId, payload);
 
         if (verified && verified.completed === true) {
           result = {
@@ -343,23 +322,14 @@ async function executeReceiving(
           isTemporaryError(error) ||
           navigator.onLine === false
         ) {
-          const nextAttempts = Number(payload.attempts || 0) + 1;
-          savePendingRequest({
-            ...payload,
-            attempts: nextAttempts,
-            status: isNetworkOrTimeoutError(error) ? 'UNKNOWN' : 'RETRY_WAIT',
-            lastErrorCode: String(error && error.code || ''),
-            lastErrorAt: Date.now(),
-            nextAttemptAt: Date.now() + Math.max(900,retryDelay(error,nextAttempts))
-          });
-          closeSavingProgress(recordId);
+          closeSavingProgress();
           setButtonQueued(button);
           setCardLiveStatus(
             recordId,
             'QUEUED',
             navigator.onLine === false
-              ? 'อุปกรณ์ออฟไลน์ เก็บคำขอไว้และจะส่งเมื่อออนไลน์'
-              : 'ยังไม่ได้รับคำยืนยัน ระบบจะตรวจสอบและลองใหม่โดยใช้ Request ID เดิม'
+              ? 'อุปกรณ์ออฟไลน์ ระบบจะส่งคำขอนี้ให้อัตโนมัติเมื่อออนไลน์'
+              : 'กำลังรอยืนยันจากระบบ ระบบจะตรวจสอบและลองใหม่ให้อัตโนมัติ'
           );
 
           if (interactive) {
@@ -387,12 +357,11 @@ async function executeReceiving(
         removePendingRequest(recordId);
         updateSavingProgress(
           'SYNC',
-          'ข้อมูลรายการเปลี่ยนแล้ว กำลังโหลด Snapshot ล่าสุด',
-          100,
-          recordId
+          'ข้อมูลมีการเปลี่ยนแปลง กำลังโหลดข้อมูลล่าสุด',
+          100
         );
         await delay(180);
-        closeSavingProgress(recordId);
+        closeSavingProgress();
         applyStaleRecordState(recordId, result, button);
         scheduleBoardRefresh();
 
@@ -411,14 +380,13 @@ async function executeReceiving(
 
       updateSavingProgress(
         'VERIFY',
-        'บันทึกเวลาใน Server สำเร็จแล้ว',
-        82,
-        recordId
+        'บันทึกรับสินค้าเสร็จสำเร็จแล้ว',
+        82
       );
       setCardLiveStatus(
         recordId,
         'COMMITTED',
-        'บันทึกเวลาสำเร็จ กำลังอัปเดตหน้าจอ...'
+        'บันทึกสำเร็จ กำลังย้ายรายการไปขั้นตอนถัดไป...'
       );
 
       removePendingRequest(recordId);
@@ -426,19 +394,17 @@ async function executeReceiving(
 
       updateSavingProgress(
         'SYNC',
-        'อัปเดตการ์ดแล้ว ระบบจะซิงก์ Workflow เบื้องหลัง',
-        96,
-        recordId
+        'กำลังย้ายรายการไปแท็บขั้นตอนถัดไป',
+        96
       );
       await delay(180);
       updateSavingProgress(
         'DONE',
-        'บันทึกสำเร็จ ไม่ต้องรอการโหลดข้อมูลทั้งหน้า',
-        100,
-        recordId
+        'บันทึกสำเร็จแล้ว',
+        100
       );
       await delay(180);
-      closeSavingProgress(recordId);
+      closeSavingProgress();
 
       enqueueWorkflowSync(moduleId, payload, result);
 
@@ -454,11 +420,11 @@ async function executeReceiving(
       );
 
     } catch (error) {
-      closeSavingProgress(recordId);
+      closeSavingProgress();
       setCardLiveStatus(
         recordId,
         'ERROR',
-        'บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อความแจ้งเตือน'
+        'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
       );
       window.setTimeout(
         () => clearCardLiveStatus(recordId, 'ERROR'),
@@ -470,7 +436,6 @@ async function executeReceiving(
       }
     } finally {
       inFlight.delete(recordId);
-      releaseRecordLease(recordId,payload.clientRequestId);
       if (!hasPendingRequest(recordId)) {
         setButtonLoading(button, false);
       }
@@ -491,8 +456,7 @@ async function executeReceiving(
         attempt === 0
           ? 'กำลังส่งคำขอและบันทึกเวลาใน Server'
           : 'Server ยังไม่พร้อม กำลังลองซ้ำครั้งที่ ' + attemptNumber,
-        Math.min(58,30 + attempt * 12),
-        recordId
+        Math.min(58,30 + attempt * 12)
       );
       setCardLiveStatus(
         recordId,
@@ -521,8 +485,7 @@ async function executeReceiving(
   }
 async function verifyCommit(
     moduleId,
-    payload,
-    recordId
+    payload
   ) {
     if (
       !API ||
@@ -536,8 +499,7 @@ async function verifyCommit(
       updateSavingProgress(
         'VERIFY',
         'ตรวจสอบผลจริงกับ Server ครั้งที่ ' + (attempt + 1),
-        Math.min(82, 66 + attempt * 4),
-        recordId
+        Math.min(82, 66 + attempt * 4)
       );
 
       try {
@@ -729,62 +691,75 @@ function enqueueWorkflowSync(
     return error;
   }
 
-async function recoverPendingRequests() {
-    if (recoveryRunning || navigator.onLine === false) return;
+  async function recoverPendingRequests() {
+    if (
+      recoveryRunning ||
+      navigator.onLine ===
+        false
+    ) {
+      return;
+    }
 
-    const entries = readPendingRequests()
-      .filter((payload) => Number(payload.nextAttemptAt || 0) <= Date.now())
-      .slice(0,RECOVERY_BATCH_SIZE);
+    const entries =
+      readPendingRequests();
 
-    if (!entries.length) return;
+    if (!entries.length) {
+      return;
+    }
 
-    recoveryRunning = true;
+    recoveryRunning =
+      true;
 
     try {
-      for (const payload of entries) {
-        if (Date.now() - Number(payload.queuedAt || 0) > PENDING_MAX_AGE_MS) {
-          removePendingRequest(payload.recordId);
+      for (
+        const payload of entries
+      ) {
+        if (
+          Date.now() -
+            Number(
+              payload.queuedAt ||
+              0
+            ) >
+          PENDING_MAX_AGE_MS
+        ) {
+          removePendingRequest(
+            payload.recordId
+          );
           continue;
         }
 
-        const moduleId = payload.moduleId || getModuleId();
-        const button = findReceivingButton(payload.recordId);
-        const record = window.VehicleModule &&
-          typeof window.VehicleModule.getRecord === 'function'
-            ? window.VehicleModule.getRecord(payload.recordId)
+        const button =
+          findReceivingButton(
+            payload.recordId
+          );
+
+        const record =
+          window.VehicleModule &&
+          typeof window.VehicleModule
+            .getRecord ===
+            'function'
+            ? window.VehicleModule
+                .getRecord(
+                  payload.recordId
+                )
             : null;
 
-        if (String(payload.status || '').toUpperCase() === 'UNKNOWN') {
-          const verified = await verifyCommit(moduleId,payload,payload.recordId);
-          if (verified && verified.completed === true) {
-            removePendingRequest(payload.recordId);
-            applyCommittedState(payload.recordId,verified,button);
-            enqueueWorkflowSync(moduleId,payload,verified);
-            continue;
+        await executeReceiving(
+          payload,
+          record,
+          button,
+          {
+            interactive:
+              false
           }
-          if (verified && verified.staleRecord === true) {
-            removePendingRequest(payload.recordId);
-            applyStaleRecordState(payload.recordId,verified,button);
-            scheduleBoardRefresh();
-            continue;
-          }
-        }
-
-        const nextPayload = {
-          ...payload,
-          attempts: Number(payload.attempts || 0) + 1,
-          status: 'SENDING',
-          lastAttemptAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        savePendingRequest(nextPayload);
-        await executeReceiving(nextPayload,record,button,{ interactive: false });
+        );
       }
+
     } finally {
-      recoveryRunning = false;
+      recoveryRunning =
+        false;
     }
   }
-
 
   function applyCommittedState(
     recordId,
@@ -1126,8 +1101,8 @@ async function showSuccess(
         ? 'รายการนี้บันทึกไว้แล้ว'
         : 'บันทึกรับสินค้าเสร็จแล้ว',
       html: `
-        <p>${escapeHtml(result && result.message || 'บันทึกเวลาใน Server สำเร็จ')}</p>
-        <p class="receiving-success-subtext">หน้าจออัปเดตแล้ว ส่วน Workflow จะซิงก์เบื้องหลังอัตโนมัติ</p>
+        <p>${escapeHtml(result && result.message || 'บันทึกรับสินค้าเสร็จสำเร็จ')}</p>
+        <p class="receiving-success-subtext">รายการนี้ถูกย้ายไปแท็บ “พขร.รอรับเอกสารคืน” แล้ว</p>
       `,
       timer: alreadyCompleted ? 1100 : 1250,
       timerProgressBar: true,
@@ -1151,11 +1126,11 @@ async function showSuccess(
 
       html: `
         <p>
-          ข้อมูลหลักถูกบันทึกสำเร็จแล้ว
+          บันทึกรับสินค้าเสร็จสำเร็จแล้ว
         </p>
 
         <p>
-          ระบบกำลังซิงก์สถานะ Inbound ซ้ำอัตโนมัติ
+          ระบบกำลังย้ายรายการไปขั้นตอน “พขร.รอรับเอกสารคืน”
         </p>
 
         <small class="receiving-warning-code">
@@ -1487,14 +1462,11 @@ async function showSuccess(
     record,
     payload
   ) {
-    const recordId = String(payload && payload.recordId || '');
-    const card = findVehicleCard(recordId);
-
-    if (!recordId || !card) {
+    if (!window.Swal || typeof Swal.fire !== 'function') {
       return;
     }
 
-    closeSavingProgress(recordId);
+    closeSavingProgress();
 
     const appointment =
       record && (
@@ -1505,130 +1477,105 @@ async function showSuccess(
     const company =
       record && (record.companyName || record.company) || '-';
 
-    const panel = document.createElement('section');
-    panel.className = 'receiving-card-progress';
-    panel.dataset.recordId = recordId;
-    panel.innerHTML = `
-      <div class="receiving-card-progress__head">
-        <div>
-          <small>กำลังบันทึกรับสินค้าเสร็จ</small>
-          <strong>${escapeHtml(appointment)} · ${escapeHtml(company)}</strong>
-        </div>
-        <span data-receiving-progress-elapsed>0 วินาที</span>
-      </div>
-      <div class="receiving-card-progress__meter" aria-hidden="true">
-        <i data-receiving-progress-bar></i>
-      </div>
-      <p data-receiving-progress-message>กำลังเตรียมคำขอ...</p>
-      <div class="receiving-card-progress__steps" aria-label="ขั้นตอนการบันทึก">
-        <span data-receiving-progress-step="PREPARE"><b>1</b>ตรวจสอบ</span>
-        <span data-receiving-progress-step="COMMIT"><b>2</b>Commit</span>
-        <span data-receiving-progress-step="VERIFY"><b>3</b>ยืนยัน</span>
-        <span data-receiving-progress-step="SYNC"><b>4</b>Sync</span>
-      </div>
-    `;
+    progressState.open = true;
+    progressState.recordId = String(payload.recordId || '');
+    progressState.startedAt = Date.now();
+    progressState.stage = 'PREPARE';
 
-    const anchor =
-      card.querySelector('.vehicle-operational-stage') ||
-      card.querySelector('.vehicle-card__footer');
-
-    if (anchor && anchor.parentNode) {
-      anchor.parentNode.insertBefore(panel, anchor.nextSibling);
-    } else {
-      card.appendChild(panel);
-    }
-
-    card.classList.add('is-receiving-busy');
-    card.setAttribute('aria-busy', 'true');
-
-    const item = {
-      recordId,
-      panel,
-      startedAt: Date.now(),
-      stage: 'PREPARE',
-      elapsedTimer: window.setInterval(
-        () => updateProgressElapsed(recordId),
-        1000
-      )
-    };
-
-    progressState.set(recordId, item);
-    updateSavingProgress(
-      'PREPARE',
-      'กำลังเตรียมคำขอและตรวจสอบรายการ',
-      10,
-      recordId
-    );
+    void Swal.fire({
+      title: '',
+      html: `
+        <section class="receiving-progress-panel">
+          <div class="receiving-progress-spinner" aria-hidden="true"></div>
+          <p class="receiving-progress-eyebrow">บันทึกรับสินค้าเสร็จ</p>
+          <h2>กำลังบันทึกรับสินค้าเสร็จ</h2>
+          <div class="receiving-progress-identity">
+            <span>เลขนัดหมาย<strong>${escapeHtml(appointment)}</strong></span>
+            <span>บริษัท<strong>${escapeHtml(company)}</strong></span>
+          </div>
+          <div class="receiving-progress-meter"><i data-receiving-progress-bar></i></div>
+          <p class="receiving-progress-message" data-receiving-progress-message>กำลังเตรียมคำขอ...</p>
+          <div class="receiving-progress-steps">
+            <div data-receiving-progress-step="PREPARE"><b>1</b><span>ตรวจสอบข้อมูล</span></div>
+            <div data-receiving-progress-step="COMMIT"><b>2</b><span>บันทึกรับเสร็จ</span></div>
+            <div data-receiving-progress-step="VERIFY"><b>3</b><span>ยืนยันผล</span></div>
+            <div data-receiving-progress-step="SYNC"><b>4</b><span>ย้ายไปขั้นตอนถัดไป</span></div>
+          </div>
+          <small data-receiving-progress-elapsed>ใช้เวลา 0 วินาที</small>
+          <p class="receiving-progress-hint">เมื่อบันทึกสำเร็จ รายการจะถูกย้ายไปแท็บ “พขร.รอรับเอกสารคืน” อัตโนมัติ</p>
+        </section>
+      `,
+      showConfirmButton: false,
+      showCloseButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      returnFocus: false,
+      heightAuto: false,
+      customClass: {
+        popup: 'receiving-progress-popup',
+        htmlContainer: 'receiving-progress-html'
+      },
+      didOpen: () => {
+        updateSavingProgress('PREPARE','กำลังเตรียมรายการสำหรับบันทึก',10);
+        progressState.elapsedTimer = window.setInterval(updateProgressElapsed,1000);
+      },
+      willClose: () => {
+        if (progressState.elapsedTimer) {
+          window.clearInterval(progressState.elapsedTimer);
+          progressState.elapsedTimer = null;
+        }
+        progressState.open = false;
+      }
+    });
   }
 
-  function updateSavingProgress(stage,message,percent,recordId) {
-    const key = String(recordId || '');
-    const item = progressState.get(key);
-
-    if (!item || !item.panel || !item.panel.isConnected) {
+  function updateSavingProgress(stage,message,percent) {
+    progressState.stage = String(stage || progressState.stage || 'PREPARE').toUpperCase();
+    const popup = window.Swal && typeof Swal.getPopup === 'function'
+      ? Swal.getPopup()
+      : null;
+    if (!popup || !popup.classList.contains('receiving-progress-popup')) {
       return;
     }
-
-    item.stage = String(stage || item.stage || 'PREPARE').toUpperCase();
-
-    const messageNode = item.panel.querySelector('[data-receiving-progress-message]');
-    if (messageNode) {
-      messageNode.textContent = message || 'กำลังดำเนินการ...';
-    }
-
-    const bar = item.panel.querySelector('[data-receiving-progress-bar]');
+    const messageNode = popup.querySelector('[data-receiving-progress-message]');
+    if (messageNode) messageNode.textContent = message || 'กำลังดำเนินการ...';
+    const bar = popup.querySelector('[data-receiving-progress-bar]');
     if (bar) {
       bar.style.width = Math.max(4,Math.min(100,Number(percent || 0))) + '%';
     }
-
     const order=['PREPARE','COMMIT','VERIFY','SYNC','DONE'];
-    const currentIndex=order.indexOf(item.stage);
-    item.panel.querySelectorAll('[data-receiving-progress-step]').forEach((node) => {
+    const currentIndex=order.indexOf(progressState.stage);
+    popup.querySelectorAll('[data-receiving-progress-step]').forEach((node) => {
       const nodeIndex=order.indexOf(node.getAttribute('data-receiving-progress-step'));
       node.classList.toggle('is-active',nodeIndex===currentIndex);
       node.classList.toggle(
         'is-done',
-        item.stage==='DONE' || (nodeIndex>=0 && currentIndex>=0 && nodeIndex<currentIndex)
+        progressState.stage==='DONE' || (nodeIndex>=0 && currentIndex>=0 && nodeIndex<currentIndex)
       );
     });
   }
 
-  function updateProgressElapsed(recordId) {
-    const item = progressState.get(String(recordId || ''));
-    if (!item || !item.panel || !item.panel.isConnected) return;
-
-    const node = item.panel.querySelector('[data-receiving-progress-elapsed]');
+  function updateProgressElapsed() {
+    if (!progressState.open) return;
+    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+    const node = popup && popup.querySelector('[data-receiving-progress-elapsed]');
     if (!node) return;
-
-    const seconds=Math.max(0,Math.floor((Date.now()-item.startedAt)/1000));
-    node.textContent=seconds+' วินาที';
+    const seconds=Math.max(0,Math.floor((Date.now()-progressState.startedAt)/1000));
+    node.textContent='ใช้เวลา '+seconds+' วินาที';
   }
 
-  function closeSavingProgress(recordId) {
-    const key = String(recordId || '');
-    const item = progressState.get(key);
-
-    if (!item) {
-      return;
+  function closeSavingProgress() {
+    if (progressState.elapsedTimer) {
+      window.clearInterval(progressState.elapsedTimer);
+      progressState.elapsedTimer=null;
     }
-
-    if (item.elapsedTimer) {
-      window.clearInterval(item.elapsedTimer);
+    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+    if (popup && popup.classList.contains('receiving-progress-popup') && typeof Swal.close === 'function') {
+      Swal.close();
     }
-
-    if (item.panel && item.panel.isConnected) {
-      item.panel.remove();
-    }
-
-    progressState.delete(key);
-
-    const card = findVehicleCard(key);
-    if (card) {
-      card.classList.remove('is-receiving-busy');
-      if (!card.querySelector('.receiving-live-status')) {
-        card.removeAttribute('aria-busy');
-      }
-    }
+    progressState.open=false;
+    progressState.recordId='';
+    progressState.stage='';
   }
 
   function setCardLiveStatus(recordId,status,message) {
@@ -1644,18 +1591,6 @@ async function showSuccess(
     element.dataset.state=String(status || 'SAVING').toUpperCase();
     element.innerHTML=`<i aria-hidden="true"></i><span>${escapeHtml(message || 'กำลังดำเนินการ...')}</span>`;
     card.dataset.receivingSaveState=element.dataset.state;
-    card.setAttribute('aria-busy','true');
-
-    document.dispatchEvent(
-      new CustomEvent('alertvendor:receiving-card-state', {
-        detail: {
-          recordId: String(recordId || ''),
-          state: element.dataset.state,
-          message: String(message || ''),
-          active: true
-        }
-      })
-    );
   }
 
   function clearCardLiveStatus(recordId,onlyState) {
@@ -1666,22 +1601,6 @@ async function showSuccess(
       element.remove();
     }
     delete card.dataset.receivingSaveState;
-
-    if (!card.querySelector('.receiving-card-progress')) {
-      card.removeAttribute('aria-busy');
-      card.classList.remove('is-receiving-busy');
-    }
-
-    document.dispatchEvent(
-      new CustomEvent('alertvendor:receiving-card-state', {
-        detail: {
-          recordId: String(recordId || ''),
-          state: '',
-          message: '',
-          active: false
-        }
-      })
-    );
   }
 
 
@@ -1721,68 +1640,6 @@ async function showSuccess(
       ) +
       '"]'
     );
-  }
-
-  function recordLeaseKey(recordId) {
-    return TAB_LEASE_PREFIX + getModuleId() + ':' + String(recordId || '');
-  }
-
-  function acquireRecordLease(recordId,requestId) {
-    const key=recordLeaseKey(recordId);
-    const now=Date.now();
-    const owner=createTabId();
-    try {
-      const current=JSON.parse(localStorage.getItem(key) || 'null');
-      if (
-        current &&
-        Number(current.expiresAt || 0) > now &&
-        current.owner !== owner
-      ) {
-        return { acquired:false, owner:current.owner || '' };
-      }
-      localStorage.setItem(key,JSON.stringify({
-        owner:owner,
-        requestId:String(requestId || ''),
-        expiresAt:now + TAB_LEASE_MS
-      }));
-      const verified=JSON.parse(localStorage.getItem(key) || 'null');
-      return { acquired:Boolean(verified && verified.owner===owner), owner:owner };
-    } catch (error) {
-      return { acquired:true, owner:owner, fallback:true };
-    }
-  }
-
-  function releaseRecordLease(recordId,requestId) {
-    const key=recordLeaseKey(recordId);
-    try {
-      const current=JSON.parse(localStorage.getItem(key) || 'null');
-      if (
-        !current ||
-        current.owner===createTabId() ||
-        current.requestId===String(requestId || '')
-      ) {
-        localStorage.removeItem(key);
-      }
-    } catch (error) {
-      localStorage.removeItem(key);
-    }
-  }
-
-  function createTabId() {
-    const key='alertvendor:receiving-tab-id:v1';
-    try {
-      let value=sessionStorage.getItem(key);
-      if (!value) {
-        value='RTAB-'+createRequestId();
-        sessionStorage.setItem(key,value);
-      }
-      return value;
-    } catch (error) {
-      if (!window.__alertVendorReceivingTabId) {
-        window.__alertVendorReceivingTabId='RTAB-'+createRequestId();
-      }
-      return window.__alertVendorReceivingTabId;
-    }
   }
 
   function storageKey() {
@@ -1837,34 +1694,32 @@ async function showSuccess(
     );
   }
 
-function savePendingRequest(
+  function savePendingRequest(
     payload
   ) {
     try {
-      const map = readPendingMap();
-      const existing = map[payload.recordId] || {};
-      map[payload.recordId] = {
-        ...existing,
-        ...payload,
-        clientRequestId:
-          payload.clientRequestId || existing.clientRequestId || createRequestId(),
-        requestId:
-          payload.clientRequestId || existing.clientRequestId || payload.requestId || '',
-        queuedAt:
-          Number(existing.queuedAt || payload.queuedAt) || Date.now(),
-        updatedAt: Date.now(),
-        attempts: Number(payload.attempts || existing.attempts || 0),
-        nextAttemptAt: Number(payload.nextAttemptAt || existing.nextAttemptAt || 0),
-        status: String(payload.status || existing.status || 'PENDING'),
-        lastErrorCode: String(payload.lastErrorCode || existing.lastErrorCode || '')
-      };
+      const map =
+        readPendingMap();
 
-      localStorage.setItem(storageKey(),JSON.stringify(map));
+      map[
+        payload.recordId
+      ] =
+        payload;
+
+      localStorage.setItem(
+        storageKey(),
+        JSON.stringify(
+          map
+        )
+      );
+
     } catch (error) {
-      console.warn('บันทึก Pending Receiving ไม่สำเร็จ',error);
+      console.warn(
+        'บันทึก Pending Receiving ไม่สำเร็จ',
+        error
+      );
     }
   }
-
 
   function removePendingRequest(
     recordId
