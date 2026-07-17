@@ -1670,19 +1670,19 @@
 
     const map = {
       LOADING: {
-        title: 'กำลังตรวจสอบ Snapshot',
-        detail: 'กำลังอ่านสถานะปฏิบัติงานจาก Backend',
+        title: 'กำลังตรวจสอบข้อมูล',
+        detail: 'กำลังยืนยันข้อมูลล่าสุดจากระบบ',
         retry: false
       },
       LIVE: {
-        title: 'ข้อมูลสดพร้อมใช้งาน',
+        title: 'ข้อมูลพร้อมใช้งาน',
         detail: generatedAt
-          ? 'Snapshot จาก Server ' + generatedAt
-          : 'Operational Board พร้อมใช้งาน',
+          ? 'อัปเดตล่าสุด ' + generatedAt
+          : 'ข้อมูลล่าสุดพร้อมใช้งาน',
         retry: false
       },
       STALE: {
-        title: 'กำลังใช้ Snapshot สำรองแบบอ่านอย่างเดียว',
+        title: 'กำลังใช้ข้อมูลล่าสุดที่มี',
         detail: generatedAt
           ? 'ข้อมูลล่าสุดที่ยืนยันได้ ' + generatedAt + ' · ปิดปุ่มบันทึกชั่วคราว'
           : 'เครือข่ายไม่พร้อม · ปิดปุ่มบันทึกชั่วคราว',
@@ -1695,15 +1695,27 @@
       },
       BLOCKED: {
         title: 'ไม่สามารถยืนยันสถานะรถได้',
-        detail: 'ไม่มี Snapshot ที่เชื่อถือได้ จึงไม่แสดงข้อมูลเดาและไม่อนุญาตให้บันทึก',
+        detail: 'ยังยืนยันข้อมูลล่าสุดไม่ได้ ระบบจึงปิดการบันทึกเพื่อป้องกันข้อมูลผิดพลาด',
         retry: true
       }
     };
 
     const info = map[status] || map.BLOCKED;
+    const accessibleSummary = [info.title, info.detail]
+      .filter(Boolean)
+      .join(' — ');
 
     if (title) title.textContent = info.title;
     if (detail) detail.textContent = info.detail;
+
+    panel.setAttribute('aria-label', accessibleSummary);
+    panel.setAttribute('title', accessibleSummary);
+    bindCompactSnapshotStatus_(panel);
+
+    if (status === 'LIVE') {
+      panel.classList.remove('is-open');
+      panel.setAttribute('aria-expanded', 'false');
+    }
 
     if (retryButton) {
       retryButton.hidden = !info.retry;
@@ -1736,6 +1748,52 @@
       )
     );
   }
+
+  function bindCompactSnapshotStatus_(panel) {
+    if (!panel || panel.dataset.compactStatusBound === 'TRUE') {
+      return;
+    }
+
+    panel.dataset.compactStatusBound = 'TRUE';
+
+    const setOpen = (open) => {
+      panel.classList.toggle('is-open', open);
+      panel.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    panel.addEventListener('click', (event) => {
+      const target = event.target;
+
+      if (
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('button')
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(!panel.classList.contains('is-open'));
+    });
+
+    panel.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setOpen(!panel.classList.contains('is-open'));
+      } else if (event.key === 'Escape') {
+        setOpen(false);
+        panel.blur();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!panel.contains(event.target)) {
+        setOpen(false);
+      }
+    });
+  }
+
 
   function buildRecordsSignature(records) {
     const list =
