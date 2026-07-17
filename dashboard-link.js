@@ -1,6 +1,6 @@
 /**
  * dashboard-link.js
- * ROUND 35 — Dashboard Launcher Compatibility
+ * ROUND 3 REVISION 2 — Dashboard Launcher Mobile Recovery
  *
  * รองรับ Header เดิมและ Header แบบ Unified Command Bar
  */
@@ -50,6 +50,7 @@
 
 
   function ensureDashboardLauncher() {
+    document.body && document.body.classList.add('has-module-dashboard-launcher');
     if (state.destroyed) {
       return;
     }
@@ -66,6 +67,8 @@
       scheduleRetry();
       return;
     }
+
+    target.classList.add('module-dashboard-launcher-host');
 
     if (existing) {
       if (
