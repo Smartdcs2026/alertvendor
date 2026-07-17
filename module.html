@@ -13,7 +13,7 @@
     content="#0f3d5e"
   >
 
-  <!-- 20260717-r3r4-module-route-isolation: server-confirmed role + legacy route cache cleanup -->
+  <!-- 20260717-module-desktop-card-layout-hotfix: compact desktop cards + stable mobile two-card grid -->
   <title>
     สถานะรถ | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
@@ -65,6 +65,66 @@
     rel="stylesheet"
     href="./module-workspace-compact.css?v=20260717-round3-r4-professional-ui"
   >
+
+
+  <style id="moduleDesktopCardLayoutHotfix">
+    /*
+     * MODULE DESKTOP CARD LAYOUT HOTFIX — 2026-07-17
+     *
+     * ป้องกัน auto-fit + 1fr ยืดการ์ดจำนวนน้อยจนเต็มหน้าจอ
+     * Desktop/Tablet ใช้ความกว้างการ์ดแบบควบคุมได้
+     * Mobile ยังคง 2 การ์ดต่อหนึ่งแถวตาม Baseline ล่าสุด
+     */
+    @media (min-width: 768px) {
+      body.module-page .vehicle-grid {
+        grid-template-columns:
+          repeat(auto-fill, minmax(290px, 330px)) !important;
+        justify-content: start !important;
+        align-items: start !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+
+      body.module-page .vehicle-card {
+        width: 100% !important;
+        max-width: 330px !important;
+        align-self: start !important;
+        justify-self: stretch !important;
+      }
+
+      /*
+       * กันข้อความส่วนหัวจาก CSS รุ่นเก่าวางซ้อนกัน
+       */
+      body.module-page .module-command-brand__text {
+        display: grid !important;
+        grid-template-rows: auto auto auto !important;
+        align-content: center !important;
+        row-gap: 1px !important;
+        overflow: hidden !important;
+      }
+
+      body.module-page .module-live-label,
+      body.module-page #moduleTitle,
+      body.module-page #moduleDescription {
+        position: static !important;
+        inset: auto !important;
+        transform: none !important;
+        margin: 0 !important;
+      }
+    }
+
+    @media (max-width: 767px) {
+      body.module-page .vehicle-grid {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr)) !important;
+        justify-content: stretch !important;
+      }
+
+      body.module-page .vehicle-card {
+        max-width: none !important;
+      }
+    }
+  </style>
 
 
   <!--
