@@ -1,6 +1,6 @@
 /**
  * dashboard-link.css
- * ROUND 35 — Dashboard Launcher Compatibility
+ * ROUND 3 REVISION 2 — Dashboard Launcher Mobile Recovery
  */
 
 .module-dashboard-launcher {
@@ -190,4 +190,16 @@ body.module-page
       #056a88,
       #043f5b
     ) !important;
+}
+
+
+/************************************************************
+ * ROUND 3 REVISION 2 — visibility guard
+ ************************************************************/
+body.module-page.has-module-dashboard-launcher
+.module-dashboard-launcher-host
+#moduleDashboardLauncher {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
