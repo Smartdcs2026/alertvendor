@@ -216,6 +216,25 @@
         return;
       }
 
+      const sessionRole = normalizeSessionRole(session);
+
+      /*
+       * ตัดสินสิทธิ์จาก /api/auth/me ของ Session ปัจจุบันเท่านั้น
+       * ห้ามใช้ role/user cache รุ่นเก่าใน localStorage เพราะอาจค้างเป็น INBOUND
+       * แล้วพา ADMIN/USER ไปหน้า inbound.html ผิดบัญชี
+       */
+      if (sessionRole === 'INBOUND') {
+        redirectToInbound();
+        return;
+      }
+
+      if (sessionRole !== 'ADMIN' && sessionRole !== 'USER') {
+        API.clearSession && API.clearSession();
+        redirectToLogin();
+        return;
+      }
+
+      clearLegacyInboundRouteArtifacts();
       state.session = session;
       initializeOperationalAlertPreference();
 
@@ -8917,12 +8936,62 @@
     redirectToLogin();
   }
 
+  function normalizeSessionRole(session) {
+    const user =
+      session &&
+      session.user &&
+      typeof session.user === 'object'
+        ? session.user
+        : session || {};
+
+    const role = String(user.role || '')
+      .trim()
+      .toUpperCase();
+
+    if (role === 'ADMIN') return 'ADMIN';
+    if (role === 'INBOUND') return 'INBOUND';
+    if (role === 'USER') return 'USER';
+
+    return '';
+  }
+
+  function clearLegacyInboundRouteArtifacts() {
+    const keys = [
+      'vcw_inbound_only',
+      'alertvendor_user',
+      'alertvendor_current_user',
+      'currentUser',
+      'auth_user',
+      'user',
+      'vehicle_status_user',
+      'alertvendor_session',
+      'alertvendor_access_token',
+      'alertvendor_access_token_v1',
+      'alertvendor_token',
+      'alertvendorAccessToken',
+      'access_token',
+      'accessToken',
+      'token',
+      'sessionToken',
+      'authToken',
+      'vehicle_status_access_token',
+      'vehicle_access_token'
+    ];
+
+    [window.sessionStorage, window.localStorage]
+      .forEach((storage) => {
+        keys.forEach((key) => {
+          try {
+            storage.removeItem(key);
+          } catch (error) {
+            /* Browser อาจปิด Storage บางชนิด */
+          }
+        });
+      });
+  }
+
   function isAdmin() {
-    return Boolean(
-      state.session &&
-      state.session.user &&
-      state.session.user.role === 'ADMIN'
-    );
+    return normalizeSessionRole(state.session) === 'ADMIN';
   }
 
   function updateServerOffset(generatedAt) {
@@ -9360,6 +9429,13 @@
     window.location.href =
       CONFIG.DASHBOARD_URL ||
       './index.html';
+  }
+
+  function redirectToInbound() {
+    window.location.replace(
+      CONFIG.INBOUND_URL ||
+      './inbound.html'
+    );
   }
 
   function redirectToLogin() {
