@@ -1,6 +1,6 @@
 /**
  * receiving.js
- * PHASE 5 ROUND 03 — Fast Commit + Durable Recovery
+ * ROUND 3 — Card-level Progress + Durable Recovery
  *
  * - ป้องกันกดซ้ำใน Browser
  * - ใช้ clientRequestId เดิมทุกครั้ง
@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.17-round2-durable-transaction-recovery';
+    '2026.07.17-round3-card-progress-responsive';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
@@ -33,13 +33,7 @@
   let recoveryRunning = false;
   let workflowRecoveryRunning = false;
 
-  const progressState = {
-    open: false,
-    recordId: '',
-    startedAt: 0,
-    elapsedTimer: null,
-    stage: ''
-  };
+  const progressState = new Map();
 
   document.addEventListener(
     'DOMContentLoaded',
@@ -278,7 +272,7 @@ async function executeReceiving(
         'VERIFYING',
         'อีกแท็บกำลังส่งรายการนี้ ระบบจะตรวจยืนยันผลแทนการส่งซ้ำ'
       );
-      const verified = await verifyCommit(moduleId,payload);
+      const verified = await verifyCommit(moduleId,payload,recordId);
       if (verified && verified.completed === true) {
         removePendingRequest(recordId);
         applyCommittedState(recordId,verified,button);
@@ -304,7 +298,8 @@ async function executeReceiving(
       updateSavingProgress(
         'PREPARE',
         'กำลังตรวจสอบข้อมูลล่าสุดและป้องกันข้อมูลซ้ำ',
-        18
+        18,
+        recordId
       );
 
       try {
@@ -313,7 +308,8 @@ async function executeReceiving(
         updateSavingProgress(
           'VERIFY',
           'คำตอบจาก Server ไม่แน่นอน กำลังตรวจยืนยันผลจริง',
-          66
+          66,
+          recordId
         );
         setCardLiveStatus(
           recordId,
@@ -321,7 +317,7 @@ async function executeReceiving(
           'กำลังตรวจสอบว่าคำขอถูกบันทึกแล้วหรือยัง...'
         );
 
-        const verified = await verifyCommit(moduleId, payload);
+        const verified = await verifyCommit(moduleId, payload, recordId);
 
         if (verified && verified.completed === true) {
           result = {
@@ -356,7 +352,7 @@ async function executeReceiving(
             lastErrorAt: Date.now(),
             nextAttemptAt: Date.now() + Math.max(900,retryDelay(error,nextAttempts))
           });
-          closeSavingProgress();
+          closeSavingProgress(recordId);
           setButtonQueued(button);
           setCardLiveStatus(
             recordId,
@@ -392,10 +388,11 @@ async function executeReceiving(
         updateSavingProgress(
           'SYNC',
           'ข้อมูลรายการเปลี่ยนแล้ว กำลังโหลด Snapshot ล่าสุด',
-          100
+          100,
+          recordId
         );
         await delay(180);
-        closeSavingProgress();
+        closeSavingProgress(recordId);
         applyStaleRecordState(recordId, result, button);
         scheduleBoardRefresh();
 
@@ -415,7 +412,8 @@ async function executeReceiving(
       updateSavingProgress(
         'VERIFY',
         'บันทึกเวลาใน Server สำเร็จแล้ว',
-        82
+        82,
+        recordId
       );
       setCardLiveStatus(
         recordId,
@@ -429,16 +427,18 @@ async function executeReceiving(
       updateSavingProgress(
         'SYNC',
         'อัปเดตการ์ดแล้ว ระบบจะซิงก์ Workflow เบื้องหลัง',
-        96
+        96,
+        recordId
       );
       await delay(180);
       updateSavingProgress(
         'DONE',
         'บันทึกสำเร็จ ไม่ต้องรอการโหลดข้อมูลทั้งหน้า',
-        100
+        100,
+        recordId
       );
       await delay(180);
-      closeSavingProgress();
+      closeSavingProgress(recordId);
 
       enqueueWorkflowSync(moduleId, payload, result);
 
@@ -454,7 +454,7 @@ async function executeReceiving(
       );
 
     } catch (error) {
-      closeSavingProgress();
+      closeSavingProgress(recordId);
       setCardLiveStatus(
         recordId,
         'ERROR',
@@ -491,7 +491,8 @@ async function executeReceiving(
         attempt === 0
           ? 'กำลังส่งคำขอและบันทึกเวลาใน Server'
           : 'Server ยังไม่พร้อม กำลังลองซ้ำครั้งที่ ' + attemptNumber,
-        Math.min(58,30 + attempt * 12)
+        Math.min(58,30 + attempt * 12),
+        recordId
       );
       setCardLiveStatus(
         recordId,
@@ -520,7 +521,8 @@ async function executeReceiving(
   }
 async function verifyCommit(
     moduleId,
-    payload
+    payload,
+    recordId
   ) {
     if (
       !API ||
@@ -534,7 +536,8 @@ async function verifyCommit(
       updateSavingProgress(
         'VERIFY',
         'ตรวจสอบผลจริงกับ Server ครั้งที่ ' + (attempt + 1),
-        Math.min(82, 66 + attempt * 4)
+        Math.min(82, 66 + attempt * 4),
+        recordId
       );
 
       try {
@@ -752,7 +755,7 @@ async function recoverPendingRequests() {
             : null;
 
         if (String(payload.status || '').toUpperCase() === 'UNKNOWN') {
-          const verified = await verifyCommit(moduleId,payload);
+          const verified = await verifyCommit(moduleId,payload,payload.recordId);
           if (verified && verified.completed === true) {
             removePendingRequest(payload.recordId);
             applyCommittedState(payload.recordId,verified,button);
@@ -1484,11 +1487,14 @@ async function showSuccess(
     record,
     payload
   ) {
-    if (!window.Swal || typeof Swal.fire !== 'function') {
+    const recordId = String(payload && payload.recordId || '');
+    const card = findVehicleCard(recordId);
+
+    if (!recordId || !card) {
       return;
     }
 
-    closeSavingProgress();
+    closeSavingProgress(recordId);
 
     const appointment =
       record && (
@@ -1499,105 +1505,130 @@ async function showSuccess(
     const company =
       record && (record.companyName || record.company) || '-';
 
-    progressState.open = true;
-    progressState.recordId = String(payload.recordId || '');
-    progressState.startedAt = Date.now();
-    progressState.stage = 'PREPARE';
+    const panel = document.createElement('section');
+    panel.className = 'receiving-card-progress';
+    panel.dataset.recordId = recordId;
+    panel.innerHTML = `
+      <div class="receiving-card-progress__head">
+        <div>
+          <small>กำลังบันทึกรับสินค้าเสร็จ</small>
+          <strong>${escapeHtml(appointment)} · ${escapeHtml(company)}</strong>
+        </div>
+        <span data-receiving-progress-elapsed>0 วินาที</span>
+      </div>
+      <div class="receiving-card-progress__meter" aria-hidden="true">
+        <i data-receiving-progress-bar></i>
+      </div>
+      <p data-receiving-progress-message>กำลังเตรียมคำขอ...</p>
+      <div class="receiving-card-progress__steps" aria-label="ขั้นตอนการบันทึก">
+        <span data-receiving-progress-step="PREPARE"><b>1</b>ตรวจสอบ</span>
+        <span data-receiving-progress-step="COMMIT"><b>2</b>Commit</span>
+        <span data-receiving-progress-step="VERIFY"><b>3</b>ยืนยัน</span>
+        <span data-receiving-progress-step="SYNC"><b>4</b>Sync</span>
+      </div>
+    `;
 
-    void Swal.fire({
-      title: '',
-      html: `
-        <section class="receiving-progress-panel">
-          <div class="receiving-progress-spinner" aria-hidden="true"></div>
-          <p class="receiving-progress-eyebrow">RECEIVING FAST COMMIT</p>
-          <h2>กำลังบันทึกรับสินค้าเสร็จ</h2>
-          <div class="receiving-progress-identity">
-            <span>เลขนัดหมาย<strong>${escapeHtml(appointment)}</strong></span>
-            <span>บริษัท<strong>${escapeHtml(company)}</strong></span>
-          </div>
-          <div class="receiving-progress-meter"><i data-receiving-progress-bar></i></div>
-          <p class="receiving-progress-message" data-receiving-progress-message>กำลังเตรียมคำขอ...</p>
-          <div class="receiving-progress-steps">
-            <div data-receiving-progress-step="PREPARE"><b>1</b><span>ตรวจสอบรายการ</span></div>
-            <div data-receiving-progress-step="COMMIT"><b>2</b><span>บันทึกเวลาใน Server</span></div>
-            <div data-receiving-progress-step="VERIFY"><b>3</b><span>ยืนยันผลการบันทึก</span></div>
-            <div data-receiving-progress-step="SYNC"><b>4</b><span>อัปเดตหน้าจอ</span></div>
-          </div>
-          <small data-receiving-progress-elapsed>ใช้เวลา 0 วินาที</small>
-          <p class="receiving-progress-hint">ระบบจะยืนยันการบันทึกก่อน แล้วซิงก์ Workflow เบื้องหลังโดยไม่ให้ผู้ใช้รอนาน</p>
-        </section>
-      `,
-      showConfirmButton: false,
-      showCloseButton: false,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      returnFocus: false,
-      heightAuto: false,
-      customClass: {
-        popup: 'receiving-progress-popup',
-        htmlContainer: 'receiving-progress-html'
-      },
-      didOpen: () => {
-        updateSavingProgress('PREPARE','กำลังเตรียมคำขอและตรวจสอบรายการ',10);
-        progressState.elapsedTimer = window.setInterval(updateProgressElapsed,1000);
-      },
-      willClose: () => {
-        if (progressState.elapsedTimer) {
-          window.clearInterval(progressState.elapsedTimer);
-          progressState.elapsedTimer = null;
-        }
-        progressState.open = false;
-      }
-    });
+    const anchor =
+      card.querySelector('.vehicle-operational-stage') ||
+      card.querySelector('.vehicle-card__footer');
+
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(panel, anchor.nextSibling);
+    } else {
+      card.appendChild(panel);
+    }
+
+    card.classList.add('is-receiving-busy');
+    card.setAttribute('aria-busy', 'true');
+
+    const item = {
+      recordId,
+      panel,
+      startedAt: Date.now(),
+      stage: 'PREPARE',
+      elapsedTimer: window.setInterval(
+        () => updateProgressElapsed(recordId),
+        1000
+      )
+    };
+
+    progressState.set(recordId, item);
+    updateSavingProgress(
+      'PREPARE',
+      'กำลังเตรียมคำขอและตรวจสอบรายการ',
+      10,
+      recordId
+    );
   }
 
-  function updateSavingProgress(stage,message,percent) {
-    progressState.stage = String(stage || progressState.stage || 'PREPARE').toUpperCase();
-    const popup = window.Swal && typeof Swal.getPopup === 'function'
-      ? Swal.getPopup()
-      : null;
-    if (!popup || !popup.classList.contains('receiving-progress-popup')) {
+  function updateSavingProgress(stage,message,percent,recordId) {
+    const key = String(recordId || '');
+    const item = progressState.get(key);
+
+    if (!item || !item.panel || !item.panel.isConnected) {
       return;
     }
-    const messageNode = popup.querySelector('[data-receiving-progress-message]');
-    if (messageNode) messageNode.textContent = message || 'กำลังดำเนินการ...';
-    const bar = popup.querySelector('[data-receiving-progress-bar]');
+
+    item.stage = String(stage || item.stage || 'PREPARE').toUpperCase();
+
+    const messageNode = item.panel.querySelector('[data-receiving-progress-message]');
+    if (messageNode) {
+      messageNode.textContent = message || 'กำลังดำเนินการ...';
+    }
+
+    const bar = item.panel.querySelector('[data-receiving-progress-bar]');
     if (bar) {
       bar.style.width = Math.max(4,Math.min(100,Number(percent || 0))) + '%';
     }
+
     const order=['PREPARE','COMMIT','VERIFY','SYNC','DONE'];
-    const currentIndex=order.indexOf(progressState.stage);
-    popup.querySelectorAll('[data-receiving-progress-step]').forEach((node) => {
+    const currentIndex=order.indexOf(item.stage);
+    item.panel.querySelectorAll('[data-receiving-progress-step]').forEach((node) => {
       const nodeIndex=order.indexOf(node.getAttribute('data-receiving-progress-step'));
       node.classList.toggle('is-active',nodeIndex===currentIndex);
       node.classList.toggle(
         'is-done',
-        progressState.stage==='DONE' || (nodeIndex>=0 && currentIndex>=0 && nodeIndex<currentIndex)
+        item.stage==='DONE' || (nodeIndex>=0 && currentIndex>=0 && nodeIndex<currentIndex)
       );
     });
   }
 
-  function updateProgressElapsed() {
-    if (!progressState.open) return;
-    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
-    const node = popup && popup.querySelector('[data-receiving-progress-elapsed]');
+  function updateProgressElapsed(recordId) {
+    const item = progressState.get(String(recordId || ''));
+    if (!item || !item.panel || !item.panel.isConnected) return;
+
+    const node = item.panel.querySelector('[data-receiving-progress-elapsed]');
     if (!node) return;
-    const seconds=Math.max(0,Math.floor((Date.now()-progressState.startedAt)/1000));
-    node.textContent='ใช้เวลา '+seconds+' วินาที';
+
+    const seconds=Math.max(0,Math.floor((Date.now()-item.startedAt)/1000));
+    node.textContent=seconds+' วินาที';
   }
 
-  function closeSavingProgress() {
-    if (progressState.elapsedTimer) {
-      window.clearInterval(progressState.elapsedTimer);
-      progressState.elapsedTimer=null;
+  function closeSavingProgress(recordId) {
+    const key = String(recordId || '');
+    const item = progressState.get(key);
+
+    if (!item) {
+      return;
     }
-    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
-    if (popup && popup.classList.contains('receiving-progress-popup') && typeof Swal.close === 'function') {
-      Swal.close();
+
+    if (item.elapsedTimer) {
+      window.clearInterval(item.elapsedTimer);
     }
-    progressState.open=false;
-    progressState.recordId='';
-    progressState.stage='';
+
+    if (item.panel && item.panel.isConnected) {
+      item.panel.remove();
+    }
+
+    progressState.delete(key);
+
+    const card = findVehicleCard(key);
+    if (card) {
+      card.classList.remove('is-receiving-busy');
+      if (!card.querySelector('.receiving-live-status')) {
+        card.removeAttribute('aria-busy');
+      }
+    }
   }
 
   function setCardLiveStatus(recordId,status,message) {
@@ -1613,6 +1644,18 @@ async function showSuccess(
     element.dataset.state=String(status || 'SAVING').toUpperCase();
     element.innerHTML=`<i aria-hidden="true"></i><span>${escapeHtml(message || 'กำลังดำเนินการ...')}</span>`;
     card.dataset.receivingSaveState=element.dataset.state;
+    card.setAttribute('aria-busy','true');
+
+    document.dispatchEvent(
+      new CustomEvent('alertvendor:receiving-card-state', {
+        detail: {
+          recordId: String(recordId || ''),
+          state: element.dataset.state,
+          message: String(message || ''),
+          active: true
+        }
+      })
+    );
   }
 
   function clearCardLiveStatus(recordId,onlyState) {
@@ -1623,6 +1666,22 @@ async function showSuccess(
       element.remove();
     }
     delete card.dataset.receivingSaveState;
+
+    if (!card.querySelector('.receiving-card-progress')) {
+      card.removeAttribute('aria-busy');
+      card.classList.remove('is-receiving-busy');
+    }
+
+    document.dispatchEvent(
+      new CustomEvent('alertvendor:receiving-card-state', {
+        detail: {
+          recordId: String(recordId || ''),
+          state: '',
+          message: '',
+          active: false
+        }
+      })
+    );
   }
 
 
