@@ -1,6 +1,6 @@
 /**
  * dashboard-link.js
- * ROUND 3 REVISION 2 — Dashboard Launcher Mobile Recovery
+ * ROUND 3 REVISION 4 — Professional Header Dashboard Launcher
  *
  * รองรับ Header เดิมและ Header แบบ Unified Command Bar
  */
@@ -98,6 +98,7 @@
 
   function resolveLauncherTarget() {
     return (
+      document.getElementById('moduleDashboardHost') ||
       document.querySelector(
         '.module-command-bar .module-clock'
       ) ||
