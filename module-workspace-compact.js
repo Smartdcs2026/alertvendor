@@ -1,12 +1,12 @@
 /**
  * module-workspace-compact.js
  * ROUND 3 — Responsive Workspace Runtime
- * Build: 2026.07.17-round3-responsive-r1
+ * Build: 2026.07.17-round3-responsive-r2-mobile-two-cards
  */
 (function (window, document) {
   'use strict';
 
-  const BUILD = '2026.07.17-round3-responsive-r1';
+  const BUILD = '2026.07.17-round3-responsive-r2-mobile-two-cards';
   const state = {
     resizeRaf: 0,
     observer: null,
