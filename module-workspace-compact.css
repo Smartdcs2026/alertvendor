@@ -1,7 +1,7 @@
 /**
  * module-workspace-compact.css
  * ROUND 3 — Mobile-first Responsive Workspace
- * Build: 2026.07.17-round3-responsive-r1
+ * Build: 2026.07.17-round3-responsive-r2-mobile-two-cards
  */
 
 :root {
@@ -671,6 +671,189 @@ body.module-page.is-native-fullscreen .module-container {
 @media (min-width: 1700px) {
   :root {
     --module-card-min: 292px;
+  }
+}
+
+
+/************************************************************
+ * ROUND 3 REVISION 2 — MOBILE TWO-CARD + DASHBOARD RECOVERY
+ * เฉพาะหน้าจอมือถือ: บังคับ 2 การ์ดต่อหนึ่งแถว
+ * ปุ่ม Dashboard ต้องคงอยู่แม้ซ่อนนาฬิกาบนมือถือ
+ ************************************************************/
+@media (max-width: 760px) {
+  body.module-page .module-command-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  body.module-page .module-clock {
+    display: grid !important;
+    min-width: 44px;
+    width: auto;
+    grid-template-columns: 1fr;
+    justify-items: end;
+  }
+
+  body.module-page .module-clock__live,
+  body.module-page #currentDateTime {
+    display: none !important;
+  }
+
+  body.module-page .module-clock .module-dashboard-launcher {
+    display: inline-flex !important;
+    grid-column: 1;
+    width: auto;
+    min-width: 86px;
+    min-height: 40px;
+    padding: 5px 8px;
+    font-size: 0.68rem;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  body.module-page .vehicle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  body.module-page .vehicle-card {
+    gap: 6px;
+    min-width: 0;
+    padding: 8px;
+    border-radius: 12px;
+    contain-intrinsic-size: 470px;
+  }
+
+  body.module-page .vehicle-card__rank,
+  body.module-page .vehicle-card__primary-label,
+  body.module-page .vehicle-card__company-label {
+    font-size: 0.56rem;
+  }
+
+  body.module-page .vehicle-card__title {
+    font-size: clamp(0.8rem, 3.5vw, 0.98rem);
+    line-height: 1.15;
+  }
+
+  body.module-page .vehicle-card__company {
+    font-size: clamp(0.66rem, 2.7vw, 0.78rem);
+    line-height: 1.15;
+    -webkit-line-clamp: 1;
+  }
+
+  body.module-page .vehicle-card__status-line {
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  body.module-page .vehicle-status-badge {
+    max-width: 100%;
+    padding: 3px 5px;
+    font-size: 0.58rem;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  body.module-page .vehicle-card__timer {
+    font-size: clamp(0.72rem, 3vw, 0.88rem);
+  }
+
+  body.module-page .vehicle-progress__labels {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    font-size: 0.55rem;
+    line-height: 1.15;
+  }
+
+  body.module-page .vehicle-progress__labels span,
+  body.module-page .vehicle-progress__labels span:nth-child(2),
+  body.module-page .vehicle-progress__labels span:last-child {
+    text-align: left;
+  }
+
+  body.module-page .vehicle-progress__labels span:first-child {
+    display: none;
+  }
+
+  body.module-page .vehicle-card__priority-text {
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
+
+  body.module-page .vehicle-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  body.module-page .vehicle-field {
+    min-height: 40px;
+    padding: 5px;
+  }
+
+  body.module-page .vehicle-field span {
+    font-size: 0.54rem;
+  }
+
+  body.module-page .vehicle-field strong,
+  body.module-page .vehicle-field a {
+    font-size: 0.63rem;
+    line-height: 1.15;
+  }
+
+  body.module-page .vehicle-operational-stage {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  body.module-page .vehicle-operational-stage__timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  body.module-page .vehicle-operational-stage__actions {
+    gap: 5px;
+  }
+
+  body.module-page .vehicle-operational-stage__actions > *,
+  body.module-page .vehicle-card__footer button {
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 38px;
+    padding-inline: 6px;
+    font-size: 0.66rem;
+  }
+
+  body.module-page .vehicle-in-time span {
+    font-size: 0.56rem;
+  }
+
+  body.module-page .vehicle-in-time strong {
+    font-size: 0.65rem;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --module-card-min: 0px;
+  }
+
+  body.module-page .vehicle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  body.module-page .vehicle-card {
+    padding: 7px;
+  }
+
+  body.module-page .module-clock .module-dashboard-launcher {
+    min-width: 42px;
+    width: 42px;
+    padding: 0;
+  }
+
+  body.module-page .module-clock .module-dashboard-launcher span {
+    display: none;
   }
 }
 
