@@ -2,661 +2,1536 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#073b59">
-  <meta name="color-scheme" content="light">
-  <title>Inbound Control Room | ระบบติดตามสถานะรถและตู้สินค้า</title>
-  <!-- PHASE 4E R1: Admin SLA, full-cohort summary, revision-aware realtime -->
 
-  <link rel="stylesheet" href="./inbound.css?v=20260713-phase2a-inbound-resilience-r1">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0f3d5e"
+  >
+
+  <!-- 20260717-r3r4-module-route-isolation: server-confirmed role + legacy route cache cleanup -->
+  <title>
+    สถานะรถ | ระบบติดตามสถานะรถและตู้สินค้า
+  </title>
+
+  <link
+    rel="manifest"
+    href="./manifest.webmanifest"
+  >
+
+  <link
+    id="dynamicFavicon"
+    rel="icon"
+    type="image/png"
+    href="./icons/favicon-64.png"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    href="./icons/apple-touch-icon.png"
+  >
 
   <link
     rel="stylesheet"
-    href="./inbound-status-compact.css?v=20260713-compact-workspace-r1"
+    href="./styles.css?v=20260713-r24-footer-alert-visual-polish"
   >
 
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
-  <script src="./config.js?v=20260713-phase2a-inbound-resilience-r1" defer></script>
-  <script src="./api.js?v=20260717-round2-transaction-recovery" defer></script>
-  <script src="./inbound-offline-queue.js?v=20260717-round2-unknown-reconcile" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
-  <script src="./inbound-scanner.js?v=20260710-r06-08-core-workflow-guard" defer></script>
-  <script src="./inbound.js?v=20260715-phase4e-r1-admin-sla-realtime" defer></script>
+  <link
+    rel="stylesheet"
+    href="./dashboard-link.css?v=20260717-round3-r4-professional-header"
+  >
+
+  <link
+    rel="stylesheet"
+    href="./module-shift.css?v=20260703-r56-shift-phase1"
+  >
+
+  <!-- โหลดลำดับสุดท้ายเพื่อให้ Action Sheet ชนะ SweetAlert และ CSS เดิมทุกชุด -->
+  <link
+    rel="stylesheet"
+    href="./module-alert-detail.css?v=20260713-r17-action-sheet-shift-accuracy"
+  >
+
+  <link
+    rel="stylesheet"
+    href="./module-snapshot-state.css?v=20260713-phase3a"
+  >
+
+  <link
+    rel="stylesheet"
+    href="./module-workspace-compact.css?v=20260717-round3-r4-professional-ui"
+  >
+
+
+  <!--
+    Production R24: Footer Alert Control owns its critical CSS here.
+    This small, page-scoped block prevents native browser button styles
+    or stale shared CSS from changing the control again.
+  -->
+  <style id="moduleFooterAlertControlStyles">
+    body.module-page > footer.app-footer.module-footer {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 12px !important;
+      width: 100% !important;
+      min-height: 38px !important;
+      margin: 0 !important;
+      padding:
+        5px max(14px, env(safe-area-inset-right))
+        calc(5px + var(--safe-bottom, 0px))
+        max(14px, env(safe-area-inset-left)) !important;
+      box-sizing: border-box !important;
+      border-top: 1px solid #d5e1e8 !important;
+      background: #eef4f7 !important;
+      text-align: left !important;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > .module-footer__brand {
+      min-width: 0;
+      color: #647985;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert {
+      all: unset;
+      -webkit-appearance: none;
+      appearance: none;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 30px;
+      min-width: 118px;
+      margin: 0;
+      padding: 3px 6px 3px 4px;
+      border: 1px solid #b9c8cf;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #415966;
+      box-shadow: 0 1px 2px rgba(15, 45, 62, 0.08);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition:
+        background-color 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.08s ease;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert:hover {
+      border-color: #88a5b2;
+      box-shadow: 0 2px 6px rgba(15, 45, 62, 0.12);
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert:focus-visible {
+      outline: 3px solid rgba(15, 118, 110, 0.24);
+      outline-offset: 2px;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert
+    > .module-footer-alert__icon {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      border-radius: 50%;
+      background: #e9eff2;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert
+    > .module-footer-alert__label {
+      white-space: nowrap;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert
+    > .module-footer-alert__status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 31px;
+      height: 20px;
+      padding: 0 7px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      background: #e6ecef;
+      color: #586e79;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-enabled {
+      border-color: #75cbb8;
+      background: #f0fcf8;
+      color: #075f53;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-enabled
+    > .module-footer-alert__icon {
+      background: #d7f5ec;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-enabled
+    > .module-footer-alert__status {
+      background: #0d8f79;
+      color: #ffffff;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-disabled {
+      border-color: #c9d2d7;
+      background: #f5f7f8;
+      color: #667a84;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-disabled
+    > .module-footer-alert__icon {
+      background: #e7ecef;
+      filter: grayscale(1);
+      opacity: 0.72;
+    }
+
+    body.module-page > footer.app-footer.module-footer
+    > button.module-footer-alert.is-disabled
+    > .module-footer-alert__status {
+      background: #75858d;
+      color: #ffffff;
+    }
+
+    @media (max-width: 640px) {
+      body.module-page > footer.app-footer.module-footer {
+        min-height: 36px !important;
+        gap: 8px !important;
+        padding:
+          4px max(9px, env(safe-area-inset-right))
+          calc(4px + var(--safe-bottom, 0px))
+          max(9px, env(safe-area-inset-left)) !important;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > .module-footer__brand {
+        overflow: hidden;
+        font-size: 10px;
+        text-overflow: ellipsis;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > button.module-footer-alert {
+        min-width: 66px;
+        height: 30px;
+        gap: 4px;
+        padding: 3px 5px 3px 4px;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > button.module-footer-alert
+      > .module-footer-alert__label {
+        display: none;
+      }
+
+      body.module-page > footer.app-footer.module-footer
+      > button.module-footer-alert
+      > .module-footer-alert__status {
+        min-width: 28px;
+        padding: 0 5px;
+      }
+    }
+  </style>
+
+
+  <script id="moduleRouteSessionIsolation">
+    (function () {
+      'use strict';
+
+      window.__ALERT_VENDOR_PAGE_INTENT__ = 'MODULE';
+
+      var currentTokenKey = 'alertvendor_access_token_v2';
+      var legacyTokenKeys = [
+        'alertvendor_access_token',
+        'alertvendor_access_token_v1',
+        'alertvendor_token',
+        'alertvendorAccessToken',
+        'access_token',
+        'accessToken',
+        'token',
+        'sessionToken',
+        'authToken',
+        'vehicle_status_access_token',
+        'vehicle_access_token'
+      ];
+      var staleRoleKeys = [
+        'vcw_inbound_only',
+        'alertvendor_user',
+        'alertvendor_current_user',
+        'currentUser',
+        'auth_user',
+        'user',
+        'vehicle_status_user',
+        'alertvendor_session'
+      ];
+
+      function remove(storage, key) {
+        try {
+          storage.removeItem(key);
+        } catch (error) {}
+      }
+
+      [window.sessionStorage, window.localStorage].forEach(function (storage) {
+        staleRoleKeys.forEach(function (key) {
+          remove(storage, key);
+        });
+      });
+
+      /* localStorage ไม่ใช่แหล่ง Session ปัจจุบัน ล้าง Token รุ่นเก่าได้ทันที */
+      legacyTokenKeys.forEach(function (key) {
+        remove(window.localStorage, key);
+      });
+
+      /* เมื่อมี Token ปัจจุบันแล้ว ให้ล้าง Token รุ่นเก่าใน sessionStorage ด้วย */
+      var hasCurrentToken = false;
+      try {
+        hasCurrentToken = Boolean(window.sessionStorage.getItem(currentTokenKey));
+      } catch (error) {}
+
+      if (hasCurrentToken) {
+        legacyTokenKeys.forEach(function (key) {
+          remove(window.sessionStorage, key);
+        });
+      }
+    })();
+  </script>
 
   <script
-    src="./inbound-status-compact.js?v=20260713-compact-workspace-r1"
+    src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
   ></script>
 
-  <style>
-    /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
-    html,
-    body {
-      width: 100%;
-      min-width: 0;
-      overflow-x: hidden;
-    }
+  <script
+    src="./config.js"
+    defer
+  ></script>
+
+  <script
+    src="./api.js?v=20260717-r3r4-module-route-isolation"
+    defer
+  ></script>
+
+  <script
+    src="./module-data-bridge.js?v=20260713-phase3a-operational-board-bridge"
+    defer
+  ></script>
+
+  <script
+    src="./module-stability.js?v=20260712-r13-operational-board-stability"
+    defer
+  ></script>
+
+  <script
+    src="./module-operations.js?v=20260713-r19-operational-alert-control"
+    defer
+  ></script>
+
+  <script
+    src="./module.js?v=20260717-r3r4-module-route-isolation"
+    defer
+  ></script>
+
+
+  <script
+    src="./receiving.js?v=20260717-round3-card-progress"
+    defer
+  ></script>
+
+<script
+    src="./module-executive.js?v=20260701-r28-executive-dedup"
+    defer
+  ></script>
+
+  <script
+    src="./dashboard-link.js?v=20260717-round3-r4-professional-header"
+    defer
+  ></script>
+
+  <script
+    src="./module-shift.js?v=20260703-r56-shift-phase1"
+    defer
+  ></script>
+
+  <script
+    src="./module-workspace-compact.js?v=20260717-round3-r4-professional-ui"
+    defer
+  ></script>
 
-    .inbound-shell {
-      max-width: none !important;
-      width: 100% !important;
-      min-width: 0 !important;
-      overflow-x: hidden !important;
-    }
 
-    .inbound-topbar,
-    .inbound-module-bar,
-    .inbound-workspace,
-    .inbound-left,
-    .inbound-right,
-    .scanner-card,
-    .workflow-table-wrap {
-      min-width: 0 !important;
-      box-sizing: border-box !important;
-    }
-
-    .inbound-workspace {
-      display: grid !important;
-      grid-template-columns: minmax(300px, 25.5vw) minmax(0, 1fr) !important;
-      align-items: stretch !important;
-      gap: 10px !important;
-      overflow: hidden !important;
-    }
-
-    .inbound-left {
-      position: relative !important;
-      z-index: 1 !important;
-      overflow: hidden !important;
-    }
-
-    .inbound-right {
-      position: relative !important;
-      z-index: 0 !important;
-      overflow: hidden !important;
-      max-width: 100% !important;
-    }
-
-    .scanner-card {
-      overflow: hidden !important;
-    }
-
-    .scanner-window {
-      max-width: 100% !important;
-      overflow: hidden !important;
-    }
-
-    .manual-form input#entryCodeInput {
-      pointer-events: auto !important;
-      user-select: text !important;
-      -webkit-user-select: text !important;
-      caret-color: #073b59 !important;
-    }
-
-    .workflow-table-wrap {
-      position: relative !important;
-      z-index: 0 !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      overflow: auto !important;
-      overscroll-behavior: contain !important;
-    }
-
-    .workflow-table {
-      min-width: 1080px !important;
-      width: max-content !important;
-    }
-
-    .workflow-table thead th {
-      position: sticky !important;
-      top: 0 !important;
-      z-index: 3 !important;
-      background: #eef7fb !important;
-    }
-
-    .table-toolbar {
-      position: relative !important;
-      z-index: 4 !important;
-    }
-
-    .table-pagination {
-      position: relative !important;
-      z-index: 4 !important;
-    }
-
-    /* Prevent any detail/result area from surfacing and pushing the scanner in narrow windows */
-    @media (max-width: 1180px) {
-      .inbound-workspace {
-        grid-template-columns: minmax(290px, 34vw) minmax(0, 1fr) !important;
-      }
-
-      .workflow-table {
-        min-width: 1020px !important;
-      }
-
-      #lookupResultPanel {
-        display: none !important;
-      }
-    }
-
-    @media (max-width: 860px) {
-      body {
-        overflow-y: auto !important;
-      }
-
-      .inbound-workspace {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        overflow: visible !important;
-      }
-
-      .inbound-left,
-      .inbound-right {
-        width: 100% !important;
-        overflow: hidden !important;
-      }
-
-      .workflow-table-wrap {
-        max-height: 48vh !important;
-      }
-
-      .workflow-table {
-        min-width: 960px !important;
-      }
-
-      .inbound-topbar {
-        overflow: hidden !important;
-      }
-    }
-  
-    /* Round 05 Hotfix 22 - keep camera visible and prevent table overlay */
-    .inbound-workspace {
-      overflow: visible !important;
-      align-items: start !important;
-    }
-
-    .inbound-left {
-      position: relative !important;
-      z-index: 10 !important;
-      overflow: visible !important;
-      min-height: 0 !important;
-    }
-
-    .inbound-right {
-      position: relative !important;
-      z-index: 1 !important;
-      min-width: 0 !important;
-      overflow: hidden !important;
-    }
-
-    .scanner-card,
-    .scanner-window,
-    .manual-form,
-    .scanner-actions {
-      position: relative !important;
-      z-index: 11 !important;
-      visibility: visible !important;
-    }
-
-    .scanner-window {
-      display: block !important;
-      width: 100% !important;
-      height: clamp(180px, 24vh, 285px) !important;
-      min-height: 180px !important;
-      max-height: 300px !important;
-      overflow: hidden !important;
-      flex: 0 0 auto !important;
-    }
-
-    .scanner-window video,
-    #inboundVideo {
-      display: block !important;
-      width: 100% !important;
-      height: 100% !important;
-      min-height: 180px !important;
-      object-fit: cover !important;
-      opacity: 1 !important;
-      visibility: visible !important;
-    }
-
-    #lookupResultPanel,
-    #selectedRecordPanel {
-      display: none !important;
-    }
-
-    @media (max-width: 1120px) {
-      .inbound-workspace {
-        grid-template-columns: minmax(320px, 38vw) minmax(0, 1fr) !important;
-        overflow: visible !important;
-      }
-
-      .scanner-window {
-        height: 210px !important;
-        min-height: 210px !important;
-      }
-
-      .workflow-table-wrap {
-        max-height: calc(100vh - 330px) !important;
-        overflow: auto !important;
-      }
-
-      .workflow-table {
-        min-width: 980px !important;
-      }
-    }
-
-    @media (max-width: 760px) {
-      html,
-      body {
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-      }
-
-      .inbound-workspace {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 10px !important;
-        overflow: visible !important;
-      }
-
-      .inbound-left {
-        order: 1 !important;
-        width: 100% !important;
-        overflow: visible !important;
-      }
-
-      .inbound-right {
-        order: 2 !important;
-        width: 100% !important;
-        overflow: hidden !important;
-      }
-
-      .scanner-card {
-        width: 100% !important;
-        overflow: visible !important;
-      }
-
-      .scanner-window {
-        display: block !important;
-        height: 220px !important;
-        min-height: 220px !important;
-      }
-
-      .scanner-window video,
-      #inboundVideo {
-        min-height: 220px !important;
-      }
-
-      .workflow-table-wrap {
-        max-height: 46vh !important;
-        overflow: auto !important;
-      }
-    }
-
-    @media (max-height: 720px) and (min-width: 761px) {
-      .scanner-window {
-        height: 175px !important;
-        min-height: 175px !important;
-      }
-
-      .scanner-window video,
-      #inboundVideo {
-        min-height: 175px !important;
-      }
-    }
-
-  
-    /* Round 05 Hotfix 24 - Fullscreen button */
-    .module-actions {
-      align-items: stretch !important;
-    }
-
-    #inboundFullscreenButton,
-    .button--fullscreen {
-      border-color: rgba(18, 155, 160, .35) !important;
-      background: linear-gradient(135deg, #e8fffb, #f3fbff) !important;
-      color: #07556a !important;
-      font-weight: 900 !important;
-    }
-
-    body.inbound-is-fullscreen .inbound-shell {
-      padding: 8px !important;
-      min-height: 100vh !important;
-    }
-
-    body.inbound-is-fullscreen .inbound-topbar {
-      min-height: 70px !important;
-    }
-
-    body.inbound-is-fullscreen .inbound-module-bar {
-      padding: 8px 10px !important;
-    }
-
-    body.inbound-is-fullscreen .inbound-workspace {
-      min-height: calc(100vh - 168px) !important;
-    }
-
-    body.inbound-is-fullscreen .scanner-window {
-      height: clamp(190px, 28vh, 320px) !important;
-    }
-
-    body.inbound-is-fullscreen #inboundFullscreenButton {
-      background: linear-gradient(135deg, #fff1f1, #fffafa) !important;
-      border-color: rgba(239, 68, 68, .35) !important;
-      color: #991b1b !important;
-    }
-
-    @media (max-width: 760px) {
-      #inboundFullscreenButton {
-        min-height: 44px !important;
-      }
-    }
-
-  
-    /* Round 06 Part 01 - SLA status colors */
-    .workflow-table tr[data-sla="WARNING"] {
-      background: #fff9e8 !important;
-    }
-
-    .workflow-table tr[data-sla="CRITICAL"] {
-      background: #fff1f2 !important;
-    }
-
-    .status-pill[data-sla="WARNING"] {
-      border: 1px solid #f59e0b !important;
-      background: #fef3c7 !important;
-      color: #92400e !important;
-    }
-
-    .status-pill[data-sla="CRITICAL"] {
-      border: 1px solid #ef4444 !important;
-      background: #fee2e2 !important;
-      color: #991b1b !important;
-    }
-
-    .sla-badge,
-    .sla-elapsed {
-      display: block;
-      margin-top: 3px;
-      font-size: 10px;
-      font-weight: 800;
-      line-height: 1.15;
-      opacity: .92;
-    }
-
-    .sla-badge[data-sla="NORMAL"] {
-      color: #047857;
-    }
-
-    .sla-badge[data-sla="WARNING"] {
-      color: #b45309;
-    }
-
-    .sla-badge[data-sla="CRITICAL"] {
-      color: #b91c1c;
-    }
-
-    .sla-elapsed {
-      color: #64748b;
-      font-weight: 700;
-    }
-
-  
-    /* Round 06 Part 03 - SLA progress bar, no full-row color */
-    .workflow-table tr[data-sla],
-    .workflow-table tr[data-sla="WARNING"],
-    .workflow-table tr[data-sla="CRITICAL"] {
-      background: transparent !important;
-    }
-
-    .workflow-table tr[data-sla="WARNING"] td:first-child {
-      box-shadow: inset 3px 0 0 #f59e0b;
-    }
-
-    .workflow-table tr[data-sla="CRITICAL"] td:first-child {
-      box-shadow: inset 3px 0 0 #ef4444;
-    }
-
-    .sla-cell {
-      display: grid;
-      gap: 4px;
-      align-items: center;
-      min-width: 0;
-    }
-
-    .sla-mini-progress {
-      display: block;
-      width: min(92px, 100%);
-      height: 5px;
-      overflow: hidden;
-      border-radius: 999px;
-      background: #e5e7eb;
-    }
-
-    .sla-mini-progress > i {
-      display: block;
-      height: 100%;
-      width: 0%;
-      border-radius: inherit;
-      background: #10b981;
-    }
-
-    .sla-mini-progress[data-sla="WARNING"] > i {
-      background: #f59e0b;
-    }
-
-    .sla-mini-progress[data-sla="CRITICAL"] > i {
-      background: #ef4444;
-    }
-
-    .sla-badge,
-    .sla-elapsed {
-      display: none !important;
-    }
-
-    .status-pill[data-sla="WARNING"],
-    .status-pill[data-sla="CRITICAL"] {
-      max-width: 100%;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-  </style>
 
 </head>
 
-<body class="inbound-page" data-page="inbound">
-  <div id="inboundLoading" class="inbound-loading" role="status" aria-live="polite">
-    <div class="inbound-spinner"></div>
-    <strong>กำลังเตรียมห้อง Inbound</strong>
-    <span>ตรวจสิทธิ์ โหลดข้อมูล และเตรียมช่องสแกน</span>
+<body
+  data-page="module"
+  class="module-page module-card-focus"
+  data-mobile-workspace="LIST"
+>
+  <!-- แสดงเฉพาะตอนเปิดหน้าเป็นครั้งแรก -->
+  <div
+    id="pageLoading"
+    class="page-loading"
+  >
+    <div class="spinner"></div>
+
+    <span>
+      กำลังโหลดข้อมูลสถานะรถ
+    </span>
   </div>
 
-  <main class="inbound-shell">
-    <header class="inbound-topbar" aria-label="แถบสถานะห้อง Inbound">
-      <div class="inbound-brand">
-        <small>INBOUND DOCUMENT CONTROL</small>
-        <h1>ห้อง Inbound</h1>
-        <p>สแกนหรือยิงรหัสแล้วบันทึกอัตโนมัติ · กดดูรายละเอียดใน SweetAlert และยกเลิกสถานะล่าสุดได้เมื่อจำเป็น</p>
-      </div>
+  <header class="module-header">
+    <div class="module-header__inner">
+      <div class="module-command-bar">
+        <button
+          id="backButton"
+          class="module-command-back"
+          type="button"
+          aria-label="กลับหน้าหลัก"
+          title="กลับหน้าหลัก"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M15 18l-6-6 6-6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>หน้าหลัก</span>
+        </button>
 
-      <div class="status-strip" aria-label="จำนวนตามสถานะ">
-        <button type="button" data-status-filter="ALL" class="is-active">
-          <span>ทั้งหมด</span><strong id="countTotalWorkflow">0</strong>
-        </button>
-        <button type="button" data-status-filter="DOCUMENT_SUBMITTED">
-          <span>รอรับสินค้า</span><strong id="countWaitingReceiving">0</strong>
-        </button>
-        <button type="button" data-status-filter="RECEIVING_COMPLETED">
-          <span>รอรับเอกสารคืน</span><strong id="countReceivingCompleted">0</strong>
-        </button>
-        <button type="button" data-status-filter="DOCUMENT_RETURNED">
-          <span>คืนเอกสารแล้ว</span><strong id="countDocumentReturned">0</strong>
-        </button>
-        <button type="button" data-status-filter="CANCELLED">
-          <span>ยกเลิก</span><strong id="countCancelled">0</strong>
-        </button>
-      </div>
+        <div class="module-command-brand">
+          <div class="module-command-brand__icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path
+                d="M24 5 39 11v11c0 10-6.5 17.2-15 21-8.5-3.8-15-11-15-21V11L24 5Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linejoin="round"
+              />
+              <path
+                d="m17 24 5 5 10-11"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
 
-      <div class="inbound-user-card">
-        <span id="inboundConnection" data-state="LOADING">กำลังตรวจสอบ</span>
-        <strong id="inboundDateTime">--/--/---- --:--:--</strong>
-        <small id="inboundUser">-</small>
+          <div class="module-command-brand__text">
+            <p class="eyebrow module-live-label">VEHICLE CONTROL TOWER</p>
+            <h1 id="moduleTitle">กำลังโหลดโมดูล...</h1>
+            <p id="moduleDescription" class="module-title-description">กรุณารอสักครู่</p>
+          </div>
+        </div>
+
+        <div
+          id="overdueAppBadge"
+          class="module-command-kpi overdue-app-badge is-zero"
+          data-count="0"
+          role="status"
+          aria-live="polite"
+          aria-label="ไม่มีตู้เกินเวลาค้าง"
+          title="จำนวนตู้เกินเวลาสะสมที่ยังไม่มีเวลาออก"
+        >
+          <span class="overdue-app-badge__label">เกินเวลาค้าง</span>
+          <strong id="overdueAppBadgeCount">0</strong>
+        </div>
+
+        <div class="module-header-actions">
+          <div
+            id="moduleDashboardHost"
+            class="module-dashboard-host"
+            aria-label="ทางลัดไป Dashboard"
+          ></div>
+
+          <section
+            id="moduleSnapshotState"
+            class="module-snapshot-state module-snapshot-state--compact"
+            data-state="LOADING"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label="กำลังตรวจสอบสถานะข้อมูลจากระบบ"
+            aria-expanded="false"
+            tabindex="0"
+          >
+            <span class="module-snapshot-state__dot" aria-hidden="true"></span>
+            <div class="module-snapshot-state__popover">
+              <div class="module-snapshot-state__body">
+                <strong id="moduleSnapshotTitle">กำลังตรวจสอบข้อมูล</strong>
+                <span id="moduleSnapshotDetail">กำลังยืนยันข้อมูลจากระบบ</span>
+              </div>
+              <div class="module-snapshot-state__actions">
+                <button
+                  id="moduleSnapshotRetry"
+                  class="button button--secondary module-snapshot-state__retry"
+                  type="button"
+                  hidden
+                >
+                  โหลดข้อมูลอีกครั้ง
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <button
+            id="mobileModuleMenuButton"
+            class="module-menu-button"
+            type="button"
+            aria-label="เปิดเมนู"
+            aria-expanded="false"
+            aria-controls="mobileModuleDrawer"
+            title="เมนู"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="module-user">
+          <div class="module-user__identity">
+            <span id="userDisplayName">กำลังโหลด...</span>
+            <strong id="currentDateTime">--/--/---- --:--:--</strong>
+          </div>
+          <button id="logoutButton" class="module-command-logout" type="button">ออกจากระบบ</button>
+        </div>
       </div>
+    </div>
+  </header>
+
+  <div id="mobileModuleDrawerOverlay" class="module-mobile-menu-overlay" hidden></div>
+
+  <aside
+    id="mobileModuleDrawer"
+    class="module-mobile-menu"
+    aria-hidden="true"
+    aria-labelledby="mobileModuleDrawerTitle"
+    tabindex="-1"
+  >
+    <header class="module-mobile-menu__header">
+      <div>
+        <small>เมนูการทำงาน</small>
+        <h2 id="mobileModuleDrawerTitle">สถานะรถและตู้สินค้า</h2>
+        <p id="mobileModuleDrawerUser">กำลังอ่านข้อมูลผู้ใช้งาน</p>
+      </div>
+      <button id="mobileModuleDrawerClose" type="button" aria-label="ปิดเมนู" title="ปิดเมนู">×</button>
     </header>
 
-    <section class="inbound-module-bar" aria-label="เลือกโมดูล">
-      <label>
-        <span>Module</span>
-        <select id="inboundModuleSelect">
-          <option value="">กำลังโหลด Module...</option>
+    <nav class="module-mobile-menu__nav" aria-label="เมนูหน้า Module">
+      <button type="button" data-module-menu-action="DASHBOARD">
+        <span aria-hidden="true">▥</span><b>เปิด Dashboard</b>
+      </button>
+      <button type="button" data-module-menu-action="FULLSCREEN">
+        <span aria-hidden="true">⛶</span><b id="mobileMenuFullscreenLabel">เปิดเต็มหน้าจอ</b>
+      </button>
+      <button type="button" data-module-menu-action="CALENDAR">
+        <span aria-hidden="true">▣</span><b>ดูข้อมูลย้อนหลัง</b>
+      </button>
+      <button type="button" data-module-menu-action="REFRESH">
+        <span aria-hidden="true">↻</span><b>โหลดข้อมูลใหม่</b>
+      </button>
+    </nav>
+
+    <section class="module-mobile-menu__status" data-drawer-status="LOADING" aria-label="สถานะข้อมูลจากระบบ">
+      <span class="module-mobile-menu__status-dot" aria-hidden="true"></span>
+      <div>
+        <strong id="mobileDrawerSnapshotTitle">กำลังตรวจสอบข้อมูล</strong>
+        <p id="mobileDrawerSnapshotDetail">กำลังยืนยันข้อมูลล่าสุดจากระบบ</p>
+      </div>
+      <button id="mobileDrawerSnapshotRetry" type="button" hidden>ตรวจสอบอีกครั้ง</button>
+    </section>
+
+    <nav class="module-mobile-menu__nav module-mobile-menu__nav--secondary" aria-label="คำสั่งเพิ่มเติม">
+      <button type="button" data-module-menu-action="ALERT">
+        <span aria-hidden="true">◉</span><b>การแจ้งเตือน</b>
+      </button>
+      <button type="button" data-module-menu-action="THRESHOLD">
+        <span aria-hidden="true">i</span><b>เกณฑ์เวลา</b>
+      </button>
+      <button type="button" data-module-menu-action="HOME">
+        <span aria-hidden="true">⌂</span><b>กลับหน้าหลัก</b>
+      </button>
+      <button type="button" class="is-danger" data-module-menu-action="LOGOUT">
+        <span aria-hidden="true">⇥</span><b>ออกจากระบบ</b>
+      </button>
+    </nav>
+  </aside>
+
+  <main class="module-container">
+
+    <section
+      id="moduleThresholdInfo"
+      class="module-threshold-info"
+      aria-label="เกณฑ์เวลาของโมดูล"
+    >
+      <div class="module-threshold-info__title">
+        <span>เกณฑ์สถานะ</span>
+
+        <button
+          id="thresholdInfoButton"
+          type="button"
+          aria-label="ดูคำอธิบายเกณฑ์เวลา"
+        >
+          i
+        </button>
+      </div>
+
+      <div class="module-threshold-info__chips">
+        <div data-status="NORMAL">
+          <i aria-hidden="true"></i>
+          <span>ปกติ</span>
+          <strong id="thresholdNormalText">-- นาที</strong>
+        </div>
+
+        <div data-status="WARNING">
+          <i aria-hidden="true"></i>
+          <span>เฝ้าระวัง</span>
+          <strong id="thresholdWarningText">-- นาที</strong>
+        </div>
+
+        <div data-status="OVERDUE">
+          <i aria-hidden="true"></i>
+          <span>เกินเวลา</span>
+          <strong id="thresholdOverdueText">-- นาที</strong>
+        </div>
+
+        <div data-status="AUTO_CLOSE">
+          <i aria-hidden="true"></i>
+          <span>เคลียร์อัตโนมัติ</span>
+          <strong id="thresholdAutoCloseText">36 ชั่วโมง</strong>
+        </div>
+      </div>
+    </section>
+
+
+
+    <section
+      id="moduleFocusToolbar"
+      class="module-focus-toolbar module-critical-summary"
+      aria-label="สถานการณ์สำคัญที่ต้องเห็นทันที"
+    >
+      <div
+        id="criticalStatusFilters"
+        class="module-focus-statuses"
+        role="toolbar"
+        aria-label="กรองตามระดับเวลา"
+      >
+        <button
+          type="button"
+          class="is-active"
+          data-focus-status="ALL"
+          aria-pressed="true"
+        >
+          <span>ทั้งหมด</span>
+          <strong id="focusCountAll">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-focus-status="NORMAL"
+          aria-pressed="false"
+        >
+          <span>ปกติ</span>
+          <strong id="focusCountNormal">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-focus-status="WARNING"
+          aria-pressed="false"
+        >
+          <span>ใกล้เกิน</span>
+          <strong id="focusCountWarning">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-focus-status="OVERDUE"
+          aria-pressed="false"
+        >
+          <span>เกินเวลา</span>
+          <strong id="focusCountOverdue">0</strong>
+        </button>
+
+        <button
+          id="mobileConflictFilter"
+          type="button"
+          class="mobile-critical-conflict"
+          data-mobile-conflict-filter="true"
+          aria-pressed="false"
+        >
+          <span>ข้อมูลผิดปกติ</span>
+          <strong id="mobileCriticalConflictCount">0</strong>
+        </button>
+      </div>
+    </section>
+
+    <nav
+      id="mobileWorkspaceTabs"
+      class="mobile-workspace-tabs"
+      aria-label="เลือกส่วนข้อมูล"
+    >
+      <button type="button" class="is-active" data-mobile-workspace="LIST" aria-pressed="true">
+        <span>รายการรถ</span>
+        <strong id="mobileTabListCount">0</strong>
+      </button>
+      <button type="button" data-mobile-workspace="STAGES" aria-pressed="false">
+        <span>ขั้นตอนงาน</span>
+        <strong id="mobileTabStageCount">0</strong>
+      </button>
+      <button type="button" data-mobile-workspace="SHIFTS" aria-pressed="false">
+        <span>ภาพรวมกะ</span>
+        <strong id="mobileTabShiftCount">0</strong>
+      </button>
+      <button type="button" data-mobile-workspace="HANDOVER" aria-pressed="false">
+        <span>ส่งมอบ</span>
+        <strong id="mobileTabHandoverState">–</strong>
+      </button>
+    </nav>
+
+    <section
+      id="operationalBoardPanel"
+      class="operational-board-panel is-professional-collapsed"
+      aria-label="สถานะปฏิบัติงานและความรับผิดชอบตามกะ"
+    >
+      <header class="operational-board-panel__header">
+        <div>
+          <small>ภาพรวมการปฏิบัติงาน</small>
+          <h2>ภาพรวมขั้นตอนงานและกะรับผิดชอบ</h2>
+          <p id="operationalCurrentShift">กำลังอ่านการตั้งค่ากะ</p>
+        </div>
+
+        <div class="operational-board-panel__header-actions">
+          <span id="operationalIntegrity" class="operational-integrity" data-state="LOADING">กำลังตรวจความครบถ้วน</span>
+          <span id="operationalSnapshotTime">กำลังโหลดข้อมูลล่าสุด</span>
+          <button id="operationalBoardRefresh" type="button">อัปเดตข้อมูล</button>
+          <button id="operationalBoardCollapseToggle" type="button" aria-expanded="false">เปิดภาพรวมกะ</button>
+        </div>
+      </header>
+
+      <div
+        id="operationalStageFilters"
+        class="operational-stage-filters"
+        data-mobile-workspace-section="STAGES"
+        role="toolbar"
+        aria-label="กรองตามขั้นตอนปฏิบัติงาน"
+      >
+        <button
+          type="button"
+          class="is-active"
+          data-operational-stage="ALL"
+          aria-pressed="true"
+        >
+          <span>ทุกขั้นตอน</span>
+          <strong id="operationalCountAll">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_INBOUND_DOCUMENT">
+          <span>รอ พขร.ยื่นเอกสาร</span>
+          <strong id="operationalCountWaitingInboundDocument">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_RECEIVING">
+          <span>รอรับสินค้าเสร็จ</span>
+          <strong id="operationalCountWaitingReceiving">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_DOCUMENT_RETURN">
+          <span>พขร.รอรับเอกสารคืน</span>
+          <strong id="operationalCountWaitingDocumentReturn">0</strong>
+        </button>
+
+        <button type="button" data-operational-stage="WAITING_GATE_OUT">
+          <span>รอ Gate Out</span>
+          <strong id="operationalCountWaitingGateOut">0</strong>
+        </button>
+
+        <button type="button" class="is-conflict" data-operational-stage="DATA_CONFLICT">
+          <span>ข้อมูลขัดแย้ง</span>
+          <strong id="operationalCountDataConflict">0</strong>
+        </button>
+      </div>
+
+      <div class="operational-shift-toolbar" data-mobile-workspace-section="SHIFTS">
+        <div>
+          <span>แบ่งตามกะที่ Admin ตั้งค่า</span>
+          <strong>ค้างข้ามกะ <b id="operationalCarryOverCount">0</b></strong>
+        </div>
+
+        <div
+          id="operationalShiftFilters"
+          class="operational-shift-filters"
+          role="toolbar"
+          aria-label="กรองตามกะเข้า"
+        ></div>
+
+        <button id="operationalResetFilters" type="button">
+          ล้างตัวกรองงาน
+        </button>
+      </div>
+
+      <div
+        id="operationalShiftSummaryGrid"
+        class="operational-shift-summary-grid"
+        data-mobile-workspace-section="SHIFTS"
+        aria-live="polite"
+      >
+        <div class="operational-shift-empty">กำลังประมวลผลข้อมูลกะ</div>
+      </div>
+
+      <section
+        id="shiftHandoverPanel"
+        class="shift-handover-panel"
+        data-mobile-workspace-section="HANDOVER"
+        data-status="LOADING"
+        aria-label="สถานะส่งมอบงานอัตโนมัติระหว่างกะ"
+      >
+        <header class="shift-handover-panel__header">
+          <div>
+            <small>การส่งมอบงานระหว่างกะ</small>
+            <h3>ส่งมอบงานอัตโนมัติระหว่างกะ</h3>
+            <p>ระบบสร้าง Snapshot ก่อนหมดกะและปิดส่งมอบให้อัตโนมัติ ผู้ใช้ไม่ต้องกดมอบงาน</p>
+          </div>
+          <span id="shiftHandoverStatus">กำลังอ่านสถานะ</span>
+        </header>
+
+        <div class="shift-handover-panel__route">
+          <div>
+            <span>กะส่งมอบ</span>
+            <strong id="shiftHandoverFrom">-</strong>
+          </div>
+          <b aria-hidden="true">→</b>
+          <div>
+            <span>กะรับมอบ</span>
+            <strong id="shiftHandoverTo">-</strong>
+          </div>
+          <div>
+            <span>อัปเดตล่าสุด</span>
+            <strong id="shiftHandoverUpdatedAt">-</strong>
+          </div>
+        </div>
+
+        <div
+          id="shiftHandoverMetrics"
+          class="shift-handover-panel__metrics"
+          aria-live="polite"
+        ></div>
+
+        <p id="shiftHandoverNote" class="shift-handover-panel__note">ยังไม่มีหมายเหตุส่งมอบ</p>
+
+        <div class="shift-handover-panel__actions">
+          <button id="shiftHandoverAddNote" type="button">เพิ่มหรือแก้หมายเหตุ</button>
+          <button id="shiftHandoverAcknowledge" type="button">รับทราบงานจากกะก่อน</button>
+          <button id="shiftHandoverRefresh" type="button" hidden>สร้าง Snapshot ใหม่</button>
+        </div>
+      </section>
+    </section>
+
+    <section class="vehicle-tools" data-mobile-workspace-section="LIST">
+      <label class="vehicle-search">
+        <span class="sr-only">
+          ค้นหาข้อมูลรถ
+        </span>
+
+        <input
+          id="searchInput"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="ค้นหาทะเบียน บริษัท คนขับ หรือเลขนัดหมาย"
+        >
+      </label>
+
+      <label class="vehicle-filter">
+        <span class="sr-only">
+          กรองตามสถานะ
+        </span>
+
+        <select id="statusFilter">
+          <option value="ALL">
+            ทุกสถานะ
+          </option>
+
+          <option value="NORMAL">
+            ปกติ
+          </option>
+
+          <option value="WARNING">
+            ใกล้เกินเวลา
+          </option>
+
+          <option value="OVERDUE">
+            เกินเวลา
+          </option>
+
+          <option value="INCOMPLETE">
+            ข้อมูลไม่สมบูรณ์
+          </option>
         </select>
       </label>
 
-      <div class="module-actions">
-        <button id="inboundFullscreenButton" type="button" class="button--fullscreen" title="เปิดเต็มจอ">เต็มจอ</button>
-          <button id="inboundRefreshButton" type="button">รีเฟรช</button>
-        <button id="inboundLogoutButton" type="button" class="button--logout">ออกจากระบบ</button>
+      <label class="vehicle-sort module-focus-sort">
+        <span class="sr-only">
+          เรียงลำดับการ์ด
+        </span>
+
+        <select id="focusSortSelect">
+          <option value="LONGEST">
+            อยู่นานมากที่สุด
+          </option>
+
+          <option value="NEWEST">
+            เข้าพื้นที่ล่าสุด
+          </option>
+
+          <option value="APPOINTMENT">
+            เลขนัดหมาย
+          </option>
+
+          <option value="COMPANY">
+            ชื่อบริษัท
+          </option>
+        </select>
+      </label>
+
+      <button
+        id="calendarButton"
+        class="button button--secondary vehicle-tool-button"
+        type="button"
+      >
+        ปฏิทิน
+      </button>
+    </section>
+
+    <section class="vehicle-result-header" data-mobile-workspace-section="LIST">
+      <div>
+        <strong id="resultCount">
+          0 รายการ
+        </strong>
+
+        <span id="lastUpdated">
+          กำลังเตรียมข้อมูล
+        </span>
       </div>
     </section>
 
-    <section class="inbound-network-bar" aria-label="สถานะเครือข่ายและรายการรอส่ง">
-      <div class="inbound-network-state">
-        <span id="inboundNetworkState" data-state="CHECKING">กำลังตรวจเครือข่าย</span>
-        <small id="inboundQueueDetail">ไม่มีรายการรอส่ง</small>
-      </div>
+    <div
+      id="vehicleEmpty"
+      class="empty-state is-hidden"
+      data-mobile-workspace-section="LIST"
+    >
+      <strong>
+        ไม่พบข้อมูลตามเงื่อนไข
+      </strong>
 
-      <div class="inbound-queue-actions">
-        <button id="inboundQueueButton" type="button" class="button--queue" aria-label="เปิดรายการรอส่ง">
-          รอส่ง <strong id="inboundPendingCount">0</strong>
-        </button>
-        <button id="inboundFailedQueueButton" type="button" class="button--queue-failed" aria-label="เปิดรายการส่งไม่สำเร็จ" hidden>
-          ผิดพลาด <strong id="inboundFailedCount">0</strong>
-        </button>
-        <button id="inboundRetryQueueButton" type="button" class="button--queue-retry" hidden>ส่งใหม่ตอนนี้</button>
-      </div>
-    </section>
+      <span>
+        ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ
+      </span>
+    </div>
 
-    <section class="inbound-workspace">
-      <aside class="inbound-left" aria-label="พื้นที่สแกนและกรอกรหัส">
-        <section class="scanner-card">
-          <div class="scanner-card__head">
-            <div>
-              <small>SCAN AUTO ID</small>
-              <h2>ช่องรับรหัส</h2>
-            </div>
-            <span id="scannerStatus" data-state="IDLE">พร้อมรับรหัส</span>
-          </div>
+    <section
+      id="vehicleList"
+      class="vehicle-grid"
+      data-mobile-workspace-section="LIST"
+      aria-live="polite"
+      aria-busy="false"
+    ></section>
 
-          <div class="scanner-window">
-            <video id="inboundVideo" playsinline muted></video>
-            <div class="scanner-frame" aria-hidden="true"></div>
-            <div class="scanner-hint">วาง QR / Barcode ในกรอบ</div>
-          </div>
 
-          <form id="manualLookupForm" class="manual-form" autocomplete="off">
-            <label>
-              <span>Auto ID / รหัสจาก Gate In</span>
-              <input
-                id="entryCodeInput"
-                type="text"
-                inputmode="latin"
-                autocomplete="off"
-                autocapitalize="characters"
-                spellcheck="false"
-                placeholder="ยิงเครื่องสแกนหรือกรอก Auto ID แล้วกด Enter"
-              >
-            </label>
-
-            <div class="manual-actions">
-              <button id="lookupCodeButton" type="submit" class="button button--primary">ค้นหา</button>
-              <button id="clearCodeButton" type="button" class="button button--ghost">ล้าง</button>
-            </div>
-          </form>
-
-          <div class="scanner-actions">
-            <button id="startCameraButton" type="button" class="button button--success">เปิดกล้อง</button>
-            <button id="stopCameraButton" type="button" class="button button--ghost">ปิดกล้อง</button>
-          </div>
-
-          <div id="scanMessage" class="scan-message" data-state="IDLE">
-            พร้อมสแกน ระบบจะค้นหาและบันทึกให้อัตโนมัติ
-          </div>
-        </section>
-
-        <section id="lookupResultPanel" class="result-panel" hidden>
-          <div class="result-panel__head">
-            <div>
-              <small>LAST SCAN</small>
-              <h2 id="resultTitle">ผลการสแกนล่าสุด</h2>
-            </div>
-            <span id="resultStatusBadge">-</span>
-          </div>
-          <div id="resultBody" class="result-body"></div>
-        </section>
-      </aside>
-
-      <section class="inbound-right" aria-label="ตารางสถานะรถและตู้">
-        <div class="table-toolbar">
-          <div>
-            <small>WORKFLOW TABLE</small>
-            <h2>สถานะงานเอกสาร</h2>
-          </div>
-
-          <label>
-            <span class="sr-only">ค้นหา</span>
-            <input id="workflowSearchInput" type="search" autocomplete="off" placeholder="ค้นหาเลขนัดหมาย / บริษัท / พขร. / ทะเบียน / โทร / Auto ID">
-          </label>
+    <section
+      id="warehouseSituation"
+      class="warehouse-control-tower"
+      data-state="NORMAL"
+      aria-label="สถานการณ์คลังปัจจุบัน"
+    >
+      <div class="warehouse-control-tower__status">
+        <div class="warehouse-control-tower__signal" aria-hidden="true">
+          <span></span>
         </div>
 
-        <div class="workflow-table-wrap" id="workflowTableWrap">
-          <table class="workflow-table">
-            <thead>
-              <tr>
-                <th>เลขนัดหมาย</th>
-                <th>ชื่อบริษัท</th>
-                <th>ชื่อ พขร.</th>
-                <th>ทะเบียนรถ / จังหวัด</th>
-                <th>เบอร์โทร</th>
-                <th>สถานะ</th>
-                <th>เวลาล่าสุด</th>
-                <th>Auto ID</th>
-                <th>ดู</th>
-              </tr>
-            </thead>
-            <tbody id="workflowTableBody">
-              <tr>
-                <td colspan="9" class="table-empty">กำลังโหลดข้อมูล...</td>
-              </tr>
-            </tbody>
-          </table>
+        <div>
+          <small>สถานการณ์คลังขณะนี้</small>
+          <strong id="situationLabel">กำลังประเมินสถานการณ์</strong>
+          <p id="situationMessage">กรุณารอสักครู่</p>
+        </div>
+      </div>
+
+      <div class="warehouse-control-tower__metrics">
+        <button
+          type="button"
+          data-summary-filter="ALL"
+        >
+          <span>อยู่ในพื้นที่</span>
+          <strong id="controlTotal">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-metric="NORMAL"
+          data-summary-filter="NORMAL"
+        >
+          <span>ปกติ</span>
+          <strong id="controlNormal">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-metric="WARNING"
+          data-summary-filter="WARNING"
+        >
+          <span>เฝ้าระวัง</span>
+          <strong id="controlWarning">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-metric="OVERDUE"
+          data-summary-filter="OVERDUE"
+        >
+          <span>เกินเวลา</span>
+          <strong id="controlOverdue">0</strong>
+        </button>
+
+        <button
+          type="button"
+          data-metric="INCOMPLETE"
+          data-summary-filter="INCOMPLETE"
+        >
+          <span>ข้อมูลไม่สมบูรณ์</span>
+          <strong id="controlIncomplete">0</strong>
+        </button>
+
+        <div data-metric="AUTO_CLOSE">
+          <span id="controlNearAutoCloseLabel">ใกล้ครบ -- ชม.</span>
+          <strong id="controlNearAutoClose">0</strong>
+          <small>รวมอยู่ในเกินเวลา</small>
+        </div>
+      </div>
+
+    </section>
+
+
+    <section
+      id="receivingFlowPanel"
+      class="receiving-flow-panel is-hidden legacy-receiving-panel"
+      hidden
+      aria-hidden="true"
+      aria-label="การติดตามการรับสินค้า"
+      aria-hidden="true"
+    >
+      <div class="receiving-flow-panel__header">
+        <div>
+          <small>RECEIVING FLOW</small>
+          <h2>สถานะการรับสินค้าและ Gate Out</h2>
+          <p id="receivingUpdatedAt">กำลังโหลดข้อมูล</p>
         </div>
 
-        <footer class="table-pagination" aria-label="แบ่งหน้าตารางงานเอกสาร">
-          <div class="table-pagination__summary" id="workflowTablePageSummary">
-            แสดง 0 รายการ
+        <div
+          class="receiving-flow-filters"
+          role="group"
+          aria-label="กรองขั้นตอนการรับสินค้า"
+        >
+          <button
+            type="button"
+            data-receiving-filter="ALL"
+            aria-pressed="false"
+          >
+            <span>ทั้งหมด</span>
+            <strong id="receivingFilterAllCount">0</strong>
+          </button>
+
+          <button
+            type="button"
+            class="is-active"
+            data-receiving-filter="WAITING_RECEIVING"
+            aria-pressed="true"
+          >
+            <span>รอรับเสร็จ</span>
+            <strong id="receivingFilterWaitingCount">0</strong>
+          </button>
+
+          <button
+            type="button"
+            data-receiving-filter="WAITING_GATE_OUT"
+            aria-pressed="false"
+          >
+            <span>รับเสร็จรอออก</span>
+            <strong id="receivingFilterGateOutCount">0</strong>
+          </button>
+        </div>
+      </div>
+
+      <div class="receiving-flow-panel__body">
+        <div
+          id="receivingFilterContext"
+          class="receiving-filter-context"
+          data-filter="WAITING_RECEIVING"
+          aria-live="polite"
+        >
+          <span>กำลังแสดง</span>
+          <strong>รอรับสินค้าเสร็จ</strong>
+          <em>0 รายการ</em>
+          <small>รายการที่รับสินค้าเสร็จแล้วจะถูกซ่อนอัตโนมัติ กด “รับเสร็จรอออก” เพื่อดู</small>
+        </div>
+
+        <div class="receiving-flow-summary receiving-flow-summary--executive">
+          <button
+            type="button"
+            class="receiving-flow-metric"
+            data-metric="WAITING_RECEIVING"
+            data-receiving-filter="WAITING_RECEIVING"
+          >
+            <span>รอรับสินค้าเสร็จ</span>
+            <strong id="receivingWaitingCount">0</strong>
+            <small>ต้องติดตามขั้นตอนรับสินค้า</small>
+          </button>
+
+          <button
+            type="button"
+            class="receiving-flow-metric"
+            data-metric="WAITING_GATE_OUT"
+            data-receiving-filter="WAITING_GATE_OUT"
+          >
+            <span>รับเสร็จ รอ Gate Out</span>
+            <strong id="receivingWaitingGateOutCount">0</strong>
+            <small>ต้องติดตามการออกพื้นที่</small>
+          </button>
+
+          <div
+            class="receiving-flow-metric"
+            data-metric="COMPLETED_TODAY"
+          >
+            <span>รับสินค้าเสร็จวันนี้</span>
+            <strong id="receivingCompletedTodayCount">0</strong>
+            <small>เหตุการณ์ที่บันทึกสำเร็จ</small>
           </div>
 
-          <div class="table-pagination__controls">
-            <label>
-              <span>แถวต่อหน้า</span>
-              <select id="workflowPageSizeSelect">
-                <option value="AUTO" selected>อัตโนมัติตามจอ</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </label>
-
-            <button id="workflowPrevPage" type="button">ก่อนหน้า</button>
-            <strong id="workflowPageIndicator">หน้า 1 / 1</strong>
-            <button id="workflowNextPage" type="button">ถัดไป</button>
+          <div
+            class="receiving-flow-metric"
+            data-metric="DATA_QUALITY"
+          >
+            <span>ออกโดยไม่บันทึกรับเสร็จ</span>
+            <strong id="receivingMissingCount">0</strong>
+            <small>ข้อมูลกระบวนการไม่ครบ</small>
           </div>
-        </footer>
 
-        <!-- รายละเอียดรายการจะแสดงผ่าน SweetAlert เท่านั้น เพื่อคงทุกอย่างไว้ในหน้าหลักและไม่เพิ่มพื้นที่ด้านล่าง -->
-      </section>
+          <div
+            class="receiving-flow-metric receiving-flow-metric--duration"
+            data-metric="STAGE_ONE_AVG"
+          >
+            <span>เฉลี่ย เข้า → รับเสร็จ</span>
+            <strong id="receivingAverageStageOne">--:--:--</strong>
+            <small>ระยะเวลาช่วงรับสินค้า</small>
+          </div>
+
+          <div
+            class="receiving-flow-metric receiving-flow-metric--duration"
+            data-metric="STAGE_TWO_AVG"
+          >
+            <span>เฉลี่ย รับเสร็จ → Gate Out</span>
+            <strong id="receivingAverageStageTwo">--:--:--</strong>
+            <small>เฉพาะ Gate Out จริง</small>
+          </div>
+        </div>
+
+        <div class="receiving-priority-panel">
+          <div class="receiving-priority-panel__title">
+            <div>
+              <small>ACTION QUEUE</small>
+              <strong>รายการที่ควรติดตามก่อน</strong>
+            </div>
+            <span>เรียงตามเวลารอสูงสุด</span>
+          </div>
+
+          <div id="receivingPriorityList" class="receiving-priority-list">
+            <div class="receiving-priority-empty">กำลังประเมินรายการ</div>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <section
+      id="movementOverview"
+      class="movement-overview"
+      data-state="NORMAL"
+      aria-label="สรุปการเคลื่อนไหวเข้าออก"
+    >
+      <div class="movement-overview__header">
+        <div>
+          <small id="movementScopeEyebrow">CURRENT 4-HOUR ROUND</small>
+          <h2 id="movementScopeTitle">รอบปัจจุบัน</h2>
+          <p id="movementScopeTime">กำลังโหลดข้อมูล</p>
+        </div>
+
+        <div
+          id="movementScopeGroup"
+          class="movement-scope-group"
+        >
+          <button
+            type="button"
+            data-movement-scope="CURRENT_ROUND"
+            class="is-active"
+          >
+            รอบ 4 ชั่วโมง
+          </button>
+
+          <button
+            type="button"
+            data-movement-scope="TODAY"
+          >
+            วันนี้
+          </button>
+        </div>
+
+        <button
+          id="moduleHourlyDetailToggle"
+          class="module-hourly-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="moduleHourlyDetails"
+        >
+          ดูรายละเอียดรายชั่วโมง
+        </button>
+      </div>
+
+      <div class="movement-overview__body">
+        <div class="movement-overview__summary">
+          <div
+            id="movementRemainingWrap"
+            class="movement-round-countdown"
+          >
+            <span>เหลือเวลาในรอบ</span>
+            <strong id="movementRemaining">--:--:--</strong>
+          </div>
+
+          <div class="movement-analysis">
+            <span>วิเคราะห์สถานการณ์</span>
+            <strong id="movementAnalysisTitle">กำลังประเมินสถานการณ์</strong>
+            <p id="movementAnalysisMessage"></p>
+          </div>
+
+          <div class="movement-primary-metrics movement-primary-metrics--executive">
+            <div data-metric="IN">
+              <span>Gate In</span>
+              <strong id="movementIn">0</strong>
+              <small>เข้าพื้นที่</small>
+            </div>
+
+            <div data-metric="OUT_REAL">
+              <span>Gate Out จริง</span>
+              <strong id="movementOutReal">0</strong>
+              <small>สแกนออกจากพื้นที่</small>
+            </div>
+
+            <div data-metric="NET_ACTUAL">
+              <span>สุทธิจริง</span>
+              <strong id="movementNetActual">0</strong>
+              <small>เข้า − Gate Out จริง</small>
+            </div>
+
+            <div data-metric="AUTO_CLOSE">
+              <span>ระบบเคลียร์ข้อมูล</span>
+              <strong id="movementOutAuto">0</strong>
+              <small>ไม่ใช่ Gate Out จริง</small>
+            </div>
+          </div>
+
+          <!--
+            ID ชุดเดิมยังคงไว้ให้ module.js ใช้คำนวณ
+            แต่ไม่แสดงซ้ำต่อผู้บริหาร
+          -->
+          <div class="movement-executive-datasource" aria-hidden="true">
+            <strong id="movementOutTotal">0</strong>
+            <strong id="movementTotal">0</strong>
+            <strong id="movementNet">0</strong>
+            <strong id="movementActiveNow">0</strong>
+            <strong id="movementOverdueNow">0</strong>
+          </div>
+        </div>
+
+        <div class="movement-chart-panel">
+          <div class="movement-chart-panel__header">
+            <div>
+              <span>HOURLY FLOW</span>
+              <strong>แนวโน้มเข้าและออก/เคลียร์รวม</strong>
+            </div>
+
+            <div class="movement-chart-legend">
+              <span data-series="IN">เข้า</span>
+              <span data-series="OUT">ออก/เคลียร์รวม</span>
+            </div>
+          </div>
+
+          <div
+            id="movementMiniChart"
+            class="movement-mini-chart"
+          >
+            <div class="movement-chart-empty">
+              กำลังโหลดข้อมูลรายชั่วโมง
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="moduleHourlyDetails" class="hourly-timeline-panel is-collapsed" aria-label="การเคลื่อนไหวรายชั่วโมง" hidden>
+      <div class="hourly-timeline-panel__header">
+        <div>
+          <small>24-HOUR MOVEMENT</small>
+          <h2>การเคลื่อนไหวเข้า–ออกรายชั่วโมง</h2>
+          <p id="activeTimelineFilter">แสดงทุกชั่วโมง</p>
+        </div>
+
+        <div id="timelineModeGroup" class="timeline-mode-group">
+          <button
+            type="button"
+            data-timeline-mode="ROLLING_24"
+            class="is-active"
+          >
+            ย้อนหลัง 24 ชม.
+          </button>
+
+          <button
+            type="button"
+            data-timeline-mode="TODAY"
+          >
+            วันนี้
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="timelineFocusPreview"
+        class="timeline-focus-preview"
+        data-status="EMPTY"
+      >
+        <div class="timeline-focus-preview__time">
+          <span>ชั่วโมงตรงกลาง</span>
+          <strong id="timelineFocusLabel">--:00–--:59</strong>
+          <small id="timelineFocusOutDetail">Gate Out จริง 0 • ระบบเคลียร์ 0</small>
+        </div>
+
+        <div class="timeline-focus-preview__metrics">
+          <div data-metric="IN">
+            <span>เข้า</span>
+            <strong id="timelineFocusIn">0</strong>
+          </div>
+
+          <div data-metric="OUT">
+            <span>ออก</span>
+            <strong id="timelineFocusOut">0</strong>
+          </div>
+
+          <div data-metric="NET">
+            <span>สุทธิ</span>
+            <strong id="timelineFocusNet">0</strong>
+          </div>
+
+          <div data-metric="TOTAL">
+            <span>รวม</span>
+            <strong id="timelineFocusMovement">0</strong>
+          </div>
+        </div>
+
+        <button
+          id="timelineApplyFilterButton"
+          class="timeline-apply-filter"
+          type="button"
+        >
+          กรองรายการชั่วโมงนี้
+        </button>
+      </div>
+
+      <div class="hourly-timeline-stage">
+        <div class="hourly-timeline-center-line" aria-hidden="true"></div>
+
+        <div
+          id="hourlyTimeline"
+          class="hourly-timeline"
+          role="list"
+          aria-label="ชั่วโมงและจำนวนตู้เข้าออก"
+        ></div>
+      </div>
+
+      <div class="hourly-timeline-panel__footer">
+        <div class="timeline-legend">
+          <span data-status="NORMAL">ปกติ</span>
+          <span data-status="WARNING">เฝ้าระวัง</span>
+          <span data-status="OVERDUE">เกินเวลา</span>
+          <span id="timelineAutoCloseLegend" data-status="AUTO_CLOSE">ใกล้ครบ -- ชม.</span>
+        </div>
+
+        <button
+          id="timelineClearButton"
+          class="timeline-clear-button is-hidden"
+          type="button"
+        >
+          แสดงทุกชั่วโมง
+        </button>
+      </div>
+    </section>
+
+    <section
+      id="summarySection"
+      class="vehicle-summary-grid executive-data-source"
+      aria-label="ข้อมูลสรุปสำหรับระบบ"
+      aria-hidden="true"
+    >
+      <button
+        class="vehicle-summary-card"
+        type="button"
+        data-summary-filter="ALL"
+      >
+        <span>อยู่ในรายการ</span>
+
+        <strong id="summaryTotal">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--normal"
+        type="button"
+        data-summary-filter="NORMAL"
+      >
+        <span>ปกติ</span>
+
+        <strong id="summaryNormal">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--warning"
+        type="button"
+        data-summary-filter="WARNING"
+      >
+        <span>ใกล้เกินเวลา</span>
+
+        <strong id="summaryWarning">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--overdue"
+        type="button"
+        data-summary-filter="OVERDUE"
+      >
+        <span>เกินเวลา</span>
+
+        <strong id="summaryOverdue">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+
+      <button
+        class="vehicle-summary-card vehicle-summary-card--incomplete"
+        type="button"
+        data-summary-filter="INCOMPLETE"
+      >
+        <span>ข้อมูลไม่สมบูรณ์</span>
+
+        <strong id="summaryIncomplete">
+          0
+        </strong>
+
+        <small>คัน</small>
+      </button>
+    </section>
+
   </main>
+
+  <footer
+    class="app-footer module-footer"
+    aria-label="ส่วนท้ายระบบ"
+  >
+    <span class="module-footer__brand">
+      S&amp;LP SKDC906
+    </span>
+
+    <button
+      id="operationalAlertToggle"
+      class="module-footer-alert is-enabled"
+      type="button"
+      role="switch"
+      aria-checked="true"
+      aria-label="ปิดการแจ้งเตือนอัตโนมัติ"
+      title="การแจ้งเตือนเปิดอยู่ — กดเพื่อปิด"
+    >
+      <span
+        id="operationalAlertToggleIcon"
+        class="module-footer-alert__icon"
+        aria-hidden="true"
+      >🔔</span>
+
+      <span class="module-footer-alert__label">
+        แจ้งเตือน
+      </span>
+
+      <span
+        id="operationalAlertToggleStatus"
+        class="module-footer-alert__status"
+        aria-hidden="true"
+      >เปิด</span>
+    </button>
+  </footer>
 </body>
 </html>
