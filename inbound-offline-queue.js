@@ -12,7 +12,7 @@
 (function (window) {
   'use strict';
 
-  const VERSION = '2026.07.13-phase2a-inbound-durable-queue-r1';
+  const VERSION = '2026.07.17-round2-inbound-unknown-commit-reconcile';
   const DB_NAME = 'alertvendor_inbound_pending_queue_v2';
   const DB_VERSION = 1;
   const STORE_NAME = 'operations';
@@ -584,6 +584,22 @@
           break;
         }
 
+        if (operation.status === STATUS.UNKNOWN) {
+          const preflight = await reconcileUnknownOperation(operation);
+          if (preflight.committed) {
+            operation.status = STATUS.COMMITTED;
+            operation.committedAt = Date.now();
+            operation.updatedAt = operation.committedAt;
+            operation.nextAttemptAt = 0;
+            operation.lastError = null;
+            operation.resultSummary = sanitizeResult(preflight.result);
+            await state.adapter.put(operation);
+            committed += 1;
+            notifyOperation('COMMITTED',operation,preflight.result);
+            continue;
+          }
+        }
+
         operation.status = STATUS.SENDING;
         operation.attempts = Number(operation.attempts || 0) + 1;
         operation.lastAttemptAt = Date.now();
@@ -747,6 +763,67 @@
       'QUEUE_KIND_NOT_SUPPORTED',
       'ไม่รองรับชนิดงานรอส่ง ' + operation.kind
     );
+  }
+
+  async function reconcileUnknownOperation(operation) {
+    if (!operation || !state.api || typeof state.api.lookupInboundWorkflow !== 'function') {
+      return { committed:false, result:null };
+    }
+
+    try {
+      const lookup = await state.api.lookupInboundWorkflow(
+        operation.moduleId,
+        operation.autoId,
+        {
+          cacheBust: Date.now(),
+          lookupMethod: 'QUEUE_UNKNOWN_COMMIT_VERIFY',
+          clientRequestId: operation.clientRequestId,
+          requestId: operation.requestId
+        }
+      );
+      const publicLookup = unwrapLookup(lookup);
+      const workflow = publicLookup.state || {};
+      const record = publicLookup.record || {};
+      const status = cleanText(workflow.statusCode).toUpperCase();
+
+      if (operation.kind === KIND.SUBMIT_DOCUMENT) {
+        const committed = Boolean(
+          workflow.documentSubmittedAt ||
+          ['DOCUMENT_SUBMITTED','RECEIVING_COMPLETED','DOCUMENT_RETURNED','GATE_OUT_COMPLETED'].includes(status)
+        );
+        return committed
+          ? { committed:true, result:{ reconciled:true, lookup, noWrite:true } }
+          : { committed:false, result:null };
+      }
+
+      if (operation.kind === KIND.RETURN_DOCUMENT) {
+        const committed = Boolean(
+          workflow.documentReturnedAt ||
+          ['DOCUMENT_RETURNED','GATE_OUT_COMPLETED'].includes(status)
+        );
+        return committed
+          ? { committed:true, result:{ reconciled:true, lookup, noWrite:true } }
+          : { committed:false, result:null };
+      }
+
+      if (operation.kind === KIND.RESOLVE_SCAN) {
+        const action = deriveWorkflowAction(lookup);
+        return action === 'NO_WRITE_REQUIRED'
+          ? { committed:true, result:{ reconciled:true, lookup, noWrite:true } }
+          : { committed:false, result:null };
+      }
+
+      if (operation.kind === KIND.CANCEL_STAGE) {
+        return workflow.cancelled || status === 'CANCELLED'
+          ? { committed:true, result:{ reconciled:true, lookup, noWrite:true } }
+          : { committed:false, result:null };
+      }
+
+      return { committed:false, result:null };
+    } catch (error) {
+      if (isAuthError(error)) throw error;
+      return { committed:false, result:null };
+    }
   }
 
   async function tryReconcileAdvancedState(operation, error) {
