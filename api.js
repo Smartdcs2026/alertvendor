@@ -575,7 +575,7 @@
 
     headers.set(
       'X-Request-Id',
-      createRequestId()
+      String(config.requestId || createRequestId())
     );
 
     if (useAuthentication) {
@@ -1623,6 +1623,9 @@
                 45000
               ),
 
+            requestId:
+              String(record && (record.clientRequestId || record.requestId) || ''),
+
             body:
               record ||
               {}
@@ -1657,6 +1660,9 @@
                 30000
               ),
 
+            requestId:
+              String(record && (record.clientRequestId || record.requestId) || ''),
+
             body:
               record ||
               {}
@@ -1680,6 +1686,9 @@
           timeoutMs: Math.min(
             Number(CONFIG.SAVE_TIMEOUT_MS || 60000),
             45000
+          ),
+          requestId: String(
+            record && (record.clientRequestId || record.requestId) || ''
           ),
           body: record || {}
         }
@@ -1805,6 +1814,8 @@
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
+            requestId:
+              body.clientRequestId,
             body
           }
         );
@@ -1837,6 +1848,8 @@
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
+            requestId:
+              body.clientRequestId,
             body
           }
         );
@@ -1869,6 +1882,8 @@
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
+            requestId:
+              body.clientRequestId,
             body
           }
         );
@@ -1926,6 +1941,8 @@
             timeoutMs:
               CONFIG.SAVE_TIMEOUT_MS ||
               90000,
+            requestId:
+              body.clientRequestId,
             body
           }
         );
