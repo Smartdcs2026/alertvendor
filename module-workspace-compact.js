@@ -238,3 +238,380 @@
     if (state.mutationObserver) state.mutationObserver.disconnect();
   }
 })(window, document);
+
+/**
+ * ROUND 3 REVISION 4 — Professional Mobile Menu + Workspace Presentation
+ * Build: 2026.07.17-round3-r4-professional-module-ui
+ */
+(function (window, document) {
+  'use strict';
+
+  const BUILD = '2026.07.17-round3-r4-professional-module-ui';
+  const STORAGE_KEY = 'alertvendor:module:operational-board-collapsed';
+  const state = {
+    drawerOpen: false,
+    historyEntryActive: false,
+    scrollY: 0,
+    previousFocus: null,
+    observer: null,
+    userObserver: null,
+    titleObserver: null
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  } else {
+    initialize();
+  }
+
+  function initialize() {
+    if (!document.body || !document.body.classList.contains('module-page')) return;
+
+    document.body.dataset.moduleProfessionalUiBuild = BUILD;
+    bindDrawer();
+    bindDrawerActions();
+    bindSnapshotMirror();
+    bindIdentityMirror();
+    bindFullscreenState();
+    bindOperationalBoardCollapse();
+    syncSnapshotMirror();
+    syncIdentityMirror();
+    syncFullscreenLabel();
+  }
+
+  function element(id) {
+    return document.getElementById(id);
+  }
+
+  function bindDrawer() {
+    const openButton = element('mobileModuleMenuButton');
+    const closeButton = element('mobileModuleDrawerClose');
+    const overlay = element('mobileModuleDrawerOverlay');
+    const drawer = element('mobileModuleDrawer');
+
+    if (!openButton || !closeButton || !overlay || !drawer) return;
+
+    openButton.addEventListener('click', () => openDrawer({ pushHistory: true }));
+    closeButton.addEventListener('click', requestCloseDrawer);
+    overlay.addEventListener('click', requestCloseDrawer);
+
+    drawer.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        requestCloseDrawer();
+        return;
+      }
+
+      if (event.key === 'Tab') trapFocus(event, drawer);
+    });
+
+    window.addEventListener('popstate', () => {
+      if (!state.drawerOpen) return;
+      state.historyEntryActive = false;
+      closeDrawerNow();
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.matchMedia('(min-width: 961px)').matches && state.drawerOpen) {
+        closeDrawerNow();
+      }
+    }, { passive: true });
+  }
+
+  function openDrawer(options) {
+    if (state.drawerOpen) return;
+
+    const drawer = element('mobileModuleDrawer');
+    const overlay = element('mobileModuleDrawerOverlay');
+    const button = element('mobileModuleMenuButton');
+    if (!drawer || !overlay || !button) return;
+
+    const config = options && typeof options === 'object' ? options : {};
+    state.drawerOpen = true;
+    state.previousFocus = document.activeElement;
+    state.scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+
+    overlay.hidden = false;
+    drawer.setAttribute('aria-hidden', 'false');
+    drawer.classList.add('is-open');
+    button.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('module-menu-open');
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + state.scrollY + 'px';
+    document.body.style.width = '100%';
+
+    if (config.pushHistory !== false && !state.historyEntryActive) {
+      try {
+        window.history.pushState({ alertVendorModuleDrawer: true }, '', window.location.href);
+        state.historyEntryActive = true;
+      } catch (error) {
+        state.historyEntryActive = false;
+      }
+    }
+
+    window.requestAnimationFrame(() => {
+      const first = firstFocusable(drawer) || drawer;
+      first.focus({ preventScroll: true });
+    });
+  }
+
+  function requestCloseDrawer() {
+    if (!state.drawerOpen) return;
+
+    if (state.historyEntryActive) {
+      state.historyEntryActive = false;
+      window.history.back();
+      return;
+    }
+
+    closeDrawerNow();
+  }
+
+  function closeDrawerNow() {
+    const drawer = element('mobileModuleDrawer');
+    const overlay = element('mobileModuleDrawerOverlay');
+    const button = element('mobileModuleMenuButton');
+
+    state.drawerOpen = false;
+    drawer && drawer.classList.remove('is-open');
+    drawer && drawer.setAttribute('aria-hidden', 'true');
+    if (overlay) overlay.hidden = true;
+    button && button.setAttribute('aria-expanded', 'false');
+
+    if (document.body) {
+      document.body.classList.remove('module-menu-open');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+    }
+
+    window.scrollTo({ top: state.scrollY, left: 0, behavior: 'auto' });
+
+    const focusTarget = state.previousFocus && document.contains(state.previousFocus)
+      ? state.previousFocus
+      : button;
+    focusTarget && focusTarget.focus({ preventScroll: true });
+  }
+
+  function trapFocus(event, container) {
+    const focusable = getFocusable(container);
+    if (!focusable.length) {
+      event.preventDefault();
+      container.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function getFocusable(container) {
+    return Array.from(container.querySelectorAll([
+      'button:not([disabled]):not([hidden])',
+      'a[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])'
+    ].join(','))).filter((node) => {
+      const style = window.getComputedStyle(node);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+  }
+
+  function firstFocusable(container) {
+    return getFocusable(container)[0] || null;
+  }
+
+  function bindDrawerActions() {
+    document.querySelectorAll('[data-module-menu-action]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const action = String(button.dataset.moduleMenuAction || '').toUpperCase();
+        runDrawerAction(action);
+      });
+    });
+
+    const retry = element('mobileDrawerSnapshotRetry');
+    retry && retry.addEventListener('click', () => {
+      const source = element('moduleSnapshotRetry');
+      if (source && !source.hidden && !source.disabled) source.click();
+    });
+  }
+
+  function runDrawerAction(action) {
+    const map = {
+      DASHBOARD: 'moduleDashboardLauncher',
+      CALENDAR: 'calendarButton',
+      REFRESH: 'operationalBoardRefresh',
+      ALERT: 'operationalAlertToggle',
+      THRESHOLD: 'thresholdInfoButton',
+      HOME: 'backButton',
+      LOGOUT: 'logoutButton'
+    };
+
+    if (action === 'FULLSCREEN') {
+      void toggleFullscreen();
+      return;
+    }
+
+    const target = element(map[action]);
+    if (!target) return;
+
+    const waitsForHistoryClose = state.historyEntryActive;
+    requestCloseDrawer();
+    window.setTimeout(() => target.click(), waitsForHistoryClose ? 120 : 30);
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else {
+        const target = document.documentElement;
+        if (target.requestFullscreen) await target.requestFullscreen({ navigationUI: 'hide' });
+        else if (target.webkitRequestFullscreen) target.webkitRequestFullscreen();
+      }
+    } catch (error) {
+      console.warn('เปิดโหมดเต็มหน้าจอไม่สำเร็จ', error);
+    } finally {
+      syncFullscreenLabel();
+    }
+  }
+
+  function bindFullscreenState() {
+    document.addEventListener('fullscreenchange', syncFullscreenLabel);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenLabel);
+  }
+
+  function syncFullscreenLabel() {
+    const label = element('mobileMenuFullscreenLabel');
+    if (!label) return;
+    label.textContent = document.fullscreenElement || document.webkitFullscreenElement
+      ? 'ออกจากเต็มหน้าจอ'
+      : 'เปิดเต็มหน้าจอ';
+  }
+
+  function bindSnapshotMirror() {
+    const panel = element('moduleSnapshotState');
+    if (!panel || typeof MutationObserver !== 'function') return;
+
+    state.observer = new MutationObserver(syncSnapshotMirror);
+    state.observer.observe(panel, {
+      attributes: true,
+      attributeFilter: ['data-state', 'aria-label'],
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+
+    document.addEventListener('alertvendor:module-board-health', syncSnapshotMirror);
+  }
+
+  function syncSnapshotMirror() {
+    const panel = element('moduleSnapshotState');
+    const sourceTitle = element('moduleSnapshotTitle');
+    const sourceDetail = element('moduleSnapshotDetail');
+    const sourceRetry = element('moduleSnapshotRetry');
+    const drawerStatus = document.querySelector('.module-mobile-menu__status');
+    const drawerTitle = element('mobileDrawerSnapshotTitle');
+    const drawerDetail = element('mobileDrawerSnapshotDetail');
+    const drawerRetry = element('mobileDrawerSnapshotRetry');
+    const menuButton = element('mobileModuleMenuButton');
+
+    const status = String(panel && panel.dataset.state || 'LOADING').toUpperCase();
+    drawerStatus && drawerStatus.setAttribute('data-drawer-status', status);
+    menuButton && menuButton.setAttribute('data-server-state', status);
+    if (drawerTitle) drawerTitle.textContent = String(sourceTitle && sourceTitle.textContent || 'กำลังตรวจสอบข้อมูล').trim();
+    if (drawerDetail) drawerDetail.textContent = String(sourceDetail && sourceDetail.textContent || '').trim();
+    if (drawerRetry) {
+      drawerRetry.hidden = !sourceRetry || sourceRetry.hidden;
+      drawerRetry.disabled = Boolean(sourceRetry && sourceRetry.disabled);
+    }
+  }
+
+  function bindIdentityMirror() {
+    const user = element('userDisplayName');
+    const title = element('moduleTitle');
+    if (typeof MutationObserver !== 'function') return;
+
+    if (user) {
+      state.userObserver = new MutationObserver(syncIdentityMirror);
+      state.userObserver.observe(user, { childList: true, subtree: true, characterData: true });
+    }
+
+    if (title) {
+      state.titleObserver = new MutationObserver(syncIdentityMirror);
+      state.titleObserver.observe(title, { childList: true, subtree: true, characterData: true });
+    }
+  }
+
+  function syncIdentityMirror() {
+    const sourceUser = element('userDisplayName');
+    const sourceTitle = element('moduleTitle');
+    const drawerUser = element('mobileModuleDrawerUser');
+    const drawerTitle = element('mobileModuleDrawerTitle');
+
+    if (drawerUser) {
+      const name = String(sourceUser && sourceUser.textContent || '').trim();
+      drawerUser.textContent = name ? 'ผู้ใช้งาน: ' + name : 'กำลังอ่านข้อมูลผู้ใช้งาน';
+    }
+
+    if (drawerTitle) {
+      const name = String(sourceTitle && sourceTitle.textContent || '').trim();
+      drawerTitle.textContent = name || 'สถานะรถและตู้สินค้า';
+    }
+  }
+
+  function bindOperationalBoardCollapse() {
+    const panel = element('operationalBoardPanel');
+    const toggle = element('operationalBoardCollapseToggle');
+    if (!panel || !toggle) return;
+
+    let collapsed = true;
+    try {
+      const saved = window.sessionStorage.getItem(STORAGE_KEY);
+      collapsed = saved === null ? true : saved === 'TRUE';
+    } catch (error) {
+      collapsed = true;
+    }
+
+    setOperationalBoardCollapsed(collapsed);
+
+    toggle.addEventListener('click', () => {
+      setOperationalBoardCollapsed(!panel.classList.contains('is-professional-collapsed'));
+    });
+
+    document.querySelectorAll('[data-mobile-workspace]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const workspace = String(button.dataset.mobileWorkspace || 'LIST').toUpperCase();
+        if (workspace !== 'LIST' && window.matchMedia('(max-width: 767px)').matches) {
+          panel.classList.remove('is-professional-collapsed');
+        }
+      });
+    });
+  }
+
+  function setOperationalBoardCollapsed(collapsed) {
+    const panel = element('operationalBoardPanel');
+    const toggle = element('operationalBoardCollapseToggle');
+    if (!panel || !toggle) return;
+
+    panel.classList.toggle('is-professional-collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.textContent = collapsed ? 'เปิดภาพรวมกะ' : 'ย่อภาพรวมกะ';
+
+    try {
+      window.sessionStorage.setItem(STORAGE_KEY, collapsed ? 'TRUE' : 'FALSE');
+    } catch (error) {
+      // sessionStorage อาจถูกปิดในโหมดส่วนตัวบางอุปกรณ์
+    }
+  }
+})(window, document);
