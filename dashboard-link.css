@@ -203,3 +203,32 @@ body.module-page.has-module-dashboard-launcher
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+/************************************************************
+ * ROUND 3 REVISION 4 — Professional Header Launcher
+ ************************************************************/
+body.module-page .module-dashboard-host #moduleDashboardLauncher {
+  min-height: 42px;
+  border-radius: 11px;
+  padding: 7px 11px;
+  font-size: .72rem;
+}
+
+@media (max-width: 960px) {
+  body.module-page .module-dashboard-host #moduleDashboardLauncher {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+
+  body.module-page .module-dashboard-host #moduleDashboardLauncher span {
+    display: none;
+  }
+
+  body.module-page .module-dashboard-host #moduleDashboardLauncher svg {
+    width: 18px;
+    height: 18px;
+  }
+}
