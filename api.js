@@ -1,6 +1,6 @@
 /**
  * api.js
- * PHASE 5 ROUND 03 — Receiving Fast Commit + Verification
+ * ROUND 3 REVISION 4 HOTFIX — Module Route Session Isolation
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -15,10 +15,36 @@
   const CONFIG =
     window.APP_CONFIG || {};
 
+  /*
+   * Production fail-safe:
+   * API URL ไม่ใช่ Secret และใช้เฉพาะเมื่อ config.js โหลดไม่สำเร็จ
+   * เพื่อไม่ให้หน้า Login ล้มทั้งระบบด้วย API_BASE_MISSING
+   */
+  const PRODUCTION_API_BASE =
+    'https://alertvendor.somchaibutphon.workers.dev';
+
+  const configuredApiBase =
+    String(CONFIG.API_BASE || '').trim();
+
+  const canUseProductionFallback =
+    window.location &&
+    String(window.location.hostname || '').toLowerCase() ===
+      'smartdcs2026.github.io';
+
   const API_BASE =
     String(
-      CONFIG.API_BASE || ''
+      configuredApiBase ||
+      (canUseProductionFallback ? PRODUCTION_API_BASE : '')
     ).replace(/\/+$/, '');
+
+  const API_BASE_SOURCE =
+    configuredApiBase
+      ? 'APP_CONFIG'
+      : (
+          canUseProductionFallback
+            ? 'PRODUCTION_FAILSAFE'
+            : 'MISSING'
+        );
 
   const TOKEN_STORAGE_KEY =
     String(
@@ -34,11 +60,33 @@
         'alertvendor_access_token_v1',
         'alertvendor_token',
         'alertvendorAccessToken',
-        'access_token'
+        'access_token',
+        'accessToken',
+        'token',
+        'sessionToken',
+        'authToken',
+        'vehicle_status_access_token',
+        'vehicle_access_token'
       ].filter(
         (key) => key !== TOKEN_STORAGE_KEY
       )
     );
+
+  const LEGACY_ROUTE_USER_KEYS =
+    Object.freeze([
+      'alertvendor_user',
+      'alertvendor_current_user',
+      'currentUser',
+      'auth_user',
+      'user',
+      'vehicle_status_user',
+      'alertvendor_session'
+    ]);
+
+  const LEGACY_ROUTE_FLAG_KEYS =
+    Object.freeze([
+      'vcw_inbound_only'
+    ]);
 
   const inFlightGetRequests =
     new Map();
@@ -53,9 +101,9 @@
     ]);
 
   if (!API_BASE) {
-    console.error(
-      'ไม่พบ APP_CONFIG.API_BASE'
-    );
+    console.error('ไม่พบ APP_CONFIG.API_BASE และไม่สามารถใช้ Production fail-safe ได้');
+  } else if (API_BASE_SOURCE === 'PRODUCTION_FAILSAFE') {
+    console.warn('config.js ไม่พร้อม ระบบใช้ Production API fail-safe ชั่วคราว');
   }
 
   class VehicleAPIError extends Error {
@@ -117,6 +165,41 @@
     }
   }
 
+  function purgeLegacyRouteArtifacts(
+    removeSessionLegacyTokens
+  ) {
+    const storages = [
+      window.sessionStorage,
+      window.localStorage
+    ];
+
+    storages.forEach((storage) => {
+      LEGACY_ROUTE_USER_KEYS.forEach(
+        (key) => removeStorageKey(storage, key)
+      );
+
+      LEGACY_ROUTE_FLAG_KEYS.forEach(
+        (key) => removeStorageKey(storage, key)
+      );
+    });
+
+    /*
+     * Token รุ่นเก่าใน localStorage เป็นสาเหตุสำคัญที่ Route Guard รุ่นเก่า
+     * อ่านบัญชี INBOUND ค้างจากรอบก่อน แล้วพา USER/ADMIN ไป inbound.html
+     * ระบบปัจจุบันใช้เฉพาะ TOKEN_STORAGE_KEY ใน sessionStorage เท่านั้น
+     */
+    LEGACY_TOKEN_STORAGE_KEYS.forEach((key) => {
+      removeStorageKey(window.localStorage, key);
+
+      if (removeSessionLegacyTokens === true) {
+        removeStorageKey(window.sessionStorage, key);
+      }
+    });
+  }
+
+  /* ล้างข้อมูล Role/Token รุ่นเก่าที่ไม่ใช่ Session ปัจจุบันทันที */
+  purgeLegacyRouteArtifacts(false);
+
   function getAccessToken() {
     let token =
       readStorageToken(
@@ -125,6 +208,7 @@
       );
 
     if (token) {
+      purgeLegacyRouteArtifacts(true);
       return token;
     }
 
@@ -152,12 +236,7 @@
         /* ใช้ token ที่อ่านได้ต่อ แม้ migrate ไม่สำเร็จ */
       }
 
-      LEGACY_TOKEN_STORAGE_KEYS.forEach(
-        (key) => removeStorageKey(
-          window.sessionStorage,
-          key
-        )
-      );
+      purgeLegacyRouteArtifacts(true);
 
       return token;
     }
