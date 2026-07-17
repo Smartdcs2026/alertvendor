@@ -1,6 +1,6 @@
 /**
  * module.js
- * ROUND 3 — Mobile-first Responsive + Adaptive Revision Polling
+ * PHASE 4E ROUND 03 — Server Alert Delivery + Shared Stage SLA
  *
  * ปรับปรุง:
  * - Auto Refresh แบบเงียบ ไม่แสดง Spinner/Toast
@@ -19,7 +19,6 @@
  * - Production R17: Action Sheet CSS + Shift Handover Accuracy
  * - Production R19: OPERATIONAL ALERT เปิด/ปิดรายผู้ใช้และรายโมดูล
  * - Production R23: ย้ายตัวควบคุมแจ้งเตือนไป Footer โดยไม่ลอยทับเนื้อหา
- * - ROUND 3: Revision-only polling แบบ adaptive, หยุดเมื่อซ่อน Tab และไม่ refresh เต็มระหว่างการ์ดกำลัง Commit
  */
 (function (window, document) {
   'use strict';
@@ -42,11 +41,6 @@
     15 * 60 * 1000;
   const OPERATIONAL_BOARD_STALE_AFTER_MS =
     90 * 1000;
-
-
-  const REVISION_POLL_MIN_MS = 8000;
-  const REVISION_POLL_MAX_MS = 60000;
-  const REVISION_POLL_RESUME_MS = 350;
 
   const state = {
     moduleId: '',
@@ -80,9 +74,6 @@
     dataRevision: '',
     rulesRevision: '',
     revisionCheckInProgress: false,
-    revisionPollDelayMs: REVISION_POLL_MIN_MS,
-    revisionPollFailures: 0,
-    revisionPollLastAt: 0,
     movementScope: 'CURRENT_ROUND',
     timelineMode: 'ROLLING_24',
     selectedTimelineStartMs: null,
@@ -216,25 +207,6 @@
         return;
       }
 
-      const sessionRole = normalizeSessionRole(session);
-
-      /*
-       * ตัดสินสิทธิ์จาก /api/auth/me ของ Session ปัจจุบันเท่านั้น
-       * ห้ามใช้ role/user cache รุ่นเก่าใน localStorage เพราะอาจค้างเป็น INBOUND
-       * แล้วพา ADMIN/USER ไปหน้า inbound.html ผิดบัญชี
-       */
-      if (sessionRole === 'INBOUND') {
-        redirectToInbound();
-        return;
-      }
-
-      if (sessionRole !== 'ADMIN' && sessionRole !== 'USER') {
-        API.clearSession && API.clearSession();
-        redirectToLogin();
-        return;
-      }
-
-      clearLegacyInboundRouteArtifacts();
       state.session = session;
       initializeOperationalAlertPreference();
 
@@ -673,6 +645,16 @@
       })
     );
 
+
+    document.addEventListener(
+      'alertvendor:receiving-committed',
+      (event) => {
+        handleReceivingCommittedEvent(
+          event && event.detail
+        );
+      }
+    );
+
     document
       .querySelector('[data-operational-scroll]')
       ?.addEventListener(
@@ -888,22 +870,15 @@
 
     document.addEventListener(
       'visibilitychange',
-      () => {
-        if (document.visibilityState !== 'visible') {
-          stopAutoRefresh();
-          return;
-        }
-
-        state.revisionPollFailures = 0;
-        state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
-
+      async () => {
         if (
+          document.visibilityState ===
+            'visible' &&
           !state.refreshInProgress &&
           !state.movementRefreshInProgress &&
-          state.hasLoadedRecords &&
-          navigator.onLine
+          state.hasLoadedRecords
         ) {
-          scheduleNextRevisionCheck(REVISION_POLL_RESUME_MS);
+          await checkOperationalBoardRevision();
         }
       }
     );
@@ -911,11 +886,16 @@
     window.addEventListener(
       'online',
       () => {
-        state.revisionPollFailures = 0;
-        state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
-
-        if (!state.destroyed) {
-          scheduleNextRevisionCheck(REVISION_POLL_RESUME_MS);
+        if (
+          !state.refreshInProgress &&
+          !state.destroyed
+        ) {
+          void loadRecords({
+            silentError: true,
+            showSuccessToast: false,
+            forceRender: true,
+            forceRefresh: true
+          });
         }
       }
     );
@@ -923,8 +903,6 @@
     window.addEventListener(
       'offline',
       () => {
-        stopAutoRefresh();
-
         if (state.hasLoadedRecords) {
           state.boardHealth = 'STALE';
           state.usingCachedBoard = true;
@@ -1275,14 +1253,6 @@
       typeof options === 'object'
         ? options
         : {};
-
-    if (
-      config.background === true &&
-      hasActiveCardWrite()
-    ) {
-      scheduleNextRevisionCheck(REVISION_POLL_MIN_MS);
-      return;
-    }
 
     state.refreshInProgress =
       true;
@@ -1689,19 +1659,19 @@
 
     const map = {
       LOADING: {
-        title: 'กำลังตรวจสอบข้อมูล',
-        detail: 'กำลังยืนยันข้อมูลล่าสุดจากระบบ',
+        title: 'กำลังตรวจสอบ Snapshot',
+        detail: 'กำลังอ่านสถานะปฏิบัติงานจาก Backend',
         retry: false
       },
       LIVE: {
-        title: 'ข้อมูลพร้อมใช้งาน',
+        title: 'ข้อมูลสดพร้อมใช้งาน',
         detail: generatedAt
-          ? 'อัปเดตล่าสุด ' + generatedAt
-          : 'ข้อมูลล่าสุดพร้อมใช้งาน',
+          ? 'Snapshot จาก Server ' + generatedAt
+          : 'Operational Board พร้อมใช้งาน',
         retry: false
       },
       STALE: {
-        title: 'กำลังใช้ข้อมูลล่าสุดที่มี',
+        title: 'กำลังใช้ Snapshot สำรองแบบอ่านอย่างเดียว',
         detail: generatedAt
           ? 'ข้อมูลล่าสุดที่ยืนยันได้ ' + generatedAt + ' · ปิดปุ่มบันทึกชั่วคราว'
           : 'เครือข่ายไม่พร้อม · ปิดปุ่มบันทึกชั่วคราว',
@@ -1714,27 +1684,15 @@
       },
       BLOCKED: {
         title: 'ไม่สามารถยืนยันสถานะรถได้',
-        detail: 'ยังยืนยันข้อมูลล่าสุดไม่ได้ ระบบจึงปิดการบันทึกเพื่อป้องกันข้อมูลผิดพลาด',
+        detail: 'ไม่มี Snapshot ที่เชื่อถือได้ จึงไม่แสดงข้อมูลเดาและไม่อนุญาตให้บันทึก',
         retry: true
       }
     };
 
     const info = map[status] || map.BLOCKED;
-    const accessibleSummary = [info.title, info.detail]
-      .filter(Boolean)
-      .join(' — ');
 
     if (title) title.textContent = info.title;
     if (detail) detail.textContent = info.detail;
-
-    panel.setAttribute('aria-label', accessibleSummary);
-    panel.setAttribute('title', accessibleSummary);
-    bindCompactSnapshotStatus_(panel);
-
-    if (status === 'LIVE') {
-      panel.classList.remove('is-open');
-      panel.setAttribute('aria-expanded', 'false');
-    }
 
     if (retryButton) {
       retryButton.hidden = !info.retry;
@@ -1767,52 +1725,6 @@
       )
     );
   }
-
-  function bindCompactSnapshotStatus_(panel) {
-    if (!panel || panel.dataset.compactStatusBound === 'TRUE') {
-      return;
-    }
-
-    panel.dataset.compactStatusBound = 'TRUE';
-
-    const setOpen = (open) => {
-      panel.classList.toggle('is-open', open);
-      panel.setAttribute('aria-expanded', open ? 'true' : 'false');
-    };
-
-    panel.addEventListener('click', (event) => {
-      const target = event.target;
-
-      if (
-        target &&
-        typeof target.closest === 'function' &&
-        target.closest('button')
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      setOpen(!panel.classList.contains('is-open'));
-    });
-
-    panel.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        setOpen(!panel.classList.contains('is-open'));
-      } else if (event.key === 'Escape') {
-        setOpen(false);
-        panel.blur();
-      }
-    });
-
-    document.addEventListener('click', (event) => {
-      if (!panel.contains(event.target)) {
-        setOpen(false);
-      }
-    });
-  }
-
 
   function buildRecordsSignature(records) {
     const list =
@@ -3189,6 +3101,80 @@
     return item;
   }
 
+
+  function shouldHideRecordFromMainList(record) {
+    const stage =
+      String(
+        record && record.operationalStage || ''
+      ).toUpperCase();
+
+    return stage === 'WAITING_DOCUMENT_RETURN';
+  }
+
+  function handleReceivingCommittedEvent(detail) {
+    const payload =
+      detail && typeof detail === 'object'
+        ? detail
+        : {};
+
+    const recordId =
+      String(
+        payload.recordId || ''
+      ).trim();
+
+    if (!recordId || !Array.isArray(state.records) || state.records.length === 0) {
+      return;
+    }
+
+    let changed = false;
+
+    state.records = state.records.map((record) => {
+      if (String(record && record.recordId || '').trim() !== recordId) {
+        return record;
+      }
+
+      changed = true;
+
+      const next = Object.assign({}, record);
+      const stageMeta =
+        getOperationalStageMeta(
+          'WAITING_DOCUMENT_RETURN'
+        );
+      const completedAt =
+        String(
+          payload.receivingCompleteAt ||
+          next.receivingCompleteAt ||
+          next.workflowReceivingCompletedAt ||
+          ''
+        ).trim();
+
+      next.receivingCompleteAt = completedAt;
+      next.workflowReceivingCompletedAt = completedAt;
+      next.operationalStage = 'WAITING_DOCUMENT_RETURN';
+      next.operationalStageLabel = stageMeta.label;
+      next.operationalStageDescription = stageMeta.description;
+      next.operationalStageOrder = stageMeta.order;
+      next.canCompleteReceiving = false;
+      next.receivingEnabled = true;
+      next.workflowStatusCode = 'RECEIVING_COMPLETED';
+      next.workflowStatusLabel = 'รับสินค้าเสร็จแล้ว';
+
+      return normalizeOperationalRecord(next);
+    });
+
+    if (!changed) {
+      return;
+    }
+
+    state.recordsSignature =
+      buildRecordsSignature(
+        state.records
+      );
+
+    renderOperationalBoard();
+    applyFiltersAndRender();
+  }
+
   function recordMatchesOperationalStage(record) {
     const filter =
       String(
@@ -3196,12 +3182,15 @@
         'ALL'
       ).toUpperCase();
 
-    return (
-      filter === 'ALL' ||
-      String(
-        record.operationalStage || ''
-      ).toUpperCase() === filter
-    );
+    if (filter === 'ALL') {
+      return !shouldHideRecordFromMainList(
+        record
+      );
+    }
+
+    return String(
+      record.operationalStage || ''
+    ).toUpperCase() === filter;
   }
 
   function recordMatchesShiftFilter(record) {
@@ -8011,77 +8000,27 @@
   }
 
   function startAutoRefresh() {
-    stopAutoRefresh();
-
-    state.revisionPollFailures = 0;
-    state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
-
-    if (
-      document.visibilityState === 'visible' &&
-      navigator.onLine &&
-      !state.destroyed
-    ) {
-      scheduleNextRevisionCheck(REVISION_POLL_MIN_MS);
-    }
-
-    updateAutoRefreshStatus();
-  }
-
-  function stopAutoRefresh() {
     if (state.refreshTimer) {
-      window.clearTimeout(state.refreshTimer);
-      state.refreshTimer = null;
-    }
-  }
-
-  function scheduleNextRevisionCheck(delayMs) {
-    stopAutoRefresh();
-
-    if (
-      state.destroyed ||
-      document.visibilityState !== 'visible' ||
-      !navigator.onLine
-    ) {
-      return;
+      window.clearInterval(state.refreshTimer);
     }
 
-    const delay = Math.max(
-      250,
-      Number(delayMs) || state.revisionPollDelayMs || REVISION_POLL_MIN_MS
-    );
-
-    state.refreshTimer = window.setTimeout(
+    state.refreshTimer = window.setInterval(
       () => {
-        state.refreshTimer = null;
+        if (
+          state.destroyed ||
+          document.visibilityState !== 'visible' ||
+          state.refreshInProgress ||
+          state.revisionCheckInProgress
+        ) {
+          return;
+        }
+
         void checkOperationalBoardRevision();
       },
-      delay
-    );
-  }
-
-  function hasActiveCardWrite() {
-    return Boolean(
-      document.querySelector(
-        '.vehicle-card[data-receiving-save-state], .vehicle-card[aria-busy="true"]'
-      )
-    );
-  }
-
-  function resetRevisionBackoff() {
-    state.revisionPollFailures = 0;
-    state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
-  }
-
-  function increaseRevisionBackoff() {
-    state.revisionPollFailures = Math.min(
-      6,
-      Number(state.revisionPollFailures || 0) + 1
+      8000
     );
 
-    state.revisionPollDelayMs = Math.min(
-      REVISION_POLL_MAX_MS,
-      REVISION_POLL_MIN_MS * Math.pow(2, state.revisionPollFailures)
-    );
+    updateAutoRefreshStatus();
   }
 
   async function checkOperationalBoardRevision() {
@@ -8089,15 +8028,12 @@
       state.revisionCheckInProgress ||
       state.refreshInProgress ||
       state.destroyed ||
-      !navigator.onLine ||
-      document.visibilityState !== 'visible'
+      !navigator.onLine
     ) {
-      scheduleNextRevisionCheck(state.revisionPollDelayMs);
       return;
     }
 
     state.revisionCheckInProgress = true;
-    state.revisionPollLastAt = Date.now();
 
     try {
       const revision = await API.getOperationalBoard(
@@ -8108,8 +8044,6 @@
         }
       );
 
-      resetRevisionBackoff();
-
       if (
         revision &&
         revision.unchanged === true
@@ -8117,34 +8051,16 @@
         return;
       }
 
-      /*
-       * ห้ามโหลด Full Snapshot ทับการ์ดที่กำลัง Commit/Verify อยู่
-       * การ์ดอื่นยังใช้งานต่อได้ และจะตรวจ Revision ใหม่ในรอบถัดไป
-       */
-      if (hasActiveCardWrite()) {
-        scheduleNextRevisionCheck(REVISION_POLL_MIN_MS);
-        return;
-      }
-
       await loadRecords({
         silentError: true,
         showSuccessToast: false,
         forceRender: false,
-        forceRefresh: true,
-        background: true
+        forceRefresh: true
       });
     } catch (error) {
-      increaseRevisionBackoff();
-      console.warn(
-        'ตรวจ Board Revision ไม่สำเร็จ จะลองใหม่แบบ Adaptive Backoff',
-        error
-      );
+      console.warn('ตรวจ Board Revision ไม่สำเร็จ', error);
     } finally {
       state.revisionCheckInProgress = false;
-
-      if (!state.destroyed) {
-        scheduleNextRevisionCheck(state.revisionPollDelayMs);
-      }
     }
   }
 
@@ -8936,62 +8852,12 @@
     redirectToLogin();
   }
 
-  function normalizeSessionRole(session) {
-    const user =
-      session &&
-      session.user &&
-      typeof session.user === 'object'
-        ? session.user
-        : session || {};
-
-    const role = String(user.role || '')
-      .trim()
-      .toUpperCase();
-
-    if (role === 'ADMIN') return 'ADMIN';
-    if (role === 'INBOUND') return 'INBOUND';
-    if (role === 'USER') return 'USER';
-
-    return '';
-  }
-
-  function clearLegacyInboundRouteArtifacts() {
-    const keys = [
-      'vcw_inbound_only',
-      'alertvendor_user',
-      'alertvendor_current_user',
-      'currentUser',
-      'auth_user',
-      'user',
-      'vehicle_status_user',
-      'alertvendor_session',
-      'alertvendor_access_token',
-      'alertvendor_access_token_v1',
-      'alertvendor_token',
-      'alertvendorAccessToken',
-      'access_token',
-      'accessToken',
-      'token',
-      'sessionToken',
-      'authToken',
-      'vehicle_status_access_token',
-      'vehicle_access_token'
-    ];
-
-    [window.sessionStorage, window.localStorage]
-      .forEach((storage) => {
-        keys.forEach((key) => {
-          try {
-            storage.removeItem(key);
-          } catch (error) {
-            /* Browser อาจปิด Storage บางชนิด */
-          }
-        });
-      });
-  }
-
   function isAdmin() {
-    return normalizeSessionRole(state.session) === 'ADMIN';
+    return Boolean(
+      state.session &&
+      state.session.user &&
+      state.session.user.role === 'ADMIN'
+    );
   }
 
   function updateServerOffset(generatedAt) {
@@ -9431,13 +9297,6 @@
       './index.html';
   }
 
-  function redirectToInbound() {
-    window.location.replace(
-      CONFIG.INBOUND_URL ||
-      './inbound.html'
-    );
-  }
-
   function redirectToLogin() {
     window.location.replace(
       CONFIG.LOGIN_URL ||
@@ -9495,11 +9354,11 @@
 
   function destroyPage() {
     state.destroyed = true;
-    stopAutoRefresh();
 
     [
       state.clockTimer,
       state.durationTimer,
+      state.refreshTimer,
       state.autoClosePersistTimer,
       state.timelineSnapTimer
     ].forEach((timer) => {
