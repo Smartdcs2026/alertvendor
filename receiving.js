@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.17-r18-fast-response-background-sync';
+    '2026.07.17-round2-durable-transaction-recovery';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
@@ -23,7 +23,11 @@
   const STORAGE_PREFIX =
     'alertvendor:receiving-pending:v3:';
   const SYNC_STORAGE_PREFIX =
-    'alertvendor:receiving-sync:v1:';
+    'alertvendor:receiving-sync:v2:';
+  const TAB_LEASE_PREFIX =
+    'alertvendor:receiving-lease:v1:';
+  const TAB_LEASE_MS = 45000;
+  const RECOVERY_BATCH_SIZE = 10;
 
   const inFlight = new Set();
   let recoveryRunning = false;
@@ -222,7 +226,12 @@ function initialize() {
         createRequestId(),
 
       queuedAt:
-        Date.now()
+        Date.now(),
+
+      attempts: 0,
+      nextAttemptAt: 0,
+      status: 'PENDING',
+      lastErrorCode: ''
     };
   }
 async function executeReceiving(
@@ -258,6 +267,22 @@ async function executeReceiving(
           'ไม่พบ API สำหรับบันทึกรับสินค้าเสร็จ',
           'RECEIVING_API_MISSING'
         );
+      }
+      return;
+    }
+
+    const lease = acquireRecordLease(recordId,payload.clientRequestId);
+    if (!lease.acquired) {
+      setCardLiveStatus(
+        recordId,
+        'VERIFYING',
+        'อีกแท็บกำลังส่งรายการนี้ ระบบจะตรวจยืนยันผลแทนการส่งซ้ำ'
+      );
+      const verified = await verifyCommit(moduleId,payload);
+      if (verified && verified.completed === true) {
+        removePendingRequest(recordId);
+        applyCommittedState(recordId,verified,button);
+        enqueueWorkflowSync(moduleId,payload,verified);
       }
       return;
     }
@@ -322,6 +347,15 @@ async function executeReceiving(
           isTemporaryError(error) ||
           navigator.onLine === false
         ) {
+          const nextAttempts = Number(payload.attempts || 0) + 1;
+          savePendingRequest({
+            ...payload,
+            attempts: nextAttempts,
+            status: isNetworkOrTimeoutError(error) ? 'UNKNOWN' : 'RETRY_WAIT',
+            lastErrorCode: String(error && error.code || ''),
+            lastErrorAt: Date.now(),
+            nextAttemptAt: Date.now() + Math.max(900,retryDelay(error,nextAttempts))
+          });
           closeSavingProgress();
           setButtonQueued(button);
           setCardLiveStatus(
@@ -436,6 +470,7 @@ async function executeReceiving(
       }
     } finally {
       inFlight.delete(recordId);
+      releaseRecordLease(recordId,payload.clientRequestId);
       if (!hasPendingRequest(recordId)) {
         setButtonLoading(button, false);
       }
@@ -691,75 +726,62 @@ function enqueueWorkflowSync(
     return error;
   }
 
-  async function recoverPendingRequests() {
-    if (
-      recoveryRunning ||
-      navigator.onLine ===
-        false
-    ) {
-      return;
-    }
+async function recoverPendingRequests() {
+    if (recoveryRunning || navigator.onLine === false) return;
 
-    const entries =
-      readPendingRequests();
+    const entries = readPendingRequests()
+      .filter((payload) => Number(payload.nextAttemptAt || 0) <= Date.now())
+      .slice(0,RECOVERY_BATCH_SIZE);
 
-    if (!entries.length) {
-      return;
-    }
+    if (!entries.length) return;
 
-    recoveryRunning =
-      true;
+    recoveryRunning = true;
 
     try {
-      for (
-        const payload of entries
-      ) {
-        if (
-          Date.now() -
-            Number(
-              payload.queuedAt ||
-              0
-            ) >
-          PENDING_MAX_AGE_MS
-        ) {
-          removePendingRequest(
-            payload.recordId
-          );
+      for (const payload of entries) {
+        if (Date.now() - Number(payload.queuedAt || 0) > PENDING_MAX_AGE_MS) {
+          removePendingRequest(payload.recordId);
           continue;
         }
 
-        const button =
-          findReceivingButton(
-            payload.recordId
-          );
-
-        const record =
-          window.VehicleModule &&
-          typeof window.VehicleModule
-            .getRecord ===
-            'function'
-            ? window.VehicleModule
-                .getRecord(
-                  payload.recordId
-                )
+        const moduleId = payload.moduleId || getModuleId();
+        const button = findReceivingButton(payload.recordId);
+        const record = window.VehicleModule &&
+          typeof window.VehicleModule.getRecord === 'function'
+            ? window.VehicleModule.getRecord(payload.recordId)
             : null;
 
-        await executeReceiving(
-          payload,
-          record,
-          button,
-          {
-            interactive:
-              false
+        if (String(payload.status || '').toUpperCase() === 'UNKNOWN') {
+          const verified = await verifyCommit(moduleId,payload);
+          if (verified && verified.completed === true) {
+            removePendingRequest(payload.recordId);
+            applyCommittedState(payload.recordId,verified,button);
+            enqueueWorkflowSync(moduleId,payload,verified);
+            continue;
           }
-        );
-      }
+          if (verified && verified.staleRecord === true) {
+            removePendingRequest(payload.recordId);
+            applyStaleRecordState(payload.recordId,verified,button);
+            scheduleBoardRefresh();
+            continue;
+          }
+        }
 
+        const nextPayload = {
+          ...payload,
+          attempts: Number(payload.attempts || 0) + 1,
+          status: 'SENDING',
+          lastAttemptAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        savePendingRequest(nextPayload);
+        await executeReceiving(nextPayload,record,button,{ interactive: false });
+      }
     } finally {
-      recoveryRunning =
-        false;
+      recoveryRunning = false;
     }
   }
+
 
   function applyCommittedState(
     recordId,
@@ -1642,6 +1664,68 @@ async function showSuccess(
     );
   }
 
+  function recordLeaseKey(recordId) {
+    return TAB_LEASE_PREFIX + getModuleId() + ':' + String(recordId || '');
+  }
+
+  function acquireRecordLease(recordId,requestId) {
+    const key=recordLeaseKey(recordId);
+    const now=Date.now();
+    const owner=createTabId();
+    try {
+      const current=JSON.parse(localStorage.getItem(key) || 'null');
+      if (
+        current &&
+        Number(current.expiresAt || 0) > now &&
+        current.owner !== owner
+      ) {
+        return { acquired:false, owner:current.owner || '' };
+      }
+      localStorage.setItem(key,JSON.stringify({
+        owner:owner,
+        requestId:String(requestId || ''),
+        expiresAt:now + TAB_LEASE_MS
+      }));
+      const verified=JSON.parse(localStorage.getItem(key) || 'null');
+      return { acquired:Boolean(verified && verified.owner===owner), owner:owner };
+    } catch (error) {
+      return { acquired:true, owner:owner, fallback:true };
+    }
+  }
+
+  function releaseRecordLease(recordId,requestId) {
+    const key=recordLeaseKey(recordId);
+    try {
+      const current=JSON.parse(localStorage.getItem(key) || 'null');
+      if (
+        !current ||
+        current.owner===createTabId() ||
+        current.requestId===String(requestId || '')
+      ) {
+        localStorage.removeItem(key);
+      }
+    } catch (error) {
+      localStorage.removeItem(key);
+    }
+  }
+
+  function createTabId() {
+    const key='alertvendor:receiving-tab-id:v1';
+    try {
+      let value=sessionStorage.getItem(key);
+      if (!value) {
+        value='RTAB-'+createRequestId();
+        sessionStorage.setItem(key,value);
+      }
+      return value;
+    } catch (error) {
+      if (!window.__alertVendorReceivingTabId) {
+        window.__alertVendorReceivingTabId='RTAB-'+createRequestId();
+      }
+      return window.__alertVendorReceivingTabId;
+    }
+  }
+
   function storageKey() {
     return (
       STORAGE_PREFIX +
@@ -1694,32 +1778,34 @@ async function showSuccess(
     );
   }
 
-  function savePendingRequest(
+function savePendingRequest(
     payload
   ) {
     try {
-      const map =
-        readPendingMap();
+      const map = readPendingMap();
+      const existing = map[payload.recordId] || {};
+      map[payload.recordId] = {
+        ...existing,
+        ...payload,
+        clientRequestId:
+          payload.clientRequestId || existing.clientRequestId || createRequestId(),
+        requestId:
+          payload.clientRequestId || existing.clientRequestId || payload.requestId || '',
+        queuedAt:
+          Number(existing.queuedAt || payload.queuedAt) || Date.now(),
+        updatedAt: Date.now(),
+        attempts: Number(payload.attempts || existing.attempts || 0),
+        nextAttemptAt: Number(payload.nextAttemptAt || existing.nextAttemptAt || 0),
+        status: String(payload.status || existing.status || 'PENDING'),
+        lastErrorCode: String(payload.lastErrorCode || existing.lastErrorCode || '')
+      };
 
-      map[
-        payload.recordId
-      ] =
-        payload;
-
-      localStorage.setItem(
-        storageKey(),
-        JSON.stringify(
-          map
-        )
-      );
-
+      localStorage.setItem(storageKey(),JSON.stringify(map));
     } catch (error) {
-      console.warn(
-        'บันทึก Pending Receiving ไม่สำเร็จ',
-        error
-      );
+      console.warn('บันทึก Pending Receiving ไม่สำเร็จ',error);
     }
   }
+
 
   function removePendingRequest(
     recordId
