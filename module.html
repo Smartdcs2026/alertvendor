@@ -13,7 +13,7 @@
     content="#0f3d5e"
   >
 
-  <!-- 20260717-round3-r2-mobile-two-cards: mobile shows exactly two cards per row and restores Dashboard launcher -->
+  <!-- 20260717-round3-r3-snapshot-status-dock: mobile two cards + Dashboard launcher + compact server status -->
   <title>
     สถานะรถ | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
@@ -63,7 +63,7 @@
 
   <link
     rel="stylesheet"
-    href="./module-workspace-compact.css?v=20260717-round3-responsive-r2"
+    href="./module-workspace-compact.css?v=20260717-round3-responsive-r3-status-dock"
   >
 
 
@@ -308,7 +308,7 @@
   ></script>
 
   <script
-    src="./module.js?v=20260717-round3-adaptive-revision"
+    src="./module.js?v=20260717-round3-r3-status-dock"
     defer
   ></script>
 
@@ -441,6 +441,38 @@
         </div>
 
         <div class="module-clock">
+          <section
+            id="moduleSnapshotState"
+            class="module-snapshot-state module-snapshot-state--compact"
+            data-state="LOADING"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label="กำลังตรวจสอบสถานะข้อมูลจากระบบ"
+            aria-expanded="false"
+            tabindex="0"
+          >
+            <span class="module-snapshot-state__dot" aria-hidden="true"></span>
+
+            <div class="module-snapshot-state__popover">
+              <div class="module-snapshot-state__body">
+                <strong id="moduleSnapshotTitle">กำลังตรวจสอบข้อมูล</strong>
+                <span id="moduleSnapshotDetail">กำลังยืนยันข้อมูลจากระบบ</span>
+              </div>
+
+              <div class="module-snapshot-state__actions">
+                <button
+                  id="moduleSnapshotRetry"
+                  class="button button--secondary module-snapshot-state__retry"
+                  type="button"
+                  hidden
+                >
+                  โหลดข้อมูลอีกครั้ง
+                </button>
+              </div>
+            </div>
+          </section>
+
           <span class="module-clock__live">
             <i aria-hidden="true"></i>
             LIVE
@@ -826,33 +858,6 @@
         </span>
       </div>
     </section>
-
-    <section
-      id="moduleSnapshotState"
-      class="module-snapshot-state"
-      data-state="LOADING"
-      data-mobile-workspace-section="LIST"
-      role="status"
-      aria-live="polite"
-    >
-      <div class="module-snapshot-state__body">
-        <strong id="moduleSnapshotTitle">กำลังตรวจสอบ Snapshot</strong>
-        <span id="moduleSnapshotDetail">กำลังอ่านสถานะปฏิบัติงานจาก Backend</span>
-      </div>
-
-      <div class="module-snapshot-state__actions">
-        <span id="modulePendingWrites" data-pending="FALSE">ไม่มีรายการค้างส่ง</span>
-        <button
-          id="moduleSnapshotRetry"
-          class="button button--secondary module-snapshot-state__retry"
-          type="button"
-          hidden
-        >
-          โหลดข้อมูลสดอีกครั้ง
-        </button>
-      </div>
-    </section>
-
 
     <div
       id="vehicleEmpty"
