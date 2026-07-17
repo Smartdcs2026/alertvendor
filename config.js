@@ -3,7 +3,7 @@
  * การตั้งค่าฝั่ง Frontend
  *
  * ห้ามใส่ Secret ทุกชนิดในไฟล์นี้
- * R3R4 HOTFIX: Restore APP_CONFIG + stable API routing
+ * R3R4 HOTFIX 02: Restore APP_CONFIG + canonical Inbound bootstrap
  */
 (function (window) {
   'use strict';
@@ -36,6 +36,13 @@
      */
     INBOUND_FORCE_CANONICAL_MODULE:
       true,
+
+    /*
+     * รหัส Module หลักที่หน้า Inbound ใช้งาน
+     * ใช้เป็น Public Routing ID เท่านั้น ไม่ใช่ Secret
+     */
+    INBOUND_DEFAULT_MODULE_ID:
+      'vendors',
 
     INBOUND_CANONICAL_MODULE_NAME:
       'สถานะรถ Vendor ทั่วไป',
