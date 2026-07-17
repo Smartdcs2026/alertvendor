@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * PHASE 4E ROUND 01 — Admin SLA, Full Cohort Summary, Realtime Revision
+ * PHASE 4E ROUND 01 + HOTFIX 2026-07-17 — Canonical INBOUND bootstrap
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -399,15 +399,72 @@
   }
 
   async function loadModules() {
-    if (!API || typeof API.getModules !== 'function') {
-      state.modules = [{moduleId: 'DEFAULT', name: 'Default Module'}];
-      state.moduleId = 'DEFAULT';
+    const params = new URLSearchParams(window.location.search);
+    const requested = String(
+      params.get('module') ||
+      params.get('id') ||
+      ''
+    ).trim();
+
+    /*
+     * HOTFIX 2026-07-17 — Canonical Inbound Bootstrap
+     *
+     * หน้า Inbound ถูกกำหนดให้ใช้ Module หน้างานจริงเพียง Module เดียว
+     * จึงไม่ควรเรียก Generic GET /api/modules ซึ่งถูกสงวนไว้ให้ USER/ADMIN
+     * ตามนโยบายสิทธิ์ของระบบ
+     *
+     * วิธีนี้ไม่ลดสิทธิ์ฝั่ง Worker และไม่สร้าง API/ไฟล์เสริมใหม่:
+     * - INBOUND ยังเข้าได้เฉพาะ inbound.html
+     * - งาน Workflow ยังคงเรียก /api/workflow/modules/:moduleId/...
+     * - Worker และ Apps Script ยังตรวจ Session/Role ทุกคำขอ
+     */
+    if (CONFIG.INBOUND_FORCE_CANONICAL_MODULE === true) {
+      const canonicalModuleId = String(
+        CONFIG.INBOUND_DEFAULT_MODULE_ID ||
+        requested ||
+        'vendors'
+      ).trim();
+
+      if (!canonicalModuleId) {
+        throw createClientError(
+          'INBOUND_MODULE_ID_MISSING',
+          'ไม่พบรหัส Module หลักสำหรับห้อง Inbound'
+        );
+      }
+
+      const canonicalModuleName = String(
+        CONFIG.INBOUND_CANONICAL_MODULE_NAME ||
+        'สถานะรถ Vendor ทั่วไป'
+      ).trim();
+
+      state.modules = [{
+        moduleId: canonicalModuleId,
+        id: canonicalModuleId,
+        name: canonicalModuleName || canonicalModuleId,
+        moduleName: canonicalModuleName || canonicalModuleId,
+        status: 'PUBLISHED',
+        accessScope: 'INBOUND_CANONICAL'
+      }];
+
+      state.moduleId = canonicalModuleId;
       renderModuleSelect();
       return;
     }
 
+    if (!API || typeof API.getModules !== 'function') {
+      throw createClientError(
+        'MODULE_API_NOT_READY',
+        'ไม่พบ API สำหรับโหลดรายการ Module'
+      );
+    }
+
     const data = await API.getModules();
-    const list = Array.isArray(data) ? data : Array.isArray(data && data.modules) ? data.modules : [];
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data && data.modules)
+        ? data.modules
+        : [];
+
     state.modules = list
       .map((item) => ({
         moduleId: String(item.moduleId || item.id || '').trim(),
@@ -416,20 +473,14 @@
       }))
       .filter((item) => item.moduleId);
 
-    const params = new URLSearchParams(window.location.search);
-    const requested = String(params.get('module') || params.get('id') || '').trim();
     const canonical = findCanonicalInboundModule();
 
-    /*
-     * Hotfix 32:
-     * หน้า Inbound ต้องใช้แหล่งข้อมูลเดียวกันทั้ง ADMIN และ INBOUND
-     * จึงบังคับ default เป็นโมดูลหน้างานจริง ไม่ให้ ADMIN ไปเริ่มที่ Makro
-     */
-    if (CONFIG.INBOUND_FORCE_CANONICAL_MODULE && canonical) {
-      state.moduleId = canonical.moduleId;
-    } else if (requested && moduleExists(requested)) {
+    if (requested && moduleExists(requested)) {
       state.moduleId = requested;
-    } else if (CONFIG.INBOUND_DEFAULT_MODULE_ID && moduleExists(CONFIG.INBOUND_DEFAULT_MODULE_ID)) {
+    } else if (
+      CONFIG.INBOUND_DEFAULT_MODULE_ID &&
+      moduleExists(CONFIG.INBOUND_DEFAULT_MODULE_ID)
+    ) {
       state.moduleId = CONFIG.INBOUND_DEFAULT_MODULE_ID;
     } else if (canonical) {
       state.moduleId = canonical.moduleId;
