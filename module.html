@@ -13,7 +13,7 @@
     content="#0f3d5e"
   >
 
-  <!-- 20260717-module-desktop-card-layout-hotfix: compact desktop cards + stable mobile two-card grid -->
+  <!-- 20260711-r06-09-2a-vendor-module-rebase-stable: restored stable Vendor Module base, removed 09.1 mobile/work-queue patch scripts -->
   <title>
     สถานะรถ | ระบบติดตามสถานะรถและตู้สินค้า
   </title>
@@ -42,7 +42,7 @@
 
   <link
     rel="stylesheet"
-    href="./dashboard-link.css?v=20260717-round3-r4-professional-header"
+    href="./dashboard-link.css?v=20260702-r45-dashboard-contrast"
   >
 
   <link
@@ -63,68 +63,8 @@
 
   <link
     rel="stylesheet"
-    href="./module-workspace-compact.css?v=20260717-round3-r4-professional-ui"
+    href="./module-workspace-compact.css?v=20260713-compact-workspace-r1"
   >
-
-
-  <style id="moduleDesktopCardLayoutHotfix">
-    /*
-     * MODULE DESKTOP CARD LAYOUT HOTFIX — 2026-07-17
-     *
-     * ป้องกัน auto-fit + 1fr ยืดการ์ดจำนวนน้อยจนเต็มหน้าจอ
-     * Desktop/Tablet ใช้ความกว้างการ์ดแบบควบคุมได้
-     * Mobile ยังคง 2 การ์ดต่อหนึ่งแถวตาม Baseline ล่าสุด
-     */
-    @media (min-width: 768px) {
-      body.module-page .vehicle-grid {
-        grid-template-columns:
-          repeat(auto-fill, minmax(290px, 330px)) !important;
-        justify-content: start !important;
-        align-items: start !important;
-        width: 100% !important;
-        max-width: 100% !important;
-      }
-
-      body.module-page .vehicle-card {
-        width: 100% !important;
-        max-width: 330px !important;
-        align-self: start !important;
-        justify-self: stretch !important;
-      }
-
-      /*
-       * กันข้อความส่วนหัวจาก CSS รุ่นเก่าวางซ้อนกัน
-       */
-      body.module-page .module-command-brand__text {
-        display: grid !important;
-        grid-template-rows: auto auto auto !important;
-        align-content: center !important;
-        row-gap: 1px !important;
-        overflow: hidden !important;
-      }
-
-      body.module-page .module-live-label,
-      body.module-page #moduleTitle,
-      body.module-page #moduleDescription {
-        position: static !important;
-        inset: auto !important;
-        transform: none !important;
-        margin: 0 !important;
-      }
-    }
-
-    @media (max-width: 767px) {
-      body.module-page .vehicle-grid {
-        grid-template-columns:
-          repeat(2, minmax(0, 1fr)) !important;
-        justify-content: stretch !important;
-      }
-
-      body.module-page .vehicle-card {
-        max-width: none !important;
-      }
-    }
-  </style>
 
 
   <!--
@@ -337,80 +277,18 @@
   </style>
 
 
-  <script id="moduleRouteSessionIsolation">
-    (function () {
-      'use strict';
-
-      window.__ALERT_VENDOR_PAGE_INTENT__ = 'MODULE';
-
-      var currentTokenKey = 'alertvendor_access_token_v2';
-      var legacyTokenKeys = [
-        'alertvendor_access_token',
-        'alertvendor_access_token_v1',
-        'alertvendor_token',
-        'alertvendorAccessToken',
-        'access_token',
-        'accessToken',
-        'token',
-        'sessionToken',
-        'authToken',
-        'vehicle_status_access_token',
-        'vehicle_access_token'
-      ];
-      var staleRoleKeys = [
-        'vcw_inbound_only',
-        'alertvendor_user',
-        'alertvendor_current_user',
-        'currentUser',
-        'auth_user',
-        'user',
-        'vehicle_status_user',
-        'alertvendor_session'
-      ];
-
-      function remove(storage, key) {
-        try {
-          storage.removeItem(key);
-        } catch (error) {}
-      }
-
-      [window.sessionStorage, window.localStorage].forEach(function (storage) {
-        staleRoleKeys.forEach(function (key) {
-          remove(storage, key);
-        });
-      });
-
-      /* localStorage ไม่ใช่แหล่ง Session ปัจจุบัน ล้าง Token รุ่นเก่าได้ทันที */
-      legacyTokenKeys.forEach(function (key) {
-        remove(window.localStorage, key);
-      });
-
-      /* เมื่อมี Token ปัจจุบันแล้ว ให้ล้าง Token รุ่นเก่าใน sessionStorage ด้วย */
-      var hasCurrentToken = false;
-      try {
-        hasCurrentToken = Boolean(window.sessionStorage.getItem(currentTokenKey));
-      } catch (error) {}
-
-      if (hasCurrentToken) {
-        legacyTokenKeys.forEach(function (key) {
-          remove(window.sessionStorage, key);
-        });
-      }
-    })();
-  </script>
-
   <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
     defer
   ></script>
 
   <script
-    src="./config.js?v=20260717-r3r4-hotfix-api-config-route-v2"
+    src="./config.js"
     defer
   ></script>
 
   <script
-    src="./api.js?v=20260717-r3r4-hotfix-api-config-route-v2"
+    src="./api.js?v=20260717-phase5-r3-hotfix02-fast-response"
     defer
   ></script>
 
@@ -430,13 +308,13 @@
   ></script>
 
   <script
-    src="./module.js?v=20260717-r3r4-hotfix-api-config-route-v2"
+    src="./module.js?v=20260717-r3r4-material-mainlist-cleanup"
     defer
   ></script>
 
 
   <script
-    src="./receiving.js?v=20260717-round3-card-progress"
+    src="./receiving.js?v=20260717-r3r4-receiving-clarity"
     defer
   ></script>
 
@@ -446,7 +324,7 @@
   ></script>
 
   <script
-    src="./dashboard-link.js?v=20260717-round3-r4-professional-header"
+    src="./dashboard-link.js?v=20260702-r45-dashboard-contrast"
     defer
   ></script>
 
@@ -456,11 +334,138 @@
   ></script>
 
   <script
-    src="./module-workspace-compact.js?v=20260717-round3-r4-professional-ui"
+    src="./module-workspace-compact.js?v=20260713-compact-workspace-r1"
     defer
   ></script>
 
 
+
+  <style id="receivingProgressHotfixStyles">
+    .receiving-progress-popup { width:min(620px,calc(100vw - 24px)) !important; border-radius:22px !important; padding:0 !important; overflow:hidden !important; }
+    .receiving-progress-html { margin:0 !important; padding:0 !important; }
+    .receiving-progress-panel { display:grid; gap:14px; padding:26px 28px 24px; color:#123a50; text-align:center; }
+    .receiving-progress-spinner { width:58px; height:58px; margin:0 auto; border:6px solid #dceaf0; border-top-color:#087c9e; border-radius:50%; animation:receiving-spin .8s linear infinite; }
+    .receiving-progress-eyebrow { margin:0; color:#087d78; font-size:11px; font-weight:950; letter-spacing:.12em; }
+    .receiving-progress-panel h2 { margin:-6px 0 0; color:#082f49; font-size:clamp(1.3rem,3vw,1.75rem); }
+    .receiving-progress-identity { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .receiving-progress-identity span { display:grid; gap:3px; padding:10px 12px; border:1px solid #d7e5eb; border-radius:12px; background:#f7fbfd; color:#647b87; font-size:12px; text-align:left; }
+    .receiving-progress-identity strong { overflow:hidden; color:#0b3954; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
+    .receiving-progress-meter { height:9px; overflow:hidden; border-radius:999px; background:#dce9ef; }
+    .receiving-progress-meter i { display:block; width:6%; height:100%; border-radius:inherit; background:linear-gradient(90deg,#0b7898,#10a37f); transition:width .25s ease; }
+    .receiving-progress-message { min-height:24px; margin:0; color:#153f55; font-size:15px; font-weight:900; }
+    .receiving-progress-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+    .receiving-progress-steps>div { display:grid; place-items:center; align-content:start; gap:6px; min-height:76px; padding:8px 5px; border:1px solid #dce7ec; border-radius:11px; background:#f7fafc; color:#84949d; font-size:10px; font-weight:850; line-height:1.25; }
+    .receiving-progress-steps b { display:grid; place-items:center; width:27px; height:27px; border-radius:50%; background:#e2ebef; color:#637782; font-size:12px; }
+    .receiving-progress-steps>div.is-active { border-color:#42a5be; background:#eaf8fc; color:#075b77; }
+    .receiving-progress-steps>div.is-active b { background:#087c9e; color:#fff; box-shadow:0 0 0 4px rgba(8,124,158,.12); }
+    .receiving-progress-steps>div.is-done { border-color:#79cdb5; background:#edf9f5; color:#08745b; }
+    .receiving-progress-steps>div.is-done b { background:#0d9b75; color:#fff; }
+    .receiving-progress-panel>small { color:#5e7784; font-weight:800; }
+    .receiving-progress-hint { margin:0; padding:9px 11px; border-radius:10px; background:#fff8e8; color:#7e5c16; font-size:12px; font-weight:800; }
+    .receiving-live-status { display:flex; align-items:center; justify-content:center; gap:8px; min-height:36px; margin-top:8px; padding:8px 10px; border:1px solid #7fc5d7; border-radius:10px; background:#eaf8fc; color:#075b77; font-size:11px; font-weight:900; text-align:center; }
+    .receiving-live-status i { width:14px; height:14px; flex:0 0 auto; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:receiving-spin .7s linear infinite; }
+    .receiving-live-status[data-state="QUEUED"] { border-color:#e9bd5c; background:#fff8e7; color:#8a5a00; }
+    .receiving-live-status[data-state="ERROR"] { border-color:#ef9b9b; background:#fff0f0; color:#a62020; }
+    .receiving-live-status[data-state="COMMITTED"],.receiving-live-status[data-state="SYNCED"] { border-color:#69c9ad; background:#ecfaf5; color:#08745b; }
+    .receiving-live-status[data-state="SYNC_PENDING"] { border-color:#efc363; background:#fff8e7; color:#825600; }
+    .receiving-live-status[data-state="STALE"] { border-color:#a8bac3; background:#f2f6f8; color:#506874; }
+    .receiving-success-subtext { margin-top:8px; color:#55717e; font-size:13px; font-weight:750; }
+    .receiving-complete-button.is-receiving-saving,.receiving-complete-button.is-receiving-queued { position:relative; opacity:1 !important; }
+    .receiving-queued-note { margin:10px 0; padding:9px 12px; border-radius:10px; background:#eef6f9; color:#355b6c; font-weight:800; }
+    @keyframes receiving-spin { to { transform:rotate(360deg); } }
+    @media (max-width:560px) { .receiving-progress-panel { gap:11px; padding:20px 14px 18px; } .receiving-progress-identity { grid-template-columns:1fr; } .receiving-progress-steps { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (prefers-reduced-motion:reduce) { .receiving-progress-spinner,.receiving-live-status i { animation-duration:1.8s; } }
+  </style>
+
+
+  <style id="moduleDesktopMaterialCleanupPatch">
+    @media (min-width: 768px) {
+      body.module-page .module-command-bar {
+        display: grid;
+        grid-template-columns: auto minmax(340px, 1.35fr) auto auto auto;
+        align-items: center;
+        gap: 14px;
+      }
+
+      body.module-page .module-command-brand {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      body.module-page .module-command-brand__text {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        gap: 2px !important;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      body.module-page .module-command-brand__text > * {
+        position: static !important;
+        inset: auto !important;
+        transform: none !important;
+        margin: 0 !important;
+      }
+
+      body.module-page .module-live-label {
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        letter-spacing: .11em !important;
+        white-space: nowrap;
+        opacity: .92;
+      }
+
+      body.module-page #moduleTitle {
+        overflow: hidden;
+        font-size: clamp(1.45rem, 1.55vw, 2rem) !important;
+        line-height: 1.08 !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      body.module-page #moduleDescription {
+        overflow: hidden;
+        color: rgba(255,255,255,.92);
+        font-size: .95rem !important;
+        line-height: 1.22 !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      body.module-page .vehicle-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+        gap: 14px !important;
+        align-items: stretch !important;
+      }
+
+      body.module-page .vehicle-card--professional {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        min-height: 0 !important;
+      }
+
+      body.module-page .vehicle-card--professional .vehicle-card__footer {
+        margin-top: auto !important;
+      }
+
+      body.module-page .vehicle-card--professional .vehicle-operational-stage {
+        margin-top: 10px;
+      }
+
+      body.module-page .receiving-live-status {
+        min-height: 0 !important;
+        margin-top: 10px !important;
+        padding: 10px 12px !important;
+        font-size: 12px !important;
+        line-height: 1.35 !important;
+      }
+    }
+  </style>
 
 </head>
 
@@ -501,6 +506,7 @@
               stroke-linejoin="round"
             />
           </svg>
+
           <span>หน้าหลัก</span>
         </button>
 
@@ -526,9 +532,20 @@
           </div>
 
           <div class="module-command-brand__text">
-            <p class="eyebrow module-live-label">VEHICLE CONTROL TOWER</p>
-            <h1 id="moduleTitle">กำลังโหลดโมดูล...</h1>
-            <p id="moduleDescription" class="module-title-description">กรุณารอสักครู่</p>
+            <p class="eyebrow module-live-label">
+              VEHICLE CONTROL TOWER
+            </p>
+
+            <h1 id="moduleTitle">
+              กำลังโหลดโมดูล...
+            </h1>
+
+            <p
+              id="moduleDescription"
+              class="module-title-description"
+            >
+              กรุณารอสักครู่
+            </p>
           </div>
         </div>
 
@@ -541,130 +558,42 @@
           aria-label="ไม่มีตู้เกินเวลาค้าง"
           title="จำนวนตู้เกินเวลาสะสมที่ยังไม่มีเวลาออก"
         >
-          <span class="overdue-app-badge__label">เกินเวลาค้าง</span>
-          <strong id="overdueAppBadgeCount">0</strong>
+          <span class="overdue-app-badge__label">
+            เกินเวลาค้าง
+          </span>
+
+          <strong id="overdueAppBadgeCount">
+            0
+          </strong>
         </div>
 
-        <div class="module-header-actions">
-          <div
-            id="moduleDashboardHost"
-            class="module-dashboard-host"
-            aria-label="ทางลัดไป Dashboard"
-          ></div>
+        <div class="module-clock">
+          <span class="module-clock__live">
+            <i aria-hidden="true"></i>
+            LIVE
+          </span>
 
-          <section
-            id="moduleSnapshotState"
-            class="module-snapshot-state module-snapshot-state--compact"
-            data-state="LOADING"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            aria-label="กำลังตรวจสอบสถานะข้อมูลจากระบบ"
-            aria-expanded="false"
-            tabindex="0"
-          >
-            <span class="module-snapshot-state__dot" aria-hidden="true"></span>
-            <div class="module-snapshot-state__popover">
-              <div class="module-snapshot-state__body">
-                <strong id="moduleSnapshotTitle">กำลังตรวจสอบข้อมูล</strong>
-                <span id="moduleSnapshotDetail">กำลังยืนยันข้อมูลจากระบบ</span>
-              </div>
-              <div class="module-snapshot-state__actions">
-                <button
-                  id="moduleSnapshotRetry"
-                  class="button button--secondary module-snapshot-state__retry"
-                  type="button"
-                  hidden
-                >
-                  โหลดข้อมูลอีกครั้ง
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <button
-            id="mobileModuleMenuButton"
-            class="module-menu-button"
-            type="button"
-            aria-label="เปิดเมนู"
-            aria-expanded="false"
-            aria-controls="mobileModuleDrawer"
-            title="เมนู"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-            </svg>
-          </button>
+          <strong id="currentDateTime">
+            --/--/---- --:--:--
+          </strong>
         </div>
 
         <div class="module-user">
-          <div class="module-user__identity">
-            <span id="userDisplayName">กำลังโหลด...</span>
-            <strong id="currentDateTime">--/--/---- --:--:--</strong>
-          </div>
-          <button id="logoutButton" class="module-command-logout" type="button">ออกจากระบบ</button>
+          <span id="userDisplayName">
+            กำลังโหลด...
+          </span>
+
+          <button
+            id="logoutButton"
+            class="module-command-logout"
+            type="button"
+          >
+            ออกจากระบบ
+          </button>
         </div>
       </div>
     </div>
   </header>
-
-  <div id="mobileModuleDrawerOverlay" class="module-mobile-menu-overlay" hidden></div>
-
-  <aside
-    id="mobileModuleDrawer"
-    class="module-mobile-menu"
-    aria-hidden="true"
-    aria-labelledby="mobileModuleDrawerTitle"
-    tabindex="-1"
-  >
-    <header class="module-mobile-menu__header">
-      <div>
-        <small>เมนูการทำงาน</small>
-        <h2 id="mobileModuleDrawerTitle">สถานะรถและตู้สินค้า</h2>
-        <p id="mobileModuleDrawerUser">กำลังอ่านข้อมูลผู้ใช้งาน</p>
-      </div>
-      <button id="mobileModuleDrawerClose" type="button" aria-label="ปิดเมนู" title="ปิดเมนู">×</button>
-    </header>
-
-    <nav class="module-mobile-menu__nav" aria-label="เมนูหน้า Module">
-      <button type="button" data-module-menu-action="DASHBOARD">
-        <span aria-hidden="true">▥</span><b>เปิด Dashboard</b>
-      </button>
-      <button type="button" data-module-menu-action="FULLSCREEN">
-        <span aria-hidden="true">⛶</span><b id="mobileMenuFullscreenLabel">เปิดเต็มหน้าจอ</b>
-      </button>
-      <button type="button" data-module-menu-action="CALENDAR">
-        <span aria-hidden="true">▣</span><b>ดูข้อมูลย้อนหลัง</b>
-      </button>
-      <button type="button" data-module-menu-action="REFRESH">
-        <span aria-hidden="true">↻</span><b>โหลดข้อมูลใหม่</b>
-      </button>
-    </nav>
-
-    <section class="module-mobile-menu__status" data-drawer-status="LOADING" aria-label="สถานะข้อมูลจากระบบ">
-      <span class="module-mobile-menu__status-dot" aria-hidden="true"></span>
-      <div>
-        <strong id="mobileDrawerSnapshotTitle">กำลังตรวจสอบข้อมูล</strong>
-        <p id="mobileDrawerSnapshotDetail">กำลังยืนยันข้อมูลล่าสุดจากระบบ</p>
-      </div>
-      <button id="mobileDrawerSnapshotRetry" type="button" hidden>ตรวจสอบอีกครั้ง</button>
-    </section>
-
-    <nav class="module-mobile-menu__nav module-mobile-menu__nav--secondary" aria-label="คำสั่งเพิ่มเติม">
-      <button type="button" data-module-menu-action="ALERT">
-        <span aria-hidden="true">◉</span><b>การแจ้งเตือน</b>
-      </button>
-      <button type="button" data-module-menu-action="THRESHOLD">
-        <span aria-hidden="true">i</span><b>เกณฑ์เวลา</b>
-      </button>
-      <button type="button" data-module-menu-action="HOME">
-        <span aria-hidden="true">⌂</span><b>กลับหน้าหลัก</b>
-      </button>
-      <button type="button" class="is-danger" data-module-menu-action="LOGOUT">
-        <span aria-hidden="true">⇥</span><b>ออกจากระบบ</b>
-      </button>
-    </nav>
-  </aside>
 
   <main class="module-container">
 
@@ -781,15 +710,15 @@
       aria-label="เลือกส่วนข้อมูล"
     >
       <button type="button" class="is-active" data-mobile-workspace="LIST" aria-pressed="true">
-        <span>รายการรถ</span>
+        <span>รายการ</span>
         <strong id="mobileTabListCount">0</strong>
       </button>
       <button type="button" data-mobile-workspace="STAGES" aria-pressed="false">
-        <span>ขั้นตอนงาน</span>
+        <span>ขั้นตอน</span>
         <strong id="mobileTabStageCount">0</strong>
       </button>
       <button type="button" data-mobile-workspace="SHIFTS" aria-pressed="false">
-        <span>ภาพรวมกะ</span>
+        <span>ตามกะ</span>
         <strong id="mobileTabShiftCount">0</strong>
       </button>
       <button type="button" data-mobile-workspace="HANDOVER" aria-pressed="false">
@@ -800,21 +729,22 @@
 
     <section
       id="operationalBoardPanel"
-      class="operational-board-panel is-professional-collapsed"
+      class="operational-board-panel"
       aria-label="สถานะปฏิบัติงานและความรับผิดชอบตามกะ"
     >
       <header class="operational-board-panel__header">
         <div>
-          <small>ภาพรวมการปฏิบัติงาน</small>
-          <h2>ภาพรวมขั้นตอนงานและกะรับผิดชอบ</h2>
+          <small>UNIFIED OPERATIONAL BOARD</small>
+          <h2>สถานะงานตามขั้นตอนและกะรับผิดชอบ</h2>
           <p id="operationalCurrentShift">กำลังอ่านการตั้งค่ากะ</p>
         </div>
 
         <div class="operational-board-panel__header-actions">
           <span id="operationalIntegrity" class="operational-integrity" data-state="LOADING">กำลังตรวจความครบถ้วน</span>
-          <span id="operationalSnapshotTime">กำลังโหลดข้อมูลล่าสุด</span>
-          <button id="operationalBoardRefresh" type="button">อัปเดตข้อมูล</button>
-          <button id="operationalBoardCollapseToggle" type="button" aria-expanded="false">เปิดภาพรวมกะ</button>
+          <span id="operationalSnapshotTime">กำลังโหลด Snapshot</span>
+          <button id="operationalBoardRefresh" type="button">
+            อัปเดตข้อมูล
+          </button>
         </div>
       </header>
 
@@ -897,7 +827,7 @@
       >
         <header class="shift-handover-panel__header">
           <div>
-            <small>การส่งมอบงานระหว่างกะ</small>
+            <small>AUTOMATIC SHIFT HANDOVER</small>
             <h3>ส่งมอบงานอัตโนมัติระหว่างกะ</h3>
             <p>ระบบสร้าง Snapshot ก่อนหมดกะและปิดส่งมอบให้อัตโนมัติ ผู้ใช้ไม่ต้องกดมอบงาน</p>
           </div>
@@ -1023,6 +953,33 @@
         </span>
       </div>
     </section>
+
+    <section
+      id="moduleSnapshotState"
+      class="module-snapshot-state"
+      data-state="LOADING"
+      data-mobile-workspace-section="LIST"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="module-snapshot-state__body">
+        <strong id="moduleSnapshotTitle">กำลังตรวจสอบ Snapshot</strong>
+        <span id="moduleSnapshotDetail">กำลังอ่านสถานะปฏิบัติงานจาก Backend</span>
+      </div>
+
+      <div class="module-snapshot-state__actions">
+        <span id="modulePendingWrites" data-pending="FALSE">ไม่มีรายการค้างส่ง</span>
+        <button
+          id="moduleSnapshotRetry"
+          class="button button--secondary module-snapshot-state__retry"
+          type="button"
+          hidden
+        >
+          โหลดข้อมูลสดอีกครั้ง
+        </button>
+      </div>
+    </section>
+
 
     <div
       id="vehicleEmpty"
