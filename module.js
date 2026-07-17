@@ -1,6 +1,6 @@
 /**
  * module.js
- * PHASE 4E ROUND 03 — Server Alert Delivery + Shared Stage SLA
+ * ROUND 3 — Mobile-first Responsive + Adaptive Revision Polling
  *
  * ปรับปรุง:
  * - Auto Refresh แบบเงียบ ไม่แสดง Spinner/Toast
@@ -19,6 +19,7 @@
  * - Production R17: Action Sheet CSS + Shift Handover Accuracy
  * - Production R19: OPERATIONAL ALERT เปิด/ปิดรายผู้ใช้และรายโมดูล
  * - Production R23: ย้ายตัวควบคุมแจ้งเตือนไป Footer โดยไม่ลอยทับเนื้อหา
+ * - ROUND 3: Revision-only polling แบบ adaptive, หยุดเมื่อซ่อน Tab และไม่ refresh เต็มระหว่างการ์ดกำลัง Commit
  */
 (function (window, document) {
   'use strict';
@@ -41,6 +42,11 @@
     15 * 60 * 1000;
   const OPERATIONAL_BOARD_STALE_AFTER_MS =
     90 * 1000;
+
+
+  const REVISION_POLL_MIN_MS = 8000;
+  const REVISION_POLL_MAX_MS = 60000;
+  const REVISION_POLL_RESUME_MS = 350;
 
   const state = {
     moduleId: '',
@@ -74,6 +80,9 @@
     dataRevision: '',
     rulesRevision: '',
     revisionCheckInProgress: false,
+    revisionPollDelayMs: REVISION_POLL_MIN_MS,
+    revisionPollFailures: 0,
+    revisionPollLastAt: 0,
     movementScope: 'CURRENT_ROUND',
     timelineMode: 'ROLLING_24',
     selectedTimelineStartMs: null,
@@ -860,15 +869,22 @@
 
     document.addEventListener(
       'visibilitychange',
-      async () => {
+      () => {
+        if (document.visibilityState !== 'visible') {
+          stopAutoRefresh();
+          return;
+        }
+
+        state.revisionPollFailures = 0;
+        state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
+
         if (
-          document.visibilityState ===
-            'visible' &&
           !state.refreshInProgress &&
           !state.movementRefreshInProgress &&
-          state.hasLoadedRecords
+          state.hasLoadedRecords &&
+          navigator.onLine
         ) {
-          await checkOperationalBoardRevision();
+          scheduleNextRevisionCheck(REVISION_POLL_RESUME_MS);
         }
       }
     );
@@ -876,16 +892,11 @@
     window.addEventListener(
       'online',
       () => {
-        if (
-          !state.refreshInProgress &&
-          !state.destroyed
-        ) {
-          void loadRecords({
-            silentError: true,
-            showSuccessToast: false,
-            forceRender: true,
-            forceRefresh: true
-          });
+        state.revisionPollFailures = 0;
+        state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
+
+        if (!state.destroyed) {
+          scheduleNextRevisionCheck(REVISION_POLL_RESUME_MS);
         }
       }
     );
@@ -893,6 +904,8 @@
     window.addEventListener(
       'offline',
       () => {
+        stopAutoRefresh();
+
         if (state.hasLoadedRecords) {
           state.boardHealth = 'STALE';
           state.usingCachedBoard = true;
@@ -1243,6 +1256,14 @@
       typeof options === 'object'
         ? options
         : {};
+
+    if (
+      config.background === true &&
+      hasActiveCardWrite()
+    ) {
+      scheduleNextRevisionCheck(REVISION_POLL_MIN_MS);
+      return;
+    }
 
     state.refreshInProgress =
       true;
@@ -7913,27 +7934,77 @@
   }
 
   function startAutoRefresh() {
-    if (state.refreshTimer) {
-      window.clearInterval(state.refreshTimer);
+    stopAutoRefresh();
+
+    state.revisionPollFailures = 0;
+    state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
+
+    if (
+      document.visibilityState === 'visible' &&
+      navigator.onLine &&
+      !state.destroyed
+    ) {
+      scheduleNextRevisionCheck(REVISION_POLL_MIN_MS);
     }
 
-    state.refreshTimer = window.setInterval(
-      () => {
-        if (
-          state.destroyed ||
-          document.visibilityState !== 'visible' ||
-          state.refreshInProgress ||
-          state.revisionCheckInProgress
-        ) {
-          return;
-        }
+    updateAutoRefreshStatus();
+  }
 
-        void checkOperationalBoardRevision();
-      },
-      8000
+  function stopAutoRefresh() {
+    if (state.refreshTimer) {
+      window.clearTimeout(state.refreshTimer);
+      state.refreshTimer = null;
+    }
+  }
+
+  function scheduleNextRevisionCheck(delayMs) {
+    stopAutoRefresh();
+
+    if (
+      state.destroyed ||
+      document.visibilityState !== 'visible' ||
+      !navigator.onLine
+    ) {
+      return;
+    }
+
+    const delay = Math.max(
+      250,
+      Number(delayMs) || state.revisionPollDelayMs || REVISION_POLL_MIN_MS
     );
 
-    updateAutoRefreshStatus();
+    state.refreshTimer = window.setTimeout(
+      () => {
+        state.refreshTimer = null;
+        void checkOperationalBoardRevision();
+      },
+      delay
+    );
+  }
+
+  function hasActiveCardWrite() {
+    return Boolean(
+      document.querySelector(
+        '.vehicle-card[data-receiving-save-state], .vehicle-card[aria-busy="true"]'
+      )
+    );
+  }
+
+  function resetRevisionBackoff() {
+    state.revisionPollFailures = 0;
+    state.revisionPollDelayMs = REVISION_POLL_MIN_MS;
+  }
+
+  function increaseRevisionBackoff() {
+    state.revisionPollFailures = Math.min(
+      6,
+      Number(state.revisionPollFailures || 0) + 1
+    );
+
+    state.revisionPollDelayMs = Math.min(
+      REVISION_POLL_MAX_MS,
+      REVISION_POLL_MIN_MS * Math.pow(2, state.revisionPollFailures)
+    );
   }
 
   async function checkOperationalBoardRevision() {
@@ -7941,12 +8012,15 @@
       state.revisionCheckInProgress ||
       state.refreshInProgress ||
       state.destroyed ||
-      !navigator.onLine
+      !navigator.onLine ||
+      document.visibilityState !== 'visible'
     ) {
+      scheduleNextRevisionCheck(state.revisionPollDelayMs);
       return;
     }
 
     state.revisionCheckInProgress = true;
+    state.revisionPollLastAt = Date.now();
 
     try {
       const revision = await API.getOperationalBoard(
@@ -7957,6 +8031,8 @@
         }
       );
 
+      resetRevisionBackoff();
+
       if (
         revision &&
         revision.unchanged === true
@@ -7964,16 +8040,34 @@
         return;
       }
 
+      /*
+       * ห้ามโหลด Full Snapshot ทับการ์ดที่กำลัง Commit/Verify อยู่
+       * การ์ดอื่นยังใช้งานต่อได้ และจะตรวจ Revision ใหม่ในรอบถัดไป
+       */
+      if (hasActiveCardWrite()) {
+        scheduleNextRevisionCheck(REVISION_POLL_MIN_MS);
+        return;
+      }
+
       await loadRecords({
         silentError: true,
         showSuccessToast: false,
         forceRender: false,
-        forceRefresh: true
+        forceRefresh: true,
+        background: true
       });
     } catch (error) {
-      console.warn('ตรวจ Board Revision ไม่สำเร็จ', error);
+      increaseRevisionBackoff();
+      console.warn(
+        'ตรวจ Board Revision ไม่สำเร็จ จะลองใหม่แบบ Adaptive Backoff',
+        error
+      );
     } finally {
       state.revisionCheckInProgress = false;
+
+      if (!state.destroyed) {
+        scheduleNextRevisionCheck(state.revisionPollDelayMs);
+      }
     }
   }
 
@@ -9267,11 +9361,11 @@
 
   function destroyPage() {
     state.destroyed = true;
+    stopAutoRefresh();
 
     [
       state.clockTimer,
       state.durationTimer,
-      state.refreshTimer,
       state.autoClosePersistTimer,
       state.timelineSnapTimer
     ].forEach((timer) => {
