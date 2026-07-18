@@ -38,12 +38,12 @@
   ></script>
 
   <script
-    src="./api.js?v=20260718-round3-admin-config-governance"
+    src="./api.js?v=20260719-round6-production-acceptance-fast-scan"
     defer
   ></script>
 
   <script
-    src="./admin.js?v=20260718-round3-admin-config-governance"
+    src="./admin.js?v=20260719-round6-production-acceptance-fast-scan"
     defer
   ></script>
 
@@ -1558,7 +1558,7 @@
           </h2>
 
           <p>
-            ตรวจ Frontend, Cloudflare Worker, Apps Script, ชีตหลังบ้าน โมดูล และ Spreadsheet ต้นทาง
+            ตรวจ Fast Scan, Queue Recovery, Worker Build, Apps Script, Idempotency, SLA, Auto Close, Cache และ Export
           </p>
         </div>
 
@@ -1602,6 +1602,10 @@
         <article><span>Alert / Trigger</span><strong id="adminDiagnosticAlertStatus">-</strong></article>
         <article><span>Offline Queue</span><strong id="adminDiagnosticQueueStatus">-</strong></article>
         <article><span>Export Contract</span><strong id="adminDiagnosticExportStatus">-</strong></article>
+        <article><span>Worker Build</span><strong id="adminDiagnosticWorkerBuild">-</strong></article>
+        <article><span>Foreground Write P95</span><strong id="adminDiagnosticClientP95">-</strong></article>
+        <article><span>Fast Scan Transaction</span><strong id="adminDiagnosticFastScanStatus">-</strong></article>
+        <article><span>Deprecated Fallback</span><strong id="adminDiagnosticFallbackStatus">-</strong></article>
       </section>
 
       <div
