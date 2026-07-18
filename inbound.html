@@ -12,10 +12,10 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="./config.js?v=20260717-inbound-canonical-bootstrap-v2" defer></script>
   <script src="./api.js?v=20260718-r5-performance-telemetry-v1" defer></script>
-  <script src="./inbound-offline-queue.js?v=20260718-r1-hotpath-process-scan" defer></script>
+  <script src="./inbound-offline-queue.js?v=20260719-r5-revision1-fast-scan-v1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" defer></script>
   <script src="./inbound-scanner.js?v=20260710-r06-08-core-workflow-guard" defer></script>
-  <script src="./inbound.js?v=20260718-r5-foreground-coordination-v1" defer></script>
+  <script src="./inbound.js?v=20260719-r5-revision1-fast-scan-v1" defer></script>
   <style>
     /* Round 05 Hotfix 21 - Responsive layout + hardware QR scanner input */
     html,
@@ -508,13 +508,13 @@
       </div>
     </section>
 
-    <section class="inbound-network-bar" aria-label="สถานะเครือข่ายและรายการรอส่ง">
+    <section class="inbound-network-bar" aria-label="สถานะ Fast Scan">
       <div class="inbound-network-state">
-        <span id="inboundNetworkState" data-state="CHECKING">กำลังตรวจเครือข่าย</span>
-        <small id="inboundQueueDetail">ไม่มีรายการรอส่ง</small>
+        <span id="inboundNetworkState" data-state="CHECKING">FAST SCAN · กำลังเตรียมระบบ</span>
+        <small id="inboundQueueDetail">ยิงรหัสแล้วรับรายการถัดไปได้ทันที</small>
       </div>
 
-      <div class="inbound-queue-actions">
+      <div class="inbound-queue-actions" hidden aria-hidden="true">
         <button id="inboundQueueButton" type="button" class="button--queue" aria-label="เปิดรายการรอส่ง">
           รอส่ง <strong id="inboundPendingCount">0</strong>
         </button>
@@ -557,7 +557,7 @@
             </label>
 
             <div class="manual-actions">
-              <button id="lookupCodeButton" type="submit" class="button button--primary">ค้นหา</button>
+              <button id="lookupCodeButton" type="submit" class="button button--primary">ส่งรหัส</button>
               <button id="clearCodeButton" type="button" class="button button--ghost">ล้าง</button>
             </div>
           </form>
@@ -568,7 +568,7 @@
           </div>
 
           <div id="scanMessage" class="scan-message" data-state="IDLE">
-            พร้อมสแกน ระบบจะค้นหาและบันทึกให้อัตโนมัติ
+            พร้อมสแกน · ยิงรหัสแล้วสแกนรายการถัดไปได้ทันที
           </div>
         </section>
 
