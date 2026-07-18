@@ -20,12 +20,16 @@
  * - Production R19: OPERATIONAL ALERT เปิด/ปิดรายผู้ใช้และรายโมดูล
  * - Production R23: ย้ายตัวควบคุมแจ้งเตือนไป Footer โดยไม่ลอยทับเนื้อหา
  * - ROUND 3: Revision-only polling แบบ adaptive, หยุดเมื่อซ่อน Tab และไม่ refresh เต็มระหว่างการ์ดกำลัง Commit
+ * - ROUND 02: Gate Out ใช้ Stable Request ID และตรวจ Commit หลัง Timeout
  */
 (function (window, document) {
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
+  const CHECKOUT_PENDING_PREFIX =
+    'alertvendor:checkout-pending:v2:';
+  const CHECKOUT_VERIFY_ATTEMPTS = 3;
 
   const OPERATIONAL_ALERT_STORAGE_PREFIX =
     'alertvendor:operational-alert:v1';
@@ -8398,88 +8402,113 @@
       return;
     }
 
-    setButtonLoading(
-      button,
-      true,
-      'กำลังตรวจสอบ...'
-    );
+    const clientRequestId = checkoutGetOrCreateRequestId_(record);
+    const payload = buildCheckoutPayload(record, clientRequestId);
+    let result = null;
 
+    setButtonLoading(button, true, 'กำลังตรวจสอบ...');
     showLoading(
       'กำลังตรวจสอบข้อมูล',
       'ระบบกำลังตรวจสอบข้อมูลล่าสุดก่อนบันทึก'
     );
 
     try {
-      const payload =
-        buildCheckoutPayload(record);
-
-      const preview =
-        await API.previewCheckout(
-          state.moduleId,
-          payload
-        );
+      const preview = await API.previewCheckout(
+        state.moduleId,
+        payload
+      );
 
       Swal.close();
 
-      const confirmation =
-        await Swal.fire({
-          icon: 'question',
-          title: 'ยืนยันออกจากพื้นที่',
-          html: createCheckoutPreviewHtml(
-            preview.record ||
-            record
-          ),
-          showCancelButton: true,
-          confirmButtonText: 'ยืนยันบันทึกออก',
-          cancelButtonText: 'ยกเลิก',
-          reverseButtons: true,
-          allowOutsideClick: false
-        });
+      const confirmation = await Swal.fire({
+        icon: 'question',
+        title: 'ยืนยันออกจากพื้นที่',
+        html: createCheckoutPreviewHtml(preview.record || record),
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันบันทึกออก',
+        cancelButtonText: 'ยกเลิก',
+        reverseButtons: true,
+        allowOutsideClick: false
+      });
 
       if (!confirmation.isConfirmed) {
+        checkoutClearPending_(record);
         return;
       }
 
+      checkoutSavePending_(record, payload);
       showLoading(
         'กำลังบันทึกเวลาออก',
-        'กรุณาอย่าปิดหน้านี้'
+        'ระบบกำลังยืนยัน Gate Out กรุณาอย่ากดซ้ำ'
       );
 
-      const result =
-        await API.checkout(
+      try {
+        result = await API.checkout(
           state.moduleId,
           payload
         );
+      } catch (error) {
+        if (!checkoutIsAmbiguousError_(error)) {
+          throw error;
+        }
+
+        showLoading(
+          'กำลังตรวจสอบผลการบันทึก',
+          'การเชื่อมต่อไม่แน่นอน ระบบกำลังตรวจ Timestamp Out จริง'
+        );
+
+        result = await checkoutVerifyCommit_(payload, error);
+
+        if (!result || result.completed !== true) {
+          throw error;
+        }
+      }
 
       Swal.close();
+      checkoutClearPending_(record);
+
+      const replayText = result && result.idempotentReplay === true
+        ? '<div class="checkout-replay-note">รายการนี้มี Gate Out แล้ว ระบบไม่บันทึกซ้ำ</div>'
+        : '';
+      const closeTypeText = result && result.closeType === 'AUTO_CLOSE'
+        ? '<div class="checkout-replay-note">รายการนี้ถูกปิดอัตโนมัติก่อนคำขอนี้</div>'
+        : '';
 
       await Swal.fire({
         icon: 'success',
-        title: 'บันทึกออกจากพื้นที่แล้ว',
+        title: result && result.closeType === 'AUTO_CLOSE'
+          ? 'รายการถูกปิดอัตโนมัติแล้ว'
+          : 'บันทึกออกจากพื้นที่แล้ว',
         html: `
           <div class="checkout-success-detail">
             <div>
               <span>เวลาออก</span>
-              <strong>${escapeHtml(result.timestampOut || '-')}</strong>
+              <strong>${escapeHtml(result && result.timestampOut || '-')}</strong>
             </div>
 
             <div>
               <span>ระยะเวลา</span>
-              <strong>${escapeHtml(result.durationDisplay || '-')}</strong>
+              <strong>${escapeHtml(result && result.durationDisplay || '-')}</strong>
             </div>
           </div>
+          ${replayText}
+          ${closeTypeText}
         `,
         confirmButtonText: 'ตกลง'
       });
 
       await loadRecords({
-          silentError: false,
-          showSuccessToast: false,
-          forceRender: true
-        });
+        silentError: false,
+        showSuccessToast: false,
+        forceRender: true
+      });
 
     } catch (error) {
       Swal.close();
+
+      if (!checkoutIsAmbiguousError_(error)) {
+        checkoutClearPending_(record);
+      }
 
       await showApiError(
         error,
@@ -8490,16 +8519,16 @@
         [
           'ALREADY_CHECKED_OUT',
           'RECORD_CHANGED',
-          'RECORD_NO_LONGER_MATCHES'
-        ].includes(
-          error && error.code
-        )
+          'RECORD_NO_LONGER_MATCHES',
+          'RECORD_NO_LONGER_ACTIVE',
+          'STATE_CONFLICT'
+        ].includes(error && error.code)
       ) {
         await loadRecords({
-            silentError: true,
-            showSuccessToast: false,
-            forceRender: true
-          });
+          silentError: true,
+          showSuccessToast: false,
+          forceRender: true
+        });
       }
 
     } finally {
@@ -8507,16 +8536,152 @@
     }
   }
 
-  function buildCheckoutPayload(record) {
+  function buildCheckoutPayload(record, clientRequestId) {
+    const stableRequestId = String(
+      clientRequestId || checkoutGetOrCreateRequestId_(record)
+    ).trim();
+
     return {
       recordId: record.recordId,
       sourceRowNumber: record.sourceRowNumber,
       expectedTimestampIn: record.timestampIn,
-      expectedTimestampInEpochMs:
-        record.timestampInEpochMs,
-      expectedPrimaryValue:
-        record.primaryValue
+      expectedTimestampInEpochMs: record.timestampInEpochMs,
+      expectedPrimaryValue: record.primaryValue,
+      clientRequestId: stableRequestId,
+      requestId: stableRequestId
     };
+  }
+
+
+  function checkoutCreateRequestId_() {
+    if (
+      window.crypto &&
+      typeof window.crypto.randomUUID === 'function'
+    ) {
+      return window.crypto.randomUUID();
+    }
+
+    return (
+      'checkout-' +
+      Date.now().toString(36) +
+      '-' +
+      Math.random().toString(36).slice(2, 12)
+    );
+  }
+
+  function checkoutPendingKey_(record) {
+    return CHECKOUT_PENDING_PREFIX + [
+      String(state.moduleId || ''),
+      String(record && record.recordId || ''),
+      String(record && record.sourceRowNumber || ''),
+      String(record && record.timestampInEpochMs || record.timestampIn || '')
+    ].join('|');
+  }
+
+  function checkoutGetOrCreateRequestId_(record) {
+    const key = checkoutPendingKey_(record);
+
+    try {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem(key) || 'null'
+      );
+      const savedId = String(
+        saved && (saved.clientRequestId || saved.requestId) || ''
+      ).trim();
+
+      if (savedId) {
+        return savedId;
+      }
+    } catch (error) {
+      /* สร้าง Request ID ใหม่เมื่อ Storage อ่านไม่ได้ */
+    }
+
+    return checkoutCreateRequestId_();
+  }
+
+  function checkoutSavePending_(record, payload) {
+    try {
+      window.sessionStorage.setItem(
+        checkoutPendingKey_(record),
+        JSON.stringify({
+          ...payload,
+          moduleId: state.moduleId,
+          savedAt: Date.now()
+        })
+      );
+    } catch (error) {
+      console.warn('เก็บคำขอ Gate Out สำหรับ Recovery ไม่สำเร็จ', error);
+    }
+  }
+
+  function checkoutClearPending_(record) {
+    try {
+      window.sessionStorage.removeItem(
+        checkoutPendingKey_(record)
+      );
+    } catch (error) {
+      /* ไม่กระทบธุรกรรมหลัก */
+    }
+  }
+
+  function checkoutIsAmbiguousError_(error) {
+    return [
+      'NETWORK_ERROR',
+      'REQUEST_TIMEOUT',
+      'GAS_TIMEOUT',
+      'GAS_CONNECTION_FAILED',
+      'GAS_HTTP_ERROR',
+      'GAS_INVALID_RESPONSE',
+      'CHECKOUT_COMMIT_NOT_VERIFIED'
+    ].includes(
+      String(error && error.code || '').toUpperCase()
+    ) || Boolean(
+      error &&
+      error.details &&
+      error.details.verificationRequired === true
+    );
+  }
+
+  async function checkoutVerifyCommit_(payload, originalError) {
+    let lastError = originalError;
+
+    for (
+      let attempt = 1;
+      attempt <= CHECKOUT_VERIFY_ATTEMPTS;
+      attempt += 1
+    ) {
+      if (attempt > 1) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, attempt * 500);
+        });
+      }
+
+      try {
+        const status = await API.getCheckoutCommitStatus(
+          state.moduleId,
+          payload
+        );
+
+        if (status && status.completed === true) {
+          return {
+            ...status,
+            success: true,
+            committed: true,
+            idempotentReplay: true,
+            recoveredFromAmbiguousResponse: true,
+            verificationCount: attempt
+          };
+        }
+      } catch (error) {
+        lastError = error;
+
+        if (!checkoutIsAmbiguousError_(error)) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   function createCheckoutPreviewHtml(record) {
