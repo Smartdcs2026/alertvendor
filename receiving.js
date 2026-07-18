@@ -14,9 +14,10 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.18-r3r4-receiving-material-snackbar-v2';
+    '2026.07.18-r3-hotpath-single-post-verify-v1';
 
-  const MAX_COMMIT_ATTEMPTS = 3;
+  /* Worker และ Backend ทำ Idempotency/Verification อยู่แล้ว: ส่ง POST หลักเพียงครั้งเดียว */
+  const MAX_COMMIT_ATTEMPTS = 1;
   const VERIFY_ATTEMPTS = 4;
   const PENDING_MAX_AGE_MS =
     48 * 60 * 60 * 1000;
