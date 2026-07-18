@@ -1159,6 +1159,8 @@ async function showSuccess(
       allowEscapeKey: true,
       allowOutsideClick: true,
       customClass: {
+        container:
+          'receiving-material-snackbar-container',
         popup:
           'receiving-material-snackbar'
       }
@@ -1193,6 +1195,8 @@ async function showSuccess(
       allowEscapeKey: true,
       allowOutsideClick: true,
       customClass: {
+        container:
+          'receiving-material-snackbar-container',
         popup:
           'receiving-material-snackbar'
       }
