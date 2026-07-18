@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.18-r3r4-card-progress-no-blocking-modal';
+    '2026.07.18-r3r4-receiving-material-snackbar-v2';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
@@ -287,13 +287,13 @@ async function executeReceiving(
       } catch (error) {
         updateSavingProgress(
           'VERIFY',
-          'กำลังยืนยันผลการบันทึกกับระบบ',
+          'กำลังยืนยันผลการบันทึก',
           66
         );
         setCardLiveStatus(
           recordId,
           'VERIFYING',
-          'กำลังตรวจสอบว่าระบบบันทึกรายการนี้แล้วหรือยัง...'
+          'กำลังตรวจสอบผลการบันทึก...'
         );
 
         const verified = await verifyCommit(moduleId, payload);
@@ -374,7 +374,7 @@ async function executeReceiving(
       if (!result || result.committed !== true) {
         throw createLocalError(
           result && result.code || 'RECEIVING_NOT_COMMITTED',
-          result && result.message || 'Server ไม่ยืนยันการบันทึก'
+          result && result.message || 'ยังไม่ได้รับคำยืนยันการบันทึก'
         );
       }
 
@@ -409,7 +409,7 @@ async function executeReceiving(
       enqueueWorkflowSync(moduleId, payload, result);
 
       if (interactive) {
-        await showSuccess(result);
+        await showSuccess(result, record);
       } else {
         showRecoveryToast('ส่งคำขอรับสินค้าเสร็จที่ค้างไว้สำเร็จ');
       }
@@ -454,15 +454,15 @@ async function executeReceiving(
       updateSavingProgress(
         'COMMIT',
         attempt === 0
-          ? 'กำลังส่งคำขอและบันทึกเวลาใน Server'
-          : 'Server ยังไม่พร้อม กำลังลองซ้ำครั้งที่ ' + attemptNumber,
+          ? 'กำลังบันทึกรับสินค้าเสร็จ'
+          : 'ระบบตอบกลับช้า กำลังลองอีกครั้งที่ ' + attemptNumber,
         Math.min(58,30 + attempt * 12)
       );
       setCardLiveStatus(
         recordId,
         'SAVING',
         attempt === 0
-          ? 'กำลังบันทึกเวลาใน Server...'
+          ? 'กำลังบันทึกรับสินค้าเสร็จ...'
           : 'กำลังลองบันทึกซ้ำครั้งที่ ' + attemptNumber + '...'
       );
 
@@ -498,7 +498,7 @@ async function verifyCommit(
     for (let attempt = 0; attempt < VERIFY_ATTEMPTS; attempt += 1) {
       updateSavingProgress(
         'VERIFY',
-        'ตรวจสอบผลจริงกับ Server ครั้งที่ ' + (attempt + 1),
+        'กำลังยืนยันผล ครั้งที่ ' + (attempt + 1),
         Math.min(82, 66 + attempt * 4)
       );
 
@@ -592,7 +592,7 @@ function enqueueWorkflowSync(
             setCardLiveStatus(
               item.recordId,
               'SYNCED',
-              'บันทึกและซิงก์สถานะครบแล้ว'
+              'บันทึกและย้ายรายการเรียบร้อยแล้ว'
             );
             window.setTimeout(
               () => clearCardLiveStatus(item.recordId, 'SYNCED'),
@@ -618,7 +618,7 @@ function enqueueWorkflowSync(
           setCardLiveStatus(
             item.recordId,
             'SYNC_PENDING',
-            'บันทึกเวลาแล้ว แต่กำลังรอซิงก์สถานะอัตโนมัติ'
+            'บันทึกแล้ว กำลังย้ายรายการไปขั้นตอนถัดไป'
           );
 
           if (isAuthenticationError(error)) {
@@ -1086,40 +1086,81 @@ function enqueueWorkflowSync(
     });
   }
 async function showSuccess(
-    result
+    result,
+    record
   ) {
     if (!window.Swal) {
       return;
     }
 
+    const source =
+      record &&
+      typeof record === 'object'
+        ? record
+        : {};
+
+    const appointment =
+      String(
+        source.appointmentNumber ||
+        source.primaryValue ||
+        result &&
+        result.appointmentNumber ||
+        ''
+      ).trim();
+
+    const company =
+      String(
+        source.companyName ||
+        result &&
+        result.companyName ||
+        ''
+      ).trim();
+
+    const identity =
+      [
+        appointment,
+        company
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
     const alreadyCompleted =
       result &&
-      result.alreadyCompleted ===
-        true;
+      result.alreadyCompleted === true;
 
     await Swal.fire({
       toast: true,
-      position:
-        window.innerWidth <= 767
-          ? 'top'
-          : 'top-end',
-      icon: 'success',
-      title:
-        alreadyCompleted
-          ? 'รายการนี้บันทึกไว้แล้ว'
-          : 'บันทึกสำเร็จ',
-      text:
-        'ย้ายรายการไป “พขร.รอรับเอกสารคืน” แล้ว',
+      position: 'bottom',
+      icon: undefined,
+      title: undefined,
+      html: `
+        <div class="receiving-snackbar">
+          <span class="receiving-snackbar__icon" aria-hidden="true">✓</span>
+          <div class="receiving-snackbar__content">
+            <strong>
+              ${alreadyCompleted
+                ? 'รายการนี้บันทึกไว้แล้ว'
+                : 'บันทึกรับสินค้าเสร็จสำเร็จ'}
+            </strong>
+            ${identity
+              ? `<span>${escapeHtml(identity)}</span>`
+              : ''}
+            <small>ย้ายไปรอรับเอกสารคืนแล้ว</small>
+          </div>
+        </div>
+      `,
       timer:
         alreadyCompleted
-          ? 1500
+          ? 1600
           : 1800,
-      timerProgressBar: true,
+      timerProgressBar: false,
       showConfirmButton: false,
-      showCloseButton: true,
+      showCloseButton: false,
+      allowEscapeKey: true,
+      allowOutsideClick: true,
       customClass: {
         popup:
-          'receiving-success-toast'
+          'receiving-material-snackbar'
       }
     });
   }
@@ -1133,22 +1174,27 @@ async function showSuccess(
 
     await Swal.fire({
       toast: true,
-      position:
-        window.innerWidth <= 767
-          ? 'top'
-          : 'top-end',
-      icon: 'success',
-      title:
-        'บันทึกสำเร็จ',
-      text:
-        'ระบบกำลังย้ายรายการไปขั้นตอนถัดไปให้อัตโนมัติ',
+      position: 'bottom',
+      icon: undefined,
+      title: undefined,
+      html: `
+        <div class="receiving-snackbar receiving-snackbar--pending">
+          <span class="receiving-snackbar__icon" aria-hidden="true">✓</span>
+          <div class="receiving-snackbar__content">
+            <strong>บันทึกรับสินค้าเสร็จสำเร็จ</strong>
+            <small>กำลังย้ายรายการไปขั้นตอนถัดไปอัตโนมัติ</small>
+          </div>
+        </div>
+      `,
       timer: 2200,
-      timerProgressBar: true,
+      timerProgressBar: false,
       showConfirmButton: false,
-      showCloseButton: true,
+      showCloseButton: false,
+      allowEscapeKey: true,
+      allowOutsideClick: true,
       customClass: {
         popup:
-          'receiving-success-toast'
+          'receiving-material-snackbar'
       }
     });
   }
@@ -1905,7 +1951,7 @@ async function showSuccess(
     }
 
     const stageMap = {
-      SAVING: 'PREPARE',
+      SAVING: '',
       VERIFYING: 'VERIFY',
       COMMITTED: 'SYNC',
       SYNCING: 'SYNC',
