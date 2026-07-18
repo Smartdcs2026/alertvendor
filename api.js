@@ -426,24 +426,11 @@
             error.message
               ? error.message
               : String(error),
-          retryable: true,
-          committed: null,
-          verificationRequired: method !== 'GET'
-        },
-        stableRequestId
+          retryable: false,
+          committed: false,
+          verificationRequired: false
+        }
       );
-      networkError.clientPerformance = {
-        clientTotalMs: Math.max(0, Math.round(performanceNow() - requestStartedAt)),
-        requestAttempt: Math.max(1, Number(attemptNumber) || 1),
-        verificationCount: 0,
-        method,
-        path,
-        requestId: stableRequestId,
-        ok: false,
-        status: 0
-      };
-      recordApiPerformance(networkError.clientPerformance);
-      throw networkError;
     }
   }
 
@@ -970,9 +957,38 @@
             error &&
             error.message
               ? error.message
-              : String(error)
-        }
+              : String(error),
+          retryable: true,
+          committed: null,
+          verificationRequired: method !== 'GET'
+        },
+        stableRequestId
       );
+
+      networkError.clientPerformance = {
+        clientTotalMs: Math.max(
+          0,
+          Math.round(
+            performanceNow() - requestStartedAt
+          )
+        ),
+        requestAttempt: Math.max(
+          1,
+          Number(attemptNumber) || 1
+        ),
+        verificationCount: 0,
+        method,
+        path,
+        requestId: stableRequestId,
+        ok: false,
+        status: 0
+      };
+
+      recordApiPerformance(
+        networkError.clientPerformance
+      );
+
+      throw networkError;
 
     } finally {
       window.clearTimeout(
@@ -1329,8 +1345,28 @@
           }
         );
 
+      if (
+        !response ||
+        typeof response !== 'object'
+      ) {
+        throw new VehicleAPIError(
+          'ระบบเข้าสู่ระบบไม่ได้รับคำตอบที่ถูกต้อง กรุณาลองใหม่',
+          'GAS_INVALID_RESPONSE',
+          502,
+          {
+            retryable: true,
+            committed: false,
+            verificationRequired: false
+          },
+          ''
+        );
+      }
+
       const data =
-        response.data || {};
+        response.data &&
+        typeof response.data === 'object'
+          ? response.data
+          : {};
 
       const token =
         updateTokenFromData(
