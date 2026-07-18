@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.18-r3-hotpath-single-post-verify-v1';
+    '2026.07.18-r2rev1-receiving-nonblocking-transition-v1';
 
   /* Worker และ Backend ทำ Idempotency/Verification อยู่แล้ว: ส่ง POST หลักเพียงครั้งเดียว */
   const MAX_COMMIT_ATTEMPTS = 1;
@@ -25,6 +25,10 @@
     'alertvendor:receiving-pending:v3:';
   const SYNC_STORAGE_PREFIX =
     'alertvendor:receiving-sync:v1:';
+  const COMMITTED_OVERLAY_PREFIX =
+    'alertvendor:receiving-committed:v1:';
+  const COMMITTED_OVERLAY_MAX_AGE_MS =
+    30 * 60 * 1000;
 
   const inFlight = new Set();
   let recoveryRunning = false;
@@ -391,7 +395,8 @@ async function executeReceiving(
       );
 
       removePendingRequest(recordId);
-      applyCommittedState(recordId, result, button);
+      saveCommittedOverlay(payload, result);
+      applyCommittedState(recordId, result, button, payload);
 
       updateSavingProgress(
         'SYNC',
@@ -599,7 +604,7 @@ function enqueueWorkflowSync(
               () => clearCardLiveStatus(item.recordId, 'SYNCED'),
               1600
             );
-            scheduleBoardRefresh();
+            scheduleBoardRevisionCheck(250);
             continue;
           }
 
@@ -629,6 +634,135 @@ function enqueueWorkflowSync(
       }
     } finally {
       workflowRecoveryRunning = false;
+    }
+  }
+
+  function committedOverlayStorageKey() {
+    return COMMITTED_OVERLAY_PREFIX + getModuleId();
+  }
+
+  function readCommittedOverlayMap() {
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(
+          committedOverlayStorageKey()
+        ) || '{}'
+      );
+
+      return parsed &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed)
+          ? parsed
+          : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveCommittedOverlay(
+    payload,
+    result
+  ) {
+    const recordId = String(
+      payload && payload.recordId || ''
+    ).trim();
+
+    if (!recordId) {
+      return;
+    }
+
+    try {
+      const map =
+        readCommittedOverlayMap();
+      const now =
+        Date.now();
+
+      Object.keys(map).forEach(
+        (key) => {
+          const expiresAt =
+            Number(
+              map[key] &&
+              map[key].expiresAt ||
+              0
+            );
+
+          if (
+            !expiresAt ||
+            expiresAt <= now
+          ) {
+            delete map[key];
+          }
+        }
+      );
+
+      map[recordId] = {
+        recordId:
+          recordId,
+
+        canonicalRecordId:
+          String(
+            payload &&
+            payload.canonicalRecordId ||
+            result &&
+            result.canonicalRecordId ||
+            ''
+          ),
+
+        sourceRowNumber:
+          Number(
+            payload &&
+            payload.sourceRowNumber ||
+            result &&
+            result.sourceRowNumber ||
+            0
+          ) || 0,
+
+        autoId:
+          String(
+            payload &&
+            (
+              payload.autoId ||
+              payload.entryCode
+            ) ||
+            result &&
+            (
+              result.autoId ||
+              result.entryCode
+            ) ||
+            ''
+          ),
+
+        receivingCompleteAt:
+          String(
+            result &&
+            result.receivingCompleteAt ||
+            ''
+          ),
+
+        receivingCompleteEpochMs:
+          Number(
+            result &&
+            result.receivingCompleteEpochMs ||
+            0
+          ) || 0,
+
+        committedAt:
+          now,
+
+        expiresAt:
+          now +
+          COMMITTED_OVERLAY_MAX_AGE_MS
+      };
+
+      localStorage.setItem(
+        committedOverlayStorageKey(),
+        JSON.stringify(map)
+      );
+    } catch (error) {
+      console.warn(
+        'เก็บสถานะรับสินค้าเสร็จชั่วคราวไม่สำเร็จ',
+        error
+      );
     }
   }
 
@@ -765,7 +899,8 @@ function enqueueWorkflowSync(
   function applyCommittedState(
     recordId,
     result,
-    sourceButton
+    sourceButton,
+    payload
   ) {
     const timestamp =
       result &&
@@ -892,23 +1027,120 @@ function enqueueWorkflowSync(
       }
     }
 
-    document.dispatchEvent(
-      new CustomEvent(
-        'alertvendor:receiving-committed',
-        {
-          detail: {
-            recordId:
-              recordId,
+    const transitionDetail = {
+      recordId:
+        recordId,
 
-            receivingCompleteAt:
-              timestamp,
+      canonicalRecordId:
+        String(
+          result &&
+          result.canonicalRecordId ||
+          payload &&
+          payload.canonicalRecordId ||
+          ''
+        ),
 
-            result:
-              result ||
-              {}
+      sourceRowNumber:
+        Number(
+          result &&
+          result.sourceRowNumber ||
+          payload &&
+          payload.sourceRowNumber ||
+          0
+        ) || 0,
+
+      autoId:
+        String(
+          result &&
+          (
+            result.autoId ||
+            result.entryCode
+          ) ||
+          payload &&
+          (
+            payload.autoId ||
+            payload.entryCode
+          ) ||
+          ''
+        ),
+
+      receivingCompleteAt:
+        timestamp,
+
+      result:
+        result ||
+        {}
+    };
+
+    let appliedDirectly = false;
+
+    if (
+      window.VehicleModule &&
+      typeof window.VehicleModule
+        .applyReceivingCommitted ===
+        'function'
+    ) {
+      try {
+        appliedDirectly =
+          window.VehicleModule
+            .applyReceivingCommitted(
+              transitionDetail
+            ) === true;
+      } catch (error) {
+        console.warn(
+          'อัปเดตการ์ดหลังรับสินค้าเสร็จแบบ Local ไม่สำเร็จ',
+          error
+        );
+      }
+    }
+
+    if (!appliedDirectly) {
+      document.dispatchEvent(
+        new CustomEvent(
+          'alertvendor:receiving-committed',
+          {
+            detail:
+              transitionDetail
           }
+        )
+      );
+    }
+
+    scheduleBoardRevisionCheck(350);
+  }
+
+  function scheduleBoardRevisionCheck(
+    delayMs
+  ) {
+    const delay =
+      Math.max(
+        120,
+        Number(delayMs) ||
+        250
+      );
+
+    window.setTimeout(
+      () => {
+        if (
+          window.VehicleModule &&
+          typeof window.VehicleModule
+            .verifyOperationalBoardRevision ===
+            'function'
+        ) {
+          window.VehicleModule
+            .verifyOperationalBoardRevision(
+              120
+            );
+          return;
         }
-      )
+
+        document.dispatchEvent(
+          new CustomEvent(
+            'alertvendor:check-operational-board-revision'
+          )
+        );
+      },
+      delay
     );
   }
 
@@ -1028,8 +1260,11 @@ function enqueueWorkflowSync(
         reverseButtons:
           true,
 
-        focusCancel:
+        focusConfirm:
           true,
+
+        focusCancel:
+          false,
 
         allowOutsideClick:
           false
@@ -1206,40 +1441,42 @@ async function showSuccess(
   async function showQueued(
     error
   ) {
-    if (!window.Swal) {
-      return;
-    }
-
     const code = String(
       error && error.code || 'NETWORK_PENDING'
     ).toUpperCase();
     const offline = navigator.onLine === false;
     const busy = code.includes('BUSY');
 
-    await Swal.fire({
-      icon: 'info',
+    /*
+     * Hotfix UX:
+     * งานค้าง/Server Busy เป็นสถานะกู้คืนอัตโนมัติ
+     * จึงห้ามเปิด Modal บังหน้าจอและห้ามให้ผู้ใช้กดรับทราบ
+     */
+    if (!window.Swal) {
+      return;
+    }
+
+    void Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon:
+        offline
+          ? 'warning'
+          : 'info',
       title:
         offline
-          ? 'เก็บคำขอไว้ในอุปกรณ์แล้ว'
+          ? 'เก็บรายการไว้แล้ว รออินเทอร์เน็ต'
           : busy
-            ? 'Server กำลังเขียนข้อมูล'
-            : 'ยังไม่ได้รับคำยืนยันจาก Server',
-      html: `
-        <p>
-          ${
-            offline
-              ? 'ระบบจะส่งคำขอเดิมอัตโนมัติเมื่ออินเทอร์เน็ตกลับมา'
-              : busy
-                ? 'ระบบจะตรวจสอบผลและลองใหม่อัตโนมัติ โดยไม่สร้างข้อมูลซ้ำ'
-                : 'ระบบเก็บ Request ID เดิมไว้ และจะตรวจสอบผลก่อนส่งซ้ำ'
-          }
-        </p>
-        <div class="receiving-queued-note">
-          ไม่ต้องกดปุ่มซ้ำ และสามารถดูสถานะบนการ์ดได้
-        </div>
-        <small class="receiving-warning-code">${escapeHtml(code)}</small>
-      `,
-      confirmButtonText: 'รับทราบ'
+            ? 'กำลังยืนยันผลอัตโนมัติ'
+            : 'กำลังตรวจสอบผลจาก Server',
+      text:
+        offline
+          ? 'ระบบจะส่งคำขอเดิมให้อัตโนมัติเมื่อออนไลน์'
+          : 'ทำรายการอื่นต่อได้ ไม่ต้องกดปุ่มเดิมซ้ำ',
+      timer: 2300,
+      timerProgressBar: false,
+      showConfirmButton: false,
+      showCloseButton: false
     });
   }
 
@@ -1484,7 +1721,7 @@ async function showSuccess(
       button.disabled = true;
       button.setAttribute('aria-busy','true');
       button.classList.add('is-receiving-saving');
-      button.textContent = 'กำลังตรวจสอบ...';
+      button.textContent = 'กำลังบันทึก...';
       return;
     }
 
@@ -1665,9 +1902,9 @@ async function showSuccess(
       );
 
     node.textContent =
-      'ใช้เวลา ' +
-      seconds +
-      ' วินาที';
+      seconds < 3
+        ? 'ระบบตรวจสอบผลให้อัตโนมัติ'
+        : 'ยังทำงานอยู่ · สามารถทำรายการอื่นต่อได้';
   }
 
   function closeSavingProgress() {
@@ -1791,35 +2028,16 @@ async function showSuccess(
         <span class="receiving-card-progress__spinner" aria-hidden="true"></span>
         <div>
           <strong data-receiving-card-progress-message>
-            กำลังตรวจสอบข้อมูลก่อนบันทึก
+            กำลังบันทึกรับสินค้าเสร็จ...
           </strong>
           <small data-receiving-card-progress-elapsed>
-            ใช้เวลา 0 วินาที
+            ระบบตรวจสอบผลให้อัตโนมัติ
           </small>
         </div>
       </div>
 
       <div class="receiving-card-progress__meter" aria-hidden="true">
         <i data-receiving-card-progress-bar></i>
-      </div>
-
-      <div class="receiving-card-progress__steps" aria-label="ขั้นตอนการบันทึก">
-        <span data-receiving-card-progress-step="PREPARE">
-          <b>1</b>
-          <em>ตรวจสอบ</em>
-        </span>
-        <span data-receiving-card-progress-step="COMMIT">
-          <b>2</b>
-          <em>บันทึก</em>
-        </span>
-        <span data-receiving-card-progress-step="VERIFY">
-          <b>3</b>
-          <em>ยืนยัน</em>
-        </span>
-        <span data-receiving-card-progress-step="SYNC">
-          <b>4</b>
-          <em>เสร็จสิ้น</em>
-        </span>
       </div>
     `;
 
@@ -2429,6 +2647,31 @@ async function showSuccess(
 
     return element.innerHTML;
   }
+
+
+  window.VehicleReceiving = Object.freeze({
+    build:
+      BUILD,
+
+    recoverPendingRequests() {
+      return recoverPendingRequests();
+    },
+
+    recoverPendingWorkflowSyncs() {
+      return recoverPendingWorkflowSyncs();
+    },
+
+    getCommittedOverlay(recordId) {
+      const map =
+        readCommittedOverlayMap();
+
+      return map[
+        String(
+          recordId || ''
+        )
+      ] || null;
+    }
+  });
 
 })(
   window,
