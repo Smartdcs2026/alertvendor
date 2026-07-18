@@ -38,12 +38,12 @@
   ></script>
 
   <script
-    src="./api.js?v=20260719-round6-production-acceptance-fast-scan"
+    src="./api.js?v=20260719-round7-safe-cleanup-strict-router"
     defer
   ></script>
 
   <script
-    src="./admin.js?v=20260719-round6-production-acceptance-fast-scan"
+    src="./admin.js?v=20260719-round7-safe-cleanup-strict-router"
     defer
   ></script>
 
@@ -1606,6 +1606,31 @@
         <article><span>Foreground Write P95</span><strong id="adminDiagnosticClientP95">-</strong></article>
         <article><span>Fast Scan Transaction</span><strong id="adminDiagnosticFastScanStatus">-</strong></article>
         <article><span>Deprecated Fallback</span><strong id="adminDiagnosticFallbackStatus">-</strong></article>
+      </section>
+
+      <section class="admin-card" aria-labelledby="adminVcwCleanupTitle">
+        <div class="admin-section-heading">
+          <div>
+            <p class="eyebrow">SAFE CLEANUP</p>
+            <h3 id="adminVcwCleanupTitle">Central Router Strict Mode</h3>
+            <p>เปิดหลัง Acceptance ผ่าน เพื่อหยุด Direct Fallback โดยยังสามารถย้อนกลับได้ทันที</p>
+          </div>
+          <div class="admin-diagnostic-actions">
+            <button id="adminVcwCleanupRefreshButton" class="button button--secondary" type="button">ตรวจสถานะ</button>
+            <button id="adminVcwFallbackResetButton" class="button button--secondary" type="button">รีเซ็ต Counter</button>
+            <button id="adminVcwStrictEnableButton" class="button button--primary" type="button">เปิด Strict Mode</button>
+            <button id="adminVcwStrictDisableButton" class="button button--secondary" type="button">กลับ Compatibility</button>
+          </div>
+        </div>
+        <section class="admin-diagnostic-meta-grid">
+          <article><span>Router Mode</span><strong id="adminVcwRouterMode">ยังไม่ได้ตรวจ</strong></article>
+          <article><span>Strict Mode</span><strong id="adminVcwStrictMode">-</strong></article>
+          <article><span>Fallback Count</span><strong id="adminVcwFallbackCount">-</strong></article>
+          <article><span>Fallback ล่าสุด</span><strong id="adminVcwFallbackLastUsed">-</strong></article>
+          <article><span>Action ที่ขาด</span><strong id="adminVcwMissingActions">-</strong></article>
+          <article><span>พร้อมลบ Legacy จริง</span><strong id="adminVcwPhysicalRemoval">ยังไม่พร้อม</strong></article>
+        </section>
+        <p id="adminVcwCleanupRecommendation">กดตรวจสถานะก่อนเปิด Strict Mode</p>
       </section>
 
       <div
