@@ -493,8 +493,179 @@
     }
   </style>
 
+
+  <style id="mobileDrawerRightToLeftViewportFix">
+    /*
+     * MOBILE DRAWER + HEADER VIEWPORT FIX — 2026-07-18
+     * - Drawer เปิดจากขอบขวาและเลื่อนเข้าหาด้านซ้าย
+     * - Header มือถือไม่กว้างเกิน viewport
+     * - แถบแท็บด้านบนเป็น 2 x 2 และไม่สร้าง horizontal scroll
+     */
+    @media (max-width: 767px) {
+      html,
+      body.module-page {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden !important;
+      }
+
+      body.module-page .module-header,
+      body.module-page .module-header__inner,
+      body.module-page .module-command-bar,
+      body.module-page .module-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      body.module-page .module-header__inner {
+        padding-inline:
+          max(6px, env(safe-area-inset-left))
+          max(6px, env(safe-area-inset-right)) !important;
+      }
+
+      body.module-page .module-command-bar {
+        grid-template-columns: 44px minmax(0, 1fr) 93px !important;
+        gap: 5px !important;
+        overflow: hidden !important;
+      }
+
+      body.module-page .module-command-brand,
+      body.module-page .module-command-brand__text,
+      body.module-page #moduleTitle {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      body.module-page #moduleTitle {
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+      }
+
+      body.module-page .module-header-actions {
+        grid-column: 3 !important;
+        display: grid !important;
+        grid-template-columns: 44px 44px !important;
+        gap: 5px !important;
+        width: 93px !important;
+        min-width: 93px !important;
+        max-width: 93px !important;
+        justify-content: end !important;
+        overflow: visible !important;
+      }
+
+      body.module-page #moduleDashboardLauncher,
+      body.module-page #mobileModuleMenuButton {
+        width: 44px !important;
+        min-width: 44px !important;
+        max-width: 44px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 0 !important;
+      }
+
+      body.module-page .mobile-workspace-tabs {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 5px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+
+      body.module-page .mobile-workspace-tabs button {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      body.module-page .mobile-workspace-tabs button span {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      body.module-page .module-mobile-menu {
+        top: 0 !important;
+        right: 0 !important;
+        left: auto !important;
+        width: min(86vw, 340px) !important;
+        max-width: calc(100vw - 48px) !important;
+        height: 100dvh !important;
+        margin: 0 !important;
+        transform: translate3d(100%, 0, 0) !important;
+        transform-origin: right center !important;
+        will-change: transform;
+        visibility: hidden;
+        transition:
+          transform .24s cubic-bezier(.2, .75, .25, 1),
+          visibility 0s linear .24s !important;
+      }
+
+      body.module-page .module-mobile-menu.is-open {
+        transform: translate3d(0, 0, 0) !important;
+        visibility: visible !important;
+        transition:
+          transform .24s cubic-bezier(.2, .75, .25, 1) !important;
+      }
+
+      body.module-page .module-mobile-menu-overlay {
+        inset: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+      }
+
+      body.module-page.module-menu-open {
+        overflow: hidden !important;
+        overscroll-behavior: none;
+      }
+    }
+
+    @media (max-width: 359px) {
+      body.module-page .module-command-bar {
+        grid-template-columns: 42px minmax(0, 1fr) 89px !important;
+        gap: 4px !important;
+      }
+
+      body.module-page .module-header-actions {
+        grid-template-columns: 42px 42px !important;
+        gap: 5px !important;
+        width: 89px !important;
+        min-width: 89px !important;
+        max-width: 89px !important;
+      }
+
+      body.module-page #moduleDashboardLauncher,
+      body.module-page #mobileModuleMenuButton,
+      body.module-page .module-command-back {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        height: 42px !important;
+      }
+
+      body.module-page .module-mobile-menu {
+        width: min(88vw, 320px) !important;
+        max-width: calc(100vw - 42px) !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body.module-page .module-mobile-menu,
+      body.module-page .module-mobile-menu.is-open {
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+
 </head>
 
+<!-- 20260718-mobile-drawer-right-to-left-viewport-fix -->
 <body
   data-page="module"
   class="module-page module-card-focus"
