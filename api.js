@@ -1250,22 +1250,281 @@
   }
 
   async function getClientProductionDiagnostics() {
-    const base=getClientDiagnostics();
-    const queue=await inspectInboundQueueStorage();
-    return {...base,queue};
+    const base = getClientDiagnostics();
+    const startedAt = performanceNow();
+    const results = await Promise.all([
+      inspectInboundQueueStorage(),
+      inspectWorkerHealth()
+    ]);
+    const queue = results[0];
+    const worker = results[1];
+    const performance = summarizeClientPerformance(
+      readClientPerformanceTrace()
+    );
+    const foregroundWrite =
+      foregroundWriteCoordinator &&
+      typeof foregroundWriteCoordinator.snapshot === 'function'
+        ? foregroundWriteCoordinator.snapshot()
+        : { active: false, count: 0, reasons: [] };
+
+    return {
+      ...base,
+      diagnosticsVersion: '2026.07.19-round6-production-acceptance-fast-scan-v1',
+      queue,
+      worker,
+      performance,
+      foregroundWrite,
+      diagnosticsDurationMs: Math.max(
+        0,
+        Math.round(performanceNow() - startedAt)
+      )
+    };
+  }
+
+  async function inspectWorkerHealth() {
+    const startedAt = performanceNow();
+
+    try {
+      const response = await request('/api/health', {
+        auth: false,
+        timeoutMs: 20000,
+        retries: 0
+      });
+      const health = response && response.data && typeof response.data === 'object'
+        ? response.data
+        : {};
+      return {
+        available: true,
+        status: 'PASS',
+        buildVersion:
+          health && health.worker && health.worker.buildVersion || '',
+        health,
+        latencyMs: Math.max(
+          0,
+          Math.round(performanceNow() - startedAt)
+        ),
+        checkedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      return {
+        available: false,
+        status: 'FAIL',
+        buildVersion: '',
+        health: {},
+        latencyMs: Math.max(
+          0,
+          Math.round(performanceNow() - startedAt)
+        ),
+        errorCode: error && error.code || 'WORKER_HEALTH_FAILED',
+        error: error && error.message ? error.message : String(error),
+        checkedAt: new Date().toISOString()
+      };
+    }
+  }
+
+  function readClientPerformanceTrace() {
+    try {
+      const parsed = JSON.parse(
+        window.sessionStorage.getItem(API_PERFORMANCE_STORAGE_KEY) || '[]'
+      );
+      return Array.isArray(parsed) ? parsed.slice() : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function percentile(values, percentileValue) {
+    const list = (Array.isArray(values) ? values : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value >= 0)
+      .sort((left, right) => left - right);
+
+    if (!list.length) return 0;
+    const position = Math.max(
+      0,
+      Math.min(
+        list.length - 1,
+        Math.ceil((Number(percentileValue) || 0) * list.length) - 1
+      )
+    );
+    return Math.round(list[position]);
+  }
+
+  function summarizeClientPerformance(items) {
+    const list = Array.isArray(items) ? items.slice(-API_PERFORMANCE_MAX_ITEMS) : [];
+    const writes = list.filter((item) =>
+      String(item && item.method || '').toUpperCase() !== 'GET'
+    );
+    const durations = list.map((item) => Number(item && item.clientTotalMs || 0));
+    const writeDurations = writes.map((item) => Number(item && item.clientTotalMs || 0));
+    const failed = list.filter((item) => item && item.ok !== true);
+    const retried = list.filter((item) => Number(item && item.requestAttempt || 1) > 1);
+    const verified = list.filter((item) => Number(item && item.verificationCount || 0) > 0);
+    const workerGasValues = list
+      .map((item) => Number(item && item.workerPerformance && item.workerPerformance.gasMs || 0))
+      .filter((value) => value > 0);
+    const appsLockValues = list
+      .map((item) => Number(item && item.appsScriptPerformance && item.appsScriptPerformance.lockHeldMs || 0))
+      .filter((value) => value >= 0);
+
+    return {
+      available: true,
+      sampleCount: list.length,
+      writeCount: writes.length,
+      successCount: list.length - failed.length,
+      errorCount: failed.length,
+      errorRate: list.length ? failed.length / list.length : 0,
+      retryCount: retried.length,
+      retryRate: list.length ? retried.length / list.length : 0,
+      verificationCount: verified.length,
+      verificationRate: list.length ? verified.length / list.length : 0,
+      p50ClientMs: percentile(durations, 0.50),
+      p95ClientMs: percentile(durations, 0.95),
+      p50WriteMs: percentile(writeDurations, 0.50),
+      p95WriteMs: percentile(writeDurations, 0.95),
+      p95WorkerGasMs: percentile(workerGasValues, 0.95),
+      p95AppsLockHeldMs: percentile(appsLockValues, 0.95),
+      maxClientMs: durations.length ? Math.max(...durations) : 0,
+      lastFinishedAtEpochMs: list.length
+        ? Number(list[list.length - 1].finishedAtEpochMs || 0)
+        : 0,
+      inspectedAt: new Date().toISOString()
+    };
   }
 
   async function inspectInboundQueueStorage() {
-    const fallbackKey='ALERT_VENDOR_INBOUND_PENDING_QUEUE_V2', dbName='alertvendor_inbound_pending_queue_v2', storeName='operations';
-    function summarize(items,mode){const counts={pending:0,failed:0,paused:0,committed:0};(items||[]).forEach((x)=>{const s=String(x&&x.status||'').toUpperCase();if(['PENDING','SENDING','RETRY_WAIT','UNKNOWN'].includes(s))counts.pending++;else if(s==='FAILED')counts.failed++;else if(['PAUSED_AUTH','PAUSED_ACTOR'].includes(s))counts.paused++;else if(s==='COMMITTED')counts.committed++;});return {available:true,storageMode:mode,total:(items||[]).length,...counts,inspectedAt:new Date().toISOString()};}
+    const fallbackKey = 'ALERT_VENDOR_INBOUND_PENDING_QUEUE_V2';
+    const dbName = 'alertvendor_inbound_pending_queue_v2';
+    const storeName = 'operations';
+    const recoverableCodes = new Set([
+      'INVALID_LOOKUP_METHOD',
+      'NETWORK_ERROR',
+      'REQUEST_TIMEOUT',
+      'GAS_TIMEOUT',
+      'GAS_CONNECTION_FAILED',
+      'RECEIVING_BUSY',
+      'WORKFLOW_SYNC_PENDING',
+      'STATE_CHANGED'
+    ]);
+
+    function summarize(items, mode) {
+      const counts = {
+        pending: 0,
+        failed: 0,
+        paused: 0,
+        committed: 0,
+        recoverableFailed: 0,
+        terminalFailed: 0,
+        legacyContractCount: 0
+      };
+      let oldestPendingAt = 0;
+
+      (items || []).forEach((item) => {
+        const status = String(item && item.status || '').toUpperCase();
+        const payload = item && item.payload && typeof item.payload === 'object'
+          ? item.payload
+          : {};
+        const lookupMethod = String(
+          payload.lookupMethod || item && item.lookupMethod || ''
+        ).toUpperCase();
+        const errorCode = String(
+          item && (item.lastErrorCode || item.errorCode) ||
+          item && item.lastError && item.lastError.code ||
+          ''
+        ).toUpperCase();
+        const createdAt = Number(
+          item && (item.createdAtEpochMs || item.createdAt || item.queuedAtEpochMs) || 0
+        );
+
+        if (lookupMethod.indexOf('QUEUE_') === 0) {
+          counts.legacyContractCount += 1;
+        }
+
+        if (['PENDING', 'SENDING', 'RETRY_WAIT', 'UNKNOWN'].includes(status)) {
+          counts.pending += 1;
+          if (createdAt > 0 && (!oldestPendingAt || createdAt < oldestPendingAt)) {
+            oldestPendingAt = createdAt;
+          }
+        } else if (status === 'FAILED') {
+          counts.failed += 1;
+          if (recoverableCodes.has(errorCode)) {
+            counts.recoverableFailed += 1;
+          } else {
+            counts.terminalFailed += 1;
+          }
+        } else if (['PAUSED_AUTH', 'PAUSED_ACTOR'].includes(status)) {
+          counts.paused += 1;
+        } else if (status === 'COMMITTED') {
+          counts.committed += 1;
+        }
+      });
+
+      return {
+        available: true,
+        storageMode: mode,
+        total: (items || []).length,
+        ...counts,
+        oldestPendingAgeMs: oldestPendingAt
+          ? Math.max(0, Date.now() - oldestPendingAt)
+          : 0,
+        autoRecoveryExpected:
+          counts.terminalFailed === 0 &&
+          (counts.pending > 0 || counts.recoverableFailed > 0 || counts.legacyContractCount > 0),
+        inspectedAt: new Date().toISOString()
+      };
+    }
+
     try {
       if (window.indexedDB) {
-        const databases=typeof indexedDB.databases==='function'?await indexedDB.databases():null;
-        const exists=!databases||databases.some((x)=>x&&x.name===dbName);
-        if(exists){const items=await new Promise((resolve,reject)=>{const req=indexedDB.open(dbName,1);req.onerror=()=>reject(req.error||new Error('INDEXEDDB_OPEN_FAILED'));req.onsuccess=()=>{const db=req.result;if(!db.objectStoreNames.contains(storeName)){db.close();resolve([]);return;}const tx=db.transaction(storeName,'readonly'),getAll=tx.objectStore(storeName).getAll();getAll.onerror=()=>reject(getAll.error||new Error('INDEXEDDB_READ_FAILED'));getAll.onsuccess=()=>{db.close();resolve(Array.isArray(getAll.result)?getAll.result:[]);};};});return summarize(items,'INDEXED_DB');}
+        const databases = typeof indexedDB.databases === 'function'
+          ? await indexedDB.databases()
+          : null;
+        const exists = !databases || databases.some((item) => item && item.name === dbName);
+        if (exists) {
+          const items = await new Promise((resolve, reject) => {
+            const request = indexedDB.open(dbName, 1);
+            request.onerror = () => reject(request.error || new Error('INDEXEDDB_OPEN_FAILED'));
+            request.onsuccess = () => {
+              const db = request.result;
+              if (!db.objectStoreNames.contains(storeName)) {
+                db.close();
+                resolve([]);
+                return;
+              }
+              const transaction = db.transaction(storeName, 'readonly');
+              const getAllRequest = transaction.objectStore(storeName).getAll();
+              getAllRequest.onerror = () => reject(getAllRequest.error || new Error('INDEXEDDB_READ_FAILED'));
+              getAllRequest.onsuccess = () => {
+                db.close();
+                resolve(Array.isArray(getAllRequest.result) ? getAllRequest.result : []);
+              };
+            };
+          });
+          return summarize(items, 'INDEXED_DB');
+        }
       }
-      const raw=window.localStorage.getItem(fallbackKey),items=raw?JSON.parse(raw):[];return summarize(Array.isArray(items)?items:[],'LOCAL_STORAGE');
-    } catch(error){return {available:false,storageMode:'',total:0,pending:0,failed:0,paused:0,committed:0,error:error&&error.message?error.message:String(error),inspectedAt:new Date().toISOString()};}
+
+      const raw = window.localStorage.getItem(fallbackKey);
+      const items = raw ? JSON.parse(raw) : [];
+      return summarize(Array.isArray(items) ? items : [], 'LOCAL_STORAGE');
+    } catch (error) {
+      return {
+        available: false,
+        storageMode: '',
+        total: 0,
+        pending: 0,
+        failed: 0,
+        paused: 0,
+        committed: 0,
+        recoverableFailed: 0,
+        terminalFailed: 0,
+        legacyContractCount: 0,
+        oldestPendingAgeMs: 0,
+        autoRecoveryExpected: false,
+        error: error && error.message ? error.message : String(error),
+        inspectedAt: new Date().toISOString()
+      };
+    }
   }
 
   /************************************************************
@@ -3698,14 +3957,7 @@
     },
 
     getClientPerformanceTrace() {
-      try {
-        const parsed = JSON.parse(
-          window.sessionStorage.getItem(API_PERFORMANCE_STORAGE_KEY) || '[]'
-        );
-        return Array.isArray(parsed) ? parsed.slice() : [];
-      } catch (error) {
-        return [];
-      }
+      return readClientPerformanceTrace();
     },
 
     clearClientPerformanceTrace() {
