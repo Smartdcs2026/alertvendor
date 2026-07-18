@@ -466,6 +466,14 @@
       const current = settings[key]?.value;
       const updated = settings[key]?.updatedAt || '-';
       const updatedBy = settings[key]?.updatedBy || '-';
+      const revision = settings[key]?.revision || '';
+      const effectiveAt = settings[key]?.effectiveAt || '';
+      const changeReason = settings[key]?.changeReason || '';
+      const governanceMeta = [
+        revision ? `Revision ${revision}` : 'ยังไม่มี Revision',
+        effectiveAt ? `เริ่มใช้ ${effectiveAt}` : '',
+        changeReason ? `เหตุผล: ${changeReason}` : ''
+      ].filter(Boolean).join(' · ');
       const featuredClass = definition.featured
         ? ' admin-setting-item--featured'
         : '';
@@ -476,7 +484,7 @@
             <div>
               <strong>${escapeHtml(definition.label)}</strong>
               <small>${escapeHtml(definition.help)}</small>
-              <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
+              <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}<br>${escapeHtml(governanceMeta)}</em>
             </div>
             <input
               type="checkbox"
@@ -488,13 +496,14 @@
       }
 
       if (definition.type === 'select') {
-        const currentNumber = Number(current || 36);
+        const currentNumber = Number(current);
+        const hasCurrentNumber = Number.isInteger(currentNumber);
         const options = Array.isArray(definition.options)
           ? definition.options.slice()
           : [];
 
         const isPresetValue =
-          options.includes(currentNumber);
+          hasCurrentNumber && options.includes(currentNumber);
 
         const minimum =
           Number(definition.minimum || 1);
@@ -559,7 +568,7 @@
                         min="${minimum}"
                         max="${maximum}"
                         step="1"
-                        value="${escapeHtml(String(currentNumber))}"
+                        value="${hasCurrentNumber ? escapeHtml(String(currentNumber)) : ''}"
                         data-setting-custom-for="${key}"
                         aria-label="กำหนดจำนวนชั่วโมงสำหรับ Auto Close"
                       >
@@ -585,7 +594,7 @@
               รายการที่ยังไม่มีเวลาออกจะถูกปิดเมื่อครบเวลาที่เลือก
             </div>
 
-            <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
+            <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}<br>${escapeHtml(governanceMeta)}</em>
           </label>
         `;
       }
@@ -599,7 +608,7 @@
             value="${escapeHtml(current ?? '')}"
           >
           <small>${escapeHtml(definition.help)}</small>
-          <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}</em>
+          <em>แก้ไข ${escapeHtml(updated)} โดย ${escapeHtml(updatedBy)}<br>${escapeHtml(governanceMeta)}</em>
         </label>
       `;
     }).join('');
@@ -1345,6 +1354,28 @@
                     '-'
                   )}
                 </span>
+
+                <span>
+                  ${escapeHtml(
+                    stage.revision
+                      ? 'Revision ' + stage.revision
+                      : 'ยังไม่มี Revision'
+                  )}
+                </span>
+
+                <span>
+                  ${escapeHtml(
+                    stage.effectiveAt
+                      ? 'เริ่มใช้ ' + stage.effectiveAt
+                      : ''
+                  )}
+                </span>
+
+                ${
+                  stage.changeReason
+                    ? `<span>${escapeHtml('เหตุผล: ' + stage.changeReason)}</span>`
+                    : ''
+                }
               </footer>
             </article>
           `
@@ -1613,126 +1644,98 @@
 
 
   async function saveAdminSlaRules() {
-    if (
-      state.slaSaving
-    ) {
-      return;
-    }
+    if (state.slaSaving) return;
 
-    const validation =
-      validateAdminSlaRules(
-        true
-      );
+    const validation = validateAdminSlaRules(true);
+    if (!validation.valid) return;
 
-    if (!validation.valid) {
-      return;
-    }
+    const moduleId = String(
+      byId('adminSlaModuleSelect')?.value || 'DEFAULT'
+    ).trim();
 
-    const moduleId =
-      String(
-        byId(
-          'adminSlaModuleSelect'
-        )?.value ||
-        'DEFAULT'
-      ).trim();
+    const confirmation = await Swal.fire({
+      icon: 'question',
+      title: 'บันทึกเกณฑ์รายขั้นตอน?',
+      html: `
+        <div class="admin-confirm-box">
+          <strong>${escapeHtml(moduleId)}</strong>
+          <span>บันทึกเกณฑ์และการแจ้งเตือนครบ 4 ขั้นตอน</span>
+        </div>
+      `,
+      input: 'textarea',
+      inputLabel: 'เหตุผลการเปลี่ยน',
+      inputPlaceholder: 'เช่น ปรับตามผลการประชุมประจำเดือน',
+      inputAttributes: {
+        maxlength: '500',
+        'aria-label': 'เหตุผลการเปลี่ยนเกณฑ์ SLA'
+      },
+      inputValidator: (value) => {
+        const reason = String(value || '').trim();
+        if (reason.length < 5) {
+          return 'กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร';
+        }
+        return undefined;
+      },
+      showCancelButton: true,
+      confirmButtonText: 'บันทึก',
+      cancelButtonText: 'ยกเลิก',
+      focusConfirm: false
+    });
 
-    const confirm =
-      await Swal.fire({
-        icon:
-          'question',
-        title:
-          'บันทึกเกณฑ์รายขั้นตอน?',
-        html: `
-          <div class="admin-confirm-box">
-            <strong>
-              ${escapeHtml(
-                moduleId
-              )}
-            </strong>
-            <span>
-              บันทึกเกณฑ์และการแจ้งเตือนครบ 4 ขั้นตอน
-            </span>
-          </div>
-        `,
-        showCancelButton:
-          true,
-        confirmButtonText:
-          'บันทึก',
-        cancelButtonText:
-          'ยกเลิก'
-      });
+    if (!confirmation.isConfirmed) return;
 
-    if (!confirm.isConfirmed) {
-      return;
-    }
-
-    state.slaSaving =
-      true;
-
-    const button =
-      byId(
-        'adminSlaSaveButton'
-      );
-
-    if (button) {
-      button.disabled =
-        true;
-    }
+    state.slaSaving = true;
+    const button = byId('adminSlaSaveButton');
+    if (button) button.disabled = true;
 
     showLoading(
       'กำลังบันทึกเกณฑ์',
-      'ระบบกำลังตรวจสอบและบันทึกทั้ง 4 ขั้นตอน'
+      'ระบบกำลังตรวจ Revision และบันทึกประวัติทั้ง 4 ขั้นตอน'
     );
 
     try {
-      const result =
-        await API
-          .saveAdminWorkflowSlaRules(
-            moduleId,
-            {
-              rules:
-                validation.rules
-            }
-          );
+      const result = await API.saveAdminWorkflowSlaRules(
+        moduleId,
+        {
+          rules: validation.rules,
+          expectedRevision: state.slaData?.editRevision || '',
+          changeReason: String(confirmation.value || '').trim(),
+          effectiveAt: new Date().toISOString()
+        }
+      );
 
       Swal.close();
-
-      state.slaData =
-        result || null;
-
-      state.slaLoadedModuleId =
-        moduleId;
-
-      renderAdminSlaRules(
-        result
-      );
+      state.slaData = result || null;
+      state.slaLoadedModuleId = moduleId;
+      renderAdminSlaRules(result);
 
       await success(
-        'บันทึกเกณฑ์เวลาและการแจ้งเตือนแล้ว'
+        (result?.message || 'บันทึกเกณฑ์เวลาและการแจ้งเตือนแล้ว') +
+        (result?.revision ? ` · ${result.revision}` : '')
       );
-
     } catch (error) {
       Swal.close();
 
-      await Swal.fire({
-        icon:
-          'error',
-        title:
-          'บันทึกไม่สำเร็จ',
-        text:
-          error &&
-          error.message ||
-          'เกิดข้อผิดพลาด'
-      });
-
-    } finally {
-      state.slaSaving =
-        false;
-
-      if (button) {
-        button.disabled =
-          false;
+      if (String(error?.code || '').toUpperCase() === 'CONFIG_REVISION_CONFLICT') {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'ข้อมูลถูกแก้ไขจากหน้าจออื่น',
+          text: error.message || 'กรุณาโหลดเกณฑ์ล่าสุดก่อนบันทึกอีกครั้ง',
+          confirmButtonText: 'โหลดข้อมูลล่าสุด'
+        });
+        state.slaData = null;
+        state.slaLoadedModuleId = '';
+        await loadAdminSlaRules(true);
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'บันทึกไม่สำเร็จ',
+          text: error?.message || 'เกิดข้อผิดพลาด'
+        });
       }
+    } finally {
+      state.slaSaving = false;
+      if (button) button.disabled = false;
     }
   }
 
@@ -3552,14 +3555,10 @@
         input.dataset.settingSelectCustom === 'TRUE' &&
         String(input.value || '').toUpperCase() === 'CUSTOM'
       ) {
-        const customInput =
-          document.querySelector(
-            `[data-setting-custom-for="${cssEscape(key)}"]`
-          );
-
-        settings[key] =
-          Number(customInput?.value);
-
+        const customInput = document.querySelector(
+          `[data-setting-custom-for="${cssEscape(key)}"]`
+        );
+        settings[key] = Number(customInput?.value);
         return;
       }
 
@@ -3575,23 +3574,19 @@
       }
     });
 
-    const autoCloseHours =
-      Number(settings.AUTO_CLOSE_HOURS);
+    const autoCloseHours = Number(settings.AUTO_CLOSE_HOURS);
 
     if (
       !Number.isInteger(autoCloseHours) ||
       autoCloseHours < 1 ||
       autoCloseHours > 168
     ) {
-      const select =
-        document.querySelector(
-          '[data-setting-key="AUTO_CLOSE_HOURS"]'
-        );
-
-      const customInput =
-        document.querySelector(
-          '[data-setting-custom-for="AUTO_CLOSE_HOURS"]'
-        );
+      const select = document.querySelector(
+        '[data-setting-key="AUTO_CLOSE_HOURS"]'
+      );
+      const customInput = document.querySelector(
+        '[data-setting-custom-for="AUTO_CLOSE_HOURS"]'
+      );
 
       if (select) {
         select.value = 'CUSTOM';
@@ -3604,30 +3599,46 @@
         text: 'กรุณากรอกจำนวนเต็มตั้งแต่ 1 ถึง 168 ชั่วโมง',
         confirmButtonText: 'แก้ไข'
       });
-
       customInput?.focus();
       customInput?.select();
       return;
     }
 
-    const currentAutoCloseHours = Number(
-      state.dashboard?.settings?.AUTO_CLOSE_HOURS?.value || 36
-    );
+    const currentSettings = state.dashboard?.settings || {};
+    const comparable = (value) => {
+      if (value === true || value === false) return String(value);
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
+      return String(value).trim();
+    };
+    const changedKeys = Object.keys(settings).filter((key) => (
+      comparable(currentSettings[key]?.value) !== comparable(settings[key])
+    ));
 
-    const nextAutoCloseHours = Number(
-      settings.AUTO_CLOSE_HOURS || currentAutoCloseHours
-    );
+    if (changedKeys.length === 0) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'ไม่มีค่าที่เปลี่ยนแปลง',
+        confirmButtonText: 'ปิด'
+      });
+      return;
+    }
 
-    const autoCloseChanged =
-      Number.isFinite(nextAutoCloseHours) &&
-      nextAutoCloseHours !== currentAutoCloseHours;
-
+    const currentAutoCloseValue = currentSettings.AUTO_CLOSE_HOURS?.value;
+    const currentAutoCloseHours = Number(currentAutoCloseValue);
+    const hasCurrentAutoClose = Number.isInteger(currentAutoCloseHours);
+    const nextAutoCloseHours = Number(settings.AUTO_CLOSE_HOURS);
+    const autoCloseChanged = changedKeys.includes('AUTO_CLOSE_HOURS');
     const impactMessage = autoCloseChanged
       ? `
         <div class="admin-setting-confirm">
           <div>
             <span>ค่าปัจจุบัน</span>
-            <strong>${escapeHtml(String(currentAutoCloseHours))} ชั่วโมง</strong>
+            <strong>${
+              hasCurrentAutoClose
+                ? escapeHtml(String(currentAutoCloseHours)) + ' ชั่วโมง'
+                : 'ยังไม่ได้กำหนด'
+            }</strong>
           </div>
           <div>
             <span>ค่าใหม่</span>
@@ -3636,38 +3647,60 @@
         </div>
         <p class="admin-setting-confirm-note">
           ${
-            nextAutoCloseHours < currentAutoCloseHours
+            hasCurrentAutoClose && nextAutoCloseHours < currentAutoCloseHours
               ? 'รายการที่ยังไม่มีเวลาออกและมีอายุเกินค่าใหม่ อาจถูกเคลียร์ในรอบทำงานถัดไป'
-              : 'ค่าใหม่จะใช้กับทุก Module ในการตรวจรอบถัดไป'
+              : 'ค่าใหม่จะใช้กับทุก Module ในรอบ Auto Close ถัดไป'
           }
         </p>
       `
-      : '<p>ค่าที่แก้ไขจะมีผลกับผู้ใช้งานทั้งหมด</p>';
+      : `<p>กำลังเปลี่ยนการตั้งค่า ${changedKeys.length} รายการ</p>`;
 
     const confirmation = await Swal.fire({
       icon: autoCloseChanged ? 'warning' : 'question',
       title: 'บันทึกการตั้งค่าระบบ?',
       html: impactMessage,
+      input: 'textarea',
+      inputLabel: 'เหตุผลการเปลี่ยน',
+      inputPlaceholder: 'ระบุเหตุผลอย่างน้อย 5 ตัวอักษร',
+      inputAttributes: {
+        maxlength: '500',
+        'aria-label': 'เหตุผลการเปลี่ยนการตั้งค่า'
+      },
+      inputValidator: (value) => {
+        const reason = String(value || '').trim();
+        if (reason.length < 5) {
+          return 'กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร';
+        }
+        return undefined;
+      },
       showCancelButton: true,
       confirmButtonText: 'บันทึก',
       cancelButtonText: 'ยกเลิก',
-      reverseButtons: true
+      reverseButtons: true,
+      focusConfirm: false
     });
 
     if (!confirmation.isConfirmed) return;
 
-    showLoading('กำลังบันทึกการตั้งค่า', 'กรุณารอสักครู่');
+    showLoading('กำลังบันทึกการตั้งค่า', 'ระบบกำลังสร้าง Revision และบันทึกประวัติ');
 
     try {
-      const response = await API.saveAdminSettings(settings);
+      const response = await API.saveAdminSettings({
+        settings,
+        changeReason: String(confirmation.value || '').trim(),
+        effectiveAt: new Date().toISOString()
+      });
       Swal.close();
 
-      await success(
-        response.message ||
-        'บันทึกการตั้งค่าแล้ว'
-      );
+      if (response?.settings && state.dashboard) {
+        state.dashboard.settings = response.settings;
+        renderSettings();
+      }
 
-      await refreshDashboard();
+      await success(
+        (response.message || 'บันทึกการตั้งค่าแล้ว') +
+        (response.revision ? ` · ${response.revision}` : '')
+      );
     } catch (error) {
       Swal.close();
       await showApiError(error, 'บันทึกการตั้งค่าไม่สำเร็จ');
