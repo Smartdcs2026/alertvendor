@@ -12,7 +12,7 @@
 (function (window) {
   'use strict';
 
-  const VERSION = '2026.07.17-round2-inbound-unknown-commit-reconcile';
+  const VERSION = '2026.07.18-round3-hotpath-process-scan-queue';
   const DB_NAME = 'alertvendor_inbound_pending_queue_v2';
   const DB_VERSION = 1;
   const STORE_NAME = 'operations';
@@ -397,12 +397,14 @@
       throw new QueueError('QUEUE_ACTOR_REQUIRED', 'ไม่พบผู้ใช้งานสำหรับผูกงานรอส่ง');
     }
 
-    const dedupeKey = buildDedupeKey(moduleId, autoId);
+    const dedupeKey = buildDedupeKey(kind, moduleId, autoId);
+    const legacyDedupeKey = buildLegacyDedupeKey(moduleId, autoId);
     const all = await state.adapter.getAll();
     const existing = all
       .filter(function (operation) {
-        return operation.dedupeKey === dedupeKey &&
-          ACTIVE_DEDUPE_STATUSES.has(operation.status);
+        const sameOperation = operation.dedupeKey === dedupeKey ||
+          (operation.dedupeKey === legacyDedupeKey && operation.kind === kind);
+        return sameOperation && ACTIVE_DEDUPE_STATUSES.has(operation.status);
       })
       .sort(function (left, right) {
         return Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
@@ -702,6 +704,26 @@
     });
 
     if (operation.kind === KIND.RESOLVE_SCAN) {
+      if (typeof state.api.processInboundWorkflowScan === 'function') {
+        const result = await state.api.processInboundWorkflowScan(
+          operation.moduleId,
+          Object.assign({}, payload, {
+            entryCode: operation.autoId,
+            autoId: operation.autoId,
+            lookupMethod: payload.lookupMethod || payload.method || 'QUEUE_REPLAY',
+            method: payload.lookupMethod || payload.method || 'QUEUE_REPLAY',
+            qrText: payload.qrText || operation.autoId,
+            originalScanSource: payload.scanSource || '',
+            scanSource: 'QUEUE_REPLAY'
+          })
+        );
+        return {
+          action: cleanText(result && result.resolvedAction) || 'PROCESS_SCAN',
+          noWrite: result && result.noWrite === true,
+          result
+        };
+      }
+
       const lookup = await state.api.lookupInboundWorkflow(
         operation.moduleId,
         operation.autoId,
@@ -723,7 +745,8 @@
           operation.moduleId,
           Object.assign({}, enrichedPayload, {
             note: payload.note || 'ส่งซ้ำจากคิว Inbound หลังเครือข่ายกลับมา',
-            scanSource: payload.scanSource || 'QUEUE_REPLAY'
+            originalScanSource: payload.scanSource || '',
+            scanSource: 'QUEUE_REPLAY'
           })
         );
         return { action, lookup, result };
@@ -734,7 +757,8 @@
           operation.moduleId,
           Object.assign({}, enrichedPayload, {
             note: payload.note || 'ส่งซ้ำจากคิว Inbound หลังเครือข่ายกลับมา',
-            scanSource: payload.scanSource || 'QUEUE_REPLAY'
+            originalScanSource: payload.scanSource || '',
+            scanSource: 'QUEUE_REPLAY'
           })
         );
         return { action, lookup, result };
@@ -1484,7 +1508,13 @@
     return Object.values(STATUS).includes(status) ? status : STATUS.PENDING;
   }
 
-  function buildDedupeKey(moduleId, autoId) {
+  function buildDedupeKey(kind, moduleId, autoId) {
+    return normalizeKind(kind) + '|' +
+      normalizeModuleId(moduleId) + '|' +
+      normalizeAutoId(autoId);
+  }
+
+  function buildLegacyDedupeKey(moduleId, autoId) {
     return normalizeModuleId(moduleId) + '|' + normalizeAutoId(autoId);
   }
 
