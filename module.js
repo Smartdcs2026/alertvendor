@@ -22,6 +22,7 @@
  * - ROUND 3: Revision-only polling แบบ adaptive, หยุดเมื่อซ่อน Tab และไม่ refresh เต็มระหว่างการ์ดกำลัง Commit
  * - ROUND 02: Gate Out ใช้ Stable Request ID และตรวจ Commit หลัง Timeout
  * - ROUND 02 REVISION 1: Receiving ย้ายการ์ดทันทีและไม่ย้อนกลับจาก Snapshot ที่ตามหลัง
+ * - ROUND 05: หยุด Revision Polling ระหว่าง Foreground Write และเก็บ Performance Trace
  */
 (function (window, document) {
   'use strict';
@@ -94,6 +95,8 @@
     revisionPollDelayMs: REVISION_POLL_MIN_MS,
     revisionPollFailures: 0,
     revisionPollLastAt: 0,
+    foregroundWriteActive: false,
+    foregroundWriteCount: 0,
     movementScope: 'CURRENT_ROUND',
     timelineMode: 'ROLLING_24',
     selectedTimelineStartMs: null,
@@ -684,6 +687,11 @@
       })
     );
 
+
+    window.addEventListener(
+      'alertvendor:foreground-write-change',
+      handleForegroundWriteChange
+    );
 
     document.addEventListener(
       'alertvendor:receiving-committed',
@@ -8637,6 +8645,28 @@
     }
   }
 
+  function handleForegroundWriteChange(event) {
+    const detail = event && event.detail && typeof event.detail === 'object'
+      ? event.detail
+      : {};
+
+    state.foregroundWriteActive = detail.active === true;
+    state.foregroundWriteCount = Math.max(0, Number(detail.count) || 0);
+
+    if (state.foregroundWriteActive) {
+      stopAutoRefresh();
+      return;
+    }
+
+    if (
+      !state.destroyed &&
+      document.visibilityState === 'visible' &&
+      navigator.onLine
+    ) {
+      scheduleNextRevisionCheck(REVISION_POLL_RESUME_MS);
+    }
+  }
+
   function startAutoRefresh() {
     stopAutoRefresh();
 
@@ -8688,6 +8718,7 @@
 
   function hasActiveCardWrite() {
     return Boolean(
+      state.foregroundWriteActive ||
       document.querySelector(
         '.vehicle-card[data-receiving-save-state], .vehicle-card[aria-busy="true"]'
       )
@@ -8716,6 +8747,7 @@
       state.revisionCheckInProgress ||
       state.refreshInProgress ||
       state.destroyed ||
+      state.foregroundWriteActive ||
       !navigator.onLine ||
       document.visibilityState !== 'visible'
     ) {
@@ -10303,6 +10335,10 @@
 
   function destroyPage() {
     state.destroyed = true;
+    window.removeEventListener(
+      'alertvendor:foreground-write-change',
+      handleForegroundWriteChange
+    );
     stopAutoRefresh();
 
     [
