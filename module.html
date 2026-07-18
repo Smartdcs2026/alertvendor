@@ -370,13 +370,13 @@
   ></script>
 
   <script
-    src="./module.js?v=20260718-r2-gateout-stable-request-v1"
+    src="./module.js?v=20260718-r2rev1-receiving-card-transition-v1"
     defer
   ></script>
 
 
   <script
-    src="./receiving.js?v=20260718-r1-hotpath-single-post-verify"
+    src="./receiving.js?v=20260718-r2rev1-nonblocking-transition-v1"
     defer
   ></script>
 
@@ -832,6 +832,47 @@
       border-color: #e7a0a0;
       background: #fff4f4;
       color: #922b2b;
+    }
+
+    /*
+     * ROUND 02 REVISION 1:
+     * Progress ต้องเป็นแถบสถานะเล็ก ไม่กินพื้นที่การ์ดและไม่ขวางงานอื่น
+     */
+    body.module-page .receiving-card-progress {
+      gap: 5px !important;
+      margin-top: 6px !important;
+      padding: 7px 9px !important;
+      border-radius: 10px !important;
+      box-shadow: none !important;
+    }
+
+    body.module-page .receiving-card-progress__header {
+      gap: 7px !important;
+    }
+
+    body.module-page .receiving-card-progress__header strong {
+      font-size: 11px !important;
+      line-height: 1.25 !important;
+    }
+
+    body.module-page .receiving-card-progress__header small {
+      font-size: 9px !important;
+      line-height: 1.15 !important;
+    }
+
+    body.module-page .receiving-card-progress__spinner {
+      width: 15px !important;
+      height: 15px !important;
+      flex-basis: 15px !important;
+      border-width: 2px !important;
+    }
+
+    body.module-page .receiving-card-progress__meter {
+      height: 3px !important;
+    }
+
+    body.module-page .receiving-card-progress__steps {
+      display: none !important;
     }
 
     /*
