@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * PHASE 4E ROUND 01 + HOTFIX 2026-07-17 — Canonical INBOUND bootstrap
+ * ROUND 3 HOT PATH 2026-07-18 — Single-request scan + revision refresh
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -55,6 +55,7 @@
     effectiveSlaRules: {},
     dashboardPollTimer: 0,
     dashboardPollBusy: false,
+    postWriteRevisionTimer: 0,
     queueReady: false,
     queueSummary: {
       pending: 0,
@@ -641,6 +642,7 @@
     const cleanCode = normalizeCode(rawCode);
     const source = meta && meta.source ? String(meta.source) : 'SCAN';
     const requestId = createStableRequestId();
+    const workflowExpectation = getWorkflowExpectation(cleanCode);
 
     if (!cleanCode) {
       beep('warn');
@@ -667,11 +669,13 @@
 
     state.inFlightCodes.add(cleanCode);
     blockDuplicate(cleanCode, DUPLICATE_BLOCK_MS);
-    if (state.scanner && typeof state.scanner.pause === 'function') state.scanner.pause(1000);
+    if (state.scanner && typeof state.scanner.pause === 'function') state.scanner.pause(300);
 
     setScannerStatus('กำลังตรวจสอบ', 'BUSY');
     setScanMessage('กำลังค้นหาและตรวจสถานะ ' + cleanCode, 'BUSY');
     clearInput();
+    setScannerStatus('รับรหัสแล้ว · พร้อมสแกนรายการถัดไป', 'READY');
+    focusCodeInput(false);
 
     try {
       beep('scan');
@@ -683,6 +687,48 @@
           blockDuplicate(cleanCode, HARD_BLOCK_AFTER_SAVE_MS);
           setScanMessage('ออฟไลน์ · เก็บรายการไว้ในเครื่องแล้ว: ' + cleanCode, 'WARN');
           return;
+        }
+      }
+
+      if (API && typeof API.processInboundWorkflowScan === 'function') {
+        try {
+          const result = await API.processInboundWorkflowScan(
+            state.moduleId,
+            {
+              entryCode: cleanCode,
+              autoId: cleanCode,
+              qrText: meta && meta.rawText ? meta.rawText : cleanCode,
+              lookupMethod: source === 'MANUAL' ? 'MANUAL' : 'SCAN',
+              method: source === 'MANUAL' ? 'MANUAL' : 'SCAN',
+              scanSource: source,
+              expectedStatusCode: workflowExpectation.expectedStatusCode,
+              expectedActionCode: workflowExpectation.expectedActionCode,
+              note: 'ประมวลผลอัตโนมัติจากหน้า Inbound',
+              clientRequestId: requestId,
+              requestId
+            }
+          );
+          handleProcessScanResult(result, cleanCode);
+          return;
+        } catch (processError) {
+          if (isTransientQueueError(processError)) {
+            const queued = await queueResolveScan(
+              cleanCode,
+              source,
+              requestId,
+              meta
+            );
+            if (queued) {
+              beep('warn');
+              blockDuplicate(cleanCode, HARD_BLOCK_AFTER_SAVE_MS);
+              setScanMessage(
+                'ยังยืนยันผลไม่ได้ · เก็บรายการไว้ตรวจสอบอัตโนมัติ: ' + cleanCode,
+                'WARN'
+              );
+              return;
+            }
+          }
+          throw processError;
         }
       }
 
@@ -726,6 +772,10 @@
         blockDuplicate(cleanCode, HARD_BLOCK_AFTER_SAVE_MS);
       }
     } catch (error) {
+      /* Validation/ข้อมูลไม่พบ แก้แล้วสแกนซ้ำได้ทันที; Timeout ยังกันซ้ำไว้ */
+      if (!isTransientQueueError(error)) {
+        state.recentCodes.delete(cleanCode);
+      }
       beep('error');
       renderLookupError(cleanCode, error);
       setScanMessage(errorMessage(error), 'ERROR');
@@ -735,6 +785,54 @@
       setScannerStatus('พร้อมสแกนรายการถัดไป', state.scanner && state.scanner.running ? 'READY' : 'IDLE');
       resetForNextScan();
     }
+  }
+
+  function handleProcessScanResult(result, fallbackAutoId) {
+    const lookup = normalizeLookup(result, {autoId: fallbackAutoId});
+    const autoId = text(
+      lookup && lookup.record && lookup.record.autoId || fallbackAutoId
+    );
+    const action = text(result && result.resolvedAction).toUpperCase();
+    const committed = result && result.committed === true;
+    const replay = result && result.idempotentReplay === true;
+
+    state.currentLookup = lookup;
+    renderLookupResult(lookup);
+    upsertDashboardItemFromLookup(lookup);
+    renderDashboard();
+    blockDuplicate(autoId, HARD_BLOCK_AFTER_SAVE_MS);
+
+    if (committed) {
+      if (replay) {
+        beep('duplicate');
+        setScanMessage(
+          result.message || 'คำขอนี้ดำเนินการแล้ว ระบบไม่บันทึกซ้ำ: ' + autoId,
+          'WARN'
+        );
+      } else if (action === 'RETURN_DOCUMENT') {
+        beep('success');
+        setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + autoId, 'SUCCESS');
+      } else {
+        beep('success');
+        setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + autoId, 'SUCCESS');
+      }
+      scheduleRevisionCheckAfterWrite();
+      return;
+    }
+
+    if (action === 'GATE_OUT_COMPLETED' || action === 'DOCUMENT_ALREADY_RETURNED') {
+      beep('success');
+      setScanMessage(result.message || 'รายการนี้ดำเนินการครบแล้ว: ' + autoId, 'SUCCESS');
+      return;
+    }
+
+    beep('warn');
+    setScanMessage(
+      result && result.message ||
+      lookup && lookup.state && lookup.state.nextStepText ||
+      'สถานะนี้ยังไม่พร้อมบันทึกขั้นตอนถัดไป: ' + autoId,
+      'WARN'
+    );
   }
 
   async function autoSubmitDocument(lookup, source, requestId) {
@@ -769,7 +867,7 @@
         setScanMessage('บันทึกยื่นเอกสารแล้ว: ' + autoId, 'SUCCESS');
       }
 
-      void loadWorkflowDashboard(true);
+      scheduleRevisionCheckAfterWrite();
       return;
     } catch (error) {
       if (isTransientQueueError(error)) {
@@ -818,7 +916,7 @@
         setScanMessage('บันทึกรับเอกสารคืนแล้ว: ' + autoId, 'SUCCESS');
       }
 
-      void loadWorkflowDashboard(true);
+      scheduleRevisionCheckAfterWrite();
       return;
     } catch (error) {
       if (isTransientQueueError(error)) {
@@ -833,6 +931,40 @@
 
       throw error;
     }
+  }
+
+  function getWorkflowExpectation(autoId) {
+    const code = normalizeCode(autoId);
+    const item = state.dashboardItems.find((entry) =>
+      normalizeCode(entry && entry.autoId) === code
+    ) || null;
+    const status = text(item && item.statusCode).toUpperCase();
+
+    if (!item) {
+      return {
+        expectedStatusCode: '',
+        expectedActionCode: ''
+      };
+    }
+
+    if (!status || status === 'GATE_IN_ONLY') {
+      return {
+        expectedStatusCode: status || 'GATE_IN_ONLY',
+        expectedActionCode: 'SUBMIT_DOCUMENT'
+      };
+    }
+
+    if (status === 'RECEIVING_COMPLETED') {
+      return {
+        expectedStatusCode: status,
+        expectedActionCode: 'RETURN_DOCUMENT'
+      };
+    }
+
+    return {
+      expectedStatusCode: status,
+      expectedActionCode: 'NO_WRITE_REQUIRED'
+    };
   }
 
   function getAutoAction(lookup) {
@@ -978,6 +1110,18 @@
         critical: Number(serverSla.critical) || 0
       };
     }
+  }
+
+  function scheduleRevisionCheckAfterWrite() {
+    window.clearTimeout(state.postWriteRevisionTimer);
+    state.postWriteRevisionTimer = window.setTimeout(() => {
+      if (
+        navigator.onLine !== false &&
+        document.visibilityState === 'visible'
+      ) {
+        void pollDashboardRevision();
+      }
+    }, 450);
   }
 
   function startDashboardPolling() {
@@ -1744,6 +1888,7 @@
 
   function scheduleQueueDashboardRefresh() {
     window.clearTimeout(state.queueRefreshTimer);
+    window.clearTimeout(state.postWriteRevisionTimer);
     state.queueRefreshTimer = window.setTimeout(() => {
       void loadWorkflowDashboard(true, {cacheFirst: false});
     }, 700);
@@ -1754,6 +1899,7 @@
       return false;
     }
 
+    const workflowExpectation = getWorkflowExpectation(autoId);
     const response = await PENDING_QUEUE.enqueueResolveScan(
       state.moduleId,
       autoId,
@@ -1765,6 +1911,8 @@
         method: 'QUEUE_REPLAY',
         scanSource: source || 'SCAN',
         source: source || 'SCAN',
+        expectedStatusCode: workflowExpectation.expectedStatusCode,
+        expectedActionCode: workflowExpectation.expectedActionCode,
         note: 'รายการสแกนที่เก็บไว้ระหว่างเครือข่ายไม่พร้อม',
         clientRequestId: requestId,
         requestId
