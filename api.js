@@ -1,6 +1,6 @@
 /**
  * api.js
- * ROUND 3 REVISION 4 HOTFIX — Module Route Session Isolation
+ * ROUND 05 — Foreground Throughput + Performance Telemetry
  * ตัวกลางเรียก Cloudflare Worker API
  *
  * Session:
@@ -91,6 +91,20 @@
   const inFlightGetRequests =
     new Map();
 
+  const API_PERFORMANCE_EVENT =
+    'alertvendor:api-performance';
+
+  const API_PERFORMANCE_STORAGE_KEY =
+    'alertvendor:api-performance:v1';
+
+  const API_PERFORMANCE_MAX_ITEMS = 60;
+
+  const foregroundWriteCoordinator =
+    createForegroundWriteCoordinator();
+
+  window.AlertVendorForegroundWrite =
+    foregroundWriteCoordinator;
+
   const RETRYABLE_ERROR_CODES =
     new Set([
       'NETWORK_ERROR',
@@ -134,7 +148,137 @@
 
       this.requestId =
         requestId || '';
+
+      this.retryable = Boolean(
+        details && details.retryable === true
+      );
+
+      this.committed =
+        details && Object.prototype.hasOwnProperty.call(details, 'committed')
+          ? details.committed
+          : null;
+
+      this.verificationRequired = Boolean(
+        details && details.verificationRequired === true
+      );
+
+      this.clientPerformance = null;
     }
+  }
+
+  function createForegroundWriteCoordinator() {
+    const activeTokens = new Map();
+    let sequence = 0;
+
+    function snapshot() {
+      return {
+        active: activeTokens.size > 0,
+        count: activeTokens.size,
+        reasons: Array.from(activeTokens.values()).map((item) => item.reason),
+        updatedAt: Date.now()
+      };
+    }
+
+    function emit() {
+      const detail = snapshot();
+      try {
+        window.dispatchEvent(
+          new CustomEvent('alertvendor:foreground-write-change', { detail })
+        );
+      } catch (error) {
+        /* Telemetry ห้ามกระทบงานหลัก */
+      }
+      return detail;
+    }
+
+    return {
+      begin(reason, meta) {
+        sequence += 1;
+        const token = 'FGW-' + Date.now() + '-' + sequence;
+        activeTokens.set(token, {
+          reason: String(reason || 'WRITE'),
+          meta: meta && typeof meta === 'object' ? { ...meta } : {},
+          startedAt: Date.now()
+        });
+        emit();
+        return token;
+      },
+
+      end(token) {
+        if (token) activeTokens.delete(token);
+        return emit();
+      },
+
+      isActive() {
+        return activeTokens.size > 0;
+      },
+
+      snapshot
+    };
+  }
+
+  function performanceNow() {
+    return window.performance && typeof window.performance.now === 'function'
+      ? window.performance.now()
+      : Date.now();
+  }
+
+  function recordApiPerformance(item) {
+    const safeItem = item && typeof item === 'object' ? item : {};
+
+    try {
+      const existing = JSON.parse(
+        window.sessionStorage.getItem(API_PERFORMANCE_STORAGE_KEY) || '[]'
+      );
+      const list = Array.isArray(existing) ? existing : [];
+      list.push(safeItem);
+      window.sessionStorage.setItem(
+        API_PERFORMANCE_STORAGE_KEY,
+        JSON.stringify(list.slice(-API_PERFORMANCE_MAX_ITEMS))
+      );
+    } catch (error) {
+      /* Telemetry ห้ามกระทบงานหลัก */
+    }
+
+    try {
+      window.dispatchEvent(
+        new CustomEvent(API_PERFORMANCE_EVENT, { detail: safeItem })
+      );
+    } catch (error) {
+      /* Telemetry ห้ามกระทบงานหลัก */
+    }
+  }
+
+  function attachClientPerformance(payload, meta) {
+    const details = meta && typeof meta === 'object' ? meta : {};
+    const clientPerformance = {
+      clientTotalMs: Math.max(0, Math.round(Number(details.clientTotalMs) || 0)),
+      requestAttempt: Math.max(1, Number(details.requestAttempt) || 1),
+      verificationCount: Math.max(0, Number(details.verificationCount) || 0),
+      method: String(details.method || ''),
+      path: String(details.path || ''),
+      requestId: String(details.requestId || ''),
+      ok: details.ok === true,
+      status: Number(details.status) || 0,
+      finishedAtEpochMs: Date.now()
+    };
+
+    if (payload && payload.data && typeof payload.data === 'object') {
+      payload.data.clientPerformance = Object.assign(
+        {},
+        payload.data.clientPerformance || {},
+        clientPerformance
+      );
+    }
+
+    recordApiPerformance(Object.assign({}, clientPerformance, {
+      workerPerformance:
+        payload && payload.data && payload.data.workerPerformance || null,
+      appsScriptPerformance:
+        payload && payload.data && payload.data.performance || null
+    }));
+
+    return payload;
   }
 
   /************************************************************
@@ -281,9 +425,25 @@
             error &&
             error.message
               ? error.message
-              : String(error)
-        }
+              : String(error),
+          retryable: true,
+          committed: null,
+          verificationRequired: method !== 'GET'
+        },
+        stableRequestId
       );
+      networkError.clientPerformance = {
+        clientTotalMs: Math.max(0, Math.round(performanceNow() - requestStartedAt)),
+        requestAttempt: Math.max(1, Number(attemptNumber) || 1),
+        verificationCount: 0,
+        method,
+        path,
+        requestId: stableRequestId,
+        ok: false,
+        status: 0
+      };
+      recordApiPerformance(networkError.clientPerformance);
+      throw networkError;
     }
   }
 
@@ -503,6 +663,10 @@
         config.method || 'GET'
       ).toUpperCase();
 
+    config.requestId = String(
+      config.requestId || createRequestId()
+    ).trim();
+
     const requestKey =
       method === 'GET' &&
       config.dedupe !== false
@@ -522,6 +686,14 @@
         requestKey
       );
     }
+
+    const foregroundToken =
+      method !== 'GET' && config.foreground !== false
+        ? foregroundWriteCoordinator.begin(
+            config.foregroundReason || method + ' ' + path,
+            { method, path, requestId: config.requestId }
+          )
+        : '';
 
     const promise =
       requestWithRetry(
@@ -544,6 +716,10 @@
         inFlightGetRequests.delete(
           requestKey
         );
+      }
+
+      if (foregroundToken) {
+        foregroundWriteCoordinator.end(foregroundToken);
       }
     }
   }
@@ -573,7 +749,8 @@
       try {
         return await requestOnce(
           path,
-          config
+          config,
+          attempt + 1
         );
 
       } catch (error) {
@@ -603,7 +780,8 @@
 
   async function requestOnce(
     path,
-    config
+    config,
+    attemptNumber
   ) {
     if (!API_BASE) {
       throw new VehicleAPIError(
@@ -617,6 +795,11 @@
       String(
         config.method || 'GET'
       ).toUpperCase();
+
+    const requestStartedAt = performanceNow();
+    const stableRequestId = String(
+      config.requestId || createRequestId()
+    ).trim();
 
     const useAuthentication =
       config.auth !== false;
@@ -654,7 +837,12 @@
 
     headers.set(
       'X-Request-Id',
-      String(config.requestId || createRequestId())
+      stableRequestId
+    );
+
+    headers.set(
+      'X-Client-Attempt',
+      String(Math.max(1, Number(attemptNumber) || 1))
     );
 
     if (useAuthentication) {
@@ -706,30 +894,72 @@
           fetchOptions
         );
 
-      return await parseResponse(
+      const payload = await parseResponse(
         response
       );
+
+      return attachClientPerformance(payload, {
+        clientTotalMs: performanceNow() - requestStartedAt,
+        requestAttempt: attemptNumber,
+        verificationCount:
+          payload && payload.data && payload.data.workerPerformance &&
+          Number(payload.data.workerPerformance.verificationCount || 0) || 0,
+        method,
+        path,
+        requestId: stableRequestId,
+        ok: true,
+        status: response.status
+      });
 
     } catch (error) {
       if (
         error &&
         error.name === 'AbortError'
       ) {
-        throw new VehicleAPIError(
+        const timeoutError = new VehicleAPIError(
           'ระบบใช้เวลาตอบกลับนานเกินกำหนด',
           'REQUEST_TIMEOUT',
-          408
+          408,
+          {
+            retryable: true,
+            committed: null,
+            verificationRequired: method !== 'GET'
+          },
+          stableRequestId
         );
+        timeoutError.clientPerformance = {
+          clientTotalMs: Math.max(0, Math.round(performanceNow() - requestStartedAt)),
+          requestAttempt: Math.max(1, Number(attemptNumber) || 1),
+          verificationCount: 0,
+          method,
+          path,
+          requestId: stableRequestId,
+          ok: false,
+          status: 408
+        };
+        recordApiPerformance(timeoutError.clientPerformance);
+        throw timeoutError;
       }
 
       if (
         error instanceof
         VehicleAPIError
       ) {
+        error.clientPerformance = error.clientPerformance || {
+          clientTotalMs: Math.max(0, Math.round(performanceNow() - requestStartedAt)),
+          requestAttempt: Math.max(1, Number(attemptNumber) || 1),
+          verificationCount: 0,
+          method,
+          path,
+          requestId: stableRequestId,
+          ok: false,
+          status: Number(error.status) || 0
+        };
+        recordApiPerformance(error.clientPerformance);
         throw error;
       }
 
-      throw new VehicleAPIError(
+      const networkError = new VehicleAPIError(
         navigator.onLine
           ? 'ไม่สามารถเชื่อมต่อระบบได้'
           : 'อุปกรณ์ไม่ได้เชื่อมต่ออินเทอร์เน็ต',
@@ -1720,6 +1950,8 @@
             requestId:
               String(record && (record.clientRequestId || record.requestId) || ''),
 
+            foreground: false,
+
             body:
               record ||
               {}
@@ -1757,6 +1989,8 @@
             requestId:
               String(record && (record.clientRequestId || record.requestId) || ''),
 
+            foreground: false,
+
             body:
               record ||
               {}
@@ -1784,6 +2018,7 @@
           requestId: String(
             record && (record.clientRequestId || record.requestId) || ''
           ),
+          foreground: false,
           body: record || {}
         }
       );
@@ -1800,9 +2035,6 @@
       moduleId,
       payload
     ) {
-      const startedAt = window.performance && typeof window.performance.now === 'function'
-        ? window.performance.now()
-        : Date.now();
       const body = workflowPayload(
         payload,
         'SCAN'
@@ -1827,23 +2059,9 @@
           body
         }
       );
-      const data = response.data && typeof response.data === 'object'
+      return response.data && typeof response.data === 'object'
         ? response.data
         : {};
-      const endedAt = window.performance && typeof window.performance.now === 'function'
-        ? window.performance.now()
-        : Date.now();
-
-      data.clientPerformance = Object.assign(
-        {},
-        data.clientPerformance || {},
-        {
-          clientTotalMs: Math.max(0, Math.round(endedAt - startedAt)),
-          requestAttempt: 1,
-          verificationCount: 0
-        }
-      );
-      return data;
     },
 
     async lookupInboundWorkflow(
@@ -3441,6 +3659,30 @@
         );
 
       return response.data;
+    },
+
+    getClientPerformanceTrace() {
+      try {
+        const parsed = JSON.parse(
+          window.sessionStorage.getItem(API_PERFORMANCE_STORAGE_KEY) || '[]'
+        );
+        return Array.isArray(parsed) ? parsed.slice() : [];
+      } catch (error) {
+        return [];
+      }
+    },
+
+    clearClientPerformanceTrace() {
+      try {
+        window.sessionStorage.removeItem(API_PERFORMANCE_STORAGE_KEY);
+      } catch (error) {
+        /* Diagnostics only */
+      }
+      return { success: true };
+    },
+
+    getForegroundWriteState() {
+      return foregroundWriteCoordinator.snapshot();
     },
 
     async validateAdminSystem() {
