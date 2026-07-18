@@ -12,7 +12,7 @@
 (function (window) {
   'use strict';
 
-  const VERSION = '2026.07.18-round3-hotpath-process-scan-queue';
+  const VERSION = '2026.07.19-round5-revision1-fast-scan-auto-recovery-v1';
   const DB_NAME = 'alertvendor_inbound_pending_queue_v2';
   const DB_VERSION = 1;
   const STORE_NAME = 'operations';
@@ -36,6 +36,19 @@
     RETURN_DOCUMENT: 'RETURN_DOCUMENT',
     CANCEL_STAGE: 'CANCEL_STAGE'
   });
+
+  const LEGACY_QUEUE_LOOKUP_METHODS = new Set([
+    'QUEUE_REPLAY',
+    'QUEUE_UNKNOWN_COMMIT_VERIFY',
+    'QUEUE_RECONCILE'
+  ]);
+
+  const VALID_TRANSPORT_LOOKUP_METHODS = new Set([
+    'MANUAL',
+    'SCAN',
+    'QR',
+    'CAMERA'
+  ]);
 
   const ACTIVE_DEDUPE_STATUSES = new Set([
     STATUS.PENDING,
@@ -151,6 +164,7 @@
       state.initialized = true;
 
       await recoverInterruptedOperations();
+      const legacyMigration = await migrateLegacyQueueLookupMethods();
       await cleanupExpiredOperations();
       await emitChange();
 
@@ -158,6 +172,9 @@
         success: true,
         version: VERSION,
         storageMode: state.adapterMode,
+        legacyMigration,
+        migratedLegacyCount: legacyMigration.migratedCount,
+        revivedLegacyCount: legacyMigration.revivedCount,
         initializedAt: new Date().toISOString()
       };
     },
@@ -397,14 +414,12 @@
       throw new QueueError('QUEUE_ACTOR_REQUIRED', 'ไม่พบผู้ใช้งานสำหรับผูกงานรอส่ง');
     }
 
-    const dedupeKey = buildDedupeKey(kind, moduleId, autoId);
-    const legacyDedupeKey = buildLegacyDedupeKey(moduleId, autoId);
+    const dedupeKey = buildDedupeKey(moduleId, autoId);
     const all = await state.adapter.getAll();
     const existing = all
       .filter(function (operation) {
-        const sameOperation = operation.dedupeKey === dedupeKey ||
-          (operation.dedupeKey === legacyDedupeKey && operation.kind === kind);
-        return sameOperation && ACTIVE_DEDUPE_STATUSES.has(operation.status);
+        return operation.dedupeKey === dedupeKey &&
+          ACTIVE_DEDUPE_STATUSES.has(operation.status);
       })
       .sort(function (left, right) {
         return Number(right.updatedAt || 0) - Number(left.updatedAt || 0);
@@ -646,26 +661,28 @@
             operation.nextAttemptAt = 0;
             deferred += 1;
           } else if (isTransientError(error)) {
-            if (operation.attempts >= Number(state.config.maxAttempts || 12)) {
-              operation.status = STATUS.FAILED;
-              operation.nextAttemptAt = 0;
-              operation.lastError = {
-                code: 'RETRY_LIMIT_REACHED',
-                message: 'ส่งซ้ำครบจำนวนที่กำหนดแล้ว ต้องกดส่งใหม่จากหน้ารอส่ง',
-                originalCode: queueError.code,
-                originalMessage: queueError.message,
-                at: Date.now()
-              };
-              failed += 1;
-              notifyOperation('FAILED', operation, error);
-            } else {
-              operation.status = isUnknownCommitError(error)
-                ? STATUS.UNKNOWN
-                : STATUS.RETRY_WAIT;
-              operation.nextAttemptAt = Date.now() + calculateRetryDelay(operation.attempts);
-              deferred += 1;
-              notifyOperation('DEFERRED', operation, error);
-            }
+            /*
+             * Fast Scan Mode: ปัญหา Network/Timeout ห้ามกลายเป็นงานค้างที่ผู้ใช้ต้องกดเอง
+             * Queue จะรอและลองใหม่อัตโนมัติด้วย clientRequestId เดิมต่อไป
+             */
+            const cooldownReached =
+              operation.attempts >= Number(state.config.maxAttempts || 12);
+            operation.status = isUnknownCommitError(error)
+              ? STATUS.UNKNOWN
+              : STATUS.RETRY_WAIT;
+            operation.nextAttemptAt = Date.now() + (
+              cooldownReached
+                ? Number(state.config.retryMaxMs || 60000)
+                : calculateRetryDelay(operation.attempts)
+            );
+            operation.lastError = Object.assign({}, queueError, {
+              autoRetry: true,
+              cooldownReached: cooldownReached,
+              message: 'ระบบจะตรวจสอบและลองส่งคำขอเดิมให้อัตโนมัติ',
+              originalMessage: queueError.message
+            });
+            deferred += 1;
+            notifyOperation('DEFERRED', operation, error);
           } else {
             operation.status = STATUS.FAILED;
             operation.nextAttemptAt = 0;
@@ -696,48 +713,63 @@
   }
 
   async function executeOperation(operation) {
-    const payload = Object.assign({}, operation.payload || {}, {
+    const rawPayload = Object.assign({}, operation.payload || {}, {
       entryCode: operation.autoId,
       autoId: operation.autoId,
       clientRequestId: operation.clientRequestId,
       requestId: operation.requestId
     });
+    const lookupMethod = resolveTransportLookupMethod(
+      rawPayload,
+      operation.source
+    );
+    const payload = Object.assign({}, rawPayload, {
+      lookupMethod,
+      method: lookupMethod,
+      scanSource: cleanText(
+        rawPayload.scanSource ||
+        rawPayload.source ||
+        operation.source ||
+        'QUEUE_REPLAY'
+      ),
+      queueReplaySource: cleanText(
+        rawPayload.queueReplaySource ||
+        'QUEUE_REPLAY'
+      )
+    });
 
     if (operation.kind === KIND.RESOLVE_SCAN) {
-      if (typeof state.api.processInboundWorkflowScan === 'function') {
-        const result = await state.api.processInboundWorkflowScan(
-          operation.moduleId,
-          Object.assign({}, payload, {
-            entryCode: operation.autoId,
-            autoId: operation.autoId,
-            lookupMethod: payload.lookupMethod || payload.method || 'QUEUE_REPLAY',
-            method: payload.lookupMethod || payload.method || 'QUEUE_REPLAY',
-            qrText: payload.qrText || operation.autoId,
-            originalScanSource: payload.scanSource || '',
-            scanSource: 'QUEUE_REPLAY'
-          })
-        );
-        return {
-          action: cleanText(result && result.resolvedAction) || 'PROCESS_SCAN',
-          noWrite: result && result.noWrite === true,
-          result
-        };
-      }
-
       const lookup = await state.api.lookupInboundWorkflow(
         operation.moduleId,
         operation.autoId,
         {
           entryCode: operation.autoId,
           autoId: operation.autoId,
-          lookupMethod: payload.lookupMethod || payload.method || 'QUEUE_REPLAY',
-          method: payload.lookupMethod || payload.method || 'QUEUE_REPLAY',
+          lookupMethod,
+          method: lookupMethod,
           qrText: payload.qrText || operation.autoId,
           cacheBust: Date.now()
         }
       );
 
       const action = deriveWorkflowAction(lookup);
+      const expectation = validateReplayExpectation(
+        operation,
+        lookup,
+        action
+      );
+
+      if (expectation.safeToWrite !== true) {
+        return {
+          action: 'NO_WRITE_REQUIRED',
+          noWrite: true,
+          reconciled: true,
+          stateChanged: expectation.stateChanged === true,
+          message: expectation.message,
+          lookup
+        };
+      }
+
       const enrichedPayload = enrichPayloadFromLookup(payload, lookup);
 
       if (action === KIND.SUBMIT_DOCUMENT) {
@@ -745,8 +777,13 @@
           operation.moduleId,
           Object.assign({}, enrichedPayload, {
             note: payload.note || 'ส่งซ้ำจากคิว Inbound หลังเครือข่ายกลับมา',
-            originalScanSource: payload.scanSource || '',
-            scanSource: 'QUEUE_REPLAY'
+            scanSource: 'QUEUE_REPLAY',
+            originalScanSource: cleanText(
+              payload.originalScanSource ||
+              payload.source ||
+              operation.source ||
+              'SCAN'
+            )
           })
         );
         return { action, lookup, result };
@@ -757,8 +794,13 @@
           operation.moduleId,
           Object.assign({}, enrichedPayload, {
             note: payload.note || 'ส่งซ้ำจากคิว Inbound หลังเครือข่ายกลับมา',
-            originalScanSource: payload.scanSource || '',
-            scanSource: 'QUEUE_REPLAY'
+            scanSource: 'QUEUE_REPLAY',
+            originalScanSource: cleanText(
+              payload.originalScanSource ||
+              payload.source ||
+              operation.source ||
+              'SCAN'
+            )
           })
         );
         return { action, lookup, result };
@@ -800,7 +842,11 @@
         operation.autoId,
         {
           cacheBust: Date.now(),
-          lookupMethod: 'QUEUE_UNKNOWN_COMMIT_VERIFY',
+          lookupMethod: resolveTransportLookupMethod(
+            operation.payload || {},
+            operation.source
+          ),
+          scanSource: 'QUEUE_UNKNOWN_COMMIT_VERIFY',
           clientRequestId: operation.clientRequestId,
           requestId: operation.requestId
         }
@@ -871,7 +917,14 @@
       const lookup = await state.api.lookupInboundWorkflow(
         operation.moduleId,
         operation.autoId,
-        { cacheBust: Date.now(), lookupMethod: 'QUEUE_RECONCILE' }
+        {
+          cacheBust: Date.now(),
+          lookupMethod: resolveTransportLookupMethod(
+            operation.payload || {},
+            operation.source
+          ),
+          scanSource: 'QUEUE_RECONCILE'
+        }
       );
       const publicLookup = unwrapLookup(lookup);
       const workflow = publicLookup.state || {};
@@ -917,6 +970,177 @@
     }
 
     return { committed: false, result: null };
+  }
+
+  function resolveTransportLookupMethod(payload, operationSource) {
+    const source = isObject(payload) ? payload : {};
+    const raw = cleanText(
+      source.lookupMethod ||
+      source.method ||
+      source.originalLookupMethod ||
+      source.originalScanSource ||
+      source.scanSource ||
+      source.source ||
+      operationSource ||
+      'SCAN'
+    ).toUpperCase();
+
+    if (raw === 'MANUAL') {
+      return 'MANUAL';
+    }
+
+    if (
+      VALID_TRANSPORT_LOOKUP_METHODS.has(raw) ||
+      LEGACY_QUEUE_LOOKUP_METHODS.has(raw)
+    ) {
+      return raw === 'MANUAL' ? 'MANUAL' : 'SCAN';
+    }
+
+    return 'SCAN';
+  }
+
+  function validateReplayExpectation(operation, input, resolvedAction) {
+    const payload = isObject(operation && operation.payload)
+      ? operation.payload
+      : {};
+    const lookup = unwrapLookup(input);
+    const workflow = isObject(lookup.state) ? lookup.state : {};
+    const currentStatus = cleanText(workflow.statusCode).toUpperCase();
+    const expectedStatus = cleanText(payload.expectedStatusCode).toUpperCase();
+    const expectedAction = cleanText(payload.expectedActionCode).toUpperCase();
+    const action = cleanText(resolvedAction).toUpperCase();
+
+    if (action === 'NO_WRITE_REQUIRED') {
+      return {
+        safeToWrite: false,
+        stateChanged: Boolean(
+          expectedAction && expectedAction !== 'NO_WRITE_REQUIRED'
+        ),
+        message: 'สถานะล่าสุดไม่ต้องบันทึกซ้ำ ระบบปิดรายการค้างให้แล้ว'
+      };
+    }
+
+    if (expectedAction && expectedAction !== action) {
+      return {
+        safeToWrite: false,
+        stateChanged: true,
+        message:
+          'สถานะรายการเปลี่ยนจากตอนที่เก็บคิว ระบบไม่ทำขั้นตอนใหม่อัตโนมัติ'
+      };
+    }
+
+    if (
+      expectedStatus &&
+      currentStatus &&
+      expectedStatus !== currentStatus
+    ) {
+      return {
+        safeToWrite: false,
+        stateChanged: true,
+        message:
+          'สถานะรายการเปลี่ยนแล้ว ระบบยืนยันข้อมูลล่าสุดและปิดรายการค้าง'
+      };
+    }
+
+    /*
+     * คิวรุ่นเก่าที่ไม่มี Expected Action สามารถส่งยื่นเอกสารได้เมื่อยังเป็น
+     * Gate In เท่านั้น แต่ห้ามทำ Return Document อัตโนมัติ เพราะอาจเป็น
+     * ขั้นตอนใหม่ที่เกิดขึ้นหลังจากรายการถูกเก็บไว้ในคิว
+     */
+    if (!expectedAction && action === KIND.RETURN_DOCUMENT) {
+      return {
+        safeToWrite: false,
+        stateChanged: true,
+        message:
+          'รายการเดินไปขั้นตอนใหม่แล้ว กรุณาสแกนอีกครั้งเพื่อรับเอกสารคืน'
+      };
+    }
+
+    return {
+      safeToWrite: true,
+      stateChanged: false,
+      message: ''
+    };
+  }
+
+  async function migrateLegacyQueueLookupMethods() {
+    if (!state.adapter) {
+      return {
+        success: true,
+        scannedCount: 0,
+        migratedCount: 0,
+        revivedCount: 0
+      };
+    }
+
+    const operations = await state.adapter.getAll();
+    let migratedCount = 0;
+    let revivedCount = 0;
+
+    for (const operation of operations) {
+      const payload = isObject(operation.payload)
+        ? Object.assign({}, operation.payload)
+        : {};
+      const rawMethod = cleanText(
+        payload.lookupMethod || payload.method
+      ).toUpperCase();
+      const lastErrorCode = cleanText(
+        operation.lastError && operation.lastError.code
+      ).toUpperCase();
+      const lastErrorMessage = cleanText(
+        operation.lastError && operation.lastError.message
+      );
+      const legacyMethod = LEGACY_QUEUE_LOOKUP_METHODS.has(rawMethod);
+      const invalidMethodFailure =
+        lastErrorCode === 'INVALID_LOOKUP_METHOD' ||
+        lastErrorMessage.indexOf('วิธีค้นหารหัสเข้าพื้นที่ไม่ถูกต้อง') >= 0;
+
+      if (!legacyMethod && !invalidMethodFailure) {
+        continue;
+      }
+
+      const normalizedMethod = resolveTransportLookupMethod(
+        payload,
+        operation.source
+      );
+      payload.originalLookupMethod = rawMethod || payload.originalLookupMethod || '';
+      payload.lookupMethod = normalizedMethod;
+      payload.method = normalizedMethod;
+      payload.originalScanSource = cleanText(
+        payload.originalScanSource ||
+        payload.scanSource ||
+        payload.source ||
+        operation.source ||
+        'SCAN'
+      );
+      payload.scanSource = 'QUEUE_REPLAY';
+      payload.queueReplaySource = 'LEGACY_QUEUE_MIGRATION';
+      operation.payload = payload;
+      operation.version = VERSION;
+      operation.updatedAt = Date.now();
+      operation.legacyLookupMethodMigrated = true;
+
+      if (
+        operation.status === STATUS.FAILED &&
+        invalidMethodFailure
+      ) {
+        operation.status = STATUS.PENDING;
+        operation.nextAttemptAt = 0;
+        operation.lastError = null;
+        operation.recoveredFromErrorCode = 'INVALID_LOOKUP_METHOD';
+        revivedCount += 1;
+      }
+
+      await state.adapter.put(operation);
+      migratedCount += 1;
+    }
+
+    return {
+      success: true,
+      scannedCount: operations.length,
+      migratedCount,
+      revivedCount
+    };
   }
 
   /************************************************************
@@ -1508,13 +1732,7 @@
     return Object.values(STATUS).includes(status) ? status : STATUS.PENDING;
   }
 
-  function buildDedupeKey(kind, moduleId, autoId) {
-    return normalizeKind(kind) + '|' +
-      normalizeModuleId(moduleId) + '|' +
-      normalizeAutoId(autoId);
-  }
-
-  function buildLegacyDedupeKey(moduleId, autoId) {
+  function buildDedupeKey(moduleId, autoId) {
     return normalizeModuleId(moduleId) + '|' + normalizeAutoId(autoId);
   }
 
