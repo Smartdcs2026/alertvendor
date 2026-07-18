@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.18-r2rev1-receiving-nonblocking-transition-v1';
+    '2026.07.18-round5-receiving-foreground-performance-v1';
 
   /* Worker และ Backend ทำ Idempotency/Verification อยู่แล้ว: ส่ง POST หลักเพียงครั้งเดียว */
   const MAX_COMMIT_ATTEMPTS = 1;
@@ -268,6 +268,18 @@ async function executeReceiving(
     }
 
     inFlight.add(recordId);
+    const foregroundToken =
+      window.AlertVendorForegroundWrite &&
+      typeof window.AlertVendorForegroundWrite.begin === 'function'
+        ? window.AlertVendorForegroundWrite.begin(
+            'RECEIVING_COMMIT',
+            {
+              moduleId,
+              recordId,
+              requestId: payload.clientRequestId || payload.requestId || ''
+            }
+          )
+        : '';
     setButtonLoading(button, true);
     setCardLiveStatus(
       recordId,
@@ -301,7 +313,8 @@ async function executeReceiving(
           'กำลังตรวจสอบผลการบันทึก...'
         );
 
-        const verified = await verifyCommit(moduleId, payload);
+        const verification = await verifyCommit(moduleId, payload);
+        const verified = verification && verification.result || null;
 
         if (verified && verified.completed === true) {
           result = {
@@ -315,6 +328,14 @@ async function executeReceiving(
             receivingCompleteEpochMs:
               Number(verified.receivingCompleteEpochMs) || 0,
             requestId: verified.requestId || payload.clientRequestId,
+            clientPerformance: Object.assign(
+              {},
+              verified.clientPerformance || {},
+              {
+                verificationCount:
+                  Number(verification && verification.verificationCount) || 0
+              }
+            ),
             workflowSync: {
               success: false,
               pending: true,
@@ -441,6 +462,13 @@ async function executeReceiving(
         await showSaveError(error);
       }
     } finally {
+      if (
+        foregroundToken &&
+        window.AlertVendorForegroundWrite &&
+        typeof window.AlertVendorForegroundWrite.end === 'function'
+      ) {
+        window.AlertVendorForegroundWrite.end(foregroundToken);
+      }
       inFlight.delete(recordId);
       if (!hasPendingRequest(recordId)) {
         setButtonLoading(button, false);
@@ -521,7 +549,10 @@ async function verifyCommit(
             result.staleRecord === true
           )
         ) {
-          return result;
+          return {
+            result,
+            verificationCount: attempt + 1
+          };
         }
       } catch (error) {
         if (isAuthenticationError(error)) {
@@ -534,7 +565,10 @@ async function verifyCommit(
       }
     }
 
-    return null;
+    return {
+      result: null,
+      verificationCount: VERIFY_ATTEMPTS
+    };
   }
 function enqueueWorkflowSync(
     moduleId,
