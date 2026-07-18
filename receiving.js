@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.17-r18-fast-response-background-sync';
+    '2026.07.18-r3r4-card-progress-no-blocking-modal';
 
   const MAX_COMMIT_ATTEMPTS = 3;
   const VERIFY_ATTEMPTS = 4;
@@ -305,7 +305,7 @@ async function executeReceiving(
             accepted: true,
             alreadyCompleted: true,
             verifiedAfterError: true,
-            message: 'Server ยืนยันว่าบันทึกรับสินค้าเสร็จแล้ว',
+            message: 'ยืนยันว่าบันทึกรับสินค้าเสร็จแล้ว',
             receivingCompleteAt: verified.receivingCompleteAt || '',
             receivingCompleteEpochMs:
               Number(verified.receivingCompleteEpochMs) || 0,
@@ -313,7 +313,7 @@ async function executeReceiving(
             workflowSync: {
               success: false,
               pending: true,
-              code: 'WORKFLOW_SYNC_PENDING'
+              code: 'STEP_UPDATE_PENDING'
             }
           };
         } else if (verified && verified.staleRecord === true) {
@@ -550,7 +550,7 @@ function enqueueWorkflowSync(
     setCardLiveStatus(
       payload.recordId,
       'SYNCING',
-      'บันทึกสำเร็จแล้ว กำลังซิงก์สถานะ Workflow เบื้องหลัง'
+      'บันทึกสำเร็จแล้ว กำลังย้ายรายการไปขั้นตอนถัดไป'
     );
   }
 
@@ -603,7 +603,7 @@ function enqueueWorkflowSync(
           }
 
           throw createLocalError(
-            result && result.code || 'WORKFLOW_SYNC_PENDING',
+            result && result.code || 'STEP_UPDATE_PENDING',
             result && result.message || 'ยังซิงก์ Workflow ไม่สำเร็จ'
           );
 
@@ -664,7 +664,7 @@ function enqueueWorkflowSync(
         JSON.stringify(map)
       );
     } catch (error) {
-      console.warn('เก็บ Workflow Sync Queue ไม่สำเร็จ', error);
+      console.warn('เก็บ คิวอัปเดตขั้นตอน ไม่สำเร็จ', error);
     }
   }
 
@@ -681,7 +681,7 @@ function enqueueWorkflowSync(
         localStorage.removeItem(workflowSyncStorageKey());
       }
     } catch (error) {
-      console.warn('ล้าง Workflow Sync Queue ไม่สำเร็จ', error);
+      console.warn('ล้าง คิวอัปเดตขั้นตอน ไม่สำเร็จ', error);
     }
   }
 
@@ -1093,20 +1093,34 @@ async function showSuccess(
     }
 
     const alreadyCompleted =
-      result && result.alreadyCompleted === true;
+      result &&
+      result.alreadyCompleted ===
+        true;
 
     await Swal.fire({
+      toast: true,
+      position:
+        window.innerWidth <= 767
+          ? 'top'
+          : 'top-end',
       icon: 'success',
-      title: alreadyCompleted
-        ? 'รายการนี้บันทึกไว้แล้ว'
-        : 'บันทึกรับสินค้าเสร็จแล้ว',
-      html: `
-        <p>${escapeHtml(result && result.message || 'บันทึกรับสินค้าเสร็จสำเร็จ')}</p>
-        <p class="receiving-success-subtext">รายการนี้ถูกย้ายไปแท็บ “พขร.รอรับเอกสารคืน” แล้ว</p>
-      `,
-      timer: alreadyCompleted ? 1100 : 1250,
+      title:
+        alreadyCompleted
+          ? 'รายการนี้บันทึกไว้แล้ว'
+          : 'บันทึกสำเร็จ',
+      text:
+        'ย้ายรายการไป “พขร.รอรับเอกสารคืน” แล้ว',
+      timer:
+        alreadyCompleted
+          ? 1500
+          : 1800,
       timerProgressBar: true,
-      showConfirmButton: false
+      showConfirmButton: false,
+      showCloseButton: true,
+      customClass: {
+        popup:
+          'receiving-success-toast'
+      }
     });
   }
 
@@ -1118,33 +1132,24 @@ async function showSuccess(
     }
 
     await Swal.fire({
-      icon:
-        'success',
-
+      toast: true,
+      position:
+        window.innerWidth <= 767
+          ? 'top'
+          : 'top-end',
+      icon: 'success',
       title:
-        'บันทึกรับสินค้าเสร็จแล้ว',
-
-      html: `
-        <p>
-          บันทึกรับสินค้าเสร็จสำเร็จแล้ว
-        </p>
-
-        <p>
-          ระบบกำลังย้ายรายการไปขั้นตอน “พขร.รอรับเอกสารคืน”
-        </p>
-
-        <small class="receiving-warning-code">
-          ${escapeHtml(
-            result &&
-            result.workflowSync &&
-            result.workflowSync.code ||
-            'WORKFLOW_SYNC_PENDING'
-          )}
-        </small>
-      `,
-
-      confirmButtonText:
-        'รับทราบ'
+        'บันทึกสำเร็จ',
+      text:
+        'ระบบกำลังย้ายรายการไปขั้นตอนถัดไปให้อัตโนมัติ',
+      timer: 2200,
+      timerProgressBar: true,
+      showConfirmButton: false,
+      showCloseButton: true,
+      customClass: {
+        popup:
+          'receiving-success-toast'
+      }
     });
   }
   async function showQueued(
@@ -1462,145 +1467,560 @@ async function showSuccess(
     record,
     payload
   ) {
-    if (!window.Swal || typeof Swal.fire !== 'function') {
-      return;
+    progressState.open = true;
+    progressState.recordId =
+      String(
+        payload &&
+        payload.recordId ||
+        ''
+      );
+    progressState.startedAt =
+      Date.now();
+    progressState.stage =
+      'PREPARE';
+
+    ensureCardProgressPanel(
+      progressState.recordId
+    );
+
+    updateSavingProgress(
+      'PREPARE',
+      'กำลังตรวจสอบข้อมูลก่อนบันทึก',
+      10
+    );
+
+    if (
+      progressState.elapsedTimer
+    ) {
+      window.clearInterval(
+        progressState.elapsedTimer
+      );
     }
 
-    closeSavingProgress();
-
-    const appointment =
-      record && (
-        record.appointmentNumber ||
-        record.appointment ||
-        record.primaryValue
-      ) || payload.expectedPrimaryValue || '-';
-    const company =
-      record && (record.companyName || record.company) || '-';
-
-    progressState.open = true;
-    progressState.recordId = String(payload.recordId || '');
-    progressState.startedAt = Date.now();
-    progressState.stage = 'PREPARE';
-
-    void Swal.fire({
-      title: '',
-      html: `
-        <section class="receiving-progress-panel">
-          <div class="receiving-progress-spinner" aria-hidden="true"></div>
-          <p class="receiving-progress-eyebrow">บันทึกรับสินค้าเสร็จ</p>
-          <h2>กำลังบันทึกรับสินค้าเสร็จ</h2>
-          <div class="receiving-progress-identity">
-            <span>เลขนัดหมาย<strong>${escapeHtml(appointment)}</strong></span>
-            <span>บริษัท<strong>${escapeHtml(company)}</strong></span>
-          </div>
-          <div class="receiving-progress-meter"><i data-receiving-progress-bar></i></div>
-          <p class="receiving-progress-message" data-receiving-progress-message>กำลังเตรียมคำขอ...</p>
-          <div class="receiving-progress-steps">
-            <div data-receiving-progress-step="PREPARE"><b>1</b><span>ตรวจสอบข้อมูล</span></div>
-            <div data-receiving-progress-step="COMMIT"><b>2</b><span>บันทึกรับเสร็จ</span></div>
-            <div data-receiving-progress-step="VERIFY"><b>3</b><span>ยืนยันผล</span></div>
-            <div data-receiving-progress-step="SYNC"><b>4</b><span>ย้ายไปขั้นตอนถัดไป</span></div>
-          </div>
-          <small data-receiving-progress-elapsed>ใช้เวลา 0 วินาที</small>
-          <p class="receiving-progress-hint">เมื่อบันทึกสำเร็จ รายการจะถูกย้ายไปแท็บ “พขร.รอรับเอกสารคืน” อัตโนมัติ</p>
-        </section>
-      `,
-      showConfirmButton: false,
-      showCloseButton: false,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      returnFocus: false,
-      heightAuto: false,
-      customClass: {
-        popup: 'receiving-progress-popup',
-        htmlContainer: 'receiving-progress-html'
-      },
-      didOpen: () => {
-        updateSavingProgress('PREPARE','กำลังเตรียมรายการสำหรับบันทึก',10);
-        progressState.elapsedTimer = window.setInterval(updateProgressElapsed,1000);
-      },
-      willClose: () => {
-        if (progressState.elapsedTimer) {
-          window.clearInterval(progressState.elapsedTimer);
-          progressState.elapsedTimer = null;
-        }
-        progressState.open = false;
-      }
-    });
+    progressState.elapsedTimer =
+      window.setInterval(
+        updateProgressElapsed,
+        1000
+      );
   }
 
-  function updateSavingProgress(stage,message,percent) {
-    progressState.stage = String(stage || progressState.stage || 'PREPARE').toUpperCase();
-    const popup = window.Swal && typeof Swal.getPopup === 'function'
-      ? Swal.getPopup()
-      : null;
-    if (!popup || !popup.classList.contains('receiving-progress-popup')) {
+  function updateSavingProgress(
+    stage,
+    message,
+    percent
+  ) {
+    progressState.stage =
+      String(
+        stage ||
+        progressState.stage ||
+        'PREPARE'
+      ).toUpperCase();
+
+    if (
+      !progressState.recordId
+    ) {
       return;
     }
-    const messageNode = popup.querySelector('[data-receiving-progress-message]');
-    if (messageNode) messageNode.textContent = message || 'กำลังดำเนินการ...';
-    const bar = popup.querySelector('[data-receiving-progress-bar]');
-    if (bar) {
-      bar.style.width = Math.max(4,Math.min(100,Number(percent || 0))) + '%';
-    }
-    const order=['PREPARE','COMMIT','VERIFY','SYNC','DONE'];
-    const currentIndex=order.indexOf(progressState.stage);
-    popup.querySelectorAll('[data-receiving-progress-step]').forEach((node) => {
-      const nodeIndex=order.indexOf(node.getAttribute('data-receiving-progress-step'));
-      node.classList.toggle('is-active',nodeIndex===currentIndex);
-      node.classList.toggle(
-        'is-done',
-        progressState.stage==='DONE' || (nodeIndex>=0 && currentIndex>=0 && nodeIndex<currentIndex)
+
+    const panel =
+      ensureCardProgressPanel(
+        progressState.recordId
       );
-    });
+
+    if (!panel) {
+      return;
+    }
+
+    const normalizedPercent =
+      Math.max(
+        4,
+        Math.min(
+          100,
+          Number(
+            percent || 0
+          )
+        )
+      );
+
+    panel.dataset.state =
+      progressState.stage === 'DONE'
+        ? 'DONE'
+        : 'SAVING';
+
+    panel.dataset.stage =
+      progressState.stage;
+
+    const messageNode =
+      panel.querySelector(
+        '[data-receiving-card-progress-message]'
+      );
+
+    if (messageNode) {
+      messageNode.textContent =
+        message ||
+        'กำลังดำเนินการ';
+    }
+
+    const bar =
+      panel.querySelector(
+        '[data-receiving-card-progress-bar]'
+      );
+
+    if (bar) {
+      bar.style.width =
+        normalizedPercent +
+        '%';
+    }
+
+    updateCardProgressSteps(
+      panel,
+      progressState.stage
+    );
   }
 
   function updateProgressElapsed() {
-    if (!progressState.open) return;
-    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
-    const node = popup && popup.querySelector('[data-receiving-progress-elapsed]');
-    if (!node) return;
-    const seconds=Math.max(0,Math.floor((Date.now()-progressState.startedAt)/1000));
-    node.textContent='ใช้เวลา '+seconds+' วินาที';
+    if (
+      !progressState.open ||
+      !progressState.recordId
+    ) {
+      return;
+    }
+
+    const panel =
+      findCardProgressPanel(
+        progressState.recordId
+      );
+
+    const node =
+      panel &&
+      panel.querySelector(
+        '[data-receiving-card-progress-elapsed]'
+      );
+
+    if (!node) {
+      return;
+    }
+
+    const seconds =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            Date.now() -
+            progressState.startedAt
+          ) /
+          1000
+        )
+      );
+
+    node.textContent =
+      'ใช้เวลา ' +
+      seconds +
+      ' วินาที';
   }
 
   function closeSavingProgress() {
-    if (progressState.elapsedTimer) {
-      window.clearInterval(progressState.elapsedTimer);
-      progressState.elapsedTimer=null;
+    if (
+      progressState.elapsedTimer
+    ) {
+      window.clearInterval(
+        progressState.elapsedTimer
+      );
+
+      progressState.elapsedTimer =
+        null;
     }
-    const popup = window.Swal && typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
-    if (popup && popup.classList.contains('receiving-progress-popup') && typeof Swal.close === 'function') {
+
+    const recordId =
+      progressState.recordId;
+
+    if (recordId) {
+      const panel =
+        findCardProgressPanel(
+          recordId
+        );
+
+      if (
+        panel &&
+        panel.dataset.state !==
+          'QUEUED' &&
+        panel.dataset.state !==
+          'ERROR' &&
+        panel.dataset.state !==
+          'SYNC_PENDING'
+      ) {
+        panel.remove();
+      }
+
+      const card =
+        findVehicleCard(
+          recordId
+        );
+
+      if (card) {
+        delete card.dataset
+          .receivingSaveState;
+      }
+    }
+
+    /*
+     * ปิด popup รุ่นเก่าที่อาจค้างจาก Cache เดิม
+     * แต่รอบนี้จะไม่สร้าง popup สำหรับ Progress อีกแล้ว
+     */
+    const popup =
+      window.Swal &&
+      typeof Swal.getPopup ===
+        'function'
+        ? Swal.getPopup()
+        : null;
+
+    if (
+      popup &&
+      popup.classList.contains(
+        'receiving-progress-popup'
+      ) &&
+      typeof Swal.close ===
+        'function'
+    ) {
       Swal.close();
     }
-    progressState.open=false;
-    progressState.recordId='';
-    progressState.stage='';
+
+    progressState.open = false;
+    progressState.recordId = '';
+    progressState.stage = '';
   }
 
-  function setCardLiveStatus(recordId,status,message) {
-    const card=findVehicleCard(recordId);
-    if (!card) return;
-    let element=card.querySelector('.receiving-live-status');
-    if (!element) {
-      element=document.createElement('div');
-      element.className='receiving-live-status';
-      const stage=card.querySelector('.vehicle-operational-stage');
-      (stage || card).appendChild(element);
+  function ensureCardProgressPanel(
+    recordId
+  ) {
+    const card =
+      findVehicleCard(
+        recordId
+      );
+
+    if (!card) {
+      return null;
     }
-    element.dataset.state=String(status || 'SAVING').toUpperCase();
-    element.innerHTML=`<i aria-hidden="true"></i><span>${escapeHtml(message || 'กำลังดำเนินการ...')}</span>`;
-    card.dataset.receivingSaveState=element.dataset.state;
+
+    let panel =
+      card.querySelector(
+        '.receiving-card-progress'
+      );
+
+    if (panel) {
+      return panel;
+    }
+
+    panel =
+      document.createElement(
+        'section'
+      );
+
+    panel.className =
+      'receiving-card-progress';
+
+    panel.dataset.state =
+      'SAVING';
+
+    panel.dataset.stage =
+      'PREPARE';
+
+    panel.setAttribute(
+      'role',
+      'status'
+    );
+
+    panel.setAttribute(
+      'aria-live',
+      'polite'
+    );
+
+    panel.innerHTML = `
+      <div class="receiving-card-progress__header">
+        <span class="receiving-card-progress__spinner" aria-hidden="true"></span>
+        <div>
+          <strong data-receiving-card-progress-message>
+            กำลังตรวจสอบข้อมูลก่อนบันทึก
+          </strong>
+          <small data-receiving-card-progress-elapsed>
+            ใช้เวลา 0 วินาที
+          </small>
+        </div>
+      </div>
+
+      <div class="receiving-card-progress__meter" aria-hidden="true">
+        <i data-receiving-card-progress-bar></i>
+      </div>
+
+      <div class="receiving-card-progress__steps" aria-label="ขั้นตอนการบันทึก">
+        <span data-receiving-card-progress-step="PREPARE">
+          <b>1</b>
+          <em>ตรวจสอบ</em>
+        </span>
+        <span data-receiving-card-progress-step="COMMIT">
+          <b>2</b>
+          <em>บันทึก</em>
+        </span>
+        <span data-receiving-card-progress-step="VERIFY">
+          <b>3</b>
+          <em>ยืนยัน</em>
+        </span>
+        <span data-receiving-card-progress-step="SYNC">
+          <b>4</b>
+          <em>เสร็จสิ้น</em>
+        </span>
+      </div>
+    `;
+
+    const footer =
+      card.querySelector(
+        '.vehicle-card__footer'
+      );
+
+    if (footer) {
+      card.insertBefore(
+        panel,
+        footer
+      );
+    } else {
+      card.appendChild(
+        panel
+      );
+    }
+
+    card.dataset.receivingSaveState =
+      'SAVING';
+
+    return panel;
   }
 
-  function clearCardLiveStatus(recordId,onlyState) {
-    const card=findVehicleCard(recordId);
-    if (!card) return;
-    const element=card.querySelector('.receiving-live-status');
-    if (element && (!onlyState || element.dataset.state===onlyState)) {
-      element.remove();
+  function findCardProgressPanel(
+    recordId
+  ) {
+    const card =
+      findVehicleCard(
+        recordId
+      );
+
+    return card
+      ? card.querySelector(
+          '.receiving-card-progress'
+        )
+      : null;
+  }
+
+  function updateCardProgressSteps(
+    panel,
+    stage
+  ) {
+    const order = [
+      'PREPARE',
+      'COMMIT',
+      'VERIFY',
+      'SYNC',
+      'DONE'
+    ];
+
+    const normalizedStage =
+      String(
+        stage || 'PREPARE'
+      ).toUpperCase();
+
+    const currentIndex =
+      order.indexOf(
+        normalizedStage
+      );
+
+    panel
+      .querySelectorAll(
+        '[data-receiving-card-progress-step]'
+      )
+      .forEach(
+        (node) => {
+          const nodeStage =
+            String(
+              node.getAttribute(
+                'data-receiving-card-progress-step'
+              ) ||
+              ''
+            ).toUpperCase();
+
+          const nodeIndex =
+            order.indexOf(
+              nodeStage
+            );
+
+          node.classList.toggle(
+            'is-active',
+            nodeIndex ===
+              currentIndex
+          );
+
+          node.classList.toggle(
+            'is-done',
+            normalizedStage ===
+              'DONE' ||
+            (
+              nodeIndex >= 0 &&
+              currentIndex >= 0 &&
+              nodeIndex <
+                currentIndex
+            )
+          );
+        }
+      );
+  }
+
+  function setCardLiveStatus(
+    recordId,
+    status,
+    message
+  ) {
+    const panel =
+      ensureCardProgressPanel(
+        recordId
+      );
+
+    if (!panel) {
+      return;
     }
-    delete card.dataset.receivingSaveState;
+
+    const normalizedStatus =
+      String(
+        status || 'SAVING'
+      ).toUpperCase();
+
+    panel.dataset.state =
+      normalizedStatus;
+
+    const messageNode =
+      panel.querySelector(
+        '[data-receiving-card-progress-message]'
+      );
+
+    if (messageNode) {
+      messageNode.textContent =
+        message ||
+        'กำลังดำเนินการ';
+    }
+
+    const stageMap = {
+      SAVING: 'PREPARE',
+      VERIFYING: 'VERIFY',
+      COMMITTED: 'SYNC',
+      SYNCING: 'SYNC',
+      SYNC_PENDING: 'SYNC',
+      SYNCED: 'DONE',
+      DONE: 'DONE',
+      QUEUED: 'VERIFY',
+      STALE: 'VERIFY',
+      ERROR: 'VERIFY'
+    };
+
+    const percentMap = {
+      SAVING: 12,
+      VERIFYING: 68,
+      COMMITTED: 86,
+      SYNCING: 92,
+      SYNC_PENDING: 92,
+      SYNCED: 100,
+      DONE: 100,
+      QUEUED: 64,
+      STALE: 70,
+      ERROR: 72
+    };
+
+    const stage =
+      stageMap[
+        normalizedStatus
+      ] ||
+      progressState.stage ||
+      'PREPARE';
+
+    panel.dataset.stage =
+      stage;
+
+    const bar =
+      panel.querySelector(
+        '[data-receiving-card-progress-bar]'
+      );
+
+    if (bar) {
+      bar.style.width =
+        String(
+          percentMap[
+            normalizedStatus
+          ] ||
+          12
+        ) +
+        '%';
+    }
+
+    updateCardProgressSteps(
+      panel,
+      stage
+    );
+
+    const card =
+      findVehicleCard(
+        recordId
+      );
+
+    if (card) {
+      card.dataset.receivingSaveState =
+        normalizedStatus;
+    }
+  }
+
+  function clearCardLiveStatus(
+    recordId,
+    onlyState
+  ) {
+    const card =
+      findVehicleCard(
+        recordId
+      );
+
+    if (!card) {
+      return;
+    }
+
+    const panel =
+      card.querySelector(
+        '.receiving-card-progress'
+      );
+
+    const expectedState =
+      String(
+        onlyState || ''
+      ).toUpperCase();
+
+    if (
+      panel &&
+      (
+        !expectedState ||
+        String(
+          panel.dataset.state ||
+          ''
+        ).toUpperCase() ===
+          expectedState
+      )
+    ) {
+      panel.remove();
+    }
+
+    if (
+      !expectedState ||
+      String(
+        card.dataset
+          .receivingSaveState ||
+        ''
+      ).toUpperCase() ===
+        expectedState
+    ) {
+      delete card.dataset
+        .receivingSaveState;
+    }
   }
 
 
