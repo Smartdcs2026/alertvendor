@@ -376,7 +376,7 @@
 
 
   <script
-    src="./receiving.js?v=20260718-r3r4-material-snackbar-v2"
+    src="./receiving.js?v=20260718-r3r4-record-detail-click-fix"
     defer
   ></script>
 
@@ -837,7 +837,7 @@
     /*
      * Material Snackbar: ไม่ทับ Header, ไม่ตัดข้อความ, ไม่มีปุ่ม X
      */
-    body.module-page .swal2-container.swal2-bottom {
+    body.module-page .swal2-container.receiving-material-snackbar-container {
       align-items: flex-end !important;
       padding:
         0 12px
@@ -972,7 +972,7 @@
         display: none;
       }
 
-      body.module-page .swal2-container.swal2-bottom {
+      body.module-page .swal2-container.receiving-material-snackbar-container {
         padding:
           0 8px
           calc(10px + env(safe-area-inset-bottom)) !important;
@@ -1015,11 +1015,31 @@
         transition: none;
       }
     }
+
+    /*
+     * Record Detail Pointer Fix — 2026-07-18
+     * ปุ่มปิดและปุ่มคำสั่งในหน้ารายละเอียดต้องรับ Pointer Event เอง
+     */
+    body.module-page .swal2-popup.record-action-popup,
+    body.module-page .swal2-popup.record-action-popup *,
+    body.module-page .swal2-popup.av-record-detail-popup-v55,
+    body.module-page .swal2-popup.av-record-detail-popup-v55 * {
+      pointer-events: auto !important;
+    }
+
+    body.module-page .swal2-popup.record-action-popup button,
+    body.module-page .swal2-popup.av-record-detail-popup-v55 button {
+      position: relative;
+      z-index: 20;
+      touch-action: manipulation;
+    }
+
   </style>
 
 </head>
 
 <!-- 20260718-mobile-drawer-right-to-left-viewport-fix -->
+<!-- 20260718-record-detail-pointer-fix -->
 <body
   data-page="module"
   class="module-page module-card-focus"
