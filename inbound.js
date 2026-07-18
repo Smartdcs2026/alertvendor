@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 05 HOT PATH 2026-07-18 — Single-request scan + foreground-aware revision refresh
+ * ROUND 05 REVISION 1 2026-07-19 — High-throughput Fast Scan Mode
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -8,6 +8,12 @@
   const CONFIG = window.APP_CONFIG || {};
   const API = window.VehicleAPI;
   const PENDING_QUEUE = window.InboundPendingQueue;
+  const BUILD = '2026.07.19-round5-revision1-fast-scan-mode-v1';
+  const FAST_SCAN_MODE = true;
+  const FAST_QUEUE_FLUSH_DELAY_MS = 35;
+  const FAST_QUEUE_RETRY_BASE_MS = 1200;
+  const FAST_QUEUE_RETRY_MAX_MS = 60000;
+  const FAST_QUEUE_AUTO_FLUSH_MS = 1800;
   const DUPLICATE_BLOCK_MS = 45000;
   const HARD_BLOCK_AFTER_SAVE_MS = 120000;
   const INPUT_DEBOUNCE_MS = 250;
@@ -67,6 +73,9 @@
       storageMode: ''
     },
     queueRefreshTimer: 0,
+    fastQueueFlushTimer: 0,
+    fastQueueFlushRunning: false,
+    fastQueueFlushAgain: false,
     queueUnsubscribe: null,
     slaSummary: {
       normal: 0,
@@ -80,6 +89,7 @@
 
   async function initialize() {
     startClock();
+    if (document.body) document.body.dataset.inboundUiBuild = BUILD;
     bindEvents();
     showLoading(true);
 
@@ -116,7 +126,7 @@
       focusCodeInput();
 
       // คอมพิวเตอร์ที่เสียบเครื่องสแกนจะพร้อมรับรหัสทันที
-      setScanMessage('พร้อมรับรหัส สแกนแล้วระบบจะค้นหาและบันทึกขั้นตอนให้อัตโนมัติ', 'SUCCESS');
+      setScanMessage('พร้อมสแกน · ยิงรหัสแล้วสแกนรายการถัดไปได้ทันที', 'SUCCESS');
 
       // พยายามเปิดกล้องแบบเงียบ หาก Browser ไม่ยอมก็ยังใช้ช่องกรอก/เครื่องสแกนได้
       window.setTimeout(() => {
@@ -684,6 +694,35 @@
 
     try {
       beep('scan');
+
+      /*
+       * FAST SCAN MODE
+       * รับรหัสเข้า Durable Queue ก่อนเสมอ แล้วปล่อยให้ Queue ส่ง/ยืนยันผลด้านหลัง
+       * ผู้ใช้จึงสแกนรายการถัดไปได้ทันทีโดยไม่ต้องรอ Google Sheets ตอบกลับ
+       */
+      if (FAST_SCAN_MODE && state.queueReady) {
+        const accepted = await queueResolveScan(
+          cleanCode,
+          source,
+          requestId,
+          meta
+        );
+
+        if (accepted) {
+          blockDuplicate(cleanCode, HARD_BLOCK_AFTER_SAVE_MS);
+          setScanMessage(
+            navigator.onLine === false
+              ? 'รับรหัสแล้ว · เก็บไว้ในเครื่องและจะส่งอัตโนมัติ: ' + cleanCode
+              : 'รับรหัสแล้ว · กำลังส่งอัตโนมัติ: ' + cleanCode,
+            navigator.onLine === false ? 'WARN' : 'SUCCESS'
+          );
+
+          if (navigator.onLine !== false) {
+            scheduleFastQueueFlush(FAST_QUEUE_FLUSH_DELAY_MS);
+          }
+          return;
+        }
+      }
 
       if (navigator.onLine === false) {
         const queued = await queueResolveScan(cleanCode, source, requestId, meta);
@@ -1652,15 +1691,24 @@
     }
 
     try {
-      await PENDING_QUEUE.init({
+      const queueInitResult = await PENDING_QUEUE.init({
         api: API,
         getActor: getCurrentQueueActor,
         config: {
           maxItems: Number(CONFIG.INBOUND_QUEUE_MAX_ITEMS) || 500,
           maxAttempts: Number(CONFIG.INBOUND_QUEUE_MAX_ATTEMPTS) || 12,
-          retryBaseMs: Number(CONFIG.INBOUND_QUEUE_RETRY_BASE_MS) || 3000,
-          retryMaxMs: Number(CONFIG.INBOUND_QUEUE_RETRY_MAX_MS) || 300000,
-          autoFlushMs: Number(CONFIG.INBOUND_QUEUE_AUTO_FLUSH_MS) || 15000,
+          retryBaseMs: Math.min(
+            Number(CONFIG.INBOUND_QUEUE_RETRY_BASE_MS) || FAST_QUEUE_RETRY_BASE_MS,
+            FAST_QUEUE_RETRY_BASE_MS
+          ),
+          retryMaxMs: Math.min(
+            Number(CONFIG.INBOUND_QUEUE_RETRY_MAX_MS) || FAST_QUEUE_RETRY_MAX_MS,
+            FAST_QUEUE_RETRY_MAX_MS
+          ),
+          autoFlushMs: Math.min(
+            Number(CONFIG.INBOUND_QUEUE_AUTO_FLUSH_MS) || FAST_QUEUE_AUTO_FLUSH_MS,
+            FAST_QUEUE_AUTO_FLUSH_MS
+          ),
           committedRetentionMs:
             (Number(CONFIG.INBOUND_QUEUE_COMMITTED_RETENTION_HOURS) || 24) * 60 * 60 * 1000,
           failedRetentionMs:
@@ -1669,17 +1717,23 @@
       });
 
       state.queueReady = true;
+
+      if (Number(queueInitResult && queueInitResult.revivedLegacyCount || 0) > 0) {
+        setScanMessage(
+          'พบรายการค้างจากระบบรุ่นก่อน กำลังตรวจสอบผลและกู้คืนอัตโนมัติ',
+          'BUSY'
+        );
+      }
+
       state.queueUnsubscribe = PENDING_QUEUE.subscribe(() => {
         void refreshQueueSummary();
+        if (navigator.onLine !== false) scheduleFastQueueFlush(80);
       });
       PENDING_QUEUE.startAutoFlush();
       await refreshQueueSummary();
 
       if (navigator.onLine !== false) {
-        void PENDING_QUEUE.flush({
-          moduleId: state.moduleId,
-          reason: 'PAGE_INITIALIZE'
-        });
+        scheduleFastQueueFlush(80);
       }
     } catch (error) {
       state.queueReady = false;
@@ -1752,47 +1806,43 @@
 
     if (network) {
       if (!online) {
-        network.textContent = 'ออฟไลน์ · สแกนได้และเก็บงานรอส่ง';
+        network.textContent = 'ออฟไลน์ · รับรหัสไว้ในเครื่องอัตโนมัติ';
         network.dataset.state = 'OFFLINE';
-      } else if (failed > 0 || paused > 0) {
-        network.textContent = 'ออนไลน์ · มีรายการต้องตรวจสอบ';
-        network.dataset.state = 'UNSTABLE';
       } else if (pending > 0) {
-        network.textContent = 'ออนไลน์ · กำลังรอส่งข้อมูล';
+        network.textContent = 'ออนไลน์ · กำลังส่ง ' + pending + ' รายการ';
         network.dataset.state = 'PENDING';
       } else {
-        network.textContent = 'ออนไลน์ · ข้อมูลเชื่อมต่อปกติ';
+        network.textContent = 'พร้อมสแกน';
         network.dataset.state = 'ONLINE';
       }
     }
 
     if (detail) {
       if (!state.queueReady && CONFIG.INBOUND_QUEUE_ENABLED !== false) {
-        detail.textContent = 'ระบบรอส่งไม่พร้อม กรุณาตรวจไฟล์ inbound-offline-queue.js';
-      } else if (failed > 0) {
-        detail.textContent = 'ส่งไม่สำเร็จ ' + failed + ' รายการ · เปิดรายการรอส่งเพื่อตรวจสอบและส่งใหม่';
-      } else if (paused > 0) {
-        detail.textContent = 'มี ' + paused + ' รายการรอบัญชีเดิมหรือรอเข้าสู่ระบบ';
+        detail.textContent = 'โหมดสำรองไม่พร้อม แต่ยังสามารถส่งตรงได้';
+      } else if (!online) {
+        detail.textContent = 'สแกนต่อได้ตามปกติ ระบบจะส่งเองเมื่ออินเทอร์เน็ตกลับมา';
       } else if (pending > 0) {
-        detail.textContent = 'เก็บในเครื่อง ' + pending + ' รายการ · ระบบจะส่งด้วย requestId เดิมเมื่อเครือข่ายพร้อม';
+        detail.textContent = 'สแกนรายการถัดไปได้ทันที · ระบบกำลังบันทึกด้านหลัง';
       } else {
-        detail.textContent = 'ไม่มีรายการรอส่ง' + (storageMode ? ' · ' + storageMode.replace(/_/g, ' ') : '');
+        detail.textContent = 'ยิงรหัสแล้วรับรายการถัดไปได้ทันที';
       }
     }
 
+    /* Fast Scan Mode ซ่อนเครื่องมือดูแล Queue จากผู้ปฏิบัติงาน */
     if (queueButton) {
-      queueButton.dataset.hasPending = pending > 0 ? 'true' : 'false';
-      queueButton.disabled = !state.queueReady;
+      queueButton.hidden = true;
+      queueButton.disabled = true;
     }
 
     if (failedButton) {
-      failedButton.hidden = failed <= 0;
-      failedButton.disabled = !state.queueReady;
+      failedButton.hidden = true;
+      failedButton.disabled = true;
     }
 
     if (retryButton) {
-      retryButton.hidden = online !== true || (pending + failed + paused) <= 0;
-      retryButton.disabled = !state.queueReady;
+      retryButton.hidden = true;
+      retryButton.disabled = true;
     }
 
     updateConnectionFromNetwork();
@@ -1811,17 +1861,12 @@
     const role = normalizeRole(user.role);
 
     if (navigator.onLine === false) {
-      setConnection('OFFLINE · เก็บงานในเครื่อง', 'WARN');
-      return;
-    }
-
-    if (Number(state.queueSummary.failed || 0) > 0) {
-      setConnection('ONLINE · มีงานส่งไม่สำเร็จ', 'WARN');
+      setConnection('OFFLINE · สแกนต่อได้', 'WARN');
       return;
     }
 
     if (Number(state.queueSummary.pending || 0) > 0) {
-      setConnection('ONLINE · กำลังส่งรายการค้าง', 'LOADING');
+      setConnection('ONLINE · กำลังบันทึกด้านหลัง', 'LOADING');
       return;
     }
 
@@ -1830,23 +1875,16 @@
 
   function handleNetworkOnline() {
     updateNetworkState();
-    setScanMessage('เครือข่ายกลับมาแล้ว ระบบกำลังส่งรายการค้างตามลำดับ', 'BUSY');
+    setScanMessage('ออนไลน์แล้ว · ระบบกำลังส่งข้อมูลที่เก็บไว้ให้อัตโนมัติ', 'SUCCESS');
 
     if (state.queueReady) {
-      void PENDING_QUEUE.flush({
-        force: true,
-        moduleId: state.moduleId,
-        reason: 'BROWSER_ONLINE'
-      }).then(() => {
-        void refreshQueueSummary();
-        void loadWorkflowDashboard(true, {cacheFirst: false});
-      });
+      scheduleFastQueueFlush(30);
     }
   }
 
   function handleNetworkOffline() {
     updateNetworkState();
-    setScanMessage('ออฟไลน์ · รายการใหม่จะถูกเก็บไว้ในเครื่องและส่งเมื่อออนไลน์', 'WARN');
+    setScanMessage('ออฟไลน์ · สแกนต่อได้ ระบบเก็บข้อมูลไว้และจะส่งเองเมื่อออนไลน์', 'WARN');
   }
 
   function handleQueueOperationEvent(event) {
@@ -1869,18 +1907,14 @@
         renderDashboard();
       }
 
-      if (document.visibilityState === 'visible') {
-        setScanMessage('ส่งรายการค้างสำเร็จ: ' + (operation.autoId || '-'), 'SUCCESS');
-      }
-
       scheduleQueueDashboardRefresh();
       return;
     }
 
     if (detail.type === 'FAILED' && document.visibilityState === 'visible') {
+      const failedCode = operation.autoId || '-';
       setScanMessage(
-        'รายการรอส่งต้องตรวจสอบ: ' + (operation.autoId || '-') + ' · ' +
-          errorMessage(detail.error || operation.lastError),
+        'รหัส ' + failedCode + ' ไม่สามารถดำเนินการได้ · กรุณาตรวจสอบรหัสแล้วสแกนใหม่',
         'WARN'
       );
     }
@@ -1906,10 +1940,59 @@
 
   function scheduleQueueDashboardRefresh() {
     window.clearTimeout(state.queueRefreshTimer);
-    window.clearTimeout(state.postWriteRevisionTimer);
     state.queueRefreshTimer = window.setTimeout(() => {
-      void loadWorkflowDashboard(true, {cacheFirst: false});
-    }, 700);
+      scheduleRevisionCheckAfterWrite();
+    }, 1400);
+  }
+
+  function scheduleFastQueueFlush(delayMs) {
+    if (!state.queueReady || navigator.onLine === false) return;
+
+    if (state.fastQueueFlushRunning) {
+      state.fastQueueFlushAgain = true;
+      return;
+    }
+
+    window.clearTimeout(state.fastQueueFlushTimer);
+    state.fastQueueFlushTimer = window.setTimeout(
+      () => void runFastQueueFlush(),
+      Math.max(0, Number(delayMs) || FAST_QUEUE_FLUSH_DELAY_MS)
+    );
+  }
+
+  async function runFastQueueFlush() {
+    if (
+      state.fastQueueFlushRunning ||
+      !state.queueReady ||
+      navigator.onLine === false ||
+      !PENDING_QUEUE ||
+      typeof PENDING_QUEUE.flush !== 'function'
+    ) {
+      return;
+    }
+
+    state.fastQueueFlushRunning = true;
+    state.fastQueueFlushAgain = false;
+
+    try {
+      await PENDING_QUEUE.flush({
+        moduleId: state.moduleId,
+        reason: 'FAST_SCAN_AUTO_FLUSH'
+      });
+      await refreshQueueSummary();
+    } catch (error) {
+      console.warn('fast queue flush failed', error);
+    } finally {
+      state.fastQueueFlushRunning = false;
+      const counts = state.queueSummary.counts || {};
+      const hasImmediateWork =
+        Number(counts.PENDING || 0) > 0 ||
+        Number(counts.UNKNOWN || 0) > 0;
+
+      if (state.fastQueueFlushAgain || hasImmediateWork) {
+        scheduleFastQueueFlush(hasImmediateWork ? 180 : 60);
+      }
+    }
   }
 
   async function queueResolveScan(autoId, source, requestId, meta) {
@@ -1918,6 +2001,10 @@
     }
 
     const workflowExpectation = getWorkflowExpectation(autoId);
+    const originalScanSource = text(source || 'SCAN').toUpperCase();
+    const lookupMethod = originalScanSource === 'MANUAL'
+      ? 'MANUAL'
+      : 'SCAN';
     const response = await PENDING_QUEUE.enqueueResolveScan(
       state.moduleId,
       autoId,
@@ -1925,10 +2012,11 @@
         entryCode: autoId,
         autoId,
         qrText: meta && meta.rawText ? meta.rawText : autoId,
-        lookupMethod: 'QUEUE_REPLAY',
-        method: 'QUEUE_REPLAY',
-        scanSource: source || 'SCAN',
-        source: source || 'SCAN',
+        lookupMethod,
+        method: lookupMethod,
+        scanSource: 'QUEUE_REPLAY',
+        originalScanSource,
+        source: originalScanSource,
         expectedStatusCode: workflowExpectation.expectedStatusCode,
         expectedActionCode: workflowExpectation.expectedActionCode,
         note: 'รายการสแกนที่เก็บไว้ระหว่างเครือข่ายไม่พร้อม',
@@ -1937,7 +2025,7 @@
       }
     );
 
-    await refreshQueueSummary();
+    void refreshQueueSummary();
     return Boolean(response && (response.queued || response.duplicate || response.revived));
   }
 
@@ -2977,6 +3065,7 @@
     window.clearInterval(state.dashboardPollTimer);
     window.clearTimeout(state.inputTimer);
     window.clearTimeout(state.queueRefreshTimer);
+    window.clearTimeout(state.fastQueueFlushTimer);
 
     if (state.queueUnsubscribe) {
       try { state.queueUnsubscribe(); } catch (error) {}
