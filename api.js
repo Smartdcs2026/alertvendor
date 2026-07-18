@@ -7,7 +7,7 @@
  * - เก็บ Signed Session Token ใน sessionStorage
  * - ส่งผ่าน Authorization: Bearer <token>
  * - ไม่พึ่ง Third-party Cookie ระหว่าง github.io กับ workers.dev
- * - Production R16: Phase 4E Revision-aware Inbound Dashboard
+ * - Production R17: Inbound single-request process-scan hot path
  */
 (function (window) {
   'use strict';
@@ -1780,6 +1780,56 @@
     /**********************************************************
      * Inbound Workflow API
      **********************************************************/
+
+    async processInboundWorkflowScan(
+      moduleId,
+      payload
+    ) {
+      const startedAt = window.performance && typeof window.performance.now === 'function'
+        ? window.performance.now()
+        : Date.now();
+      const body = workflowPayload(
+        payload,
+        'SCAN'
+      );
+
+      requireApiText(
+        body.entryCode,
+        'ENTRY_CODE_REQUIRED',
+        'กรุณาระบุ Auto ID ก่อนประมวลผล'
+      );
+
+      const response = await request(
+        workflowBasePath(moduleId) +
+        '/process-scan',
+        {
+          method: 'POST',
+          timeoutMs:
+            CONFIG.SAVE_TIMEOUT_MS ||
+            90000,
+          requestId:
+            body.clientRequestId,
+          body
+        }
+      );
+      const data = response.data && typeof response.data === 'object'
+        ? response.data
+        : {};
+      const endedAt = window.performance && typeof window.performance.now === 'function'
+        ? window.performance.now()
+        : Date.now();
+
+      data.clientPerformance = Object.assign(
+        {},
+        data.clientPerformance || {},
+        {
+          clientTotalMs: Math.max(0, Math.round(endedAt - startedAt)),
+          requestAttempt: 1,
+          verificationCount: 0
+        }
+      );
+      return data;
+    },
 
     async lookupInboundWorkflow(
       moduleId,
