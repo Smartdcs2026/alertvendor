@@ -1269,7 +1269,7 @@
 
     return {
       ...base,
-      diagnosticsVersion: '2026.07.19-round6-production-acceptance-fast-scan-v1',
+      diagnosticsVersion: '2026.07.19-round7-safe-cleanup-strict-router-v1',
       queue,
       worker,
       performance,
@@ -3918,6 +3918,50 @@
 
     async cleanupManagementReportFiles() {
       const response = await request('/api/admin/management-report/cleanup', { method: 'POST', body: {}, timeoutMs: 120000 });
+      return response.data;
+    },
+
+    async getVcwRouterCleanupStatus() {
+      const response = await request(
+        '/api/admin/diagnostics/router-cleanup',
+        { timeoutMs: 60000 }
+      );
+      return response.data;
+    },
+
+    async enableVcwRouterStrictMode(options) {
+      const response = await request(
+        '/api/admin/diagnostics/router-cleanup/enable',
+        {
+          method: 'POST',
+          timeoutMs: 60000,
+          body: options || {}
+        }
+      );
+      return response.data;
+    },
+
+    async disableVcwRouterStrictMode(options) {
+      const response = await request(
+        '/api/admin/diagnostics/router-cleanup/disable',
+        {
+          method: 'POST',
+          timeoutMs: 60000,
+          body: options || {}
+        }
+      );
+      return response.data;
+    },
+
+    async resetVcwFallbackCounters(options) {
+      const response = await request(
+        '/api/admin/diagnostics/router-cleanup/reset',
+        {
+          method: 'POST',
+          timeoutMs: 60000,
+          body: options || {}
+        }
+      );
       return response.data;
     },
 
