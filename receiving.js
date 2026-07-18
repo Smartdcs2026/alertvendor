@@ -14,7 +14,8 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.18-round5-receiving-foreground-performance-v1';
+    '2026.07.19-round5-revision1-fast-receiving-v1';
+  const FAST_RECEIVING_MODE = true;
 
   /* Worker และ Backend ทำ Idempotency/Verification อยู่แล้ว: ส่ง POST หลักเพียงครั้งเดียว */
   const MAX_COMMIT_ATTEMPTS = 1;
@@ -124,11 +125,12 @@ function initialize() {
             )
         : null;
 
-    const confirmed =
-      await confirmReceiving(
-        record,
-        button
-      );
+    const confirmed = FAST_RECEIVING_MODE
+      ? true
+      : await confirmReceiving(
+          record,
+          button
+        );
 
     if (!confirmed) {
       return;
@@ -284,10 +286,10 @@ async function executeReceiving(
     setCardLiveStatus(
       recordId,
       'SAVING',
-      'กำลังตรวจสอบข้อมูลและเตรียมบันทึก...'
+      'รับคำสั่งแล้ว · กำลังบันทึกอัตโนมัติ...'
     );
 
-    if (interactive) {
+    if (interactive && !FAST_RECEIVING_MODE) {
       openSavingProgress(record, payload);
     }
 
@@ -436,7 +438,7 @@ async function executeReceiving(
       enqueueWorkflowSync(moduleId, payload, result);
 
       if (interactive) {
-        await showSuccess(result, record);
+        void showSuccess(result, record);
       } else {
         showRecoveryToast('ส่งคำขอรับสินค้าเสร็จที่ค้างไว้สำเร็จ');
       }
@@ -668,6 +670,15 @@ function enqueueWorkflowSync(
       }
     } finally {
       workflowRecoveryRunning = false;
+      if (
+        navigator.onLine !== false &&
+        readWorkflowSyncRequests().length > 0
+      ) {
+        window.setTimeout(
+          () => void recoverPendingWorkflowSyncs(),
+          3000
+        );
+      }
     }
   }
 
