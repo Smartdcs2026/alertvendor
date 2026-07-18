@@ -1269,7 +1269,7 @@
 
     return {
       ...base,
-      diagnosticsVersion: '2026.07.19-round7-safe-cleanup-strict-router-v1',
+      diagnosticsVersion: '2026.07.19-round7-hotfix3-acceptance-accuracy-v1',
       queue,
       worker,
       performance,
@@ -1350,13 +1350,36 @@
     return Math.round(list[position]);
   }
 
+  function classifyForegroundBusinessWrite(item) {
+    const method = String(item && item.method || '').toUpperCase();
+    const path = String(item && item.path || '').split('?')[0].toLowerCase();
+    if (method === 'GET' || !path) return '';
+
+    const rules = [
+      [/\/process-scan$/, 'INBOUND_PROCESS_SCAN'],
+      [/\/receiving-complete$/, 'RECEIVING_COMPLETE'],
+      [/\/return-document$/, 'DOCUMENT_RETURN'],
+      [/\/submit-document$/, 'DOCUMENT_SUBMIT'],
+      [/\/complete-receiving$/, 'WORKFLOW_RECEIVING_COMPLETE'],
+      [/\/checkout$/, 'GATE_OUT'],
+      [/\/cancel$/, 'WORKFLOW_CANCEL']
+    ];
+
+    for (const rule of rules) {
+      if (rule[0].test(path)) return rule[1];
+    }
+    return '';
+  }
+
   function summarizeClientPerformance(items) {
-    const list = Array.isArray(items) ? items.slice(-API_PERFORMANCE_MAX_ITEMS) : [];
-    const writes = list.filter((item) =>
-      String(item && item.method || '').toUpperCase() !== 'GET'
-    );
+    const trace = Array.isArray(items) ? items.slice(-API_PERFORMANCE_MAX_ITEMS) : [];
+    const classified = trace.map((item) => ({
+      item: item || {},
+      operation: classifyForegroundBusinessWrite(item)
+    }));
+    const businessSamples = classified.filter((entry) => Boolean(entry.operation));
+    const list = businessSamples.map((entry) => entry.item);
     const durations = list.map((item) => Number(item && item.clientTotalMs || 0));
-    const writeDurations = writes.map((item) => Number(item && item.clientTotalMs || 0));
     const failed = list.filter((item) => item && item.ok !== true);
     const retried = list.filter((item) => Number(item && item.requestAttempt || 1) > 1);
     const verified = list.filter((item) => Number(item && item.verificationCount || 0) > 0);
@@ -1366,11 +1389,30 @@
     const appsLockValues = list
       .map((item) => Number(item && item.appsScriptPerformance && item.appsScriptPerformance.lockHeldMs || 0))
       .filter((value) => value >= 0);
+    const operationCounts = businessSamples.reduce((counts, entry) => {
+      counts[entry.operation] = Number(counts[entry.operation] || 0) + 1;
+      return counts;
+    }, {});
+    const slowestSamples = businessSamples
+      .map((entry) => ({
+        operation: entry.operation,
+        path: String(entry.item && entry.item.path || ''),
+        clientTotalMs: Number(entry.item && entry.item.clientTotalMs || 0),
+        ok: entry.item && entry.item.ok === true,
+        requestAttempt: Number(entry.item && entry.item.requestAttempt || 1),
+        verificationCount: Number(entry.item && entry.item.verificationCount || 0)
+      }))
+      .sort((left, right) => right.clientTotalMs - left.clientTotalMs)
+      .slice(0, 5);
 
     return {
       available: true,
+      sampleScope: 'FOREGROUND_BUSINESS_WRITES_ONLY',
       sampleCount: list.length,
-      writeCount: writes.length,
+      writeCount: list.length,
+      totalTraceCount: trace.length,
+      excludedTraceCount: trace.length - list.length,
+      operationCounts,
       successCount: list.length - failed.length,
       errorCount: failed.length,
       errorRate: list.length ? failed.length / list.length : 0,
@@ -1380,11 +1422,14 @@
       verificationRate: list.length ? verified.length / list.length : 0,
       p50ClientMs: percentile(durations, 0.50),
       p95ClientMs: percentile(durations, 0.95),
-      p50WriteMs: percentile(writeDurations, 0.50),
-      p95WriteMs: percentile(writeDurations, 0.95),
+      p50WriteMs: percentile(durations, 0.50),
+      p95WriteMs: percentile(durations, 0.95),
+      p50ForegroundBusinessWriteMs: percentile(durations, 0.50),
+      p95ForegroundBusinessWriteMs: percentile(durations, 0.95),
       p95WorkerGasMs: percentile(workerGasValues, 0.95),
       p95AppsLockHeldMs: percentile(appsLockValues, 0.95),
       maxClientMs: durations.length ? Math.max(...durations) : 0,
+      slowestSamples,
       lastFinishedAtEpochMs: list.length
         ? Number(list[list.length - 1].finishedAtEpochMs || 0)
         : 0,
