@@ -376,7 +376,7 @@
 
 
   <script
-    src="./receiving.js?v=20260717-r3r4-receiving-clarity"
+    src="./receiving.js?v=20260718-r3r4-card-progress-no-modal"
     defer
   ></script>
 
@@ -659,6 +659,244 @@
       body.module-page .module-mobile-menu,
       body.module-page .module-mobile-menu.is-open {
         transition-duration: .01ms !important;
+      }
+    }
+  </style>
+
+
+  <style id="receivingCardLevelProgressStyles">
+    /*
+     * Receiving Card-level Progress — 2026-07-18
+     * ไม่เปิด modal ขณะบันทึก และไม่บล็อกการ์ดอื่น
+     */
+    body.module-page .receiving-card-progress {
+      display: grid;
+      gap: 10px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid #b9d8e3;
+      border-radius: 14px;
+      background: #f5fbfd;
+      color: #173f52;
+      box-shadow: 0 4px 14px rgba(15, 67, 91, .08);
+    }
+
+    body.module-page .receiving-card-progress__header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    body.module-page .receiving-card-progress__header > div {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    body.module-page .receiving-card-progress__header strong {
+      overflow: hidden;
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    body.module-page .receiving-card-progress__header small {
+      color: #66808c;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    body.module-page .receiving-card-progress__spinner {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      border: 3px solid #cfe3ea;
+      border-top-color: #0b819f;
+      border-radius: 50%;
+      animation: receiving-card-spin .8s linear infinite;
+    }
+
+    body.module-page .receiving-card-progress__meter {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #dcebf0;
+    }
+
+    body.module-page .receiving-card-progress__meter i {
+      display: block;
+      width: 4%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0b819f, #159b7d);
+      transition: width .22s ease;
+    }
+
+    body.module-page .receiving-card-progress__steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    body.module-page .receiving-card-progress__steps span {
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+      min-width: 0;
+      color: #80929b;
+      text-align: center;
+    }
+
+    body.module-page .receiving-card-progress__steps b {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #dfe9ed;
+      color: #607681;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    body.module-page .receiving-card-progress__steps em {
+      overflow: hidden;
+      max-width: 100%;
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    body.module-page .receiving-card-progress__steps span.is-active {
+      color: #075d77;
+    }
+
+    body.module-page .receiving-card-progress__steps span.is-active b {
+      background: #0b819f;
+      color: #fff;
+      box-shadow: 0 0 0 4px rgba(11, 129, 159, .12);
+    }
+
+    body.module-page .receiving-card-progress__steps span.is-done {
+      color: #08725a;
+    }
+
+    body.module-page .receiving-card-progress__steps span.is-done b {
+      background: #14966f;
+      color: #fff;
+    }
+
+    body.module-page .receiving-card-progress[data-state="DONE"],
+    body.module-page .receiving-card-progress[data-state="SYNCED"] {
+      border-color: #8dd6bd;
+      background: #f0fbf7;
+    }
+
+    body.module-page .receiving-card-progress[data-state="DONE"]
+    .receiving-card-progress__spinner,
+    body.module-page .receiving-card-progress[data-state="SYNCED"]
+    .receiving-card-progress__spinner {
+      border-color: #14966f;
+      animation: none;
+    }
+
+    body.module-page .receiving-card-progress[data-state="QUEUED"],
+    body.module-page .receiving-card-progress[data-state="SYNC_PENDING"] {
+      border-color: #e5c374;
+      background: #fffaf0;
+    }
+
+    body.module-page .receiving-card-progress[data-state="ERROR"] {
+      border-color: #e7a0a0;
+      background: #fff4f4;
+      color: #922b2b;
+    }
+
+    body.module-page .receiving-success-toast {
+      width: min(390px, calc(100vw - 24px)) !important;
+      padding: 12px 14px !important;
+      border-radius: 16px !important;
+      box-shadow: 0 12px 32px rgba(11, 48, 67, .18) !important;
+    }
+
+    body.module-page .receiving-success-toast .swal2-title {
+      margin: 0 !important;
+      font-size: 16px !important;
+      line-height: 1.25 !important;
+    }
+
+    body.module-page .receiving-success-toast .swal2-html-container {
+      margin: 4px 0 0 !important;
+      font-size: 13px !important;
+      line-height: 1.4 !important;
+    }
+
+    @keyframes receiving-card-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 767px) {
+      body.module-page .receiving-card-progress {
+        gap: 7px;
+        margin-top: 7px;
+        padding: 8px;
+        border-radius: 10px;
+      }
+
+      body.module-page .receiving-card-progress__header {
+        gap: 7px;
+      }
+
+      body.module-page .receiving-card-progress__header strong {
+        font-size: 10px;
+        white-space: normal;
+      }
+
+      body.module-page .receiving-card-progress__header small {
+        font-size: 8px;
+      }
+
+      body.module-page .receiving-card-progress__spinner {
+        width: 17px;
+        height: 17px;
+        flex-basis: 17px;
+        border-width: 2px;
+      }
+
+      body.module-page .receiving-card-progress__steps {
+        gap: 3px;
+      }
+
+      body.module-page .receiving-card-progress__steps b {
+        width: 18px;
+        height: 18px;
+        font-size: 8px;
+      }
+
+      body.module-page .receiving-card-progress__steps em {
+        display: none;
+      }
+
+      body.module-page .receiving-card-progress__meter {
+        height: 5px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body.module-page .receiving-card-progress__spinner {
+        animation-duration: 1.8s;
+      }
+
+      body.module-page .receiving-card-progress__meter i {
+        transition: none;
       }
     }
   </style>
