@@ -3879,7 +3879,7 @@
   function buildConcurrencyCheck(c){return {id:'parallel-concurrency-idempotency',group:'Concurrency & Idempotency',label:'ยิง 6 คำขอพร้อมกันด้วย Probe ID เดียว',status:c&&c.success?'PASS':'FAIL',message:c&&c.success?'Accepted 1 คำขอ ที่เหลือ Replay':'Concurrency Probe ไม่ผ่าน',durationMs:0,details:c||{}};}
   function setDiagnosticButtons(loading){['adminValidateQuickButton','adminDiagnosticsQuickButton','adminValidateSystemButton','adminAcceptanceButton'].forEach(id=>{const b=byId(id);if(b)b.disabled=Boolean(loading);});}
   async function diagnosticDone(result,label){const s=result&&result.summary||{},cleanup=result&&result.acceptance&&result.acceptance.legacyRemovalEligible===true;await Swal.fire({icon:s.failed?'error':s.warnings?'warning':'success',title:label+(s.failed?' ไม่ผ่าน':s.warnings?' ผ่านพร้อมคำเตือน':' ผ่าน'),text:'ผ่าน '+Number(s.passed||0)+' · เตือน '+Number(s.warnings||0)+' · ไม่ผ่าน '+Number(s.failed||0)+(cleanup?' · Legacy พร้อมเข้าสู่รอบ Cleanup':''),confirmButtonText:'ดูรายละเอียด'});}
-  function updateDiagnosticMeta(result,client){const p=result&&result.phase4e||result&&result.appsScript&&result.appsScript.phase4e||{};setText('adminDiagnosticModuleId',result&&result.moduleId||p.moduleId||'-');setText('adminDiagnosticDataRevision',p.boardDataRevision||'-');setText('adminDiagnosticRulesRevision',p.rulesRevision||'-');const a=findCheck(result,'alert-engine-trigger'),e=findCheck(result,'admin-export-contract'),f=findCheck(result,'fast-scan-transaction'),r=findCheck(result,'router-cache-ownership'),q=client&&client.queue||{},w=client&&client.worker||{},perf=client&&client.performance||{};setText('adminDiagnosticAlertStatus',a?diagnosticStatusText(a.status):'-');setText('adminDiagnosticQueueStatus',q.available?'รอ '+Number(q.pending||0)+' · กู้คืน '+Number(q.recoverableFailed||0)+' · ผิดพลาด '+Number(q.terminalFailed||0):'อ่านไม่ได้');setText('adminDiagnosticExportStatus',e?diagnosticStatusText(e.status):'ไม่ได้ตรวจ');setText('adminDiagnosticWorkerBuild',w&&w.buildVersion||'-');setText('adminDiagnosticClientP95',Number(perf.p95WriteMs||0)>0?Number(perf.p95WriteMs||0).toLocaleString('th-TH')+' ms':'ยังไม่มี Sample');setText('adminDiagnosticFastScanStatus',f?diagnosticStatusText(f.status):'-');setText('adminDiagnosticFallbackStatus',r&&r.details&&Number(r.details.deprecatedFallbackCount||0)>0?'พบ '+Number(r.details.deprecatedFallbackCount||0)+' ครั้ง':r?'พร้อมลบหลัง Acceptance':'-');const b=byId('adminDiagnosticsExportButton');if(b)b.disabled=!state.diagnosticsResult;const cleanup=result&&result.acceptance&&result.acceptance.routerCleanupStatus||result&&result.appsScript&&result.appsScript.acceptance&&result.appsScript.acceptance.routerCleanupStatus;if(cleanup){state.vcwCleanupStatus=cleanup;renderVcwCleanupStatus(cleanup);}}
+  function updateDiagnosticMeta(result,client){const p=result&&result.phase4e||result&&result.appsScript&&result.appsScript.phase4e||{};setText('adminDiagnosticModuleId',result&&result.moduleId||p.moduleId||'-');setText('adminDiagnosticDataRevision',p.boardDataRevision||'-');setText('adminDiagnosticRulesRevision',p.rulesRevision||'-');const a=findCheck(result,'alert-engine-trigger'),e=findCheck(result,'admin-export-contract'),f=findCheck(result,'fast-scan-transaction'),r=findCheck(result,'router-cache-ownership'),q=client&&client.queue||{},w=client&&client.worker||{},perf=client&&client.performance||{};setText('adminDiagnosticAlertStatus',a?diagnosticStatusText(a.status):'-');setText('adminDiagnosticQueueStatus',q.available?'รอ '+Number(q.pending||0)+' · กู้คืน '+Number(q.recoverableFailed||0)+' · ผิดพลาด '+Number(q.terminalFailed||0):'อ่านไม่ได้');setText('adminDiagnosticExportStatus',e?diagnosticStatusText(e.status):'ไม่ได้ตรวจ');setText('adminDiagnosticWorkerBuild',w&&w.buildVersion||'-');const businessP95=Number(perf.p95ForegroundBusinessWriteMs||perf.p95WriteMs||0);setText('adminDiagnosticClientP95',businessP95>0?businessP95.toLocaleString('th-TH')+' ms':'ยังไม่มี Business Write Sample');setText('adminDiagnosticFastScanStatus',f?diagnosticStatusText(f.status):'-');setText('adminDiagnosticFallbackStatus',r&&r.details&&Number(r.details.deprecatedFallbackCount||0)>0?'พบ '+Number(r.details.deprecatedFallbackCount||0)+' ครั้ง':r?'พร้อมลบหลัง Acceptance':'-');const b=byId('adminDiagnosticsExportButton');if(b)b.disabled=!state.diagnosticsResult;const cleanup=result&&result.acceptance&&result.acceptance.routerCleanupStatus||result&&result.appsScript&&result.appsScript.acceptance&&result.appsScript.acceptance.routerCleanupStatus;if(cleanup){state.vcwCleanupStatus=cleanup;renderVcwCleanupStatus(cleanup);}}
   function findCheck(result,id){return (Array.isArray(result&&result.checks)?result.checks:[]).find(x=>x.id===id)||null;}
   function exportProductionDiagnosticReport(){const r=state.diagnosticsResult;if(!r)return;const rows=[['กลุ่ม','รหัส','รายการ','ผล','ข้อความ','ระยะเวลา(ms)','รายละเอียด'],...(r.checks||[]).map(c=>[c.group||'',c.id||'',c.label||'',c.status||'',c.message||'',c.durationMs||0,JSON.stringify(c.details||{})])];const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='alertvendor-production-acceptance-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
@@ -3963,6 +3963,62 @@
             ? 'READY_WITH_WARNINGS'
             : 'READY'
     };
+  }
+
+
+  function diagnosticInlineDetails(check) {
+    const details = check && check.details && typeof check.details === 'object'
+      ? check.details
+      : {};
+    const parts = [];
+    const missing = [];
+
+    [
+      details.missingFunctions,
+      details.missingCoreFunctions,
+      details.missingRouteFunctions,
+      details.missingOptionalFunctions,
+      details.missingSelfHealingFunctions
+    ].forEach((items) => {
+      (Array.isArray(items) ? items : []).forEach((item) => {
+        const text = String(item || '').trim();
+        if (text && !missing.includes(text)) missing.push(text);
+      });
+    });
+
+    if (missing.length) {
+      parts.push('ขาด/ไม่พบ: ' + missing.join(', '));
+    }
+
+    const warningModules = Array.isArray(details.warningModules)
+      ? details.warningModules
+      : [];
+    if (warningModules.length) {
+      const moduleText = warningModules.map((moduleItem) => {
+        const moduleId = String(moduleItem && (moduleItem.moduleId || moduleItem.id || moduleItem.name) || 'module');
+        const warnings = Array.isArray(moduleItem && moduleItem.warnings)
+          ? moduleItem.warnings.map((warning) => String(warning && (warning.message || warning.code) || warning)).filter(Boolean)
+          : [];
+        return moduleId + (warnings.length ? ': ' + warnings.join(' / ') : '');
+      });
+      parts.push('คำเตือนโมดูล: ' + moduleText.join(' | '));
+    }
+
+    if (details.sampleScope === 'FOREGROUND_BUSINESS_WRITES_ONLY') {
+      parts.push(
+        'Performance ใช้เฉพาะงานหน้างาน ' +
+        Number(details.sampleCount || 0) +
+        ' ตัวอย่าง (ตัด Diagnostics/Acceptance ออก ' +
+        Number(details.excludedTraceCount || 0) +
+        ' รายการ)'
+      );
+    }
+
+    if (Array.isArray(details.requiredSelfHealingFunctions) && details.missingSelfHealingFunctions && details.missingSelfHealingFunctions.length) {
+      parts.push('Self-healing ที่ต้องติดตั้ง: ' + details.missingSelfHealingFunctions.join(', '));
+    }
+
+    return parts.join(' · ');
   }
 
   function renderValidation(result) {
@@ -4075,7 +4131,10 @@
                     ${Number.isFinite(Number(check.durationMs))
                       ? `<small>ใช้เวลา ${escapeHtml(String(check.durationMs))} ms</small>`
                       : ''}
-                    ${check.details && Object.keys(check.details).length ? `<details><summary>ดูรายละเอียด</summary><pre>${escapeHtml(JSON.stringify(check.details, null, 2))}</pre></details>` : ''}
+                    ${diagnosticInlineDetails(check)
+                      ? `<p><small><strong>รายละเอียด:</strong> ${escapeHtml(diagnosticInlineDetails(check))}</small></p>`
+                      : ''}
+                    ${check.details && Object.keys(check.details).length ? `<details><summary>ดูรายละเอียดทั้งหมด</summary><pre>${escapeHtml(JSON.stringify(check.details, null, 2))}</pre></details>` : ''}
                   </article>
                 `).join('')}
               </div>
