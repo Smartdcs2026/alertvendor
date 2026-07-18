@@ -21,6 +21,7 @@
  * - Production R23: ย้ายตัวควบคุมแจ้งเตือนไป Footer โดยไม่ลอยทับเนื้อหา
  * - ROUND 3: Revision-only polling แบบ adaptive, หยุดเมื่อซ่อน Tab และไม่ refresh เต็มระหว่างการ์ดกำลัง Commit
  * - ROUND 02: Gate Out ใช้ Stable Request ID และตรวจ Commit หลัง Timeout
+ * - ROUND 02 REVISION 1: Receiving ย้ายการ์ดทันทีและไม่ย้อนกลับจาก Snapshot ที่ตามหลัง
  */
 (function (window, document) {
   'use strict';
@@ -30,6 +31,12 @@
   const CHECKOUT_PENDING_PREFIX =
     'alertvendor:checkout-pending:v2:';
   const CHECKOUT_VERIFY_ATTEMPTS = 3;
+  const RECEIVING_COMMITTED_OVERLAY_PREFIX =
+    'alertvendor:receiving-committed:v1:';
+  const RECEIVING_COMMITTED_OVERLAY_MAX_AGE_MS =
+    30 * 60 * 1000;
+  let receivingCommittedOverlayCache = null;
+  let receivingCommittedOverlayCacheKey = '';
 
   const OPERATIONAL_ALERT_STORAGE_PREFIX =
     'alertvendor:operational-alert:v1';
@@ -684,6 +691,13 @@
         handleReceivingCommittedEvent(
           event && event.detail
         );
+      }
+    );
+
+    document.addEventListener(
+      'alertvendor:check-operational-board-revision',
+      () => {
+        scheduleNextRevisionCheck(120);
       }
     );
 
@@ -3146,12 +3160,433 @@
   }
 
 
-  function normalizeOperationalRecord(record) {
+  function receivingCommittedOverlayStorageKey() {
+    const moduleId =
+      String(
+        state.moduleId ||
+        new URLSearchParams(
+          window.location.search
+        ).get('id') ||
+        new URLSearchParams(
+          window.location.search
+        ).get('moduleId') ||
+        ''
+      ).trim();
+
+    return (
+      RECEIVING_COMMITTED_OVERLAY_PREFIX +
+      moduleId
+    );
+  }
+
+  function readReceivingCommittedOverlays() {
+    try {
+      const key =
+        receivingCommittedOverlayStorageKey();
+
+      if (
+        receivingCommittedOverlayCache &&
+        receivingCommittedOverlayCacheKey ===
+          key
+      ) {
+        const now =
+          Date.now();
+        let changed =
+          false;
+
+        Object.keys(
+          receivingCommittedOverlayCache
+        ).forEach(
+          (recordId) => {
+            const expiresAt =
+              Number(
+                receivingCommittedOverlayCache[
+                  recordId
+                ] &&
+                receivingCommittedOverlayCache[
+                  recordId
+                ].expiresAt ||
+                0
+              );
+
+            if (
+              !expiresAt ||
+              expiresAt <= now
+            ) {
+              delete receivingCommittedOverlayCache[
+                recordId
+              ];
+              changed =
+                true;
+            }
+          }
+        );
+
+        if (changed) {
+          if (
+            Object.keys(
+              receivingCommittedOverlayCache
+            ).length
+          ) {
+            localStorage.setItem(
+              key,
+              JSON.stringify(
+                receivingCommittedOverlayCache
+              )
+            );
+          } else {
+            localStorage.removeItem(
+              key
+            );
+          }
+        }
+
+        return receivingCommittedOverlayCache;
+      }
+
+      const parsed =
+        JSON.parse(
+          localStorage.getItem(key) ||
+          '{}'
+        );
+      const map =
+        parsed &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed)
+          ? parsed
+          : {};
+      const now =
+        Date.now();
+      let changed =
+        false;
+
+      Object.keys(map).forEach(
+        (recordId) => {
+          const expiresAt =
+            Number(
+              map[recordId] &&
+              map[recordId].expiresAt ||
+              0
+            );
+
+          if (
+            !expiresAt ||
+            expiresAt <= now
+          ) {
+            delete map[recordId];
+            changed = true;
+          }
+        }
+      );
+
+      if (changed) {
+        if (Object.keys(map).length) {
+          localStorage.setItem(
+            key,
+            JSON.stringify(map)
+          );
+        } else {
+          localStorage.removeItem(key);
+        }
+      }
+
+      receivingCommittedOverlayCache =
+        map;
+      receivingCommittedOverlayCacheKey =
+        key;
+
+      return map;
+    } catch (error) {
+      receivingCommittedOverlayCache =
+        {};
+      receivingCommittedOverlayCacheKey =
+        receivingCommittedOverlayStorageKey();
+      return receivingCommittedOverlayCache;
+    }
+  }
+
+  function saveReceivingCommittedOverlay(detail) {
+    const item =
+      detail &&
+      typeof detail === 'object'
+        ? detail
+        : {};
+    const recordId =
+      String(
+        item.recordId || ''
+      ).trim();
+
+    if (!recordId) {
+      return;
+    }
+
+    try {
+      const key =
+        receivingCommittedOverlayStorageKey();
+      const map =
+        readReceivingCommittedOverlays();
+      const now =
+        Date.now();
+
+      map[recordId] = {
+        recordId:
+          recordId,
+
+        canonicalRecordId:
+          String(
+            item.canonicalRecordId ||
+            ''
+          ),
+
+        sourceRowNumber:
+          Number(
+            item.sourceRowNumber ||
+            0
+          ) || 0,
+
+        autoId:
+          String(
+            item.autoId ||
+            ''
+          ),
+
+        receivingCompleteAt:
+          String(
+            item.receivingCompleteAt ||
+            ''
+          ),
+
+        committedAt:
+          now,
+
+        expiresAt:
+          now +
+          RECEIVING_COMMITTED_OVERLAY_MAX_AGE_MS
+      };
+
+      localStorage.setItem(
+        key,
+        JSON.stringify(map)
+      );
+      receivingCommittedOverlayCache =
+        map;
+      receivingCommittedOverlayCacheKey =
+        key;
+    } catch (error) {
+      console.warn(
+        'เก็บ Local Receiving Transition ไม่สำเร็จ',
+        error
+      );
+    }
+  }
+
+  function removeReceivingCommittedOverlay(
+    recordId
+  ) {
+    const cleanRecordId =
+      String(
+        recordId || ''
+      ).trim();
+
+    if (!cleanRecordId) {
+      return;
+    }
+
+    try {
+      const key =
+        receivingCommittedOverlayStorageKey();
+      const map =
+        readReceivingCommittedOverlays();
+
+      if (!map[cleanRecordId]) {
+        return;
+      }
+
+      delete map[cleanRecordId];
+
+      if (Object.keys(map).length) {
+        localStorage.setItem(
+          key,
+          JSON.stringify(map)
+        );
+      } else {
+        localStorage.removeItem(key);
+      }
+
+      receivingCommittedOverlayCache =
+        map;
+      receivingCommittedOverlayCacheKey =
+        key;
+    } catch (error) {
+      // Local overlay เป็นเพียง UX guard ไม่กระทบธุรกรรมหลัก
+    }
+  }
+
+  function findReceivingCommittedOverlay(
+    record
+  ) {
     const item =
       record &&
       typeof record === 'object'
         ? record
         : {};
+    const map =
+      readReceivingCommittedOverlays();
+    const recordId =
+      String(
+        item.recordId || ''
+      ).trim();
+
+    if (
+      recordId &&
+      map[recordId]
+    ) {
+      return map[recordId];
+    }
+
+    const canonicalRecordId =
+      String(
+        item.canonicalRecordId || ''
+      ).trim();
+    const sourceRowNumber =
+      Number(
+        item.sourceRowNumber || 0
+      ) || 0;
+    const autoId =
+      String(
+        item.autoId ||
+        item.sourceAutoId ||
+        ''
+      ).trim()
+        .toUpperCase();
+
+    return Object.values(map).find(
+      (overlay) => {
+        if (
+          canonicalRecordId &&
+          String(
+            overlay.canonicalRecordId || ''
+          ).trim() ===
+            canonicalRecordId
+        ) {
+          return true;
+        }
+
+        if (
+          sourceRowNumber > 0 &&
+          Number(
+            overlay.sourceRowNumber || 0
+          ) ===
+            sourceRowNumber
+        ) {
+          return true;
+        }
+
+        return Boolean(
+          autoId &&
+          String(
+            overlay.autoId || ''
+          ).trim()
+            .toUpperCase() ===
+            autoId
+        );
+      }
+    ) || null;
+  }
+
+  function applyLocalReceivingCommittedOverlay(
+    record
+  ) {
+    const item =
+      record &&
+      typeof record === 'object'
+        ? record
+        : {};
+
+    const serverStage =
+      String(
+        item.operationalStage || ''
+      ).toUpperCase();
+    const serverAlreadyAdvanced =
+      Boolean(
+        item.receivingCompleteAt ||
+        item.workflowReceivingCompletedAt ||
+        [
+          'WAITING_DOCUMENT_RETURN',
+          'WAITING_GATE_OUT'
+        ].includes(serverStage)
+      );
+
+    /*
+     * เมื่อ Snapshot จาก Server ตามทันแล้ว ล้าง UX overlay ได้
+     * แต่ห้ามล้างจาก Object ที่เราเพิ่งอัปเดตแบบ Local
+     */
+    if (
+      serverAlreadyAdvanced &&
+      item._receivingOverlayApplied !== true
+    ) {
+      removeReceivingCommittedOverlay(
+        item.recordId
+      );
+      return item;
+    }
+
+    const overlay =
+      findReceivingCommittedOverlay(
+        item
+      );
+
+    if (!overlay) {
+      return item;
+    }
+
+    const stageMeta =
+      getOperationalStageMeta(
+        'WAITING_DOCUMENT_RETURN'
+      );
+    const completedAt =
+      String(
+        overlay.receivingCompleteAt ||
+        item.receivingCompleteAt ||
+        item.workflowReceivingCompletedAt ||
+        ''
+      ).trim();
+
+    item.receivingCompleteAt =
+      completedAt;
+    item.workflowReceivingCompletedAt =
+      completedAt;
+    item.operationalStage =
+      'WAITING_DOCUMENT_RETURN';
+    item.operationalStageLabel =
+      stageMeta.label;
+    item.operationalStageDescription =
+      stageMeta.description;
+    item.operationalStageOrder =
+      stageMeta.order;
+    item.canCompleteReceiving =
+      false;
+    item.receivingEnabled =
+      true;
+    item.workflowStatusCode =
+      'RECEIVING_COMPLETED';
+    item.workflowStatusLabel =
+      'รับสินค้าเสร็จแล้ว';
+    item._receivingOverlayApplied =
+      true;
+
+    return item;
+  }
+
+
+  function normalizeOperationalRecord(record) {
+    const item =
+      applyLocalReceivingCommittedOverlay(
+        record &&
+        typeof record === 'object'
+          ? record
+          : {}
+      );
 
     if (!item.operationalStage) {
       item.operationalStage =
@@ -3223,49 +3658,147 @@
       String(
         payload.recordId || ''
       ).trim();
+    const canonicalRecordId =
+      String(
+        payload.canonicalRecordId || ''
+      ).trim();
+    const sourceRowNumber =
+      Number(
+        payload.sourceRowNumber || 0
+      ) || 0;
+    const autoId =
+      String(
+        payload.autoId || ''
+      ).trim()
+        .toUpperCase();
 
-    if (!recordId || !Array.isArray(state.records) || state.records.length === 0) {
-      return;
+    if (
+      !recordId &&
+      !canonicalRecordId &&
+      sourceRowNumber < 1 &&
+      !autoId
+    ) {
+      return false;
+    }
+
+    saveReceivingCommittedOverlay(
+      payload
+    );
+
+    if (
+      !Array.isArray(state.records) ||
+      state.records.length === 0
+    ) {
+      return false;
     }
 
     let changed = false;
 
-    state.records = state.records.map((record) => {
-      if (String(record && record.recordId || '').trim() !== recordId) {
-        return record;
-      }
+    state.records = state.records.map(
+      (record) => {
+        const currentRecordId =
+          String(
+            record &&
+            record.recordId ||
+            ''
+          ).trim();
+        const currentCanonicalId =
+          String(
+            record &&
+            record.canonicalRecordId ||
+            ''
+          ).trim();
+        const currentSourceRow =
+          Number(
+            record &&
+            record.sourceRowNumber ||
+            0
+          ) || 0;
+        const currentAutoId =
+          String(
+            record &&
+            (
+              record.autoId ||
+              record.sourceAutoId
+            ) ||
+            ''
+          ).trim()
+            .toUpperCase();
 
-      changed = true;
+        const matches =
+          Boolean(
+            recordId &&
+            currentRecordId === recordId
+          ) ||
+          Boolean(
+            canonicalRecordId &&
+            currentCanonicalId ===
+              canonicalRecordId
+          ) ||
+          Boolean(
+            sourceRowNumber > 0 &&
+            currentSourceRow ===
+              sourceRowNumber
+          ) ||
+          Boolean(
+            autoId &&
+            currentAutoId === autoId
+          );
 
-      const next = Object.assign({}, record);
-      const stageMeta =
-        getOperationalStageMeta(
-          'WAITING_DOCUMENT_RETURN'
+        if (!matches) {
+          return record;
+        }
+
+        changed = true;
+
+        const next =
+          Object.assign(
+            {},
+            record
+          );
+        const stageMeta =
+          getOperationalStageMeta(
+            'WAITING_DOCUMENT_RETURN'
+          );
+        const completedAt =
+          String(
+            payload.receivingCompleteAt ||
+            next.receivingCompleteAt ||
+            next.workflowReceivingCompletedAt ||
+            ''
+          ).trim();
+
+        next.receivingCompleteAt =
+          completedAt;
+        next.workflowReceivingCompletedAt =
+          completedAt;
+        next.operationalStage =
+          'WAITING_DOCUMENT_RETURN';
+        next.operationalStageLabel =
+          stageMeta.label;
+        next.operationalStageDescription =
+          stageMeta.description;
+        next.operationalStageOrder =
+          stageMeta.order;
+        next.canCompleteReceiving =
+          false;
+        next.receivingEnabled =
+          true;
+        next.workflowStatusCode =
+          'RECEIVING_COMPLETED';
+        next.workflowStatusLabel =
+          'รับสินค้าเสร็จแล้ว';
+        next._receivingOverlayApplied =
+          true;
+
+        return normalizeOperationalRecord(
+          next
         );
-      const completedAt =
-        String(
-          payload.receivingCompleteAt ||
-          next.receivingCompleteAt ||
-          next.workflowReceivingCompletedAt ||
-          ''
-        ).trim();
-
-      next.receivingCompleteAt = completedAt;
-      next.workflowReceivingCompletedAt = completedAt;
-      next.operationalStage = 'WAITING_DOCUMENT_RETURN';
-      next.operationalStageLabel = stageMeta.label;
-      next.operationalStageDescription = stageMeta.description;
-      next.operationalStageOrder = stageMeta.order;
-      next.canCompleteReceiving = false;
-      next.receivingEnabled = true;
-      next.workflowStatusCode = 'RECEIVING_COMPLETED';
-      next.workflowStatusLabel = 'รับสินค้าเสร็จแล้ว';
-
-      return normalizeOperationalRecord(next);
-    });
+      }
+    );
 
     if (!changed) {
-      return;
+      return false;
     }
 
     state.recordsSignature =
@@ -3275,6 +3808,9 @@
 
     renderOperationalBoard();
     applyFiltersAndRender();
+    scheduleNextRevisionCheck(350);
+
+    return true;
   }
 
   function recordMatchesOperationalStage(record) {
@@ -9721,6 +10257,26 @@
 
     getOperationalBoard() {
       return state.operationalBoard;
+    },
+
+    applyReceivingCommitted(detail) {
+      return handleReceivingCommittedEvent(
+        detail
+      );
+    },
+
+    verifyOperationalBoardRevision(
+      delayMs
+    ) {
+      scheduleNextRevisionCheck(
+        Math.max(
+          120,
+          Number(delayMs) ||
+          120
+        )
+      );
+
+      return true;
     },
 
     getBoardState() {
