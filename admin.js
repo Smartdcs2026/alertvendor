@@ -42,6 +42,7 @@
     alertEngineActionRunning: false,
     alertEngineData: null,
     diagnosticsRunning: false,
+    vcwCleanupStatus: null,
     diagnosticsResult: null
   };
 
@@ -135,6 +136,7 @@
 
       renderAll();
       startSilentDashboardRefresh();
+      loadVcwCleanupStatus(false).catch(() => {});
     } catch (error) {
       showPageLoading(false);
       await handleFatalError(error);
@@ -164,6 +166,10 @@
     byId('adminValidateSystemButton')?.addEventListener('click', () => validateSystem('DEEP'));
     byId('adminAcceptanceButton')?.addEventListener('click', runProductionAcceptance);
     byId('adminDiagnosticsExportButton')?.addEventListener('click', exportProductionDiagnosticReport);
+    byId('adminVcwCleanupRefreshButton')?.addEventListener('click', () => loadVcwCleanupStatus(true));
+    byId('adminVcwFallbackResetButton')?.addEventListener('click', resetVcwFallbackCounters);
+    byId('adminVcwStrictEnableButton')?.addEventListener('click', enableVcwStrictMode);
+    byId('adminVcwStrictDisableButton')?.addEventListener('click', disableVcwStrictMode);
     byId('adminCreateModuleButton')?.addEventListener('click', createNewModule);
     byId('adminCreateUserButton')?.addEventListener('click', () => openUserDialog(null));
     byId('adminSettingsForm')?.addEventListener('submit', saveSettings);
@@ -3730,6 +3736,122 @@
     }
   }
 
+  async function loadVcwCleanupStatus(showFeedback) {
+    if (!API || typeof API.getVcwRouterCleanupStatus !== 'function') return null;
+    try {
+      const status = await API.getVcwRouterCleanupStatus();
+      state.vcwCleanupStatus = status;
+      renderVcwCleanupStatus(status);
+      if (showFeedback) {
+        await Swal.fire({
+          icon: status.strictMode ? 'success' : status.canEnableStrictMode ? 'info' : 'warning',
+          title: status.strictMode ? 'Strict Mode ทำงานอยู่' : 'ตรวจสถานะ Router แล้ว',
+          text: status.recommendation || '',
+          confirmButtonText: 'รับทราบ'
+        });
+      }
+      return status;
+    } catch (error) {
+      if (showFeedback) await showApiError(error, 'ตรวจ Router Cleanup ไม่สำเร็จ');
+      throw error;
+    }
+  }
+
+  function renderVcwCleanupStatus(status) {
+    const data = status && typeof status === 'object' ? status : {};
+    const fallback = data.fallback && typeof data.fallback === 'object' ? data.fallback : {};
+    const readiness = data.readiness && typeof data.readiness === 'object' ? data.readiness : {};
+    setText('adminVcwRouterMode', data.mode || '-');
+    setText('adminVcwStrictMode', data.strictMode ? 'เปิดใช้งาน' : 'Compatibility');
+    setText('adminVcwFallbackCount', Number(fallback.total || 0).toLocaleString('th-TH'));
+    setText('adminVcwFallbackLastUsed', fallback.lastUsedAt || 'ไม่พบ');
+    setText('adminVcwMissingActions', Array.isArray(readiness.missingActions) && readiness.missingActions.length ? readiness.missingActions.join(', ') : 'ไม่มี');
+    setText('adminVcwPhysicalRemoval', data.physicalRemovalEligible ? 'พร้อม' : 'ยังไม่พร้อม');
+    setText('adminVcwCleanupRecommendation', data.recommendation || '-');
+    const enable = byId('adminVcwStrictEnableButton');
+    const disable = byId('adminVcwStrictDisableButton');
+    const reset = byId('adminVcwFallbackResetButton');
+    if (enable) enable.disabled = data.strictMode === true || data.canEnableStrictMode !== true;
+    if (disable) disable.disabled = data.strictMode !== true;
+    if (reset) reset.disabled = data.strictMode === true || Number(fallback.total || 0) === 0;
+  }
+
+  async function resetVcwFallbackCounters() {
+    const confirm = await Swal.fire({
+      icon: 'warning',
+      title: 'รีเซ็ต Deprecated Fallback Counter?',
+      text: 'ใช้เมื่อวาง Router ครบแล้ว จากนั้นควรทดสอบระบบจริงอีกครั้งก่อนเปิด Strict Mode',
+      showCancelButton: true,
+      confirmButtonText: 'รีเซ็ต Counter',
+      cancelButtonText: 'ยกเลิก',
+      focusCancel: true
+    });
+    if (!confirm.isConfirmed) return;
+    showLoading('กำลังรีเซ็ต Counter', 'ไม่แก้ข้อมูลรถหรือ Workflow Event');
+    try {
+      const status = await API.resetVcwFallbackCounters({ confirmed: true });
+      Swal.close();
+      state.vcwCleanupStatus = status;
+      renderVcwCleanupStatus(status);
+      await Swal.fire({ icon: 'success', title: 'รีเซ็ตแล้ว', text: 'ให้ทดลอง Fast Scan, Receiving และ Dashboard ก่อนเปิด Strict Mode', confirmButtonText: 'รับทราบ' });
+    } catch (error) {
+      Swal.close();
+      await showApiError(error, 'รีเซ็ต Counter ไม่สำเร็จ');
+    }
+  }
+
+  async function enableVcwStrictMode() {
+    const status = state.vcwCleanupStatus || await loadVcwCleanupStatus(false);
+    if (!status || status.canEnableStrictMode !== true) {
+      await Swal.fire({ icon: 'warning', title: 'ยังเปิด Strict Mode ไม่ได้', text: status && status.recommendation || 'กรุณาตรวจ Acceptance และ Fallback Counter', confirmButtonText: 'รับทราบ' });
+      return;
+    }
+    const confirm = await Swal.fire({
+      icon: 'warning',
+      title: 'เปิด Central Router Strict Mode?',
+      html: '<p>Direct Fallback จะหยุดทำงาน หาก Router กลางหายระบบจะหยุดพร้อม Error ชัดเจนแทนการวิ่งเส้นทางเก่า</p><p><strong>ควรทำหลัง Production Acceptance ผ่านเท่านั้น</strong></p>',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันเปิด Strict Mode',
+      cancelButtonText: 'ยกเลิก',
+      focusCancel: true
+    });
+    if (!confirm.isConfirmed) return;
+    showLoading('กำลังเปิด Strict Mode', 'ตรวจ Router และ Action ซ้ำก่อนบันทึก');
+    try {
+      const result = await API.enableVcwRouterStrictMode({ confirmed: true });
+      Swal.close();
+      state.vcwCleanupStatus = result;
+      renderVcwCleanupStatus(result);
+      await Swal.fire({ icon: 'success', title: 'เปิด Strict Mode แล้ว', text: 'ทดลอง Inbound, Receiving และ Dashboard ทันที หากมีปัญหาสามารถกลับ Compatibility ได้', confirmButtonText: 'รับทราบ' });
+    } catch (error) {
+      Swal.close();
+      await showApiError(error, 'เปิด Strict Mode ไม่สำเร็จ');
+    }
+  }
+
+  async function disableVcwStrictMode() {
+    const confirm = await Swal.fire({
+      icon: 'question',
+      title: 'กลับไป Compatibility Mode?',
+      text: 'Direct Fallback จะกลับมาเป็นทางสำรองชั่วคราว โดยไม่กระทบข้อมูลธุรกิจ',
+      showCancelButton: true,
+      confirmButtonText: 'กลับ Compatibility',
+      cancelButtonText: 'ยกเลิก'
+    });
+    if (!confirm.isConfirmed) return;
+    showLoading('กำลังเปลี่ยนโหมด', 'เปิด Compatibility Fallback ชั่วคราว');
+    try {
+      const result = await API.disableVcwRouterStrictMode({ confirmed: true });
+      Swal.close();
+      state.vcwCleanupStatus = result;
+      renderVcwCleanupStatus(result);
+      await Swal.fire({ icon: 'success', title: 'กลับ Compatibility แล้ว', confirmButtonText: 'รับทราบ' });
+    } catch (error) {
+      Swal.close();
+      await showApiError(error, 'เปลี่ยนโหมดไม่สำเร็จ');
+    }
+  }
+
   async function validateSystem(mode) {
     if(state.diagnosticsRunning)return;state.diagnosticsRunning=true;setDiagnosticButtons(true);showLoading('กำลังตรวจสอบระบบ','ตรวจ Frontend, Queue, Revision, SLA, Alert, Trigger และ Export');
     try{const client=await getProductionClientDiagnostics();const result=await API.runProductionDiagnostics({mode:String(mode||'DEEP').toUpperCase(),includeReadProbe:mode!=='QUICK',includeExportProbe:mode!=='QUICK',clientDiagnostics:client});mergeClientDiagnostics(result,client);Swal.close();state.diagnosticsResult=result;renderValidation(result);updateDiagnosticMeta(result,client);switchTab('system');await diagnosticDone(result,'ตรวจระบบ');}
@@ -3757,7 +3879,7 @@
   function buildConcurrencyCheck(c){return {id:'parallel-concurrency-idempotency',group:'Concurrency & Idempotency',label:'ยิง 6 คำขอพร้อมกันด้วย Probe ID เดียว',status:c&&c.success?'PASS':'FAIL',message:c&&c.success?'Accepted 1 คำขอ ที่เหลือ Replay':'Concurrency Probe ไม่ผ่าน',durationMs:0,details:c||{}};}
   function setDiagnosticButtons(loading){['adminValidateQuickButton','adminDiagnosticsQuickButton','adminValidateSystemButton','adminAcceptanceButton'].forEach(id=>{const b=byId(id);if(b)b.disabled=Boolean(loading);});}
   async function diagnosticDone(result,label){const s=result&&result.summary||{},cleanup=result&&result.acceptance&&result.acceptance.legacyRemovalEligible===true;await Swal.fire({icon:s.failed?'error':s.warnings?'warning':'success',title:label+(s.failed?' ไม่ผ่าน':s.warnings?' ผ่านพร้อมคำเตือน':' ผ่าน'),text:'ผ่าน '+Number(s.passed||0)+' · เตือน '+Number(s.warnings||0)+' · ไม่ผ่าน '+Number(s.failed||0)+(cleanup?' · Legacy พร้อมเข้าสู่รอบ Cleanup':''),confirmButtonText:'ดูรายละเอียด'});}
-  function updateDiagnosticMeta(result,client){const p=result&&result.phase4e||result&&result.appsScript&&result.appsScript.phase4e||{};setText('adminDiagnosticModuleId',result&&result.moduleId||p.moduleId||'-');setText('adminDiagnosticDataRevision',p.boardDataRevision||'-');setText('adminDiagnosticRulesRevision',p.rulesRevision||'-');const a=findCheck(result,'alert-engine-trigger'),e=findCheck(result,'admin-export-contract'),f=findCheck(result,'fast-scan-transaction'),r=findCheck(result,'router-cache-ownership'),q=client&&client.queue||{},w=client&&client.worker||{},perf=client&&client.performance||{};setText('adminDiagnosticAlertStatus',a?diagnosticStatusText(a.status):'-');setText('adminDiagnosticQueueStatus',q.available?'รอ '+Number(q.pending||0)+' · กู้คืน '+Number(q.recoverableFailed||0)+' · ผิดพลาด '+Number(q.terminalFailed||0):'อ่านไม่ได้');setText('adminDiagnosticExportStatus',e?diagnosticStatusText(e.status):'ไม่ได้ตรวจ');setText('adminDiagnosticWorkerBuild',w&&w.buildVersion||'-');setText('adminDiagnosticClientP95',Number(perf.p95WriteMs||0)>0?Number(perf.p95WriteMs||0).toLocaleString('th-TH')+' ms':'ยังไม่มี Sample');setText('adminDiagnosticFastScanStatus',f?diagnosticStatusText(f.status):'-');setText('adminDiagnosticFallbackStatus',r&&r.details&&Number(r.details.deprecatedFallbackCount||0)>0?'พบ '+Number(r.details.deprecatedFallbackCount||0)+' ครั้ง':r?'พร้อมลบหลัง Acceptance':'-');const b=byId('adminDiagnosticsExportButton');if(b)b.disabled=!state.diagnosticsResult;}
+  function updateDiagnosticMeta(result,client){const p=result&&result.phase4e||result&&result.appsScript&&result.appsScript.phase4e||{};setText('adminDiagnosticModuleId',result&&result.moduleId||p.moduleId||'-');setText('adminDiagnosticDataRevision',p.boardDataRevision||'-');setText('adminDiagnosticRulesRevision',p.rulesRevision||'-');const a=findCheck(result,'alert-engine-trigger'),e=findCheck(result,'admin-export-contract'),f=findCheck(result,'fast-scan-transaction'),r=findCheck(result,'router-cache-ownership'),q=client&&client.queue||{},w=client&&client.worker||{},perf=client&&client.performance||{};setText('adminDiagnosticAlertStatus',a?diagnosticStatusText(a.status):'-');setText('adminDiagnosticQueueStatus',q.available?'รอ '+Number(q.pending||0)+' · กู้คืน '+Number(q.recoverableFailed||0)+' · ผิดพลาด '+Number(q.terminalFailed||0):'อ่านไม่ได้');setText('adminDiagnosticExportStatus',e?diagnosticStatusText(e.status):'ไม่ได้ตรวจ');setText('adminDiagnosticWorkerBuild',w&&w.buildVersion||'-');setText('adminDiagnosticClientP95',Number(perf.p95WriteMs||0)>0?Number(perf.p95WriteMs||0).toLocaleString('th-TH')+' ms':'ยังไม่มี Sample');setText('adminDiagnosticFastScanStatus',f?diagnosticStatusText(f.status):'-');setText('adminDiagnosticFallbackStatus',r&&r.details&&Number(r.details.deprecatedFallbackCount||0)>0?'พบ '+Number(r.details.deprecatedFallbackCount||0)+' ครั้ง':r?'พร้อมลบหลัง Acceptance':'-');const b=byId('adminDiagnosticsExportButton');if(b)b.disabled=!state.diagnosticsResult;const cleanup=result&&result.acceptance&&result.acceptance.routerCleanupStatus||result&&result.appsScript&&result.appsScript.acceptance&&result.appsScript.acceptance.routerCleanupStatus;if(cleanup){state.vcwCleanupStatus=cleanup;renderVcwCleanupStatus(cleanup);}}
   function findCheck(result,id){return (Array.isArray(result&&result.checks)?result.checks:[]).find(x=>x.id===id)||null;}
   function exportProductionDiagnosticReport(){const r=state.diagnosticsResult;if(!r)return;const rows=[['กลุ่ม','รหัส','รายการ','ผล','ข้อความ','ระยะเวลา(ms)','รายละเอียด'],...(r.checks||[]).map(c=>[c.group||'',c.id||'',c.label||'',c.status||'',c.message||'',c.durationMs||0,JSON.stringify(c.details||{})])];const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='alertvendor-production-acceptance-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
