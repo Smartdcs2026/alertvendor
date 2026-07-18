@@ -1,6 +1,6 @@
 /************************************************************
  * inbound.js
- * ROUND 3 HOT PATH 2026-07-18 — Single-request scan + revision refresh
+ * ROUND 05 HOT PATH 2026-07-18 — Single-request scan + foreground-aware revision refresh
  ************************************************************/
 (function (window, document) {
   'use strict';
@@ -55,6 +55,7 @@
     effectiveSlaRules: {},
     dashboardPollTimer: 0,
     dashboardPollBusy: false,
+    foregroundWriteActive: false,
     postWriteRevisionTimer: 0,
     queueReady: false,
     queueSummary: {
@@ -325,6 +326,10 @@
     window.addEventListener('online', handleNetworkOnline);
     window.addEventListener('offline', handleNetworkOffline);
     window.addEventListener('inboundqueueoperation', handleQueueOperationEvent);
+    window.addEventListener(
+      'alertvendor:foreground-write-change',
+      handleForegroundWriteChange
+    );
 
     window.addEventListener('resize', debounce(() => {
       refreshAutoPageSize();
@@ -1112,12 +1117,24 @@
     }
   }
 
+  function handleForegroundWriteChange(event) {
+    const detail = event && event.detail && typeof event.detail === 'object'
+      ? event.detail
+      : {};
+    state.foregroundWriteActive = detail.active === true;
+
+    if (!state.foregroundWriteActive) {
+      scheduleRevisionCheckAfterWrite();
+    }
+  }
+
   function scheduleRevisionCheckAfterWrite() {
     window.clearTimeout(state.postWriteRevisionTimer);
     state.postWriteRevisionTimer = window.setTimeout(() => {
       if (
         navigator.onLine !== false &&
-        document.visibilityState === 'visible'
+        document.visibilityState === 'visible' &&
+        state.foregroundWriteActive !== true
       ) {
         void pollDashboardRevision();
       }
@@ -1134,6 +1151,7 @@
   async function pollDashboardRevision() {
     if (
       state.dashboardPollBusy ||
+      state.foregroundWriteActive === true ||
       document.visibilityState !== 'visible' ||
       navigator.onLine === false ||
       !state.moduleId ||
@@ -2972,6 +2990,10 @@
     window.removeEventListener('online', handleNetworkOnline);
     window.removeEventListener('offline', handleNetworkOffline);
     window.removeEventListener('inboundqueueoperation', handleQueueOperationEvent);
+    window.removeEventListener(
+      'alertvendor:foreground-write-change',
+      handleForegroundWriteChange
+    );
     stopCamera();
   }
 
