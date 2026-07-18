@@ -1514,6 +1514,20 @@
       moduleId,
       payload
     ) {
+      const body =
+        payload &&
+        typeof payload === 'object' &&
+        !Array.isArray(payload)
+          ? { ...payload }
+          : {};
+      const clientRequestId = String(
+        body.clientRequestId ||
+        body.requestId ||
+        createRequestId()
+      );
+      body.clientRequestId = clientRequestId;
+      body.requestId = clientRequestId;
+
       const response =
         await request(
           '/api/admin/modules/' +
@@ -1524,9 +1538,10 @@
           {
             method:
               'POST',
-
+            requestId:
+              clientRequestId,
             body:
-              payload || {}
+              body
           }
         );
 
@@ -2783,19 +2798,39 @@
     },
 
     async saveAdminSettings(
-      settings
+      payload
     ) {
+      const source =
+        payload &&
+        typeof payload === 'object' &&
+        !Array.isArray(payload)
+          ? payload
+          : {};
+      const body =
+        source.settings &&
+        typeof source.settings === 'object'
+          ? { ...source }
+          : {
+              settings: source
+            };
+      const clientRequestId = String(
+        body.clientRequestId ||
+        body.requestId ||
+        createRequestId()
+      );
+      body.clientRequestId = clientRequestId;
+      body.requestId = clientRequestId;
+
       const response =
         await request(
           '/api/admin/settings',
           {
             method:
               'POST',
-
-            body: {
-              settings:
-                settings || {}
-            }
+            requestId:
+              clientRequestId,
+            body:
+              body
           }
         );
 
