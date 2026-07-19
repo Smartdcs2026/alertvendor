@@ -350,7 +350,7 @@
   ></script>
 
   <script
-    src="./api.js?v=20260720-r11-rev1-fast-queue-v1"
+    src="./api.js?v=20260720-r11-rev2-command-journal-v1"
     defer
   ></script>
 
@@ -370,13 +370,13 @@
   ></script>
 
   <script
-    src="./module.js?v=20260718-r5-foreground-coordination-v1"
+    src="./module.js?v=20260720-r11-rev2-receiving-handoff-v1"
     defer
   ></script>
 
 
   <script
-    src="./receiving.js?v=20260720-r11-rev1-fast-queue-v1"
+    src="./receiving.js?v=20260720-r11-rev2-one-click-v1"
     defer
   ></script>
 
@@ -1075,6 +1075,175 @@
       touch-action: manipulation;
     }
 
+  </style>
+
+
+  <style id="receivingCommandJournalStyles">
+    body.module-page .receiving-command-strip[hidden] {
+      display: none !important;
+    }
+
+    body.module-page .receiving-command-strip {
+      position: sticky;
+      top: var(--module-command-sticky-offset, 72px);
+      z-index: 48;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: calc(100% - 32px);
+      max-width: 1580px;
+      min-height: 42px;
+      margin: 10px auto 4px;
+      padding: 8px 14px;
+      box-sizing: border-box;
+      border: 1px solid #8fcdbd;
+      border-radius: 12px;
+      background: #effbf7;
+      color: #075f53;
+      box-shadow: 0 5px 16px rgba(15, 61, 94, 0.09);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    body.module-page .receiving-command-strip strong {
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    body.module-page .receiving-command-strip span {
+      min-width: 0;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    body.module-page .receiving-command-strip[data-state="OFFLINE"] {
+      border-color: #e3ba6d;
+      background: #fff8e8;
+      color: #815000;
+    }
+
+    body.module-page .receiving-command-toast-root {
+      position: fixed;
+      top: max(76px, calc(env(safe-area-inset-top) + 62px));
+      left: 50%;
+      z-index: 30000;
+      display: grid;
+      width: min(580px, calc(100vw - 28px));
+      gap: 8px;
+      pointer-events: none;
+      transform: translateX(-50%);
+    }
+
+    body.module-page .receiving-command-toast {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 9px 13px;
+      box-sizing: border-box;
+      border: 1px solid #a9d8cc;
+      border-radius: 13px;
+      background: #f4fcf9;
+      color: #0b5149;
+      box-shadow: 0 12px 32px rgba(7, 47, 70, 0.2);
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    body.module-page .receiving-command-toast > span {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #0d9079;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    body.module-page .receiving-command-toast p {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.42;
+    }
+
+    body.module-page .receiving-command-toast.is-error {
+      border-color: #efb4b4;
+      background: #fff5f5;
+      color: #8a1f1f;
+    }
+
+    body.module-page .receiving-command-toast.is-error > span {
+      background: #d64545;
+    }
+
+    body.module-page .receiving-command-toast.is-info {
+      border-color: #bdd5e4;
+      background: #f3f9fc;
+      color: #174f70;
+    }
+
+    body.module-page .receiving-command-toast.is-info > span {
+      background: #287da8;
+    }
+
+    body.module-page .receiving-command-toast.is-leaving {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+
+    body.module-page .receiving-complete-button[data-receiving-command-pending="TRUE"] {
+      cursor: default;
+      border-color: #9fb1ba !important;
+      background: #e8eef1 !important;
+      color: #61727b !important;
+      box-shadow: none !important;
+    }
+
+    @media (max-width: 700px) {
+      body.module-page .receiving-command-strip {
+        top: 62px;
+        width: calc(100% - 18px);
+        min-height: 40px;
+        margin-top: 7px;
+        padding: 7px 10px;
+      }
+
+      body.module-page .receiving-command-strip strong {
+        font-size: 12px;
+      }
+
+      body.module-page .receiving-command-strip span {
+        font-size: 10px;
+      }
+
+      body.module-page .receiving-command-toast-root {
+        top: max(64px, calc(env(safe-area-inset-top) + 54px));
+        width: calc(100vw - 18px);
+      }
+
+      body.module-page .receiving-command-toast {
+        grid-template-columns: 26px minmax(0, 1fr);
+        min-height: 44px;
+        padding: 8px 10px;
+      }
+
+      body.module-page .receiving-command-toast > span {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+      }
+
+      body.module-page .receiving-command-toast p {
+        font-size: 11px;
+      }
+    }
   </style>
 
 </head>
