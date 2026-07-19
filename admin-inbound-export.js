@@ -1,7 +1,7 @@
 /**
  * admin-inbound-export.js
- * ROUND 08 — Monthly Data Control Center
- * Monthly Excel + Sheet Registry + Cleanup Preview
+ * ROUND 09 REVISION 1 — Correct Monthly Data + Safe Archive Cleanup
+ * Monthly Excel + Sheet Registry + Backup + Two-step Cleanup
  */
 (function (
   window,
@@ -41,6 +41,12 @@
       'MONTH',
 
     preview:
+      null,
+
+    cleanupPreview:
+      null,
+
+    logPreview:
       null
   };
 
@@ -126,6 +132,26 @@
     )?.addEventListener(
       'click',
       previewMonthlyData
+    );
+
+    byId('adminMonthlyCleanupPreviewButton')?.addEventListener(
+      'click',
+      previewMonthlyCleanup
+    );
+
+    byId('adminMonthlyPrepareCleanupButton')?.addEventListener(
+      'click',
+      prepareAndExecuteMonthlyCleanup
+    );
+
+    byId('adminLogCleanupPreviewButton')?.addEventListener(
+      'click',
+      previewSystemLogs
+    );
+
+    byId('adminLogCleanupExecuteButton')?.addEventListener(
+      'click',
+      prepareAndExecuteSystemLogs
     );
 
     byId(
@@ -520,6 +546,9 @@
       data.sheetRegistry ||
       []
     );
+
+    const safeCleanup = data.safeArchiveCleanup || {};
+    setSafeCleanupStatus(safeCleanup.enabled ? 'ระบบสำรองก่อนลบพร้อมใช้งาน' : 'ยังไม่ได้ติดตั้ง SafeArchiveCleanupService.gs');
   }
 
 
@@ -929,6 +958,316 @@
       setPreviewButtonBusy(false);
       updatePrimaryButton();
     }
+  }
+
+
+  async function previewMonthlyCleanup() {
+    if (!state.moduleId || state.loading) return;
+    let selection;
+    try {
+      selection = collectSelection();
+      if (selection.dateMode !== 'MONTH') throw new Error('กรุณาเลือกเดือนก่อนตรวจการเคลียร์ข้อมูล');
+    } catch (error) {
+      toast(errorMessage(error), 'warning');
+      return;
+    }
+
+    state.loading = true;
+    setCleanupButtonBusy(true, 'กำลังตรวจ...');
+    setSafeCleanupStatus('กำลังตรวจไฟล์ Excel รถที่ปิดงาน และจำนวนแถวที่จะเก็บถาวร...');
+    try {
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        ...selection,
+        reportProfile: 'MONTHLY_CLEANUP_PREVIEW'
+      });
+      state.cleanupPreview = result;
+      renderSafeCleanupPlan(result);
+      toast(result.canPrepare ? 'ข้อมูลพร้อมสร้าง Backup' : 'ยังไม่พร้อมเคลียร์ข้อมูล', result.canPrepare ? 'success' : 'warning');
+    } catch (error) {
+      setSafeCleanupStatus('ตรวจไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setCleanupButtonBusy(false);
+    }
+  }
+
+
+  async function prepareAndExecuteMonthlyCleanup() {
+    if (!state.moduleId || state.loading) return;
+    let selection;
+    try {
+      selection = collectSelection();
+      if (selection.dateMode !== 'MONTH') throw new Error('กรุณาเลือกเดือนก่อน');
+    } catch (error) {
+      toast(errorMessage(error), 'warning');
+      return;
+    }
+
+    const proceed = await simpleConfirm(
+      'เตรียม Backup ก่อนเคลียร์ข้อมูล',
+      'ระบบจะยังไม่ลบข้อมูลในขั้นตอนนี้ และจะสำรอง Spreadsheet พร้อมเก็บ Excel ไว้ถาวรก่อน',
+      'เตรียม Backup'
+    );
+    if (!proceed) return;
+
+    state.loading = true;
+    setCleanupButtonBusy(true, 'กำลังสำรอง...');
+    setSafeCleanupStatus('กำลังสร้าง Backup และเก็บไฟล์ Excel ไว้ใน Archive...');
+    try {
+      const prepared = await API.createManagementReportPackage(state.moduleId, {
+        ...selection,
+        reportProfile: 'MONTHLY_CLEANUP_PREPARE'
+      });
+      const confirmation = await askCleanupConfirmation(prepared, 'monthly');
+      if (!confirmation) {
+        setSafeCleanupStatus('สร้าง Backup แล้ว แต่ยังไม่ได้ลบข้อมูล');
+        toast('ยกเลิกการลบ ข้อมูลยังอยู่ครบ', 'info');
+        return;
+      }
+
+      setSafeCleanupStatus('กำลังตรวจข้อมูลซ้ำและลบเฉพาะรายการที่ปิดงานแล้ว...');
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        ...selection,
+        reportProfile: 'MONTHLY_CLEANUP_EXECUTE',
+        cleanupToken: prepared.cleanupToken,
+        confirmationText: confirmation.confirmationText,
+        reason: confirmation.reason
+      });
+      renderCleanupCompleted(result);
+      toast('เก็บถาวรและเคลียร์ข้อมูลสำเร็จ', 'success');
+      state.cleanupPreview = null;
+      await loadConfig();
+    } catch (error) {
+      setSafeCleanupStatus('ดำเนินการไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setCleanupButtonBusy(false);
+    }
+  }
+
+
+  async function previewSystemLogs() {
+    if (!state.moduleId || state.loading) return;
+    const retentionDays = Number(value('adminLogRetentionDays') || 180);
+    state.loading = true;
+    setLogCleanupBusy(true, 'กำลังตรวจ...');
+    setLogCleanupStatus('กำลังตรวจ Log เก่าที่พ้นระยะเก็บรักษา...');
+    try {
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_CLEANUP_PREVIEW',
+        retentionDays: retentionDays
+      });
+      state.logPreview = result;
+      renderLogCleanupPlan(result);
+      toast(result.canPrepare ? 'พบ Log เก่าที่เคลียร์ได้' : 'ไม่พบ Log เก่า', result.canPrepare ? 'success' : 'info');
+    } catch (error) {
+      setLogCleanupStatus('ตรวจ Log ไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setLogCleanupBusy(false);
+    }
+  }
+
+
+  async function prepareAndExecuteSystemLogs() {
+    if (!state.moduleId || state.loading) return;
+    const retentionDays = Number(value('adminLogRetentionDays') || 180);
+    const proceed = await simpleConfirm(
+      'สำรองก่อนล้าง Log เก่า',
+      'ระบบจะสร้างสำเนา Spreadsheet ทั้งไฟล์ก่อนลบ Log ที่เก่ากว่าระยะที่เลือก',
+      'เตรียม Backup'
+    );
+    if (!proceed) return;
+
+    state.loading = true;
+    setLogCleanupBusy(true, 'กำลังสำรอง...');
+    try {
+      const prepared = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_CLEANUP_PREPARE',
+        retentionDays: retentionDays
+      });
+      const confirmation = await askCleanupConfirmation(prepared, 'logs');
+      if (!confirmation) {
+        setLogCleanupStatus('สร้าง Backup แล้ว แต่ยังไม่ได้ลบ Log');
+        return;
+      }
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_CLEANUP_EXECUTE',
+        cleanupToken: prepared.cleanupToken,
+        confirmationText: confirmation.confirmationText,
+        reason: confirmation.reason,
+        retentionDays: retentionDays
+      });
+      renderLogCleanupCompleted(result);
+      toast('ล้าง Log เก่าสำเร็จ', 'success');
+      await loadConfig();
+    } catch (error) {
+      setLogCleanupStatus('ล้าง Log ไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setLogCleanupBusy(false);
+    }
+  }
+
+
+  async function simpleConfirm(title, message, confirmText) {
+    if (!window.Swal) return window.confirm(message);
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: title,
+      text: message,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: 'ยกเลิก',
+      reverseButtons: true
+    });
+    return Boolean(result.isConfirmed);
+  }
+
+
+  async function askCleanupConfirmation(prepared, mode) {
+    const expected = text(prepared && prepared.confirmationText);
+    if (!expected) throw new Error('ระบบไม่ส่งข้อความยืนยันกลับมา');
+    if (!window.Swal) {
+      const typed = window.prompt('พิมพ์ข้อความนี้ให้ตรง:\n' + expected, '');
+      if (typed === null) return null;
+      const reason = window.prompt('ระบุเหตุผลในการเคลียร์ข้อมูล', 'เก็บถาวรข้อมูลตามรอบเดือน');
+      if (reason === null) return null;
+      return { confirmationText: typed.trim(), reason: reason.trim() };
+    }
+
+    const label = mode === 'logs' ? 'Log เก่า' : 'ข้อมูลรถ/ตู้ที่ปิดงานแล้ว';
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'ยืนยันลบ ' + label,
+      html: `
+        <div style="text-align:left;line-height:1.55">
+          <p><strong>Backup:</strong> ${escapeHtml(prepared.backupFileName || '-')}</p>
+          ${prepared.archivedExportFileName ? `<p><strong>Excel Archive:</strong> ${escapeHtml(prepared.archivedExportFileName)}</p>` : ''}
+          <p><strong>จำนวนแถว:</strong> ${Number(prepared.rowsToDelete || 0).toLocaleString('th-TH')}</p>
+          <p>พิมพ์ข้อความนี้ให้ตรง:</p>
+          <code style="display:block;padding:10px;background:#f3f4f6;border-radius:8px;word-break:break-all">${escapeHtml(expected)}</code>
+          <input id="round09ConfirmText" class="swal2-input" placeholder="ข้อความยืนยัน">
+          <textarea id="round09Reason" class="swal2-textarea" placeholder="เหตุผล เช่น เก็บถาวรข้อมูลเดือนที่ปิดงานแล้ว"></textarea>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันและลบข้อมูล',
+      cancelButtonText: 'ยกเลิก',
+      focusConfirm: false,
+      preConfirm: () => {
+        const confirmationText = text(document.getElementById('round09ConfirmText')?.value);
+        const reason = text(document.getElementById('round09Reason')?.value);
+        if (confirmationText !== expected) {
+          Swal.showValidationMessage('ข้อความยืนยันไม่ตรง');
+          return false;
+        }
+        if (reason.length < 5) {
+          Swal.showValidationMessage('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
+          return false;
+        }
+        return { confirmationText, reason };
+      }
+    });
+    return result.isConfirmed ? result.value : null;
+  }
+
+
+  function renderSafeCleanupPlan(result) {
+    const element = byId('adminSafeCleanupResult');
+    if (!element) return;
+    const sheets = Array.isArray(result && result.sheets) ? result.sheets : [];
+    element.innerHTML = `
+      <div class="admin-management-result__facts">
+        <span>${Number(result.eligibleVehicles || 0).toLocaleString('th-TH')} รถ/ตู้พร้อมเก็บ</span>
+        <span>${Number(result.totalRows || 0).toLocaleString('th-TH')} แถว</span>
+        <span>${Number(result.blockedVehicles || 0).toLocaleString('th-TH')} รายการเก็บไว้</span>
+      </div>
+      <p>${result.exportReady ? 'พบไฟล์ Excel แล้ว: ' + escapeHtml(result.exportFileName || '-') : 'ยังไม่พบไฟล์ Excel ของเดือนนี้'}</p>
+      ${sheets.map((item) => `<div class="admin-cleanup-preview-row"><strong>${escapeHtml(item.sheetName || '-')}</strong><span>${Number(item.rows || 0).toLocaleString('th-TH')} แถว</span></div>`).join('')}
+      ${(result.blockedReasons || []).length ? `<p>${escapeHtml(result.blockedReasons.join(' · '))}</p>` : ''}
+    `;
+    const button = byId('adminMonthlyPrepareCleanupButton');
+    if (button) button.disabled = !result.canPrepare;
+    setSafeCleanupStatus(result.canPrepare ? 'พร้อมสร้าง Backup และยืนยันการเคลียร์' : 'ยังไม่พร้อมเคลียร์ข้อมูล');
+  }
+
+
+  function renderCleanupCompleted(result) {
+    const element = byId('adminSafeCleanupResult');
+    if (!element) return;
+    element.innerHTML = `
+      <h4>เก็บถาวรและเคลียร์ข้อมูลสำเร็จ</h4>
+      <p>ลบ ${Number(result.deletedRows || 0).toLocaleString('th-TH')} แถว · เก็บรายการที่ยังไม่ปิดงาน ${Number(result.blockedVehiclesKept || 0).toLocaleString('th-TH')} รายการ</p>
+      <p>Backup: ${escapeHtml(result.backupFileName || '-')}</p>
+      <p>Excel Archive: ${escapeHtml(result.archivedExportFileName || '-')}</p>
+    `;
+    setSafeCleanupStatus('เสร็จแล้ว ข้อมูลที่ยังใช้งานอยู่ไม่ได้ถูกลบ');
+  }
+
+
+  function renderLogCleanupPlan(result) {
+    const element = byId('adminLogCleanupResult');
+    if (!element) return;
+    const sheets = Array.isArray(result && result.sheets) ? result.sheets : [];
+    element.innerHTML = `
+      <div class="admin-management-result__facts">
+        <span>${Number(result.totalRows || 0).toLocaleString('th-TH')} แถว</span>
+        <span>เก็บย้อนหลัง ${Number(result.retentionDays || 0)} วัน</span>
+      </div>
+      ${sheets.map((item) => `<div class="admin-cleanup-preview-row"><strong>${escapeHtml(item.sheetName || '-')}</strong><span>${Number(item.rows || 0).toLocaleString('th-TH')} แถว</span></div>`).join('') || '<p>ไม่พบ Log เก่า</p>'}
+    `;
+    const button = byId('adminLogCleanupExecuteButton');
+    if (button) button.disabled = !result.canPrepare;
+    setLogCleanupStatus(result.canPrepare ? 'พร้อมสร้าง Backup และล้าง Log เก่า' : 'ไม่มี Log ที่ต้องล้าง');
+  }
+
+
+  function renderLogCleanupCompleted(result) {
+    const element = byId('adminLogCleanupResult');
+    if (!element) return;
+    element.innerHTML = `<h4>ล้าง Log เก่าสำเร็จ</h4><p>ลบ ${Number(result.deletedRows || 0).toLocaleString('th-TH')} แถว</p><p>Backup: ${escapeHtml(result.backupFileName || '-')}</p>`;
+    setLogCleanupStatus('เสร็จแล้ว');
+  }
+
+
+  function setSafeCleanupStatus(message) {
+    const element = byId('adminSafeCleanupStatus');
+    if (element) element.textContent = message;
+  }
+
+
+  function setLogCleanupStatus(message) {
+    const element = byId('adminLogCleanupStatus');
+    if (element) element.textContent = message;
+  }
+
+
+  function setCleanupButtonBusy(busy, label) {
+    const preview = byId('adminMonthlyCleanupPreviewButton');
+    const execute = byId('adminMonthlyPrepareCleanupButton');
+    if (preview) preview.disabled = Boolean(busy);
+    if (execute) execute.disabled = Boolean(busy) || !(state.cleanupPreview && state.cleanupPreview.canPrepare);
+    if (execute) execute.textContent = busy ? (label || 'กำลังทำงาน...') : 'สำรองและเคลียร์เดือนนี้';
+  }
+
+
+  function setLogCleanupBusy(busy, label) {
+    const preview = byId('adminLogCleanupPreviewButton');
+    const execute = byId('adminLogCleanupExecuteButton');
+    if (preview) preview.disabled = Boolean(busy);
+    if (execute) execute.disabled = Boolean(busy) || !(state.logPreview && state.logPreview.canPrepare);
+    if (execute) execute.textContent = busy ? (label || 'กำลังทำงาน...') : 'สำรองและล้าง Log เก่า';
   }
 
 
@@ -1412,7 +1751,7 @@
           </article>
         `).join('') + `
           <div class="admin-data-control-note">
-            <strong>ยังไม่ลบข้อมูล</strong>
+            <strong>Preview เท่านั้น</strong>
             <span>${escapeHtml((cleanup.blockedReasons || []).join(' · '))}</span>
           </div>
         `
@@ -1432,7 +1771,7 @@
         <span>${Number(result.counts && result.counts.vehiclesStarted || 0).toLocaleString('th-TH')} รถ/ตู้</span>
         <span>${Number(result.counts && result.counts.activitiesInMonth || 0).toLocaleString('th-TH')} กิจกรรม</span>
       </div>
-      <p>เดือน ${escapeHtml(result.month || '')} · รอบนี้ไม่มีการลบข้อมูลในระบบ</p>
+      <p>เดือน ${escapeHtml(result.month || '')} · ใช้ไฟล์นี้เป็นหลักฐานก่อนกดเก็บถาวร</p>
       ${result.exportId ? `
         <button class="button button--primary" type="button" data-secure-export-id="${escapeAttribute(result.exportId)}">ดาวน์โหลดไฟล์ Excel</button>
       ` : ''}
