@@ -1,7 +1,7 @@
 /**
  * admin-inbound-export.js
- * PHASE 5 ROUND 02 HOTFIX 03
- * Simple one-click export + secure Admin download
+ * ROUND 08 — Monthly Data Control Center
+ * Monthly Excel + Sheet Registry + Cleanup Preview
  */
 (function (
   window,
@@ -38,7 +38,10 @@
       false,
 
     dateMode:
-      'TODAY'
+      'MONTH',
+
+    preview:
+      null
   };
 
   const ACTIVE_JOB_KEY =
@@ -76,7 +79,7 @@
       await loadModules();
       await loadConfig();
       setDateMode(
-        'TODAY'
+        'MONTH'
       );
       await resumeActiveExportJob();
 
@@ -116,6 +119,13 @@
     )?.addEventListener(
       'click',
       createAndDownload
+    );
+
+    byId(
+      'adminMonthlyPreviewButton'
+    )?.addEventListener(
+      'click',
+      previewMonthlyData
     );
 
     byId(
@@ -498,6 +508,18 @@
       data.recentExports ||
       []
     );
+
+    renderMonthlyPackageContents(
+      data.monthlyDataControl &&
+      data.monthlyDataControl.workbookSheets
+        ? data.monthlyDataControl.workbookSheets
+        : []
+    );
+
+    renderSheetRegistry(
+      data.sheetRegistry ||
+      []
+    );
   }
 
 
@@ -690,7 +712,7 @@
         ? String(
             mode
           ).toUpperCase()
-        : 'TODAY';
+        : 'MONTH';
 
     state.dateMode =
       normalized;
@@ -737,13 +759,21 @@
       normalized !==
         'MONTH'
     );
+
+    const formatSelect = byId('adminManagementFileFormat');
+    if (formatSelect) {
+      if (normalized === 'MONTH') formatSelect.value = 'XLSX';
+      formatSelect.disabled = normalized === 'MONTH';
+    }
+
+    updatePrimaryButton();
   }
 
 
   function collectSelection() {
     const dateMode =
       state.dateMode ||
-      'TODAY';
+      'MONTH';
 
     const selection = {
       dateMode:
@@ -801,128 +831,103 @@
 
 
   async function createAndDownload() {
-    if (
-      !state.moduleId ||
-      state.loading ||
-      state.downloading
-    ) {
-      return;
-    }
+    if (!state.moduleId || state.loading || state.downloading) return;
 
     let selection;
-
     try {
-      selection =
-        collectSelection();
-
+      selection = collectSelection();
     } catch (error) {
-      toast(
-        errorMessage(
-          error
-        ),
-        'warning'
-      );
-
+      toast(errorMessage(error), 'warning');
       return;
     }
 
-    const fileFormat =
-      value(
-        'adminManagementFileFormat'
-      ) ||
-      'CSV';
-
-    state.loading =
-      true;
-
-    setButtonBusy(
-      true,
-      'กำลังเตรียมงาน...'
-    );
-
-    setSummary(
-      'กำลังอ่านข้อมูลจากชีตและสร้างไฟล์...'
-    );
+    const fileFormat = value('adminManagementFileFormat') || 'XLSX';
+    const isMonthly = selection.dateMode === 'MONTH';
+    state.loading = true;
+    setButtonBusy(true, isMonthly ? 'กำลังสร้าง Excel รายเดือน...' : 'กำลังเตรียมงาน...');
+    setSummary(isMonthly ? 'กำลังรวมข้อมูลรถ/ตู้ กิจกรรม SLA งานค้าง และบัญชีชีต...' : 'กำลังอ่านข้อมูลจากชีตและสร้างไฟล์...');
 
     try {
-      const result =
-        await API
-          .createAllWorkflowStagesExport(
-            state.moduleId,
-            {
-              ...selection,
-              fileFormat:
-                fileFormat
-            }
-          );
-
-      if (
-        !result ||
-        !result.jobId
-      ) {
-        throw new Error(
-          'ระบบไม่ส่ง Job ID กลับมา'
+      if (isMonthly) {
+        const result = await API.createManagementReportPackage(
+          state.moduleId,
+          {
+            ...selection,
+            fileFormat: 'XLSX',
+            reportProfile: 'MONTHLY_DATA_PACKAGE'
+          }
         );
+
+        renderMonthlyReadyResult(result);
+        renderMonthlyPreview(result);
+        setText('adminManagementLatestFile', result.filename || '-');
+        await loadHistoryOnly();
+        await downloadExport(result.exportId, null, true);
+      } else {
+        const result = await API.createAllWorkflowStagesExport(
+          state.moduleId,
+          { ...selection, fileFormat: fileFormat }
+        );
+
+        if (!result || !result.jobId) throw new Error('ระบบไม่ส่ง Job ID กลับมา');
+        saveActiveJob(result.jobId, state.moduleId);
+        const ready = await monitorExportJob(result.jobId, result);
+        renderReadyResult(ready);
+        setText('adminManagementLatestFile', ready.filename || '-');
+        clearActiveJob();
+        await loadHistoryOnly();
+        await downloadExport(ready.exportId || ready.jobId, null, true);
       }
-
-      saveActiveJob(
-        result.jobId,
-        state.moduleId
-      );
-
-      const ready =
-        await monitorExportJob(
-          result.jobId,
-          result
-        );
-
-      renderReadyResult(
-        ready
-      );
-
-      setText(
-        'adminManagementLatestFile',
-        ready.filename ||
-        '-'
-      );
-
-      clearActiveJob();
-
-      await loadHistoryOnly();
-
-      /*
-       * พยายามดาวน์โหลดทันที
-       * หาก Browser ป้องกัน ยังมีปุ่มดาวน์โหลดค้างไว้
-       */
-      await downloadExport(
-        ready.exportId ||
-        ready.jobId,
-        null,
-        true
-      );
-
     } catch (error) {
-      setSummary(
-        'ส่งออกไม่สำเร็จ: ' +
-        errorMessage(
-          error
-        )
-      );
-
-      toast(
-        errorMessage(
-          error
-        ),
-        'error'
-      );
-
+      setSummary('ส่งออกไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
     } finally {
-      state.loading =
-        false;
+      state.loading = false;
+      setButtonBusy(false);
+    }
+  }
 
-      setButtonBusy(
-        false
+
+  async function previewMonthlyData() {
+    if (!state.moduleId || state.loading) return;
+
+    let selection;
+    try {
+      selection = collectSelection();
+      if (selection.dateMode !== 'MONTH') {
+        throw new Error('กรุณาเลือกโหมด “เลือกเดือน” ก่อนตรวจข้อมูลรายเดือน');
+      }
+    } catch (error) {
+      toast(errorMessage(error), 'warning');
+      return;
+    }
+
+    state.loading = true;
+    setPreviewButtonBusy(true);
+    setSummary('กำลังตรวจจำนวนรถ/ตู้ กิจกรรม งานค้าง และชีตที่เกี่ยวข้อง...');
+
+    try {
+      const result = await API.createManagementReportPackage(
+        state.moduleId,
+        {
+          ...selection,
+          fileFormat: 'XLSX',
+          reportProfile: 'MONTHLY_DATA_PACKAGE',
+          dryRun: true
+        }
       );
+      state.preview = result;
+      renderMonthlyPreview(result);
+      if (Array.isArray(result.sheetRegistry)) renderSheetRegistry(result.sheetRegistry);
+      setSummary('ตรวจข้อมูลเดือน ' + (result.month || selection.month) + ' แล้ว · รอบนี้ยังไม่ลบข้อมูลจริง');
+      toast('ตรวจข้อมูลรายเดือนสำเร็จ', 'success');
+    } catch (error) {
+      setSummary('ตรวจข้อมูลไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setPreviewButtonBusy(false);
+      updatePrimaryButton();
     }
   }
 
@@ -1333,6 +1338,116 @@
   }
 
 
+  function renderMonthlyPackageContents(items) {
+    const element = byId('adminMonthlyPackageContents');
+    if (!element) return;
+    element.innerHTML = Array.isArray(items) && items.length
+      ? items.map((item) => `
+          <article class="admin-monthly-package-item">
+            <strong>${escapeHtml(item.name || '-')}</strong>
+            <span>${escapeHtml(item.purpose || '')}</span>
+          </article>
+        `).join('')
+      : '<div class="empty-state">กำลังโหลดรายการชีตในไฟล์ Excel...</div>';
+  }
+
+
+  function renderSheetRegistry(items) {
+    const element = byId('adminDataSheetRegistry');
+    if (!element) return;
+    const rows = Array.isArray(items) ? items : [];
+    element.innerHTML = rows.length
+      ? `
+        <table>
+          <thead>
+            <tr>
+              <th>ที่ตั้ง</th>
+              <th>ชื่อชีต</th>
+              <th>แถว</th>
+              <th>กลุ่มข้อมูล</th>
+              <th>หน้าที่</th>
+              <th>กฎการเคลียร์</th>
+              <th>ช่วงข้อมูลโดยประมาณ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((item) => `
+              <tr>
+                <td>${escapeHtml(item.location || '-')}</td>
+                <td><strong>${escapeHtml(item.sheetName || '-')}</strong><br><small>${escapeHtml(item.spreadsheetName || '')}</small></td>
+                <td>${Number(item.rowCount || 0).toLocaleString('th-TH')}</td>
+                <td data-category="${escapeAttribute(item.category || '')}">${escapeHtml(item.categoryLabel || item.category || '-')}</td>
+                <td>${escapeHtml(item.purpose || '-')}</td>
+                <td>${escapeHtml(item.cleanupRule || '-')}</td>
+                <td>${escapeHtml(item.oldestDate || '-')} → ${escapeHtml(item.newestDate || '-')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+      : '<div class="empty-state">ยังไม่พบบัญชีชีตระบบ</div>';
+  }
+
+
+  function renderMonthlyPreview(result) {
+    const counts = result && result.counts ? result.counts : {};
+    const cleanup = result && result.cleanupPreview ? result.cleanupPreview : {};
+    setText('adminMonthlyStartedCount', Number(counts.vehiclesStarted || 0).toLocaleString('th-TH'));
+    setText('adminMonthlyClosedCount', Number(counts.vehiclesClosed || 0).toLocaleString('th-TH'));
+    setText('adminMonthlyActiveCount', Number(counts.vehiclesActive || 0).toLocaleString('th-TH'));
+    setText('adminMonthlyActivityCount', Number(counts.activitiesInMonth || 0).toLocaleString('th-TH'));
+    setText('adminMonthlyCleanupCandidateCount', Number(cleanup.totalCandidateRows || 0).toLocaleString('th-TH'));
+    setText('adminMonthlyBlockedCount', Number(cleanup.totalBlockedRows || cleanup.activeVehiclesBlocked || 0).toLocaleString('th-TH'));
+
+    const element = byId('adminMonthlyCleanupPreview');
+    if (!element) return;
+    const items = Array.isArray(cleanup.candidates) ? cleanup.candidates : [];
+    element.innerHTML = items.length
+      ? items.map((item) => `
+          <article class="admin-cleanup-preview-row">
+            <strong>${escapeHtml(item.sheetName || '-')}</strong>
+            <span>เตรียมเก็บถาวร ${Number(item.candidateRows || 0).toLocaleString('th-TH')} แถว</span>
+            <span>บล็อก ${Number(item.blockedRows || 0).toLocaleString('th-TH')} แถว</span>
+            <span>${escapeHtml(item.actionInRound09 || '')}</span>
+          </article>
+        `).join('') + `
+          <div class="admin-data-control-note">
+            <strong>ยังไม่ลบข้อมูล</strong>
+            <span>${escapeHtml((cleanup.blockedReasons || []).join(' · '))}</span>
+          </div>
+        `
+      : '<div class="empty-state">ยังไม่มีแถวที่พร้อมเก็บถาวร หรือยังไม่ได้กดตรวจข้อมูล</div>';
+  }
+
+
+  function renderMonthlyReadyResult(result) {
+    const element = byId('adminInboundExportPreview');
+    if (!element) return;
+    element.classList.add('is-ready');
+    element.innerHTML = `
+      <h4>ไฟล์ Excel ประจำเดือนพร้อมดาวน์โหลด</h4>
+      <p><strong>${escapeHtml(result.filename || '-')}</strong></p>
+      <div class="admin-management-result__facts">
+        <span>${Number(result.workbookSheetCount || 9)} ชีต</span>
+        <span>${Number(result.counts && result.counts.vehiclesStarted || 0).toLocaleString('th-TH')} รถ/ตู้</span>
+        <span>${Number(result.counts && result.counts.activitiesInMonth || 0).toLocaleString('th-TH')} กิจกรรม</span>
+      </div>
+      <p>เดือน ${escapeHtml(result.month || '')} · รอบนี้ไม่มีการลบข้อมูลในระบบ</p>
+      ${result.exportId ? `
+        <button class="button button--primary" type="button" data-secure-export-id="${escapeAttribute(result.exportId)}">ดาวน์โหลดไฟล์ Excel</button>
+      ` : ''}
+    `;
+  }
+
+
+  function setPreviewButtonBusy(busy) {
+    const button = byId('adminMonthlyPreviewButton');
+    if (!button) return;
+    button.disabled = Boolean(busy);
+    button.textContent = busy ? 'กำลังตรวจข้อมูล...' : 'ตรวจข้อมูลเดือนนี้ก่อน';
+  }
+
+
   async function loadHistoryOnly() {
     try {
       const data =
@@ -1420,16 +1535,13 @@
       value(
         'adminManagementFileFormat'
       ) ||
-      'CSV';
+      'XLSX';
 
     button.textContent =
-      'สร้างและดาวน์โหลด ' +
-      (
-        format ===
-          'CSV'
-          ? 'CSV'
-          : 'Excel'
-      );
+      state.dateMode === 'MONTH'
+        ? 'สร้างไฟล์ Excel ประจำเดือน'
+        : 'สร้างและดาวน์โหลด ' +
+          (format === 'CSV' ? 'CSV' : 'Excel');
   }
 
 
