@@ -14,7 +14,7 @@
 
   const API = window.VehicleAPI;
   const BUILD =
-    '2026.07.20-round11-receiving-edge-commit-v1';
+    '2026.07.20-round11-revision1-receiving-fast-queue-v1';
   const FAST_RECEIVING_MODE = true;
 
   /* Worker และ Backend ทำ Idempotency/Verification อยู่แล้ว: ส่ง POST หลักเพียงครั้งเดียว */
@@ -29,7 +29,7 @@
   const COMMITTED_OVERLAY_PREFIX =
     'alertvendor:receiving-committed:v1:';
   const COMMITTED_OVERLAY_MAX_AGE_MS =
-    30 * 60 * 1000;
+    5 * 60 * 1000;
 
   const inFlight = new Set();
   let recoveryRunning = false;
@@ -147,12 +147,6 @@ function initialize() {
       payload
     );
 
-    applyEdgePendingState(
-      recordId,
-      payload,
-      button
-    );
-
     await executeReceiving(
       payload,
       record,
@@ -237,10 +231,8 @@ function initialize() {
       clientActionAtEpochMs:
         Date.now(),
 
-      clientActionAt:
-        formatLocalDateTime(
-          Date.now()
-        ),
+      clientOfflineAtClick:
+        navigator.onLine === false,
 
       queuedAt:
         Date.now()
@@ -300,7 +292,7 @@ async function executeReceiving(
     setCardLiveStatus(
       recordId,
       'SAVING',
-      'บันทึกเวลาแล้ว · กำลังส่งเข้าระบบ...'
+      'รับคำสั่งแล้ว · กำลังบันทึกอัตโนมัติ...'
     );
 
     if (interactive && !FAST_RECEIVING_MODE) {
@@ -420,15 +412,20 @@ async function executeReceiving(
         );
       }
 
+      const acceptedByFastQueue = result && result.queueAccepted === true;
       updateSavingProgress(
         'VERIFY',
-        'บันทึกรับสินค้าเสร็จสำเร็จแล้ว',
+        acceptedByFastQueue
+          ? 'รับรายการแล้ว ระบบกำลังทำงานด้านหลัง'
+          : 'บันทึกรับสินค้าเสร็จสำเร็จแล้ว',
         82
       );
       setCardLiveStatus(
         recordId,
-        'COMMITTED',
-        'บันทึกสำเร็จ กำลังย้ายรายการไปขั้นตอนถัดไป...'
+        acceptedByFastQueue ? 'QUEUED' : 'COMMITTED',
+        acceptedByFastQueue
+          ? 'รับรายการแล้ว · ทำรายการคันถัดไปได้ทันที'
+          : 'บันทึกสำเร็จ กำลังย้ายรายการไปขั้นตอนถัดไป...'
       );
 
       removePendingRequest(recordId);
@@ -440,13 +437,13 @@ async function executeReceiving(
         'กำลังย้ายรายการไปแท็บขั้นตอนถัดไป',
         96
       );
-      await delay(180);
+      await delay(40);
       updateSavingProgress(
         'DONE',
         'บันทึกสำเร็จแล้ว',
         100
       );
-      await delay(180);
+      await delay(40);
       closeSavingProgress();
 
       enqueueWorkflowSync(moduleId, payload, result);
@@ -462,11 +459,15 @@ async function executeReceiving(
         150
       );
 
+      if (result && result.queueAccepted === true) {
+        window.setTimeout(
+          () => scheduleBoardRefresh(),
+          75000
+        );
+      }
+
     } catch (error) {
       closeSavingProgress();
-      if (!hasPendingRequest(recordId)) {
-        rollbackEdgePendingState(recordId, button);
-      }
       setCardLiveStatus(
         recordId,
         'ERROR',
@@ -958,99 +959,6 @@ function enqueueWorkflowSync(
     }
   }
 
-  function applyEdgePendingState(
-    recordId,
-    payload,
-    sourceButton
-  ) {
-    const timestamp =
-      payload && payload.clientActionAt ||
-      formatLocalDateTime(
-        payload && payload.clientActionAtEpochMs
-      ) ||
-      'บันทึกเวลาแล้ว';
-
-    getReceivingButtons(recordId).forEach(function (button) {
-      button.disabled = true;
-      button.dataset.canComplete = 'FALSE';
-      button.dataset.operationalStage = 'WAITING_DOCUMENT_RETURN';
-      button.dataset.edgePending = 'TRUE';
-      button.setAttribute('aria-disabled', 'true');
-      button.textContent = 'รับสินค้าเสร็จแล้ว';
-    });
-
-    if (sourceButton) {
-      sourceButton.textContent = 'รับสินค้าเสร็จแล้ว';
-    }
-
-    const card = findVehicleCard(recordId);
-    if (card) {
-      card.dataset.operationalStage = 'WAITING_DOCUMENT_RETURN';
-      card.dataset.receivingEdgePending = 'TRUE';
-
-      const stageSection = card.querySelector('.vehicle-operational-stage');
-      if (stageSection) {
-        stageSection.dataset.stage = 'WAITING_DOCUMENT_RETURN';
-        const title = stageSection.querySelector(
-          '.vehicle-operational-stage__heading strong'
-        );
-        if (title) {
-          title.textContent = 'รอ พขร.รับเอกสารคืน';
-        }
-        const description = stageSection.querySelector(
-          '.vehicle-operational-stage__heading + p'
-        );
-        if (description) {
-          description.textContent =
-            'รับสินค้าเสร็จแล้ว ระบบกำลังส่งข้อมูลเข้าฐานกลาง';
-        }
-        const timelineItems = stageSection.querySelectorAll(
-          '.vehicle-operational-stage__timeline > div'
-        );
-        if (timelineItems && timelineItems[2]) {
-          timelineItems[2].classList.remove('is-pending');
-          timelineItems[2].classList.add('is-complete');
-          const value = timelineItems[2].querySelector('strong');
-          if (value) {
-            value.textContent = timestamp;
-          }
-        }
-      }
-    }
-
-    setCardLiveStatus(
-      recordId,
-      'SAVING',
-      'บันทึกเวลา ' + timestamp + ' แล้ว · ทำรายการคันถัดไปได้ทันที'
-    );
-  }
-
-  function rollbackEdgePendingState(recordId, sourceButton) {
-    getReceivingButtons(recordId).forEach(function (button) {
-      button.disabled = false;
-      button.dataset.canComplete = 'TRUE';
-      button.dataset.operationalStage = 'WAITING_RECEIVING';
-      delete button.dataset.edgePending;
-      button.removeAttribute('aria-disabled');
-      button.removeAttribute('aria-busy');
-      button.textContent =
-        button.dataset.originalText ||
-        'บันทึกรับสินค้าเสร็จ';
-    });
-
-    if (sourceButton) {
-      sourceButton.disabled = false;
-    }
-
-    const card = findVehicleCard(recordId);
-    if (card) {
-      card.dataset.operationalStage = 'WAITING_RECEIVING';
-      delete card.dataset.receivingEdgePending;
-    }
-
-    scheduleBoardRefresh();
-  }
-
   function applyCommittedState(
     recordId,
     result,
@@ -1108,10 +1016,6 @@ function enqueueWorkflowSync(
       recordId
     );
 
-    getReceivingButtons(recordId).forEach(function (button) {
-      delete button.dataset.edgePending;
-    });
-
     const card =
       findVehicleCard(
         recordId
@@ -1120,8 +1024,6 @@ function enqueueWorkflowSync(
     if (!card) {
       return;
     }
-
-    delete card.dataset.receivingEdgePending;
 
     card.dataset
       .operationalStage =
@@ -1524,6 +1426,10 @@ async function showSuccess(
     const alreadyCompleted =
       result &&
       result.alreadyCompleted === true;
+    const acceptedByFastQueue =
+      result &&
+      result.queueAccepted === true &&
+      alreadyCompleted !== true;
 
     await Swal.fire({
       toast: true,
@@ -1537,12 +1443,16 @@ async function showSuccess(
             <strong>
               ${alreadyCompleted
                 ? 'รายการนี้บันทึกไว้แล้ว'
-                : 'บันทึกรับสินค้าเสร็จสำเร็จ'}
+                : acceptedByFastQueue
+                  ? 'รับรายการแล้ว'
+                  : 'บันทึกรับสินค้าเสร็จสำเร็จ'}
             </strong>
             ${identity
               ? `<span>${escapeHtml(identity)}</span>`
               : ''}
-            <small>ย้ายไปรอรับเอกสารคืนแล้ว</small>
+            <small>${acceptedByFastQueue
+              ? 'ทำรายการคันถัดไปได้ทันที ระบบทำส่วนที่เหลือให้อัตโนมัติ'
+              : 'ย้ายไปรอรับเอกสารคืนแล้ว'}</small>
           </div>
         </div>
       `,
