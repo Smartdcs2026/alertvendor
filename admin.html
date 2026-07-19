@@ -1246,7 +1246,7 @@
       <div class="admin-section-heading">
         <div>
           <p class="eyebrow">
-            MONTHLY DATA CONTROL
+            MONTHLY DATA CONTROL · SAFE ARCHIVE
           </p>
 
           <h2>
@@ -1254,7 +1254,7 @@
           </h2>
 
           <p>
-            Admin เลือกเดือน ตรวจจำนวนข้อมูล สร้างไฟล์ Excel หนึ่งไฟล์ และดูว่าชีตใดห้ามแตะหรือเตรียมเก็บถาวรได้
+            Admin เลือกเดือน สร้าง Excel สำรองข้อมูล และเคลียร์เฉพาะรายการที่ปิดงานแล้วโดยไม่แตะชีตต้นทาง
           </p>
         </div>
 
@@ -1481,8 +1481,8 @@
         </section>
 
         <section class="admin-data-control-note">
-          <strong>รอบนี้ยังไม่มีการลบข้อมูลจริง</strong>
-          <span>ระบบจะแสดง Preview เท่านั้น การเก็บถาวรและเคลียร์ข้อมูลจะเปิดใน ROUND 09 หลังมี Excel และ Backup แล้ว</span>
+          <strong>ลบข้อมูลแบบปลอดภัย 2 ขั้นตอน</strong>
+          <span>ต้องมี Excel ประจำเดือนก่อน จากนั้นระบบจะสร้าง Backup ทั้งไฟล์ แล้วให้ Admin พิมพ์ข้อความยืนยันก่อนลบเฉพาะรถ/ตู้ที่ปิดงานแล้ว</span>
         </section>
 
         <section>
@@ -1499,11 +1499,69 @@
           <div class="admin-card__header">
             <div>
               <p class="eyebrow">CLEANUP PREVIEW</p>
-              <h3>ข้อมูลที่เตรียมเก็บถาวรในรอบถัดไป</h3>
+              <h3>ข้อมูลที่เตรียมเก็บถาวร</h3>
             </div>
           </div>
           <div id="adminMonthlyCleanupPreview" class="admin-monthly-cleanup-preview">กด “ตรวจข้อมูลเดือนนี้ก่อน” เพื่อดูรายการ</div>
         </section>
+
+        <section class="admin-card" aria-label="เก็บถาวรและเคลียร์ข้อมูลประจำเดือน">
+          <div class="admin-card__header">
+            <div>
+              <p class="eyebrow">SAFE MONTHLY ARCHIVE</p>
+              <h3>สำรองและเคลียร์ข้อมูลเดือนเก่า</h3>
+              <p>ใช้ได้เฉพาะเดือนก่อนหน้า ระบบไม่ลบเดือนปัจจุบัน รถที่ยังไม่ปิดงาน หรือรายการที่มีข้อมูลขัดแย้ง</p>
+            </div>
+          </div>
+
+          <div class="admin-monthly-action-stack">
+            <button id="adminMonthlyCleanupPreviewButton" class="button button--secondary" type="button">
+              ตรวจความพร้อมก่อนเคลียร์
+            </button>
+            <button id="adminMonthlyPrepareCleanupButton" class="button button--danger-ghost" type="button" disabled>
+              สำรองและเคลียร์เดือนนี้
+            </button>
+          </div>
+
+          <div id="adminSafeCleanupStatus" class="admin-export-summary">
+            กรุณาสร้างไฟล์ Excel ของเดือนนั้นก่อน
+          </div>
+          <div id="adminSafeCleanupResult" class="admin-management-result"></div>
+        </section>
+      </article>
+
+      <article class="admin-card" aria-label="ล้าง Log ระบบเก่า">
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">LOG RETENTION</p>
+            <h3>ล้าง Log เก่าที่ไม่ใช้แล้ว</h3>
+            <p>เหมาะกับชีตประวัติที่เริ่มมีหลายหมื่นแถว ระบบจะสำรอง Spreadsheet ก่อนลบทุกครั้ง</p>
+          </div>
+        </div>
+
+        <div class="admin-simple-export-grid">
+          <label class="form-field">
+            <span class="form-label">เก็บ Log ย้อนหลัง</span>
+            <select id="adminLogRetentionDays">
+              <option value="90">90 วัน</option>
+              <option value="180" selected>180 วัน</option>
+              <option value="365">365 วัน</option>
+              <option value="730">730 วัน</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="admin-monthly-action-stack">
+          <button id="adminLogCleanupPreviewButton" class="button button--secondary" type="button">
+            ตรวจ Log เก่า
+          </button>
+          <button id="adminLogCleanupExecuteButton" class="button button--danger-ghost" type="button" disabled>
+            สำรองและล้าง Log เก่า
+          </button>
+        </div>
+
+        <div id="adminLogCleanupStatus" class="admin-export-summary">ยังไม่ได้ตรวจ Log</div>
+        <div id="adminLogCleanupResult" class="admin-management-result"></div>
       </article>
 
       <article class="admin-card">
@@ -2449,7 +2507,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260719-round8-monthly-data-control"
+    src="./admin-inbound-export.js?v=20260719-round9-revision1-correct-monthly-cleanup"
     defer
   ></script>
 
