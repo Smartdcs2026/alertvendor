@@ -25,6 +25,7 @@
  * - ROUND 05: หยุด Revision Polling ระหว่าง Foreground Write และเก็บ Performance Trace
  */
 (function (window, document) {
+  const MODULE_RECEIVING_HANDOFF_BUILD = '2026.07.20-round11-revision2-receiving-handoff-v1';
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
@@ -33,9 +34,9 @@
     'alertvendor:checkout-pending:v2:';
   const CHECKOUT_VERIFY_ATTEMPTS = 3;
   const RECEIVING_COMMITTED_OVERLAY_PREFIX =
-    'alertvendor:receiving-committed:v1:';
+    'alertvendor:receiving-handoff:v2:';
   const RECEIVING_COMMITTED_OVERLAY_MAX_AGE_MS =
-    30 * 60 * 1000;
+    24 * 60 * 60 * 1000;
   let receivingCommittedOverlayCache = null;
   let receivingCommittedOverlayCacheKey = '';
 
@@ -697,6 +698,24 @@
       'alertvendor:receiving-committed',
       (event) => {
         handleReceivingCommittedEvent(
+          event && event.detail
+        );
+      }
+    );
+
+    document.addEventListener(
+      'alertvendor:receiving-accepted',
+      (event) => {
+        handleReceivingAcceptedEvent(
+          event && event.detail
+        );
+      }
+    );
+
+    document.addEventListener(
+      'alertvendor:receiving-rejected',
+      (event) => {
+        handleReceivingRejectedEvent(
           event && event.detail
         );
       }
@@ -3089,6 +3108,16 @@
       state.records.filter(
         (record) => {
           if (
+            !isAdmin() &&
+            (
+              record._receivingHandoffHidden === true ||
+              record.receivingHandoffHidden === true
+            )
+          ) {
+            return false;
+          }
+
+          if (
             statusFilter !== 'ALL' &&
             record.statusCode !==
               statusFilter
@@ -3582,6 +3611,8 @@
       'รับสินค้าเสร็จแล้ว';
     item._receivingOverlayApplied =
       true;
+    item._receivingHandoffHidden =
+      true;
 
     return item;
   }
@@ -3654,6 +3685,46 @@
       ).toUpperCase();
 
     return stage === 'WAITING_DOCUMENT_RETURN';
+  }
+
+  function handleReceivingAcceptedEvent(detail) {
+    return handleReceivingCommittedEvent(detail);
+  }
+
+  function handleReceivingRejectedEvent(detail) {
+    const payload = detail && typeof detail === 'object' ? detail : {};
+    const recordId = String(payload.recordId || '').trim();
+    const canonicalRecordId = String(payload.canonicalRecordId || '').trim();
+    const sourceRowNumber = Number(payload.sourceRowNumber || 0) || 0;
+    const autoId = String(payload.autoId || '').trim().toUpperCase();
+
+    if (recordId) removeReceivingCommittedOverlay(recordId);
+
+    let changed = false;
+    state.records = (Array.isArray(state.records) ? state.records : []).map((record) => {
+      const matches =
+        Boolean(recordId && String(record.recordId || '').trim() === recordId) ||
+        Boolean(canonicalRecordId && String(record.canonicalRecordId || '').trim() === canonicalRecordId) ||
+        Boolean(sourceRowNumber > 0 && Number(record.sourceRowNumber || 0) === sourceRowNumber) ||
+        Boolean(autoId && String(record.autoId || record.sourceAutoId || '').trim().toUpperCase() === autoId);
+
+      if (!matches) return record;
+      changed = true;
+      const next = Object.assign({}, record);
+      next._receivingHandoffHidden = false;
+      next.receivingHandoffHidden = false;
+      next._receivingOverlayApplied = false;
+      next.canCompleteReceiving = next.operationalStage === 'WAITING_RECEIVING';
+      return next;
+    });
+
+    if (changed) {
+      state.recordsSignature = buildRecordsSignature(state.records);
+      renderOperationalBoard();
+      applyFiltersAndRender();
+    }
+    scheduleNextRevisionCheck(120);
+    return changed;
   }
 
   function handleReceivingCommittedEvent(detail) {
@@ -3797,6 +3868,10 @@
         next.workflowStatusLabel =
           'รับสินค้าเสร็จแล้ว';
         next._receivingOverlayApplied =
+          true;
+        next._receivingHandoffHidden =
+          true;
+        next.receivingHandoffHidden =
           true;
 
         return normalizeOperationalRecord(
@@ -4065,10 +4140,19 @@
   }
 
   function buildOperationalSummary(records) {
-    const list =
+    const sourceList =
       Array.isArray(records)
         ? records
         : [];
+    const list = isAdmin()
+      ? sourceList
+      : sourceList.filter((record) => !(
+          record &&
+          (
+            record._receivingHandoffHidden === true ||
+            record.receivingHandoffHidden === true
+          )
+        ));
     const stages = {
       WAITING_INBOUND_DOCUMENT: 0,
       WAITING_RECEIVING: 0,
@@ -10291,10 +10375,26 @@
       return state.operationalBoard;
     },
 
+    applyReceivingAccepted(detail) {
+      return handleReceivingAcceptedEvent(
+        detail
+      );
+    },
+
     applyReceivingCommitted(detail) {
       return handleReceivingCommittedEvent(
         detail
       );
+    },
+
+    applyReceivingRejected(detail) {
+      return handleReceivingRejectedEvent(
+        detail
+      );
+    },
+
+    getServerTimeMs() {
+      return getCurrentServerTimeMs();
     },
 
     verifyOperationalBoardRevision(
