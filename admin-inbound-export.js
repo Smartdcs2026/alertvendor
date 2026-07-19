@@ -1,6 +1,6 @@
 /**
  * admin-inbound-export.js
- * ROUND 09 REVISION 1 — Correct Monthly Data + Safe Archive Cleanup
+ * ROUND 10 HOTFIX 1 — Automatic Log Retention + Safe Archive Cleanup
  * Monthly Excel + Sheet Registry + Backup + Two-step Cleanup
  */
 (function (
@@ -47,6 +47,9 @@
       null,
 
     logPreview:
+      null,
+
+    automaticRetention:
       null
   };
 
@@ -84,6 +87,7 @@
 
       await loadModules();
       await loadConfig();
+      await loadAutomaticRetentionStatus();
       setDateMode(
         'MONTH'
       );
@@ -152,6 +156,26 @@
     byId('adminLogCleanupExecuteButton')?.addEventListener(
       'click',
       prepareAndExecuteSystemLogs
+    );
+
+    byId('adminAutoLogRetentionStatusButton')?.addEventListener(
+      'click',
+      loadAutomaticRetentionStatus
+    );
+
+    byId('adminAutoLogRetentionEnableButton')?.addEventListener(
+      'click',
+      enableAutomaticLogRetention
+    );
+
+    byId('adminAutoLogRetentionRunButton')?.addEventListener(
+      'click',
+      runAutomaticLogRetentionNow
+    );
+
+    byId('adminAutoLogRetentionDisableButton')?.addEventListener(
+      'click',
+      disableAutomaticLogRetention
     );
 
     byId(
@@ -1048,6 +1072,113 @@
   }
 
 
+  async function loadAutomaticRetentionStatus() {
+    if (!state.moduleId) return;
+    try {
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_RETENTION_STATUS'
+      });
+      state.automaticRetention = result;
+      renderAutomaticRetentionStatus(result);
+    } catch (error) {
+      setAutomaticRetentionStatus('ตรวจสถานะไม่สำเร็จ: ' + errorMessage(error));
+    }
+  }
+
+
+  async function enableAutomaticLogRetention() {
+    if (!state.moduleId || state.loading) return;
+    const proceed = await simpleConfirm(
+      'เปิดการล้าง Log อัตโนมัติ',
+      'ระบบจะหยุดบันทึก Auto Close ที่ไม่มีการเปลี่ยนข้อมูล และสำรอง Log ก่อนลบทุกวันประมาณ 02:30 น.',
+      'เปิดใช้งาน'
+    );
+    if (!proceed) return;
+
+    state.loading = true;
+    setAutomaticRetentionBusy(true, 'กำลังเปิด...');
+    try {
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_RETENTION_ENABLE'
+      });
+      state.automaticRetention = result;
+      renderAutomaticRetentionStatus(result);
+      toast('เปิดการล้าง Log อัตโนมัติแล้ว', 'success');
+    } catch (error) {
+      setAutomaticRetentionStatus('เปิดใช้งานไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setAutomaticRetentionBusy(false);
+    }
+  }
+
+
+  async function disableAutomaticLogRetention() {
+    if (!state.moduleId || state.loading) return;
+    const proceed = await simpleConfirm(
+      'หยุดการล้าง Log อัตโนมัติ',
+      'ระบบจะหยุด Trigger อัตโนมัติ แต่ไฟล์ Archive เดิมจะไม่ถูกลบ',
+      'หยุดใช้งาน'
+    );
+    if (!proceed) return;
+
+    state.loading = true;
+    setAutomaticRetentionBusy(true, 'กำลังหยุด...');
+    try {
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_RETENTION_DISABLE'
+      });
+      state.automaticRetention = result;
+      renderAutomaticRetentionStatus(result);
+      toast('หยุดการล้าง Log อัตโนมัติแล้ว', 'info');
+    } catch (error) {
+      setAutomaticRetentionStatus('หยุดใช้งานไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setAutomaticRetentionBusy(false);
+    }
+  }
+
+
+  async function runAutomaticLogRetentionNow() {
+    if (!state.moduleId || state.loading) return;
+    const proceed = await simpleConfirm(
+      'สำรองและล้าง Log ตอนนี้',
+      'ระบบจะสร้างไฟล์ CSV ใน Google Drive ก่อน แล้วจึงลบเฉพาะ Log ที่ลบได้ ครั้งละไม่เกิน 8,000 แถว',
+      'เริ่มทำงาน'
+    );
+    if (!proceed) return;
+
+    state.loading = true;
+    setAutomaticRetentionBusy(true, 'กำลังสำรอง...');
+    setAutomaticRetentionStatus('กำลังสำรองและล้าง Log ที่ซ้ำหรือเก่า...');
+    try {
+      const result = await API.createManagementReportPackage(state.moduleId, {
+        dateMode: 'MONTH',
+        month: value('adminManagementMonth') || new Date().toISOString().slice(0, 7),
+        reportProfile: 'SYSTEM_LOG_RETENTION_RUN_NOW'
+      });
+      renderAutomaticRetentionRun(result);
+      await loadAutomaticRetentionStatus();
+      toast(result.deletedRows ? 'ล้าง Log สำเร็จ ' + Number(result.deletedRows).toLocaleString('th-TH') + ' แถว' : 'ไม่มี Log ที่ต้องล้าง', 'success');
+    } catch (error) {
+      setAutomaticRetentionStatus('ดำเนินการไม่สำเร็จ: ' + errorMessage(error));
+      toast(errorMessage(error), 'error');
+    } finally {
+      state.loading = false;
+      setAutomaticRetentionBusy(false);
+    }
+  }
+
+
   async function previewSystemLogs() {
     if (!state.moduleId || state.loading) return;
     const retentionDays = Number(value('adminLogRetentionDays') || 180);
@@ -1213,6 +1344,71 @@
       <p>Excel Archive: ${escapeHtml(result.archivedExportFileName || '-')}</p>
     `;
     setSafeCleanupStatus('เสร็จแล้ว ข้อมูลที่ยังใช้งานอยู่ไม่ได้ถูกลบ');
+  }
+
+
+  function renderAutomaticRetentionStatus(result) {
+    const element = byId('adminAutoLogRetentionResult');
+    if (!element) return;
+    const enabled = Boolean(result && result.enabled);
+    const lastRun = result && result.lastRun ? result.lastRun : null;
+    element.innerHTML = `
+      <div class="admin-management-result__facts">
+        <span>${enabled ? 'เปิดอัตโนมัติ' : 'ปิดอัตโนมัติ'}</span>
+        <span>${Number(result && result.currentRows || 0).toLocaleString('th-TH')} แถวปัจจุบัน</span>
+        <span>${Number(result && result.eligibleRows || 0).toLocaleString('th-TH')} แถวที่จัดการได้</span>
+      </div>
+      <p>เวลาทำงาน: ${escapeHtml(result && result.scheduleText || 'ทุกวันประมาณ 02:30 น.')}</p>
+      <p>สำรองไว้ที่: ${escapeHtml(result && result.archiveFolderName || 'AlertVendor_Log_Archive')}</p>
+      ${lastRun ? `<p>ครั้งล่าสุด: ${escapeHtml(lastRun.finishedAt || lastRun.failedAt || '-')} · ลบ ${Number(lastRun.deletedRows || 0).toLocaleString('th-TH')} แถว</p>` : '<p>ยังไม่เคยทำงาน</p>'}
+    `;
+    setAutomaticRetentionStatus(enabled ? 'ระบบล้าง Log อัตโนมัติทำงานอยู่' : 'ระบบล้าง Log อัตโนมัติยังปิดอยู่');
+    const enableButton = byId('adminAutoLogRetentionEnableButton');
+    const disableButton = byId('adminAutoLogRetentionDisableButton');
+    if (enableButton) enableButton.disabled = enabled;
+    if (disableButton) disableButton.disabled = !enabled;
+  }
+
+
+  function renderAutomaticRetentionRun(result) {
+    const element = byId('adminAutoLogRetentionResult');
+    if (!element) return;
+    const files = Array.isArray(result && result.archiveFiles) ? result.archiveFiles : [];
+    element.innerHTML = `
+      <h4>${Number(result && result.deletedRows || 0) > 0 ? 'สำรองและล้าง Log สำเร็จ' : 'ไม่มี Log ที่ต้องล้าง'}</h4>
+      <p>ลบ ${Number(result && result.deletedRows || 0).toLocaleString('th-TH')} แถว · เหลือรอจัดการ ${Number(result && result.remainingEligibleRows || 0).toLocaleString('th-TH')} แถว</p>
+      ${files.map((file) => `<p>Archive: ${escapeHtml(file.fileName || '-')} · ${Number(file.rowCount || 0).toLocaleString('th-TH')} แถว</p>`).join('')}
+    `;
+    setAutomaticRetentionStatus(result && result.status === 'PARTIAL_CLEANUP' ? 'ยังมีข้อมูลค้าง ระบบจะทำต่ออัตโนมัติทุก 1 ชั่วโมง' : 'เสร็จแล้ว');
+  }
+
+
+  function setAutomaticRetentionStatus(message) {
+    const element = byId('adminAutoLogRetentionStatus');
+    if (element) element.textContent = message;
+  }
+
+
+  function setAutomaticRetentionBusy(busy, label) {
+    const ids = [
+      'adminAutoLogRetentionStatusButton',
+      'adminAutoLogRetentionEnableButton',
+      'adminAutoLogRetentionRunButton',
+      'adminAutoLogRetentionDisableButton'
+    ];
+    ids.forEach((id) => {
+      const button = byId(id);
+      if (button) button.disabled = Boolean(busy);
+    });
+    const runButton = byId('adminAutoLogRetentionRunButton');
+    if (runButton) runButton.textContent = busy ? (label || 'กำลังทำงาน...') : 'สำรองและล้างตอนนี้';
+    if (!busy && state.automaticRetention) {
+      const enabled = Boolean(state.automaticRetention.enabled);
+      const enableButton = byId('adminAutoLogRetentionEnableButton');
+      const disableButton = byId('adminAutoLogRetentionDisableButton');
+      if (enableButton) enableButton.disabled = enabled;
+      if (disableButton) disableButton.disabled = !enabled;
+    }
   }
 
 
