@@ -1534,8 +1534,41 @@
         <div class="admin-card__header">
           <div>
             <p class="eyebrow">LOG RETENTION</p>
-            <h3>ล้าง Log เก่าที่ไม่ใช้แล้ว</h3>
-            <p>เหมาะกับชีตประวัติที่เริ่มมีหลายหมื่นแถว ระบบจะสำรอง Spreadsheet ก่อนลบทุกครั้ง</p>
+            <h3>ดูแลประวัติระบบอัตโนมัติ</h3>
+            <p>หยุดสร้างรายการ Auto Close ที่ไม่มีการเปลี่ยนข้อมูล และสำรองเป็น CSV ก่อนลบทุกวันประมาณ 02:30 น.</p>
+          </div>
+        </div>
+
+        <section class="admin-data-control-note">
+          <strong>ข้อมูลสำคัญไม่ถูกลบอัตโนมัติ</strong>
+          <span>รายการของผู้ใช้งาน, Admin, การตั้งค่า, ยกเลิก, ส่งออก และ Auto Close ที่ปิดรถจริงจะถูกเก็บไว้</span>
+        </section>
+
+        <div class="admin-monthly-action-stack">
+          <button id="adminAutoLogRetentionStatusButton" class="button button--secondary" type="button">
+            ตรวจสถานะ
+          </button>
+          <button id="adminAutoLogRetentionEnableButton" class="button button--primary" type="button">
+            เปิดอัตโนมัติ
+          </button>
+          <button id="adminAutoLogRetentionRunButton" class="button button--secondary" type="button">
+            สำรองและล้างตอนนี้
+          </button>
+          <button id="adminAutoLogRetentionDisableButton" class="button button--danger-ghost" type="button">
+            หยุดอัตโนมัติ
+          </button>
+        </div>
+
+        <div id="adminAutoLogRetentionStatus" class="admin-export-summary">กำลังตรวจสถานะ...</div>
+        <div id="adminAutoLogRetentionResult" class="admin-management-result"></div>
+
+        <hr style="border:0;border-top:1px solid #e2e8f0;margin:18px 0">
+
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">MANUAL CLEANUP</p>
+            <h3>ล้าง Log เก่าด้วยตนเอง</h3>
+            <p>ใช้เมื่อต้องการเลือกระยะเก็บเอง ระบบจะสำรอง Spreadsheet ทั้งไฟล์ก่อนลบทุกครั้ง</p>
           </div>
         </div>
 
@@ -2507,7 +2540,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260719-round9-revision1-correct-monthly-cleanup"
+    src="./admin-inbound-export.js?v=20260719-round10-hotfix1-automatic-log-retention"
     defer
   ></script>
 
