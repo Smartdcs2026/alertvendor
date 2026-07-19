@@ -12,6 +12,8 @@
 (function (window) {
   'use strict';
 
+  const RECEIVING_COMMAND_API_BUILD = '2026.07.20-round11-revision2-receiving-command-api-v1';
+
   const CONFIG =
     window.APP_CONFIG || {};
 
@@ -2281,11 +2283,11 @@
             method:
               'POST',
 
-            /* Fast Queue เขียนเพียง 1 แถว ไม่ควรค้างหน้าจอนาน */
+            /* Command Journal รับคำสั่งอย่างเดียว Browser จัดการ retry ด้วย Request ID เดิม */
             timeoutMs:
               Math.min(
                 Number(CONFIG.API_TIMEOUT_MS || 30000),
-                12000
+                8000
               ),
 
             requestId:
