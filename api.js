@@ -2281,10 +2281,11 @@
             method:
               'POST',
 
+            /* Fast Queue เขียนเพียง 1 แถว ไม่ควรค้างหน้าจอนาน */
             timeoutMs:
               Math.min(
-                Number(CONFIG.SAVE_TIMEOUT_MS || 60000),
-                45000
+                Number(CONFIG.API_TIMEOUT_MS || 30000),
+                12000
               ),
 
             requestId:
