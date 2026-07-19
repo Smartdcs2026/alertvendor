@@ -229,6 +229,33 @@
     }
   </style>
 
+  <style>
+    /* ROUND 08 — Monthly Data Control Center */
+    .admin-monthly-action-stack { display:grid; grid-template-columns:minmax(180px,.75fr) minmax(240px,1fr); gap:10px; }
+    .admin-monthly-overview { display:grid; grid-template-columns:repeat(6,minmax(120px,1fr)); gap:10px; margin-top:16px; }
+    .admin-monthly-overview article { padding:12px; border:1px solid #dbe7ee; border-radius:12px; background:#f8fbfd; }
+    .admin-monthly-overview span { display:block; color:#64748b; font-size:.78rem; font-weight:800; }
+    .admin-monthly-overview strong { display:block; margin-top:5px; color:#0f3d5e; font-size:1.18rem; }
+    .admin-data-control-note { display:grid; gap:4px; margin-top:14px; padding:12px 14px; border-left:4px solid #d97706; border-radius:10px; background:#fff8e7; color:#7c4a03; }
+    .admin-monthly-package-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+    .admin-monthly-package-item { padding:10px 12px; border:1px solid #dbe7ee; border-radius:11px; background:#fff; }
+    .admin-monthly-package-item strong { display:block; color:#0f4f68; }
+    .admin-monthly-package-item span { display:block; margin-top:4px; color:#64748b; font-size:.8rem; line-height:1.45; }
+    .admin-monthly-cleanup-preview { display:grid; gap:8px; }
+    .admin-cleanup-preview-row { display:grid; grid-template-columns:1.3fr .8fr .8fr 1.5fr; gap:8px; padding:9px 10px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-size:.82rem; }
+    .admin-sheet-registry { overflow:auto; }
+    .admin-sheet-registry table { width:100%; border-collapse:collapse; min-width:980px; }
+    .admin-sheet-registry th, .admin-sheet-registry td { padding:9px 10px; border-bottom:1px solid #e5edf4; text-align:left; vertical-align:top; font-size:.8rem; }
+    .admin-sheet-registry th { position:sticky; top:0; background:#eef6fa; color:#0f3d5e; z-index:1; }
+    .admin-sheet-registry [data-category="SOURCE_READ_ONLY"] { color:#991b1b; font-weight:900; }
+    .admin-sheet-registry [data-category="PERMANENT_CONFIG"] { color:#6b21a8; font-weight:900; }
+    .admin-sheet-registry [data-category="BUSINESS_EVIDENCE"] { color:#92400e; font-weight:900; }
+    .admin-sheet-registry [data-category="DERIVED_REBUILDABLE"] { color:#0369a1; font-weight:900; }
+    .admin-sheet-registry [data-category="OPERATION_LOG"] { color:#475569; font-weight:900; }
+    @media (max-width:1000px) { .admin-monthly-overview { grid-template-columns:repeat(3,minmax(0,1fr)); } .admin-monthly-package-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:760px) { .admin-monthly-action-stack, .admin-monthly-overview, .admin-monthly-package-list, .admin-cleanup-preview-row { grid-template-columns:1fr; } }
+  </style>
+
 </head>
 
 <body
@@ -379,7 +406,7 @@
         type="button"
         data-admin-tab="exports"
       >
-        ส่งออก
+        ข้อมูลรายเดือน
       </button>
 
       <button
@@ -1219,15 +1246,15 @@
       <div class="admin-section-heading">
         <div>
           <p class="eyebrow">
-            SIMPLE EXPORT
+            MONTHLY DATA CONTROL
           </p>
 
           <h2>
-            ส่งออกข้อมูลทุกขั้นตอน
+            ส่งออกสิ้นเดือนและดูแลข้อมูลระบบ
           </h2>
 
           <p>
-            เลือกช่วงเวลาและรูปแบบไฟล์ จากนั้นกดสร้างและดาวน์โหลดเพียงครั้งเดียว
+            Admin เลือกเดือน ตรวจจำนวนข้อมูล สร้างไฟล์ Excel หนึ่งไฟล์ และดูว่าชีตใดห้ามแตะหรือเตรียมเก็บถาวรได้
           </p>
         </div>
 
@@ -1256,16 +1283,15 @@
         <div class="admin-simple-export-heading">
           <div>
             <p class="eyebrow">
-              ONE FILE · ALL WORKFLOW STAGES
+              ONE MONTH · ONE EXCEL · ALL DATA
             </p>
 
             <h3>
-              สรุปเวลาแต่ละขั้นตอนของรถ/ตู้
+              ไฟล์ข้อมูลรถและตู้ประจำเดือน
             </h3>
 
             <p>
-              แสดงข้อมูลรถ/ตู้, Gate In, วันเวลาของแต่ละจุด,
-              เวลาที่ใช้, เกณฑ์ Admin และ Gate Out ในไฟล์เดียว
+              รวมรถ/ตู้ที่เข้าในเดือน กิจกรรมที่เกิดในเดือน งานค้าง ผิด SLA ยกเลิก ซ่อมข้อมูล และบัญชีชีตระบบในไฟล์เดียว
             </p>
           </div>
         </div>
@@ -1273,13 +1299,13 @@
         <input
           id="adminManagementReportType"
           type="hidden"
-          value="ALL_STAGES_SINGLE"
+          value="MONTHLY_DATA_PACKAGE"
         >
 
         <input
           id="adminManagementDateMode"
           type="hidden"
-          value="TODAY"
+          value="MONTH"
         >
 
         <div class="admin-simple-export-grid">
@@ -1304,14 +1330,11 @@
             </span>
 
             <select id="adminManagementFileFormat">
-              <option value="XLSX">
-                Excel (.xlsx)
+              <option value="XLSX" selected>
+                Excel (.xlsx) — ไฟล์ประจำเดือน
               </option>
 
-              <option
-                value="CSV"
-                selected
-              >
+              <option value="CSV">
                 CSV (.csv) — เร็วที่สุด
               </option>
             </select>
@@ -1329,7 +1352,6 @@
             aria-label="เลือกช่วงข้อมูล"
           >
             <button
-              class="is-active"
               type="button"
               data-export-date-mode="TODAY"
             >
@@ -1344,6 +1366,7 @@
             </button>
 
             <button
+              class="is-active"
               type="button"
               data-export-date-mode="MONTH"
             >
@@ -1381,7 +1404,7 @@
 
         <label
           id="adminManagementMonthField"
-          class="form-field is-hidden"
+          class="form-field"
         >
           <span class="form-label">
             เดือน
@@ -1406,18 +1429,27 @@
             </span>
           </label>
 
-          <button
-            id="adminInboundExportButton"
-            class="button button--primary admin-simple-download-button"
-            type="button"
-          >
-            สร้างและดาวน์โหลด CSV
-          </button>
+          <div class="admin-monthly-action-stack">
+            <button
+              id="adminMonthlyPreviewButton"
+              class="button button--secondary"
+              type="button"
+            >
+              ตรวจข้อมูลเดือนนี้ก่อน
+            </button>
+
+            <button
+              id="adminInboundExportButton"
+              class="button button--primary admin-simple-download-button"
+              type="button"
+            >
+              สร้างไฟล์ Excel ประจำเดือน
+            </button>
+          </div>
         </div>
 
         <div class="admin-management-selection-note">
-          ใช้วันเวลา Gate In จริงเป็นเกณฑ์เลือกรายการ
-          ส่วน Gate Out และเวลาทุกขั้นตอนจะแสดงครบในแถวเดียว
+          ไฟล์มี 2 มุมมอง: รถ/ตู้ที่ Gate In ในเดือน และทุกกิจกรรมที่เกิดขึ้นในเดือน แม้รถจะเริ่มงานจากเดือนก่อน
         </div>
 
         <div
@@ -1439,7 +1471,50 @@
           class="admin-management-result"
         ></div>
 
-        
+        <section class="admin-monthly-overview" aria-label="สรุปข้อมูลประจำเดือน">
+          <article><span>รถ/ตู้เข้าเดือนนี้</span><strong id="adminMonthlyStartedCount">-</strong></article>
+          <article><span>ปิดงานแล้ว</span><strong id="adminMonthlyClosedCount">-</strong></article>
+          <article><span>ยังดำเนินงาน</span><strong id="adminMonthlyActiveCount">-</strong></article>
+          <article><span>กิจกรรมในเดือน</span><strong id="adminMonthlyActivityCount">-</strong></article>
+          <article><span>แถวที่เตรียมเก็บถาวร</span><strong id="adminMonthlyCleanupCandidateCount">-</strong></article>
+          <article><span>รายการที่ห้ามเคลียร์</span><strong id="adminMonthlyBlockedCount">-</strong></article>
+        </section>
+
+        <section class="admin-data-control-note">
+          <strong>รอบนี้ยังไม่มีการลบข้อมูลจริง</strong>
+          <span>ระบบจะแสดง Preview เท่านั้น การเก็บถาวรและเคลียร์ข้อมูลจะเปิดใน ROUND 09 หลังมี Excel และ Backup แล้ว</span>
+        </section>
+
+        <section>
+          <div class="admin-card__header">
+            <div>
+              <p class="eyebrow">WORKBOOK CONTENTS</p>
+              <h3>ข้อมูลที่จะอยู่ในไฟล์ Excel</h3>
+            </div>
+          </div>
+          <div id="adminMonthlyPackageContents" class="admin-monthly-package-list"></div>
+        </section>
+
+        <section>
+          <div class="admin-card__header">
+            <div>
+              <p class="eyebrow">CLEANUP PREVIEW</p>
+              <h3>ข้อมูลที่เตรียมเก็บถาวรในรอบถัดไป</h3>
+            </div>
+          </div>
+          <div id="adminMonthlyCleanupPreview" class="admin-monthly-cleanup-preview">กด “ตรวจข้อมูลเดือนนี้ก่อน” เพื่อดูรายการ</div>
+        </section>
+      </article>
+
+      <article class="admin-card">
+        <div class="admin-card__header">
+          <div>
+            <p class="eyebrow">SHEET REGISTRY</p>
+            <h3>บัญชีชีตทั้งหมดที่ระบบใช้งาน</h3>
+            <p>Admin ไม่ต้องจำชื่อชีตเอง ระบบระบุว่าชีตใดห้ามแตะ เก็บถาวร หรือสร้างใหม่ได้</p>
+          </div>
+        </div>
+        <div id="adminDataSheetRegistry" class="admin-sheet-registry"></div>
       </article>
 
       <article class="admin-card">
@@ -2374,7 +2449,7 @@
   </footer>
 
   <script
-    src="./admin-inbound-export.js?v=20260716-phase5-r2-hotfix04-fast-timeline"
+    src="./admin-inbound-export.js?v=20260719-round8-monthly-data-control"
     defer
   ></script>
 
